@@ -16,6 +16,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <script nonce="{{ csp_nonce }}" src="/assets/js/theme-init.js"></script>
     <script nonce="{{ csp_nonce }}">window.OP_DOC_URL = "{{ doc_url }}";</script>
+    <script nonce="{{ csp_nonce }}">window.OP_CSP_NONCE = "{{ csp_nonce }}";</script>
     {% block head %}{% endblock %}
     {{ hook('admin.head')|raw }}
 </head>

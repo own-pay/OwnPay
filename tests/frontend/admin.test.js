@@ -299,8 +299,46 @@ describe('admin.js', () => {
       // Verify resize listener is attached
       const resizeEvent = new window.Event('resize');
       window.dispatchEvent(resizeEvent);
-      
+
       // Should not throw error
+    });
+  });
+
+  describe('AJAX script re-injection CSP nonce', () => {
+    it('re-injected scripts use the current page nonce, not the nonce from the fetched partial', async () => {
+      // Test fixture markup: hardcoded, not user-controlled input.
+      document.body.innerHTML = `
+        <div class="op-content">
+          <form method="POST" action="/admin/plugins/example/activate">
+            <button type="submit">Activate</button>
+          </form>
+        </div>
+      `;
+
+      window.OP_CSP_NONCE = 'TRUSTED_NONCE';
+      window.__testScriptRan = false;
+
+      const fetchedHtml = `
+        <div class="op-content">
+          <script nonce="WRONG_NONCE">window.__testScriptRan = true;</script>
+        </div>
+      `;
+
+      window.fetch = vi.fn(() => Promise.resolve({
+        ok: true,
+        url: 'http://localhost/admin/plugins',
+        text: () => Promise.resolve(fetchedHtml),
+      }));
+
+      document.querySelector('button[type="submit"]').click();
+
+      await vi.waitFor(() => {
+        const reinjected = document.querySelector('.op-content script');
+        if (!reinjected) { throw new Error('script not re-injected yet'); }
+        expect(reinjected.getAttribute('nonce')).toBe('TRUSTED_NONCE');
+      });
+
+      expect(window.__testScriptRan).toBe(true);
     });
   });
 });
