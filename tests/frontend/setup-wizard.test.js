@@ -25,7 +25,10 @@ describe('setup-wizard.js', () => {
           </div>
           <div class="op-wizard-panel active" id="panel-1"><a href="#" id="btn-skip-step1">Skip this step</a></div>
           <div class="op-wizard-panel" id="panel-2"><a href="#" id="btn-skip-step2">Skip this step</a></div>
-          <div class="op-wizard-panel" id="panel-3"></div>
+          <div class="op-wizard-panel" id="panel-3">
+            <span id="op-wizard-otp-display">123456</span>
+            <span id="op-wizard-otp-copied" style="display:none">Copied</span>
+          </div>
         </div>
       </body></html>
     `;
@@ -35,6 +38,9 @@ describe('setup-wizard.js', () => {
     window.OP_ONBOARDING_BRAND_ID = 42;
     window.confirm = vi.fn(() => true);
     window.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ success: true, skipped: true }) }));
+    window.opCopyText = vi.fn(function (text, el, successCallback) {
+      if (typeof successCallback === 'function') { successCallback(); }
+    });
     // NOTE: repo-wide jsdom test convention (see admin.test.js, checkout.test.js,
     // op-fetch.test.js) for executing an app's IIFE page script inside the jsdom
     // window context. Source is our own trusted first-party file, not user input.
@@ -79,5 +85,38 @@ describe('setup-wizard.js', () => {
       '/admin/setup-wizard/dismiss',
       expect.objectContaining({ method: 'POST' })
     );
+  });
+
+  it('OTP copy button calls the shared window.opCopyText helper, not clipboard directly', () => {
+    // jsdom doesn't implement the Clipboard API by default; stub one just so
+    // vi.spyOn has an object to attach to (mirrors tests/frontend/developer.test.js).
+    if (!window.navigator.clipboard) {
+      Object.defineProperty(window.navigator, 'clipboard', {
+        value: { writeText: () => Promise.resolve() },
+        configurable: true,
+      });
+    }
+    const clipboardSpy = vi.spyOn(window.navigator.clipboard, 'writeText');
+
+    document.getElementById('op-wizard-otp-display').click();
+
+    expect(window.opCopyText).toHaveBeenCalledWith(
+      '123456',
+      document.getElementById('op-wizard-otp-display'),
+      expect.any(Function)
+    );
+    expect(clipboardSpy).not.toHaveBeenCalled();
+  });
+
+  it('OTP copy button shows the "copied" indicator on success and hides it after 2s', () => {
+    vi.useFakeTimers();
+    document.getElementById('op-wizard-otp-display').click();
+
+    const copiedEl = document.getElementById('op-wizard-otp-copied');
+    expect(copiedEl.style.display).toBe('inline');
+
+    vi.advanceTimersByTime(2000);
+    expect(copiedEl.style.display).toBe('none');
+    vi.useRealTimers();
   });
 });

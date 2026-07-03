@@ -190,6 +190,10 @@
         btn.onclick = function () { executeGW(tab); };
     };
 
+    // Guards executeGW/doQP/submitManual against a double-click or double-tap firing two
+    // concurrent /pay or /express requests before the first one's response comes back.
+    var paymentInFlight = false;
+
     // Shared payment response handler
     function handlePaymentResponse(res, fallbackError) {
         if (res.ok && res.data && res.data.success && res.data.redirect_url) {
@@ -213,6 +217,12 @@
             openManualPopup(s.slug, s.name);
             return;
         }
+        if (paymentInFlight) {return;}
+        paymentInFlight = true;
+
+        var btnId = tab === "card" ? "cardBtn" : tab === "mfs" ? "mfsBtn" : "bankBtn";
+        var btn = document.getElementById(btnId);
+        if (btn) {btn.disabled = true;}
 
         showLoading();
 
@@ -228,9 +238,13 @@
 
         window.opPost(basePath + "/pay", payload)
             .then(function (res) {
+                paymentInFlight = false;
+                if (btn) {btn.disabled = false;}
                 handlePaymentResponse(res, "Payment gateway is temporarily unavailable. Please try another method.");
             })
             .catch(function () {
+                paymentInFlight = false;
+                if (btn) {btn.disabled = false;}
                 handlePaymentError("Network error. Please check your connection and try again.");
             });
     }
@@ -408,7 +422,13 @@
 
     window.submitManual = function (e) {
         e.preventDefault();
+        if (paymentInFlight) {return false;}
+        paymentInFlight = true;
+
         var form = document.getElementById("mpVerifyForm");
+        var submitBtn = form ? form.querySelector('[type="submit"]') : null;
+        if (submitBtn) {submitBtn.disabled = true;}
+
         var data = new FormData(form);
 
         // Determine active gateway slug from any active tab
@@ -480,49 +500,79 @@
         var num = document.getElementById("mpNumber");
         if (!num) { return; }
         var text = num.textContent;
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(text).then(showToast);
-        } else {
-            // Fallback for non-HTTPS or legacy browsers
-            var textarea = document.createElement("textarea");
-            textarea.value = text;
-            textarea.className = "ck-clipboard-textarea";
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                document.execCommand("copy");
-                showToast();
-            } catch (err) {
-                console.error("Fallback copy failed", err);
-            }
-            document.body.removeChild(textarea);
-        }
 
         function showToast() {
             var t = document.getElementById("cToast");
             if (t) { t.classList.add("vis"); setTimeout(function () { t.classList.remove("vis"); }, 1800); }
+        }
+
+        // execCommand first: synchronous, works reliably within this click's
+        // user gesture, no permission prompt. Checkout has no admin.js here
+        // (public, unauthenticated page) so this can't reuse admin.js's
+        // shared opCopyText helper — same fallback chain reimplemented
+        // locally. The old code went straight to the async Clipboard API
+        // with no .catch(), so any rejection (denied permission, unfocused
+        // document, managed-browser policy) left the customer clicking Copy
+        // with zero feedback mid-payment.
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.className = "ck-clipboard-textarea";
+        textarea.setAttribute("readonly", "");
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        var execCommandSucceeded = false;
+        try {
+            execCommandSucceeded = document.execCommand("copy");
+        } catch (err) {
+            console.warn("execCommand copy failed", err);
+        }
+        document.body.removeChild(textarea);
+
+        if (execCommandSucceeded) {
+            showToast();
+            return;
+        }
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(text).then(showToast).catch(function (err) {
+                console.error("Async copy failed completely", err);
+                alert("Could not copy the number automatically. Here it is:\n\n" + text);
+            });
+        } else {
+            alert("Could not copy the number automatically. Here it is:\n\n" + text);
         }
     };
 
     // ---------- EXPRESS CHECKOUT ----------
     window.doQP = function (provider) {
         if (typeof window.opPost !== "function") {return;}
+        if (paymentInFlight) {return;}
+        paymentInFlight = true;
+
+        var qpBtn = document.querySelector('[data-action="do-qp"][data-provider="' + provider + '"]');
+        if (qpBtn) {qpBtn.disabled = true;}
+
         showLoading();
         var csrf = document.getElementById("op-csrf");
         var hashEl = document.getElementById("op-checkout-hash");
-        
+
         var payload = {
             provider: provider,
             checkout_hash: hashEl ? hashEl.value : "",
             _csrf_token: csrf ? csrf.value : ""
         };
-        
+
         window.opPost(basePath + "/express", payload)
             .then(function (res) {
+                paymentInFlight = false;
+                if (qpBtn) {qpBtn.disabled = false;}
                 handlePaymentResponse(res, "Express checkout failed. Please try another method.");
             })
             .catch(function () {
+                paymentInFlight = false;
+                if (qpBtn) {qpBtn.disabled = false;}
                 handlePaymentError("Express checkout is temporarily unavailable. Please try another method.");
             });
     };

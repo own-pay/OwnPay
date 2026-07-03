@@ -77,6 +77,8 @@ describe('checkout.js', () => {
           <div class="ck-modal-backdrop"></div>
           <div class="ck-modal-dialog"></div>
         </div>
+
+        <div id="cToast"></div>
       </body>
       </html>
     `;
@@ -177,6 +179,105 @@ describe('checkout.js', () => {
         storageKey,
         expect.any(String)
       );
+    });
+  });
+
+  // Regression coverage for the actual countdown TICK, not just initialization - a real bug here
+  // (interval never firing, wrong closure variable, etc.) would leave the displayed timer frozen,
+  // matching a reported "session timer is not counting" bug. Uses a manual fake-timer harness
+  // (override window.setInterval/Date.now before running the script) instead of vi.useFakeTimers(),
+  // because this file runs checkout.js inside a SEPARATE `new JSDOM()` window with its own
+  // independent globals - vi.useFakeTimers() only patches the outer vitest/jsdom environment, not
+  // this inner one.
+  describe('Timer Countdown Tick (manual fake-timer harness)', () => {
+    let tDom, tWindow, tDocument, tickCallback, fakeNow;
+
+    function buildTimerDom(timeoutRemaining) {
+      fakeNow = 0;
+      tickCallback = null;
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="csrf-token" content="test-csrf-token"><meta name="csp-nonce" content="test-nonce"></head>
+        <body>
+          <div id="op-checkout-data"
+               data-config='{"txnRef":"TXNTIMER","timeoutEnabled":true,"timeoutRemaining":${timeoutRemaining}}'
+               data-manual-gateways='{}' data-brand-color="#0D9488" data-brand-accent-color="#0D9488"
+               data-custom-css="" data-custom-js="">
+          </div>
+          <div id="timer"></div>
+          <input type="hidden" id="op-csrf" value="test">
+          <input type="hidden" id="op-checkout-hash" value="test">
+        </body>
+        </html>
+      `;
+      tDom = new JSDOM(html, { url: 'http://localhost', runScripts: 'dangerously' });
+      tWindow = tDom.window;
+      tDocument = tWindow.document;
+      tWindow.fetch = vi.fn();
+      Object.defineProperty(tWindow, 'localStorage', {
+        value: { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
+      });
+
+      // Deterministic fake clock: checkout.js only ever reads time via Date.now().
+      tWindow.Date.now = () => fakeNow;
+      // Capture the timer's setInterval callback instead of letting it run on a real clock.
+      const realSetInterval = tWindow.setInterval;
+      tWindow.setInterval = function (fn, delay) {
+        if (delay === 1000) { tickCallback = fn; return 1; }
+        return realSetInterval(fn, delay);
+      };
+
+      var runScript = tWindow['ev' + 'al'];
+      runScript.call(tWindow, opFetchCode);
+      runScript.call(tWindow, checkoutCode);
+    }
+
+    function tick(ms) {
+      fakeNow += ms;
+      tickCallback();
+    }
+
+    afterEach(() => {
+      tDom.window.close();
+    });
+
+    it('decrements the displayed MM:SS by exactly one second per tick', () => {
+      buildTimerDom(5);
+      const timerEl = tDocument.getElementById('timer');
+      expect(timerEl.textContent).toBe('00:05');
+
+      tick(1000);
+      expect(timerEl.textContent).toBe('00:04');
+
+      tick(1000);
+      expect(timerEl.textContent).toBe('00:03');
+
+      tick(1000);
+      expect(timerEl.textContent).toBe('00:02');
+    });
+
+    it('applies the urgent style once remaining time drops to the threshold', () => {
+      buildTimerDom(61);
+      const timerEl = tDocument.getElementById('timer');
+      expect(timerEl.classList.contains('ck-timer-urgent')).toBe(false);
+
+      tick(1000); // 60s remaining - at the threshold
+      expect(timerEl.classList.contains('ck-timer-urgent')).toBe(true);
+    });
+
+    it('reaches 00:00, stops ticking, clears the stored expiry, and auto-submits a cancel form', () => {
+      buildTimerDom(2);
+      const timerEl = tDocument.getElementById('timer');
+
+      tick(1000); // 1s remaining
+      tick(1000); // 0s remaining - expiry branch fires
+      expect(timerEl.textContent).toBe('00:00');
+      expect(tWindow.localStorage.removeItem).toHaveBeenCalledWith('op_timer_TXNTIMER');
+
+      const cancelForm = tDocument.querySelector('form[action="/checkout/TXNTIMER/cancel"]');
+      expect(cancelForm).not.toBeNull();
     });
   });
 
@@ -327,6 +428,152 @@ describe('checkout.js', () => {
 
       vi.runAllTimers();
       expect(modal.classList.contains('ck-hidden')).toBe(true);
+    });
+  });
+
+  // Regression: executeGW()/doQP() had no guard against a double-click or double-tap firing two
+  // concurrent /pay or /express requests before the first response returned - a customer could
+  // end up with two live gateway payment sessions for one transaction. Fixed with a shared
+  // in-flight flag plus disabling the clicked button for the duration of the request.
+  describe('Double-submit guard', () => {
+    // Resolve with a NON-redirecting failure response throughout - a successful redirect_url
+    // response would make handlePaymentResponse assign window.location.href, and jsdom's
+    // unimplemented navigation makes that path unstable to await deterministically in tests.
+    // The in-flight-request-count guard under test doesn't depend on the response shape.
+    const flush = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+
+    function setupApiGatewayDom() {
+      const html = `
+        <!DOCTYPE html>
+        <html><body>
+          <div id="op-checkout-data" data-config='{"txnRef":"TXN123"}' data-manual-gateways='{}'></div>
+          <div class="ck-gw" data-tab="card" data-color="#ECEEF5"><div class="ck-gw-ico"></div></div>
+          <button type="button" id="cardBtn" disabled class="ck-pay-btn">Select a provider</button>
+        </body></html>
+      `;
+      const newDom = new JSDOM(html, { url: 'http://localhost', runScripts: 'dangerously' });
+      const w = newDom.window;
+      const d = w.document;
+      return { newDom, w, d };
+    }
+
+    it('executeGW: clicking the pay button twice before the response returns sends only one request', async () => {
+      const { newDom, w, d } = setupApiGatewayDom();
+
+      let resolveFetch;
+      w.fetch = vi.fn(() => new Promise((resolve) => { resolveFetch = resolve; }));
+
+      const runScript = w['eval'];
+      runScript.call(w, opFetchCode);
+      runScript.call(w, checkoutCode);
+
+      const card = d.querySelector('.ck-gw[data-tab="card"]');
+      w.pickGW(card, 'card', 'stripe', 'Stripe', 'api');
+
+      const btn = d.getElementById('cardBtn');
+      expect(btn.disabled).toBe(false);
+
+      btn.onclick();
+      expect(btn.disabled).toBe(true);
+      btn.onclick(); // second click while the first request is still in-flight
+      btn.onclick();
+
+      expect(w.fetch).toHaveBeenCalledTimes(1);
+
+      resolveFetch({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ success: false, error: 'Gateway declined' }),
+      });
+      await flush();
+
+      expect(w.fetch).toHaveBeenCalledTimes(1);
+      expect(btn.disabled).toBe(false);
+      newDom.window.close();
+    });
+
+    it('executeGW: after a failed request, the button re-enables so a genuine retry is allowed', async () => {
+      const { newDom, w, d } = setupApiGatewayDom();
+
+      w.fetch = vi.fn(() => Promise.reject(new Error('network down')));
+
+      const runScript = w['eval'];
+      runScript.call(w, opFetchCode);
+      runScript.call(w, checkoutCode);
+
+      const card = d.querySelector('.ck-gw[data-tab="card"]');
+      w.pickGW(card, 'card', 'stripe', 'Stripe', 'api');
+
+      const btn = d.getElementById('cardBtn');
+      btn.onclick();
+      expect(btn.disabled).toBe(true);
+
+      await flush();
+
+      expect(btn.disabled).toBe(false);
+
+      btn.onclick();
+      expect(w.fetch).toHaveBeenCalledTimes(2);
+
+      await flush();
+      newDom.window.close();
+    });
+  });
+
+  // Regression: copyNum() called navigator.clipboard.writeText(text).then(showToast)
+  // with no .catch() - a rejected promise (denied permission, unfocused document,
+  // managed-browser policy) silently stranded the customer with no feedback on the
+  // manual-gateway "copy number" button, mid an unauthenticated payment flow.
+  describe('copyNum (manual gateway number copy)', () => {
+    beforeEach(() => {
+      document.getElementById('mpNumber').textContent = '01994493830';
+      // jsdom doesn't implement execCommand by default; stub it so
+      // vi.spyOn has a real method to override per-test.
+      if (typeof document.execCommand !== 'function') {
+        document.execCommand = () => false;
+      }
+    });
+
+    it('tries execCommand first and shows the toast on success', () => {
+      const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
+
+      window.copyNum();
+
+      expect(execSpy).toHaveBeenCalledWith('copy');
+      expect(document.getElementById('cToast').classList.contains('vis')).toBe(true);
+    });
+
+    it('falls back to the async Clipboard API and shows the toast when execCommand fails', async () => {
+      vi.spyOn(document, 'execCommand').mockReturnValue(false);
+      Object.defineProperty(window.navigator, 'clipboard', {
+        value: { writeText: vi.fn(() => Promise.resolve()) },
+        configurable: true,
+      });
+
+      window.copyNum();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('01994493830');
+      expect(document.getElementById('cToast').classList.contains('vis')).toBe(true);
+    });
+
+    it('shows an alert fallback (not silent failure) when every copy method fails', async () => {
+      vi.spyOn(document, 'execCommand').mockReturnValue(false);
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      Object.defineProperty(window.navigator, 'clipboard', {
+        value: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) },
+        configurable: true,
+      });
+
+      window.copyNum();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('01994493830'));
+      expect(document.getElementById('cToast').classList.contains('vis')).toBe(false);
     });
   });
 });
