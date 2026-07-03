@@ -802,33 +802,52 @@ final class DashboardController
 
         /** @var \OwnPay\Repository\MerchantRepository $merchantRepo */
         $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
-        $slug = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $brandName)));
-        if ($slug === '') {
-            $slug = 'brand';
-        }
-        $existing = $merchantRepo->findBySlug($slug);
-        if ($existing) {
-            $slug .= '-' . random_int(100, 999);
-        }
 
-        $brandId = $merchantRepo->createMerchant([
-            'name'             => $brandName,
-            'slug'             => $slug,
-            'email'            => $brandEmail,
-            'phone'            => $brandPhone,
-            'default_currency' => $brandCurrency,
-            'timezone'         => $brandTimezone,
-            'status'           => 'active',
-            'settings'         => json_encode([
-                'primary_color'   => '#6366f1',
-                'accent_color'    => '#4f46e5',
-                'support_email'   => $brandEmail,
-                'footer_text'     => '© ' . date('Y') . ' ' . $brandName,
-                'show_powered_by' => true
-            ])
-        ]);
+        // If any brand already exists, this is a resumed/abandoned wizard
+        // session (system.onboarding_completed is still 0) - configure that
+        // existing brand instead of creating a duplicate.
+        $existingBrand = $merchantRepo->findFirst();
 
-        $brandIdInt = (int) $brandId;
+        if ($existingBrand !== null) {
+            $brandIdInt = (int) $existingBrand['id'];
+            $merchantRepo->updateBrand($brandIdInt, [
+                'name'             => $brandName,
+                'email'            => $brandEmail,
+                'phone'            => $brandPhone,
+                'default_currency' => $brandCurrency,
+                'timezone'         => $brandTimezone,
+                'status'           => $existingBrand['status'],
+                'settings'         => $existingBrand['settings'],
+                'logo_path'        => $existingBrand['logo_path'],
+            ]);
+        } else {
+            $slug = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $brandName)));
+            if ($slug === '') {
+                $slug = 'brand';
+            }
+            $slugTaken = $merchantRepo->findBySlug($slug);
+            if ($slugTaken) {
+                $slug .= '-' . random_int(100, 999);
+            }
+
+            $brandId = $merchantRepo->createMerchant([
+                'name'             => $brandName,
+                'slug'             => $slug,
+                'email'            => $brandEmail,
+                'phone'            => $brandPhone,
+                'default_currency' => $brandCurrency,
+                'timezone'         => $brandTimezone,
+                'status'           => 'active',
+                'settings'         => json_encode([
+                    'primary_color'   => '#6366f1',
+                    'accent_color'    => '#4f46e5',
+                    'support_email'   => $brandEmail,
+                    'footer_text'     => '© ' . date('Y') . ' ' . $brandName,
+                    'show_powered_by' => true
+                ])
+            ]);
+            $brandIdInt = (int) $brandId;
+        }
         // Auto-scope superadmin session to this new brand
         $_SESSION['active_brand_id'] = $brandIdInt;
         $_SESSION['auth_merchant_id'] = $brandIdInt;
