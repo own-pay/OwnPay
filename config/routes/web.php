@@ -311,6 +311,9 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/themes/{slug}/activate', 'Admin\\ThemeController@activate', 'admin');
     $router->post('/admin/themes/{slug}/uninstall', 'Admin\\ThemeController@uninstall', 'admin');
 
+    $router->get('/admin/appearance', 'Admin\\ThemeController@brandAppearance', 'admin');
+    $router->post('/admin/appearance/theme', 'Admin\\ThemeController@saveBrandTheme', 'admin');
+
     // System Update
     $router->get('/admin/system-update', 'Admin\\SystemUpdateController@index', 'admin');
     $router->get('/admin/system-update/status', 'Admin\\SystemUpdateController@status', 'admin');

@@ -307,6 +307,87 @@ final class ThemeController
     }
 
     /**
+     * Brand-scoped Appearance page: lets the admin of the currently-active
+     * brand pick a theme independent of the global default. Only valid inside
+     * an active brand context; global (all-brands) view is redirected to the
+     * global themes page.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP response with the appearance page, or a redirect.
+     * @throws \RuntimeException If the BrandContext service is not registered.
+     */
+    public function brandAppearance(Request $request): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($request);
+        $brandId = $brand->getActiveBrandId();
+        if ($brand->isGlobalView() || $brandId === null) {
+            $this->session->flashError('Select a specific brand to configure its appearance.');
+            return Response::redirect('/admin/themes');
+        }
+
+        $themes = $this->repo->listByType('theme');
+        $override = $this->settings->getScopedOverride('appearance', 'active_theme', $brandId);
+        $globalTheme = $this->settings->get('appearance', 'active_theme', 'own-pay');
+
+        $resolver = $this->c->get(\OwnPay\View\Theme\ActiveThemeResolver::class);
+        $fellBack = $resolver instanceof \OwnPay\View\Theme\ActiveThemeResolver
+            && $resolver->resolve($brandId)->fellBack;
+
+        return $this->renderAdminPage('admin/appearance/index.twig', [
+            'themes'         => $themes,
+            'brand_override' => $override,          // null => inherits global
+            'global_theme'   => $globalTheme,
+            'fell_back'      => $fellBack,
+            'active_page'    => 'appearance',
+            'is_global_view' => false,
+        ]);
+    }
+
+    /**
+     * Persists (or clears) the brand's theme override. Empty slug clears the
+     * override so the brand inherits the global theme again.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \RuntimeException If the BrandContext service is not registered.
+     */
+    public function saveBrandTheme(Request $request): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($request);
+        $brandId = $brand->getActiveBrandId();
+        if ($brand->isGlobalView() || $brandId === null) {
+            $this->session->flashError('Select a specific brand first.');
+            return Response::redirect('/admin/themes');
+        }
+
+        $slug = trim((string) $request->post('slug', ''));
+        if ($slug === '') {
+            // Clear override: delete the brand row so getScoped falls back to global.
+            $this->settings->deleteSettingScoped('appearance', 'active_theme', $brandId);
+            $this->session->flashSuccess('Reverted to the default theme.');
+            return Response::redirect('/admin/appearance');
+        }
+
+        $theme = $this->repo->findBySlug($slug);
+        if ($theme === null || ($theme['type'] ?? '') !== 'theme' || ($theme['status'] ?? '') !== 'active') {
+            $this->session->flashError('That theme is not available.');
+            return Response::redirect('/admin/appearance');
+        }
+
+        $this->settings->setScoped('appearance', 'active_theme', $slug, $brandId);
+        $this->session->flashSuccess('Theme updated for this brand.');
+        return Response::redirect('/admin/appearance');
+    }
+
+    /**
      * Helper to parse size string into bytes.
      *
      * @param string $size The size string (e.g. '2M', '8M').

@@ -1,0 +1,37 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Appearance - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Appearance</h1>
+        <p class="op-page-subtitle">Choose the checkout theme for this brand. Leave as "Default" to inherit the global theme.</p>
+    </div>
+</div>
+
+{% if fell_back %}
+<div class="op-alert op-alert-warning op-alert-dismissible">
+    Your selected theme is no longer available. Showing the default theme until you pick another.
+    <button type="button" class="op-alert-close">&times;</button>
+</div>
+{% endif %}
+
+<div class="op-card">
+    <form method="POST" action="/admin/appearance/theme" class="op-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <div class="op-form-group">
+            <label for="op-brand-theme">Theme</label>
+            <select id="op-brand-theme" name="slug" class="op-form-control">
+                <option value="">Default (inherit global: {{ global_theme }})</option>
+                {% for theme in themes %}
+                <option value="{{ theme.slug }}" {{ theme.slug == brand_override ? 'selected' : '' }}>
+                    {{ theme.name }}{{ theme.status != 'active' ? ' (inactive)' : '' }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="op-btn op-btn-primary">Save</button>
+    </form>
+</div>
+{% endblock %}
