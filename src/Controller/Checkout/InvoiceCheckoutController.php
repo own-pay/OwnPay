@@ -20,6 +20,8 @@ use Ramsey\Uuid\Uuid;
  */
 final class InvoiceCheckoutController
 {
+    use \OwnPay\View\Theme\RendersThemedResponsesTrait;
+
     /**
      * @var \OwnPay\Container The dependency injection container.
      */
@@ -73,15 +75,9 @@ final class InvoiceCheckoutController
         // Apply a whitelist verification checks on status to only permit payable invoices.
         $allowedStatuses = ['sent', 'overdue'];
 
-        // Initialize Twig template engine environment prior to processing render loops.
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
-
         // If no active invoice record exists, return an expired/unavailable response page.
         if (!$invoice) {
-            return $this->renderExpired($twig);
+            return $this->renderExpired(null);
         }
 
         $merchantIdVal = $invoice['merchant_id'] ?? 0;
@@ -101,7 +97,8 @@ final class InvoiceCheckoutController
                 'void'  => 'Invoice Voided',
             ];
             $label = $statusLabels[$status] ?? 'Invoice Unavailable';
-            return $this->renderExpired($twig, $label);
+            $brandId = $merchantId > 0 ? $merchantId : null;
+            return $this->renderExpired($brandId, $label);
         }
 
         // Assess invoice deadline: automatically transition 'sent' invoices to 'overdue' if the due date has elapsed.
@@ -170,20 +167,20 @@ final class InvoiceCheckoutController
     /**
      * Renders the expired/unavailable invoice error page.
      *
-     * @param \Twig\Environment $twig The Twig template engine.
+     * @param int|null $brandId The invoice's merchant/brand identifier, or null when unavailable.
      * @param string $label The message label to show.
      * @return \OwnPay\Http\Response The HTML response.
      */
-    private function renderExpired(\Twig\Environment $twig, string $label = 'Invoice Expired'): Response
+    private function renderExpired(?int $brandId, string $label = 'Invoice Expired'): Response
     {
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
-        return Response::html($twig->render($tpl, [
+        return $this->renderThemed($tpl, $brandId, [
             'status'       => 'expired',
             'status_label' => $label,
             'txn'          => [],
             'brand'        => ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],
-        ]));
+        ]);
     }
 }
