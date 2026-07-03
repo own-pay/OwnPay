@@ -1009,6 +1009,7 @@ final class DashboardController
     {
         $data = $req->all();
 
+        // Skipping intentionally leaves no gateway configured; completeOnboarding() does not require one.
         $skip = ($data['skip'] ?? '0') === '1';
         if ($skip) {
             return Response::json(['success' => true, 'skipped' => true]);
