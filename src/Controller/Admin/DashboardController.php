@@ -747,6 +747,28 @@ final class DashboardController
         $landingEnabledVal = $data['landing_page_enabled'] ?? '0';
         $landingPageEnabled = (is_string($landingEnabledVal) && $landingEnabledVal === '1') ? '1' : '0';
 
+        $skip = ($data['skip'] ?? '0') === '1';
+        if ($skip) {
+            /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
+            $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+            $appConfig = $this->c->get('config.app');
+            $defaultName = is_array($appConfig) && isset($appConfig['name']) && is_string($appConfig['name']) ? $appConfig['name'] : 'OwnPay';
+
+            $settingsRepo->set('general', 'app_name', $defaultName);
+            $settingsRepo->set('general', 'site_name', $defaultName);
+            $settingsRepo->set('branding', 'site_name', $defaultName);
+            $settingsRepo->set('general', 'timezone', 'UTC');
+            $settingsRepo->set('general', 'default_timezone', 'UTC');
+            $settingsRepo->set('general', 'currency', 'USD');
+            $settingsRepo->set('general', 'base_currency', 'USD');
+            $settingsRepo->set('general', 'default_currency', 'USD');
+            $settingsRepo->set('general', 'landing_page_enabled', '1');
+            $settingsRepo->set('checkout', 'timer_seconds', '600');
+            $settingsRepo->set('checkout', 'require_customer_phone', '0');
+
+            return Response::json(['success' => true, 'skipped' => true]);
+        }
+
         if ($siteName === '' || $timezone === '' || $currency === '') {
             return Response::json(['success' => false, 'error' => 'System name, currency, and timezone are required.']);
         }
@@ -986,6 +1008,12 @@ final class DashboardController
     public function setupOnboardingGateway(Request $req): Response
     {
         $data = $req->all();
+
+        $skip = ($data['skip'] ?? '0') === '1';
+        if ($skip) {
+            return Response::json(['success' => true, 'skipped' => true]);
+        }
+
         $brandIdVal = $data['brand_id'] ?? 0;
         $brandId = is_int($brandIdVal) || is_string($brandIdVal) ? (int)$brandIdVal : 0;
         $gatewayTypeVal = $data['gateway_type'] ?? '';
