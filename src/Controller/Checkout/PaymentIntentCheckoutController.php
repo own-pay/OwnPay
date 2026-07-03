@@ -28,6 +28,7 @@ use OwnPay\Support\DateHelper;
 final class PaymentIntentCheckoutController
 {
     use CheckoutPresentationTrait;
+    use \OwnPay\View\Theme\RendersThemedResponsesTrait;
 
     /**
      * @var Container The service container instance.
@@ -447,11 +448,8 @@ final class PaymentIntentCheckoutController
         $dataFilter = $this->events->applyFilter('checkout.intent.render', $data);
         $data = is_array($dataFilter) ? $dataFilter : $data;
 
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException('Twig Environment not found');
-        }
-        return Response::html($twig->render('checkout/checkout.twig', $data));
+        $brandId = $mid > 0 ? $mid : null;
+        return $this->renderThemed('checkout/checkout.twig', $brandId, $data);
     }
 
     /**
@@ -1046,10 +1044,6 @@ final class PaymentIntentCheckoutController
      */
     private function renderStatus(string $ref, string $status, ?array $intent = null): Response
     {
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException('Twig Environment not found');
-        }
         $mid = 0;
         if ($intent) {
             $midVal = $intent['merchant_id'] ?? 0;
@@ -1120,7 +1114,8 @@ final class PaymentIntentCheckoutController
 
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
-        return Response::html($twig->render($tplName, [
+        $brandId = $mid > 0 ? $mid : null;
+        return $this->renderThemed($tplName, $brandId, [
             'txn'                   => $txn,
             'status'                => $status,
             'status_label'          => $this->statusLabel($status),
@@ -1135,7 +1130,7 @@ final class PaymentIntentCheckoutController
             'intent_token'          => $ref,
             'intent_status'         => $status,
             'is_intent'             => true,
-        ]));
+        ]);
     }
 
     /**
