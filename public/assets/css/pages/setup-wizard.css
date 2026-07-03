@@ -3,34 +3,6 @@
    Synced with admin.css design tokens (light + dark)
    ═══════════════════════════════════════════════════════ */
 
-/* -- Wizard Card -- */
-.op-setup-wizard-card {
-    background: var(--op-bg-card);
-    border: 1px solid var(--op-border);
-    border-radius: var(--op-radius-lg);
-    padding: 2.5rem;
-    margin-top: 32px;
-    margin-bottom: 2rem;
-    box-shadow: var(--op-shadow);
-    color: var(--op-text);
-    position: relative;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    animation: wizardSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes wizardSlideIn {
-    from {
-        transform: translateY(-20px);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
 /* -- Dismiss Button -- */
 .op-wizard-dismiss {
     position: absolute;
@@ -825,8 +797,13 @@ input:checked+.op-wizard-slider::before {
     }
 
     .op-wizard-actions>button,
-    .op-wizard-actions>.op-flex-gap-1rem {
+    .op-wizard-actions>.op-flex-gap-1rem,
+    .op-wizard-actions>.op-wizard-skip-step-link {
         width: 100%;
+    }
+
+    .op-wizard-actions>.op-wizard-skip-step-link {
+        text-align: center;
     }
 
     .op-wizard-btn {
@@ -839,6 +816,11 @@ input:checked+.op-wizard-slider::before {
     .op-flex-gap-1rem {
         flex-direction: column;
         gap: 0.5rem;
+    }
+
+    .op-flex-gap-1rem>.op-wizard-skip-step-link {
+        width: 100%;
+        text-align: center;
     }
 
     .op-flex-gap-1rem .op-wizard-btn {
