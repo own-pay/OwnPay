@@ -325,11 +325,16 @@ final class CheckoutController
 
         $tplFilter = $this->events->applyFilter('checkout.template', 'checkout/checkout.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout.twig';
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
+        $brandId = isset($txn['merchant_id']) ? (int) $txn['merchant_id'] : null;
+        $resolver = $this->c->get(\OwnPay\View\Theme\ActiveThemeResolver::class);
+        $registry = $this->c->get(\OwnPay\View\Theme\ThemeRendererRegistry::class);
+        if (!$resolver instanceof \OwnPay\View\Theme\ActiveThemeResolver
+            || !$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
+            throw new \RuntimeException('Theme rendering services not available.');
         }
-        return Response::html($twig->render($tplName, $data));
+        $theme = $resolver->resolve($brandId);
+        $renderer = $registry->get($theme->engine);
+        return Response::html($renderer->render($theme->resolveTemplate($tplName), $data));
     }
 
     /**
@@ -343,10 +348,6 @@ final class CheckoutController
      */
     private function renderStatus(string $ref, string $status): Response
     {
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
         $txn = $this->txnRepo->findAnyByTrxId($ref);
         $mid = 0;
         if (is_array($txn) && isset($txn['merchant_id'])) {
@@ -367,7 +368,16 @@ final class CheckoutController
 
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
-        return Response::html($twig->render($tplName, [
+        $brandId = $mid > 0 ? $mid : null;
+        $resolver = $this->c->get(\OwnPay\View\Theme\ActiveThemeResolver::class);
+        $registry = $this->c->get(\OwnPay\View\Theme\ThemeRendererRegistry::class);
+        if (!$resolver instanceof \OwnPay\View\Theme\ActiveThemeResolver
+            || !$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
+            throw new \RuntimeException('Theme rendering services not available.');
+        }
+        $theme = $resolver->resolve($brandId);
+        $renderer = $registry->get($theme->engine);
+        return Response::html($renderer->render($theme->resolveTemplate($tplName), [
             'txn'          => $txn ?? ['trx_id' => $ref],
             'status'       => $status ?: (is_array($txn) && is_string($txn['status'] ?? null) ? $txn['status'] : 'expired'),
             'status_label' => $this->statusLabel($status),
