@@ -33,4 +33,18 @@ final class ActiveThemeTest extends TestCase
         $this->assertSame('own-pay', $theme->slug);
         $this->assertSame('twig', $theme->engine);
     }
+
+    public function testResolveTemplateRejectsPathTraversal(): void
+    {
+        $theme = new ActiveTheme('own-pay', 'twig', '/app/modules/themes/own-pay', false);
+        $this->expectException(\InvalidArgumentException::class);
+        $theme->resolveTemplate('../../etc/passwd');
+    }
+
+    public function testResolveTemplateRejectsAbsolutePath(): void
+    {
+        $theme = new ActiveTheme('own-pay', 'plain-php', '/app/modules/themes/own-pay', false);
+        $this->expectException(\InvalidArgumentException::class);
+        $theme->resolveTemplate('/etc/passwd');
+    }
 }
