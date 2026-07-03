@@ -597,7 +597,7 @@ final class InstallerController
                 ['general',  'app_name',        $appName,                  'string'],
                 ['general',  'timezone',        $timezone,                 'string'],
                 ['general',  'currency',        $currency,                 'string'],
-                ['general',  'active_theme',    'own-pay',                 'string'],
+                ['appearance', 'active_theme',    'own-pay',                 'string'],
                 ['general',  'version',         Version::CURRENT,          'string'],
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
