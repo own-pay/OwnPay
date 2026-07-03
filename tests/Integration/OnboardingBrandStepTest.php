@@ -58,7 +58,7 @@ final class OnboardingBrandStepTest extends IntegrationTestCase
 
     private function cleanup(): void
     {
-        $this->db->execute("DELETE FROM op_merchants WHERE slug LIKE 'zzwizardbrand%'");
+        $this->db->execute("DELETE FROM op_merchants WHERE slug LIKE 'zzwizardbrand%' OR slug LIKE 'zz-wizardbrand%' OR slug LIKE 'zz-wizard-brand%'");
         unset($_SESSION['active_brand_id'], $_SESSION['auth_merchant_id']);
     }
 
