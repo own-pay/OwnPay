@@ -71,6 +71,19 @@ final class ReferenceMinimalLayoutTest extends TestCase
         $this->assertStringContainsString('.foo { color: red; }', $html);
     }
 
+    public function testStripsStyleCloseTagFromCustomCssToPreventBreakout(): void
+    {
+        $this->loadLayoutFunction();
+        $html = \OwnPay\Modules\Themes\ReferenceMinimal\render_layout(
+            'Checkout',
+            '<p>content</p>',
+            ['name' => 'Acme', 'custom_css' => '.foo{color:red}</style><img src=x onerror=alert(1)>'],
+            $this->esc(...)
+        );
+        $this->assertStringNotContainsString('</style><img', $html);
+        $this->assertStringContainsString('.foo{color:red}', $html);
+    }
+
     public function testHidesPoweredByWhenDisabled(): void
     {
         $this->loadLayoutFunction();

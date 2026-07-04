@@ -30,11 +30,16 @@ final class ReferenceMinimalRenderPipelineTest extends TestCase
                 'txn' => ['trx_id' => 'OP-TEST123', 'amount' => '49.00', 'currency' => 'USD'],
                 'brand' => ['name' => 'Acme Store', 'accent_color' => '#059669', 'show_powered_by' => true],
                 'gateways' => ['mfs' => [['slug' => 'bkash-api', 'name' => 'bKash']], 'bank' => [], 'global' => [], 'express' => []],
+                'checkout_hash' => 'test-hmac-signature-abc123',
             ]
         );
         $this->assertStringContainsString('Acme Store', $html);
         $this->assertStringContainsString('49.00', $html);
         $this->assertStringContainsString('bKash', $html);
+        $this->assertStringContainsString(
+            '<input type="hidden" name="checkout_hash" value="test-hmac-signature-abc123">',
+            $html
+        );
     }
 
     public function testCheckoutStatusTemplateRendersEndToEnd(): void
@@ -57,5 +62,17 @@ final class ReferenceMinimalRenderPipelineTest extends TestCase
         $this->assertStringContainsString('my-link', $html);
         $this->assertStringContainsString('tok123', $html);
         $this->assertStringContainsString('Min 10', $html);
+    }
+
+    public function testPaymentLinkAmountSuppressesMinHintForZeroDecimalString(): void
+    {
+        // Regression: '0.00' !== '0' as a string, but is numerically zero -
+        // must not render a pointless "Min 0.00" hint (final-review finding #3).
+        $theme = new ActiveTheme('reference-minimal', 'plain-php', $this->themeDir(), false);
+        $html = $this->registry()->get($theme->engine)->render(
+            $theme->resolveTemplate('checkout/payment-link-amount.twig'),
+            ['link' => ['slug' => 'my-link', 'currency' => 'USD', 'min_amount' => '0.00', 'max_amount' => ''], 'csrf_token' => 'tok123', 'error' => null]
+        );
+        $this->assertStringNotContainsString('Min', $html);
     }
 }
