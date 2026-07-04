@@ -221,6 +221,23 @@ final class PluginRegistry
     }
 
     /**
+     * Checks whether a specific loaded plugin instance declares a given capability.
+     * Fails closed: an unloaded slug always returns false.
+     *
+     * @param string     $slug       Plugin slug to check.
+     * @param Capability $capability Capability to look for.
+     * @return bool True if the plugin is loaded and declares the capability.
+     */
+    public function hasCapability(string $slug, Capability $capability): bool
+    {
+        $instance = $this->loaded[$slug] ?? null;
+        if ($instance === null) {
+            return false;
+        }
+        return in_array($capability, $instance->capabilities(), true);
+    }
+
+    /**
      * Filters all loaded plugins to return those possessing a specific capability.
      *
      * @param \OwnPay\Plugin\Capability $capability The capability to check against.
