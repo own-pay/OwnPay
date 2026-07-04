@@ -299,12 +299,15 @@ final class PluginLoader
         $this->events->pushOwner($slug);
         try {
             $instance->register($this->events, $this->container);
+            // Register into the registry before the capability-gated admin-menu check below:
+            // hasCapability() fails closed for any slug not yet present in the loaded map, so the
+            // plugin must already be recorded here or the check would always deny the menu.
+            $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
             $this->registerManifestAdminMenu($manifest);
         } finally {
             $this->events->popOwner();
         }
 
-        $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
         $this->container->instance($className, $instance);
     }
 
