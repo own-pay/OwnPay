@@ -315,10 +315,15 @@ return static function (\OwnPay\Container $c): void {
     // --- Theme Rendering Abstraction
     $c->singleton(\OwnPay\View\Theme\ThemeRendererRegistry::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ThemeRendererRegistry {
         $twig = ensureType($c->get(\Twig\Environment::class), \Twig\Environment::class);
-        return new \OwnPay\View\Theme\ThemeRendererRegistry([
+        $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
+        $engines = [
             'twig'      => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
             'plain-php' => new \OwnPay\View\Theme\PlainPhpThemeRenderer(),
-        ]);
+        ];
+        // Let plugins register additional rendering engines (e.g. Blade, Markdown)
+        // without editing core - see docs/superpowers/specs/2026-07-04-theme-plugin-extensibility-design.md.
+        $engines = $events->applyFilter('theme.engines.register', $engines);
+        return new \OwnPay\View\Theme\ThemeRendererRegistry($engines);
     });
 
     $c->singleton(\OwnPay\View\Theme\ActiveThemeResolver::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ActiveThemeResolver {
