@@ -220,7 +220,8 @@ final class PluginInstaller
                     $existingVersion = $existingManifest->version;
                 }
                 $pluginDir = $manifest->path;
-                $hasMigrations = !empty($manifest->migrations);
+                // The manifest's own migrations array is never populated by any real plugin - actual detection is the filesystem glob check below.
+                $hasMigrations = false;
                 $migrationsDir = $pluginDir . '/migrations';
                 if (is_dir($migrationsDir)) {
                     $sqlFiles = glob($migrationsDir . '/*.sql');
