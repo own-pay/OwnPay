@@ -2,10 +2,10 @@
   "name": "Plain PHP Demo",
   "slug": "plain-php-demo",
   "version": "1.0.0",
-  "description": "Proof-of-concept theme rendered by the plain-PHP engine (not Twig).",
+  "description": "Proof-of-concept theme rendered by the php engine (not Twig).",
   "author": "OwnPay",
   "type": "theme",
-  "engine": "plain-php",
+  "engine": "php",
   "entry": "Theme.php",
   "namespace": "OwnPay\\Modules\\Themes\\PlainPhpDemo",
   "requires": { "ownpay": ">=0.1.0" }

@@ -317,8 +317,8 @@ return static function (\OwnPay\Container $c): void {
         $twig = ensureType($c->get(\Twig\Environment::class), \Twig\Environment::class);
         $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
         $baseEngines = [
-            'twig'      => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
-            'plain-php' => new \OwnPay\View\Theme\PlainPhpThemeRenderer(),
+            'twig' => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
+            'php'  => new \OwnPay\View\Theme\PlainPhpThemeRenderer(),
         ];
         // Let plugins register additional rendering engines (e.g. Blade, Markdown)
         // without editing core - see docs/superpowers/specs/2026-07-04-theme-plugin-extensibility-design.md.

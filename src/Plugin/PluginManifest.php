@@ -44,7 +44,7 @@ final class PluginManifest
     public readonly string $type;
 
     /**
-     * Rendering engine identifier for theme plugins (e.g. 'twig', 'plain-php').
+     * Rendering engine identifier for theme plugins (e.g. 'twig', 'php').
      * Empty string means the theme did not declare one; treated as 'twig'
      * downstream for back-compat.
      *
@@ -418,7 +418,7 @@ final class PluginManifest
         if (!in_array($this->type, ['plugin', 'gateway', 'theme', 'addon'], true)) {
             $errors[] = 'Invalid type';
         }
-        if ($this->type === 'theme' && !in_array($this->engine, ['twig', 'plain-php', ''], true)) {
+        if ($this->type === 'theme' && !in_array($this->engine, ['twig', 'php', ''], true)) {
             $errors[] = 'Invalid engine';
         }
         if ($this->entrypoint === '') {

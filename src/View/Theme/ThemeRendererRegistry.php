@@ -42,7 +42,7 @@ final class ThemeRendererRegistry
      * up with zero registered rendering engines because of a broken plugin.
      *
      * @param mixed $filtered Raw return value from EventManager::applyFilter().
-     * @param array<string, ThemeRendererInterface> $baseEngines Known-good fallback (twig + plain-php).
+     * @param array<string, ThemeRendererInterface> $baseEngines Known-good fallback (twig + php).
      * @param (callable(int|string, mixed): void)|null $onInvalid Called for each discarded entry.
      * @return array<string, ThemeRendererInterface>
      */

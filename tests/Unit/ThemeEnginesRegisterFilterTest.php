@@ -27,7 +27,7 @@ final class ThemeEnginesRegisterFilterTest extends TestCase
             return $engines;
         });
 
-        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'plain-php' => new PlainPhpThemeRenderer()];
+        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'php' => new PlainPhpThemeRenderer()];
         $filtered = $events->applyFilter('theme.engines.register', $baseEngines);
         $registry = new ThemeRendererRegistry($filtered);
 
@@ -38,7 +38,7 @@ final class ThemeEnginesRegisterFilterTest extends TestCase
     public function testNoListenersLeavesDefaultEnginesUnchanged(): void
     {
         $events = EventManager::getInstance();
-        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'plain-php' => new PlainPhpThemeRenderer()];
+        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'php' => new PlainPhpThemeRenderer()];
         $filtered = $events->applyFilter('theme.engines.register', $baseEngines);
         $this->assertSame($baseEngines, $filtered);
     }
@@ -58,7 +58,7 @@ final class ThemeEnginesRegisterFilterTest extends TestCase
             return $engines;
         });
 
-        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'plain-php' => new PlainPhpThemeRenderer()];
+        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'php' => new PlainPhpThemeRenderer()];
         $filtered = $events->applyFilter('theme.engines.register', $baseEngines);
 
         $discarded = [];
@@ -73,7 +73,7 @@ final class ThemeEnginesRegisterFilterTest extends TestCase
 
         // Valid base engines survive despite the plugin's malformed additions.
         $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get('twig'));
-        $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get('plain-php'));
+        $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get('php'));
         $this->assertArrayNotHasKey('blade', $engines);
         $this->assertArrayNotHasKey(0, $engines);
         $this->assertContains('blade', $discarded);
@@ -87,7 +87,7 @@ final class ThemeEnginesRegisterFilterTest extends TestCase
             return 'totally-broken-plugin-output'; // filter listener returns a non-array
         });
 
-        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'plain-php' => new PlainPhpThemeRenderer()];
+        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'php' => new PlainPhpThemeRenderer()];
         $filtered = $events->applyFilter('theme.engines.register', $baseEngines);
 
         $warned = false;
@@ -103,12 +103,12 @@ final class ThemeEnginesRegisterFilterTest extends TestCase
         $this->assertTrue($warned);
         $this->assertSame($baseEngines, $engines);
         $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get('twig'));
-        $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get('plain-php'));
+        $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get('php'));
     }
 
     public function testAllInvalidEntriesFallsBackToBaseEnginesRatherThanEmptyRegistry(): void
     {
-        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'plain-php' => new PlainPhpThemeRenderer()];
+        $baseEngines = ['twig' => new PlainPhpThemeRenderer(), 'php' => new PlainPhpThemeRenderer()];
         // Every entry in the filtered result is invalid - must not end up with
         // zero registered engines, which would break checkout rendering site-wide.
         $filtered = [0 => 'bad', 'also-bad' => 'not-a-renderer'];

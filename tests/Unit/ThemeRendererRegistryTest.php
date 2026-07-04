@@ -15,13 +15,13 @@ final class ThemeRendererRegistryTest extends TestCase
     public function testReturnsRegisteredRenderer(): void
     {
         $plain = new PlainPhpThemeRenderer();
-        $registry = new ThemeRendererRegistry(['plain-php' => $plain]);
-        $this->assertSame($plain, $registry->get('plain-php'));
+        $registry = new ThemeRendererRegistry(['php' => $plain]);
+        $this->assertSame($plain, $registry->get('php'));
     }
 
     public function testUnknownEngineThrows(): void
     {
-        $registry = new ThemeRendererRegistry(['plain-php' => new PlainPhpThemeRenderer()]);
+        $registry = new ThemeRendererRegistry(['php' => new PlainPhpThemeRenderer()]);
         $this->expectException(InvalidArgumentException::class);
         $registry->get('nope');
     }
@@ -35,7 +35,7 @@ final class ThemeRendererRegistryTest extends TestCase
 
     public function testEmptyEngineThrowsWhenTwigNotRegistered(): void
     {
-        $registry = new ThemeRendererRegistry(['plain-php' => new PlainPhpThemeRenderer()]);
+        $registry = new ThemeRendererRegistry(['php' => new PlainPhpThemeRenderer()]);
         $this->expectException(InvalidArgumentException::class);
         $registry->get('');
     }

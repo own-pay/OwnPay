@@ -18,12 +18,12 @@ final class ReferenceMinimalRenderPipelineTest extends TestCase
 
     private function registry(): ThemeRendererRegistry
     {
-        return new ThemeRendererRegistry(['plain-php' => new PlainPhpThemeRenderer()]);
+        return new ThemeRendererRegistry(['php' => new PlainPhpThemeRenderer()]);
     }
 
     public function testCheckoutTemplateRendersEndToEnd(): void
     {
-        $theme = new ActiveTheme('reference-minimal', 'plain-php', $this->themeDir(), false);
+        $theme = new ActiveTheme('reference-minimal', 'php', $this->themeDir(), false);
         $html = $this->registry()->get($theme->engine)->render(
             $theme->resolveTemplate('checkout/checkout.twig'),
             [
@@ -44,7 +44,7 @@ final class ReferenceMinimalRenderPipelineTest extends TestCase
 
     public function testCheckoutStatusTemplateRendersEndToEnd(): void
     {
-        $theme = new ActiveTheme('reference-minimal', 'plain-php', $this->themeDir(), false);
+        $theme = new ActiveTheme('reference-minimal', 'php', $this->themeDir(), false);
         $html = $this->registry()->get($theme->engine)->render(
             $theme->resolveTemplate('checkout/checkout-status.twig'),
             ['status' => 'success', 'status_label' => 'Payment Successful', 'brand' => ['name' => 'Acme Store']]
@@ -54,7 +54,7 @@ final class ReferenceMinimalRenderPipelineTest extends TestCase
 
     public function testPaymentLinkAmountTemplateRendersEndToEnd(): void
     {
-        $theme = new ActiveTheme('reference-minimal', 'plain-php', $this->themeDir(), false);
+        $theme = new ActiveTheme('reference-minimal', 'php', $this->themeDir(), false);
         $html = $this->registry()->get($theme->engine)->render(
             $theme->resolveTemplate('checkout/payment-link-amount.twig'),
             ['link' => ['slug' => 'my-link', 'currency' => 'USD', 'min_amount' => '10', 'max_amount' => '500'], 'csrf_token' => 'tok123', 'error' => null]
@@ -68,7 +68,7 @@ final class ReferenceMinimalRenderPipelineTest extends TestCase
     {
         // Regression: '0.00' !== '0' as a string, but is numerically zero -
         // must not render a pointless "Min 0.00" hint (final-review finding #3).
-        $theme = new ActiveTheme('reference-minimal', 'plain-php', $this->themeDir(), false);
+        $theme = new ActiveTheme('reference-minimal', 'php', $this->themeDir(), false);
         $html = $this->registry()->get($theme->engine)->render(
             $theme->resolveTemplate('checkout/payment-link-amount.twig'),
             ['link' => ['slug' => 'my-link', 'currency' => 'USD', 'min_amount' => '0.00', 'max_amount' => ''], 'csrf_token' => 'tok123', 'error' => null]

@@ -14,8 +14,8 @@ final class ThemeRenderPipelineTest extends TestCase
     public function testPlainPhpDemoThemeRendersCheckoutEndToEnd(): void
     {
         $themesDir = dirname(__DIR__, 2) . '/modules/themes';
-        $theme = new ActiveTheme('plain-php-demo', 'plain-php', $themesDir . '/plain-php-demo', false);
-        $registry = new ThemeRendererRegistry(['plain-php' => new PlainPhpThemeRenderer()]);
+        $theme = new ActiveTheme('plain-php-demo', 'php', $themesDir . '/plain-php-demo', false);
+        $registry = new ThemeRendererRegistry(['php' => new PlainPhpThemeRenderer()]);
 
         $html = $registry->get($theme->engine)->render(
             $theme->resolveTemplate('checkout/checkout.twig'),
@@ -24,6 +24,6 @@ final class ThemeRenderPipelineTest extends TestCase
 
         $this->assertStringContainsString('Acme', $html);
         $this->assertStringContainsString('bKash', $html);
-        $this->assertStringContainsString('plain-PHP engine', $html);
+        $this->assertStringContainsString('php engine', $html);
     }
 }

@@ -20,7 +20,7 @@ $currency = is_array($txn ?? null) ? (string) ($txn['currency'] ?? '') : '';
 <body>
     <main style="max-width:480px;margin:40px auto;font-family:system-ui,sans-serif;">
         <h1><?= $esc($brandName) ?></h1>
-        <p style="color:#666;">Rendered by the plain-PHP engine.</p>
+        <p style="color:#666;">Rendered by the php engine.</p>
         <p><strong>Amount:</strong> <?= $esc($amount) ?> <?= $esc($currency) ?></p>
         <h2>Payment methods</h2>
         <ul>

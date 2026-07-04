@@ -23,7 +23,7 @@ final class PluginManifestEngineTest extends TestCase
 
     public function testEngineParsedFromManifest(): void
     {
-        $this->assertSame('plain-php', $this->make(['engine' => 'plain-php'])->engine);
+        $this->assertSame('php', $this->make(['engine' => 'php'])->engine);
     }
 
     public function testInvalidThemeEngineFailsValidation(): void
@@ -34,11 +34,11 @@ final class PluginManifestEngineTest extends TestCase
 
     public function testValidEnginePassesValidation(): void
     {
-        $this->assertNotContains('Invalid engine', $this->make(['engine' => 'plain-php'])->validate());
+        $this->assertNotContains('Invalid engine', $this->make(['engine' => 'php'])->validate());
     }
 
     public function testToArrayIncludesEngine(): void
     {
-        $this->assertSame('plain-php', $this->make(['engine' => 'plain-php'])->toArray()['engine']);
+        $this->assertSame('php', $this->make(['engine' => 'php'])->toArray()['engine']);
     }
 }

@@ -19,7 +19,7 @@ final class ActiveThemeTest extends TestCase
 
     public function testPlainPhpResolveTemplateReturnsAbsolutePhpPath(): void
     {
-        $theme = new ActiveTheme('demo', 'plain-php', '/app/modules/themes/demo', false);
+        $theme = new ActiveTheme('demo', 'php', '/app/modules/themes/demo', false);
         $this->assertSame(
             '/app/modules/themes/demo/templates/checkout/checkout.php',
             $theme->resolveTemplate('checkout/checkout.twig')
@@ -43,7 +43,7 @@ final class ActiveThemeTest extends TestCase
 
     public function testResolveTemplateRejectsAbsolutePath(): void
     {
-        $theme = new ActiveTheme('own-pay', 'plain-php', '/app/modules/themes/own-pay', false);
+        $theme = new ActiveTheme('own-pay', 'php', '/app/modules/themes/own-pay', false);
         $this->expectException(\InvalidArgumentException::class);
         $theme->resolveTemplate('/etc/passwd');
     }

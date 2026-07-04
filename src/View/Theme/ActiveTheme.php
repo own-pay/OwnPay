@@ -30,7 +30,7 @@ final class ActiveTheme
 
         $base = preg_replace('/\.(twig|php|html)$/', '', $logicalName) ?? $logicalName;
         return match ($this->engine) {
-            'plain-php' => rtrim($this->basePath, '/\\') . '/templates/' . $base . '.php',
+            'php'   => rtrim($this->basePath, '/\\') . '/templates/' . $base . '.php',
             default     => $base . '.twig',
         };
     }
