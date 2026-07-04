@@ -165,6 +165,8 @@ return [
     'plugin.installed'                 => ['type' => 'action', 'location' => 'PluginManager'],
     'plugin.before_activate'           => ['type' => 'action', 'location' => 'PluginManager'],
     'plugin.activated'                 => ['type' => 'action', 'location' => 'PluginManager'],
+    'theme.activated'                  => ['type' => 'action', 'location' => 'ThemeController'],
+    'theme.brand_override.changed'     => ['type' => 'action', 'location' => 'ThemeController'],
     'plugin.before_deactivate'         => ['type' => 'action', 'location' => 'PluginManager'],
     'plugin.deactivated'               => ['type' => 'action', 'location' => 'PluginManager'],
     'plugin.before_uninstall'          => ['type' => 'action', 'location' => 'PluginManager'],
