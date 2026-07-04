@@ -316,13 +316,30 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\View\Theme\ThemeRendererRegistry::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ThemeRendererRegistry {
         $twig = ensureType($c->get(\Twig\Environment::class), \Twig\Environment::class);
         $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
-        $engines = [
+        $baseEngines = [
             'twig'      => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
             'plain-php' => new \OwnPay\View\Theme\PlainPhpThemeRenderer(),
         ];
         // Let plugins register additional rendering engines (e.g. Blade, Markdown)
         // without editing core - see docs/superpowers/specs/2026-07-04-theme-plugin-extensibility-design.md.
-        $engines = $events->applyFilter('theme.engines.register', $engines);
+        $filtered = $events->applyFilter('theme.engines.register', $baseEngines);
+        // A plugin's filter listener runs arbitrary code and could return malformed
+        // data (non-array, non-string keys, non-renderer values). Validate before
+        // construction so a broken plugin fails loudly here instead of corrupting
+        // ThemeRendererRegistry::get() far from the actual cause.
+        $logger = $c->get(\OwnPay\Service\System\Logger::class);
+        $engines = \OwnPay\View\Theme\ThemeRendererRegistry::sanitizeEngines(
+            $filtered,
+            $baseEngines,
+            static function (int|string $name, mixed $value) use ($logger): void {
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $type = is_object($value) ? get_class($value) : gettype($value);
+                    $logger->warning(
+                        "theme.engines.register filter returned an invalid entry for key '{$name}' (type: {$type}) - discarding it."
+                    );
+                }
+            }
+        );
         return new \OwnPay\View\Theme\ThemeRendererRegistry($engines);
     });
 
