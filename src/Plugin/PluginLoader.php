@@ -5,6 +5,7 @@ namespace OwnPay\Plugin;
 
 use OwnPay\Container;
 use OwnPay\Event\EventManager;
+use OwnPay\Plugin\Capability;
 use OwnPay\Support\Version;
 
 /**
@@ -396,6 +397,16 @@ final class PluginLoader
     private function registerManifestAdminMenu(PluginManifest $manifest): void
     {
         if (empty($manifest->adminMenu)) {
+            return;
+        }
+
+        if (!$this->registry->hasCapability($manifest->slug, Capability::DASHBOARD)) {
+            $logger = $this->container->has(\OwnPay\Service\System\Logger::class)
+                ? $this->container->get(\OwnPay\Service\System\Logger::class)
+                : null;
+            if ($logger instanceof \OwnPay\Service\System\Logger) {
+                $logger->warning("Plugin '{$manifest->slug}' declares adminMenu entries but not the dashboard capability - menu registration skipped.");
+            }
             return;
         }
 
