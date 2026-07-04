@@ -1,0 +1,86 @@
+:root {
+    --op-ref-accent: #059669;
+    --op-ref-bg: #ffffff;
+    --op-ref-text: #111827;
+    --op-ref-muted: #6b7280;
+    --op-ref-border: #e5e7eb;
+}
+html[data-op-theme="dark"] {
+    --op-ref-bg: #0b0f1a;
+    --op-ref-text: #e5e7eb;
+    --op-ref-muted: #8b93a7;
+    --op-ref-border: #262b3a;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--op-ref-bg);
+    color: var(--op-ref-text);
+}
+.op-ref-shell {
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+.op-ref-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--op-ref-border);
+    margin-bottom: 24px;
+}
+.op-ref-logo { max-height: 32px; }
+.op-ref-brand-name { font-weight: 700; font-size: 16px; }
+.op-ref-dark-toggle {
+    background: none;
+    border: 1px solid var(--op-ref-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--op-ref-text);
+}
+.op-ref-amount { font-size: 28px; font-weight: 700; margin: 8px 0 20px; }
+.op-ref-gateway-group { margin-bottom: 16px; }
+.op-ref-gateway-group h3 { font-size: 12px; text-transform: uppercase; color: var(--op-ref-muted); margin-bottom: 8px; }
+.op-ref-gateway-list { display: flex; flex-direction: column; gap: 8px; }
+.op-ref-gateway-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--op-ref-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: none;
+    color: var(--op-ref-text);
+    cursor: pointer;
+    font-size: 14px;
+    text-align: left;
+    width: 100%;
+}
+.op-ref-gateway-item:hover { border-color: var(--op-ref-accent); }
+.op-ref-btn-primary {
+    background: var(--op-ref-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+}
+.op-ref-input {
+    border: 1px solid var(--op-ref-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    width: 100%;
+    background: var(--op-ref-bg);
+    color: var(--op-ref-text);
+}
+.op-ref-badges { text-align: center; margin: 20px 0 8px; font-size: 12px; color: var(--op-ref-muted); }
+.op-ref-footer { text-align: center; font-size: 12px; color: var(--op-ref-muted); padding: 20px 0; }
+.op-ref-status-icon { font-size: 40px; text-align: center; margin-bottom: 12px; }
+.op-ref-status-label { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 8px; }
