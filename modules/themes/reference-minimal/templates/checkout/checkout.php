@@ -5,7 +5,7 @@
  * @var array $gateways
  * @var array $brand
  */
-require __DIR__ . '/layout.php';
+require_once __DIR__ . '/layout.php';
 
 use function OwnPay\Modules\Themes\ReferenceMinimal\render_layout;
 
