@@ -144,13 +144,6 @@ final class PluginManifest
     public readonly array $cron;
 
     /**
-     * List of migration file names/classes.
-     *
-     * @var array<int, string>
-     */
-    public readonly array $migrations;
-
-    /**
      * Custom routes registered by this plugin.
      *
      * @var array<int, array<mixed>>
@@ -306,17 +299,6 @@ final class PluginManifest
         }
         $this->cron = $cron;
 
-        $rawMigrations = $data['migrations'] ?? [];
-        $migrations = [];
-        if (is_array($rawMigrations)) {
-            foreach ($rawMigrations as $migration) {
-                if (is_string($migration) && $migration !== '') {
-                    $migrations[] = $migration;
-                }
-            }
-        }
-        $this->migrations = $migrations;
-
         $rawRoutes = $data['routes'] ?? [];
         $routes = [];
         if (is_array($rawRoutes)) {
@@ -454,12 +436,6 @@ final class PluginManifest
             }
         }
 
-        foreach ($this->migrations as $migration) {
-            if (str_contains($migration, '..')) {
-                $errors[] = "Migration contains path traversal";
-            }
-        }
-
         return $errors;
     }
 
@@ -549,7 +525,6 @@ final class PluginManifest
             'hooks' => $this->hooks,
             'admin_menu' => $this->adminMenu,
             'cron' => $this->cron,
-            'migrations' => $this->migrations,
             'routes' => $this->routes,
         ];
     }
