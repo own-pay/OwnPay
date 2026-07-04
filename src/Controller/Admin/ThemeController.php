@@ -7,8 +7,10 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Plugin\Capability;
 use OwnPay\Plugin\PluginLoader;
 use OwnPay\Plugin\PluginManager;
+use OwnPay\Plugin\PluginRegistry;
 use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\SettingsRepository;
 
@@ -228,9 +230,21 @@ final class ThemeController
             $this->manager->activate($slug);
         }
 
+        $registry = $this->c->get(PluginRegistry::class);
+        if (!$registry instanceof PluginRegistry || !$registry->hasCapability($slug, Capability::THEME)) {
+            $this->session->flashError('This plugin does not declare theme capability.');
+            return Response::redirect('/admin/themes');
+        }
+
         $this->settings->set('appearance', 'active_theme', $slug);
         $pluginName = is_string($plugin['name'] ?? null) ? $plugin['name'] : 'Unknown';
         $this->session->flashSuccess("Theme '{$pluginName}' activated!");
+
+        $events = $this->c->get(\OwnPay\Event\EventManager::class);
+        if ($events instanceof \OwnPay\Event\EventManager) {
+            $events->doAction('theme.activated', $slug);
+        }
+
         return Response::redirect('/admin/themes');
     }
 
@@ -368,11 +382,16 @@ final class ThemeController
             return Response::redirect('/admin/themes');
         }
 
+        $events = $this->c->get(\OwnPay\Event\EventManager::class);
+
         $slug = trim((string) $request->post('slug', ''));
         if ($slug === '') {
             // Clear override: delete the brand row so getScoped falls back to global.
             $this->settings->deleteSettingScoped('appearance', 'active_theme', $brandId);
             $this->session->flashSuccess('Reverted to the default theme.');
+            if ($events instanceof \OwnPay\Event\EventManager) {
+                $events->doAction('theme.brand_override.changed', $brandId, null);
+            }
             return Response::redirect('/admin/appearance');
         }
 
@@ -382,8 +401,17 @@ final class ThemeController
             return Response::redirect('/admin/appearance');
         }
 
+        $registry = $this->c->get(PluginRegistry::class);
+        if (!$registry instanceof PluginRegistry || !$registry->hasCapability($slug, Capability::THEME)) {
+            $this->session->flashError('This plugin does not declare theme capability.');
+            return Response::redirect('/admin/appearance');
+        }
+
         $this->settings->setScoped('appearance', 'active_theme', $slug, $brandId);
         $this->session->flashSuccess('Theme updated for this brand.');
+        if ($events instanceof \OwnPay\Event\EventManager) {
+            $events->doAction('theme.brand_override.changed', $brandId, $slug);
+        }
         return Response::redirect('/admin/appearance');
     }
 
