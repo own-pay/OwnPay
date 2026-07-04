@@ -19,7 +19,7 @@ $csrfStr = (string) ($csrf_token ?? '');
 
 $errorHtml = $errorStr !== '' ? '<p style="color:#dc2626;font-size:13px;">' . $esc($errorStr) . '</p>' : '';
 $hintParts = [];
-if ($minAmount !== '0' && $minAmount !== '') {
+if ($minAmount !== '' && is_numeric($minAmount) && bccomp($minAmount, '0', 2) > 0) {
     $hintParts[] = 'Min ' . $esc($minAmount);
 }
 if ($maxAmount !== '') {

@@ -44,7 +44,11 @@ function render_layout(string $title, string $bodyHtml, array $brand, callable $
     $defaultMode = 'light';
 
     $customCss = is_string($brand['custom_css'] ?? null) ? $brand['custom_css'] : '';
-    $customCssBlock = $customCss !== '' ? '<style id="op-custom-css">' . $customCss . '</style>' : '';
+    // Strip </style> occurrences so custom_css cannot break out of the style
+    // context and inject arbitrary markup (custom_css is admin-authored but
+    // still untrusted at render time - see final-review finding #2).
+    $customCssSafe = preg_replace('/<\/style\s*>/i', '', $customCss) ?? '';
+    $customCssBlock = $customCssSafe !== '' ? '<style id="op-custom-css">' . $customCssSafe . '</style>' : '';
 
     $escTitle = $esc($title);
 
