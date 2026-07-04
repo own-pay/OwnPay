@@ -1,0 +1,12 @@
+{
+  "name": "Reference Minimal",
+  "slug": "reference-minimal",
+  "version": "1.0.0",
+  "description": "Polished, minimal reference theme rendered by the plain-PHP engine. Demonstrates non-Twig theming and brand-scoped selection.",
+  "author": "OwnPay",
+  "type": "theme",
+  "engine": "plain-php",
+  "entry": "Theme.php",
+  "namespace": "OwnPay\\Modules\\Themes\\ReferenceMinimal",
+  "requires": { "ownpay": ">=0.1.0" }
+}
