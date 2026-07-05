@@ -84,6 +84,7 @@ final class DomainController
             $merchantId = is_int($merchantIdVal) || is_string($merchantIdVal) ? (int)$merchantIdVal : 0;
             $m = $merchantRepo->find($merchantId);
             $d['merchant_name'] = is_array($m) && is_string($m['name'] ?? null) ? $m['name'] : '-';
+            $d['status_pill'] = self::computeStatusPill($d);
         }
 
         // Use the configured APP_DOMAIN for the server-IP hint, not the
@@ -129,7 +130,7 @@ final class DomainController
         }
 
         $typeVal = $req->post('type', 'checkout');
-        $type = is_string($typeVal) && in_array($typeVal, ['checkout', 'admin', 'api'], true) ? $typeVal : 'checkout';
+        $type = is_string($typeVal) && in_array($typeVal, ['checkout', 'api'], true) ? $typeVal : 'checkout';
 
         $redirectUrlVal = $req->post('redirect_url', '');
         $redirectUrl = is_string($redirectUrlVal) ? trim($redirectUrlVal) : null;
@@ -138,6 +139,22 @@ final class DomainController
         }
 
         $result = $this->domains->map($mid, $domain, $type, $redirectUrl);
+
+        if ($req->isAjax()) {
+            if (empty($result['success'])) {
+                return Response::json(['success' => false, 'error' => $result['error']]);
+            }
+            $repo = $this->c->get(\OwnPay\Repository\DomainRepository::class);
+            if (!$repo instanceof \OwnPay\Repository\DomainRepository) {
+                throw new \RuntimeException('DomainRepository service unavailable');
+            }
+            $created = $repo->forTenant($mid)->findScoped((int) $result['domain_id']);
+            return Response::json([
+                'success' => true,
+                'domain'  => $this->domainJsonPayload($created ?? []),
+            ]);
+        }
+
         if (!empty($result['success'])) {
             $this->session->flashSuccess('Domain added. ' . $result['instructions']);
         } else {
@@ -167,6 +184,23 @@ final class DomainController
         }
 
         $result = $this->domains->verify($id, $mid);
+
+        if ($req->isAjax()) {
+            if (empty($result['success'])) {
+                return Response::json(['success' => false, 'error' => $result['error']]);
+            }
+            $repo = $this->c->get(\OwnPay\Repository\DomainRepository::class);
+            if (!$repo instanceof \OwnPay\Repository\DomainRepository) {
+                throw new \RuntimeException('DomainRepository service unavailable');
+            }
+            $updated = $repo->forTenant($mid)->findScoped($id);
+            return Response::json([
+                'success' => true,
+                'domain'  => $this->domainJsonPayload($updated ?? []),
+                'warning' => $result['warning'] ?? null,
+            ]);
+        }
+
         if (!empty($result['success'])) {
             $msg = 'DNS verified!';
             if (!empty($result['warning'])) {
@@ -199,6 +233,11 @@ final class DomainController
             throw new \RuntimeException('No active brand found.');
         }
 
+        if ($req->isAjax()) {
+            $this->domains->remove($id, $mid);
+            return Response::json(['success' => true]);
+        }
+
         $this->domains->remove($id, $mid);
         $this->session->flashSuccess('Domain removed');
         return $this->redirectBack($req);
@@ -222,6 +261,20 @@ final class DomainController
         $mid = $brand->getActiveBrandId();
         if ($mid === null) {
             throw new \RuntimeException('No active brand found.');
+        }
+
+        if ($req->isAjax()) {
+            try {
+                $this->domains->makePrimary($id, $mid);
+            } catch (\Throwable $e) {
+                return Response::json(['success' => false, 'error' => $e->getMessage()]);
+            }
+            $repo = $this->c->get(\OwnPay\Repository\DomainRepository::class);
+            if (!$repo instanceof \OwnPay\Repository\DomainRepository) {
+                throw new \RuntimeException('DomainRepository service unavailable');
+            }
+            $updated = $repo->forTenant($mid)->findScoped($id);
+            return Response::json(['success' => true, 'domain' => $this->domainJsonPayload($updated ?? [])]);
         }
 
         try {
@@ -265,7 +318,7 @@ final class DomainController
         }
 
         $typeVal = $req->post('type', 'checkout');
-        $type = is_string($typeVal) && in_array($typeVal, ['checkout', 'admin', 'api'], true) ? $typeVal : 'checkout';
+        $type = is_string($typeVal) && in_array($typeVal, ['checkout', 'api'], true) ? $typeVal : 'checkout';
 
         $redirectUrlVal = $req->post('redirect_url', '');
         $redirectUrl = is_string($redirectUrlVal) ? trim($redirectUrlVal) : null;
@@ -301,6 +354,11 @@ final class DomainController
         }
 
         $repo->forTenant($mid)->updateScoped($id, $updateData);
+
+        if ($req->isAjax()) {
+            $updated = $repo->forTenant($mid)->findScoped($id);
+            return Response::json(['success' => true, 'domain' => $this->domainJsonPayload($updated ?? [])]);
+        }
 
         $this->session->flashSuccess('Domain settings updated successfully.');
         return $this->redirectBack($req);
@@ -347,6 +405,15 @@ final class DomainController
         $repo->forTenant($mid)->updateScoped($id, [
             'ssl_status' => $sslStatus
         ]);
+
+        if ($req->isAjax()) {
+            $updated = $repo->forTenant($mid)->findScoped($id);
+            return Response::json([
+                'success' => $sslStatus === 'active',
+                'domain'  => $this->domainJsonPayload($updated ?? []),
+                'error'   => $sslStatus === 'active' ? null : "SSL certificate check failed or certificate invalid/expired for {$domain}.",
+            ]);
+        }
 
         if ($sslStatus === 'active') {
             $this->session->flashSuccess("SSL certificate check succeeded for {$domain}! Status: Active");
@@ -407,14 +474,57 @@ final class DomainController
     }
 
     /**
-     * Redirects back to either the custom domains overview or settings tab based on Referer.
+     * Computes the single collapsed-card status pill for a domain record.
+     * Priority order (first match wins): inactive > pending DNS > SSL issue > active.
+     *
+     * @param array<string, mixed> $domain
+     * @return array{label: string, class: string}
+     */
+    public static function computeStatusPill(array $domain): array
+    {
+        $status = is_string($domain['status'] ?? null) ? $domain['status'] : '';
+        $dnsVerified = !empty($domain['dns_verified']);
+        $sslStatus = is_string($domain['ssl_status'] ?? null) ? $domain['ssl_status'] : 'none';
+
+        if ($status === 'inactive') {
+            return ['label' => 'Inactive', 'class' => 'op-badge-danger'];
+        }
+        if (!$dnsVerified || $status === 'pending' || $status === '') {
+            return ['label' => 'Pending DNS', 'class' => 'op-badge-warning'];
+        }
+        if ($sslStatus !== 'active') {
+            return ['label' => 'SSL Issue', 'class' => 'op-badge-warning'];
+        }
+        return ['label' => 'Active', 'class' => 'op-badge-success'];
+    }
+
+    /**
+     * Builds the JSON `domain` payload shared by every AJAX-gated action response.
+     *
+     * @param array<string, mixed> $domain
+     * @return array<string, mixed>
+     */
+    private function domainJsonPayload(array $domain): array
+    {
+        return [
+            'id'                 => $domain['id'] ?? null,
+            'domain'             => $domain['domain'] ?? '',
+            'type'               => $domain['type'] ?? 'checkout',
+            'redirect_url'       => $domain['redirect_url'] ?? null,
+            'status'             => $domain['status'] ?? 'pending',
+            'dns_verified'       => (bool) ($domain['dns_verified'] ?? false),
+            'ssl_status'         => $domain['ssl_status'] ?? 'none',
+            'is_primary'         => (bool) ($domain['is_primary'] ?? false),
+            'verification_token' => $domain['verification_token'] ?? null,
+            'status_pill'        => self::computeStatusPill($domain),
+        ];
+    }
+
+    /**
+     * Redirects back to the custom domains overview page.
      */
     private function redirectBack(Request $req): Response
     {
-        $referer = $req->header('Referer');
-        if ($referer !== '' && str_contains($referer, '/admin/settings')) {
-            return Response::redirect('/admin/settings/domains');
-        }
         return Response::redirect('/admin/domains');
     }
 }

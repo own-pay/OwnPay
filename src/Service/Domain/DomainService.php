@@ -121,7 +121,7 @@ final class DomainService
             'success'            => true,
             'domain_id'          => $id,
             'verification_token' => $verificationToken,
-            'instructions'       => "Step 1: Add TXT record: _ownpay-verification.{$domain} = {$verificationToken}. Step 2: Point A record to {$serverIp}",
+            'instructions'       => "Step 1: Add TXT record: _ownpay-verify.{$domain} = {$verificationToken}. Step 2: Point A record to {$serverIp}",
         ];
     }
 
@@ -156,7 +156,7 @@ final class DomainService
         if (!$txtVerified) {
             return [
                 'success' => false,
-                'error'   => 'TXT record not found. Add _ownpay-verification.' . $domainName . ' with your verification token.',
+                'error'   => 'TXT record not found. Add _ownpay-verify.' . $domainName . ' with your verification token.',
             ];
         }
 
