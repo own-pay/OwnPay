@@ -74,7 +74,10 @@
             if (e.target.closest("form")) { return; }
             var id = this.dataset.manageToggle;
             var manage = document.querySelector('.op-domain-manage[data-domain-manage="' + id + '"]');
-            if (manage) { manage.hidden = !manage.hidden; }
+            if (!manage) { return; }
+            manage.hidden = !manage.hidden;
+            var toggleBtn = document.querySelector('.op-domain-manage-btn[data-manage-toggle="' + id + '"]');
+            if (toggleBtn) { toggleBtn.setAttribute("aria-expanded", manage.hidden ? "false" : "true"); }
         });
     });
 

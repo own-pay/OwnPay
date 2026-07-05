@@ -31,7 +31,7 @@
                     {% if d.redirect_url %} &middot; Redirects to <code>{{ d.redirect_url }}</code>{% endif %}
                 </div>
             </div>
-            <button type="button" class="op-btn op-btn-sm op-btn-outline op-domain-manage-btn" data-manage-toggle="{{ d.id }}">
+            <button type="button" class="op-btn op-btn-sm op-btn-outline op-domain-manage-btn" data-manage-toggle="{{ d.id }}" aria-expanded="false">
                 Manage <span class="op-domain-manage-chevron">▾</span>
             </button>
         </div>
