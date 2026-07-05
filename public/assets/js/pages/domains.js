@@ -94,6 +94,33 @@
         });
     });
 
+    // --- Confirm-before-submit for destructive domain forms ---------------
+    // admin.js's own [data-confirm] click-interceptor calls confirmEl.submit()
+    // on confirmation, which per spec does NOT dispatch a `submit` event (only
+    // requestSubmit() or a real user-initiated submit-control click does) - so
+    // this file's delegated `submit` listener below would never see it. Using
+    // a separate `data-domain-confirm` attribute here (not `data-confirm`)
+    // avoids that collision entirely: this handles its own confirm dialog via
+    // the same global window.opShowConfirm admin.js exposes, then calls
+    // requestSubmit() so the real `submit` event fires and the handler below
+    // runs the AJAX flow normally.
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest('button[type="submit"]');
+        if (!btn) { return; }
+        var form = btn.closest("[data-domain-confirm]");
+        if (!form) { return; }
+
+        e.preventDefault();
+        var message = form.getAttribute("data-domain-confirm");
+        window.opShowConfirm("Are you sure?", message, "Confirm", "Cancel", function () {
+            if (typeof form.requestSubmit === "function") {
+                form.requestSubmit(btn);
+            } else {
+                form.submit();
+            }
+        });
+    });
+
     // --- Bespoke fetch handling for every data-no-ajax domain form --------
     document.addEventListener("submit", function (e) {
         var form = e.target;

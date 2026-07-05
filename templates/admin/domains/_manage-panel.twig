@@ -109,7 +109,7 @@
         <hr class="op-mt-4 op-mb-4">
 
         <form method="POST" action="/admin/domains/{{ d.id }}/delete" class="op-domain-inline-form" data-no-ajax data-domain-remove-form="{{ d.id }}"
-              data-confirm="Remove {{ d.domain }}? This cannot be undone.">
+              data-domain-confirm="Remove {{ d.domain }}? This cannot be undone.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="op-btn op-btn-danger op-btn-sm">Remove Domain</button>
         </form>
