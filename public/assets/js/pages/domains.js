@@ -133,7 +133,7 @@
     document.addEventListener("submit", function (e) {
         var form = e.target;
         if (!form.hasAttribute("data-no-ajax")) { return; }
-        if (!form.matches("[data-domain-inline-update], [data-domain-primary-form], [data-domain-verify-form], [data-domain-ssl-form], [data-domain-override-form], [data-domain-remove-form], #add-domain-wizard-form")) {
+        if (!form.matches("[data-domain-inline-update], [data-domain-primary-form], [data-domain-verify-form], [data-domain-ssl-form], [data-domain-remove-form], #add-domain-wizard-form")) {
             return;
         }
         e.preventDefault();

@@ -80,34 +80,7 @@
 
     {# -- Danger Zone -- #}
     <div class="op-domain-tab-panel" data-domain-tab-panel="danger" data-domain-manage="{{ d.id }}">
-        <form method="POST" action="/admin/domains/{{ d.id }}/update" class="op-domain-inline-form" data-no-ajax data-domain-override-form="{{ d.id }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="type" value="{{ d.type }}">
-            <input type="hidden" name="redirect_url" value="{{ d.redirect_url }}">
-            <input type="hidden" name="is_primary" value="{{ d.is_primary ? '1' : '0' }}">
-            <div class="op-form-group">
-                <label>Domain Status</label>
-                <select name="status" class="op-input" data-domain-override-select="{{ d.id }}">
-                    <option value="active" {{ d.status == 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="pending" {{ d.status == 'pending' ? 'selected' : '' }}>Pending DNS</option>
-                    <option value="inactive" {{ d.status == 'inactive' ? 'selected' : '' }}>Inactive</option>
-                </select>
-            </div>
-            <div class="op-form-group">
-                <label>DNS Verification State</label>
-                <select name="dns_verified" class="op-input" data-domain-override-select="{{ d.id }}">
-                    <option value="1" {{ d.dns_verified ? 'selected' : '' }}>Verified (1)</option>
-                    <option value="0" {{ not d.dns_verified ? 'selected' : '' }}>Unverified / Pending (0)</option>
-                </select>
-            </div>
-            <div class="op-alert op-alert-warning">
-                Manually changing this does not run a real DNS check - the domain may not actually work if set to Active/Verified without DNS being correct.
-            </div>
-            <button type="submit" class="op-btn op-btn-outline op-btn-sm">Save Override</button>
-        </form>
-
-        <hr class="op-mt-4 op-mb-4">
-
+        <p class="op-text-muted">Permanently remove this domain and its DNS verification state. This cannot be undone.</p>
         <form method="POST" action="/admin/domains/{{ d.id }}/delete" class="op-domain-inline-form" data-no-ajax data-domain-remove-form="{{ d.id }}"
               data-domain-confirm="Remove {{ d.domain }}? This cannot be undone.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
