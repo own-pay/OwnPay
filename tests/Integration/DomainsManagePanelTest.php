@@ -51,18 +51,25 @@ final class DomainsManagePanelTest extends TestCase
         $this->assertStringContainsString('not checked automatically', $html);
     }
 
-    public function testDangerZoneHasWarningCopyAndOverrideFields(): void
+    public function testDangerZoneHasOnlyRemoveDomainNoManualOverride(): void
     {
+        // Manual status/dns_verified override was removed per explicit user
+        // decision after live review - a domain's real state should only ever
+        // change via a real DNS/SSL check or removal, never a raw admin toggle.
         $html = $this->renderPanel([
             'id' => 7, 'domain' => 'pay.acme.com', 'type' => 'checkout',
             'redirect_url' => null, 'status' => 'active', 'ssl_status' => 'active',
             'dns_verified' => 1, 'is_primary' => false, 'verification_token' => 'op-verify-xyz',
         ]);
 
-        $this->assertStringContainsString('does not run a real DNS check', $html);
-        $this->assertStringContainsString('name="status"', $html);
-        $this->assertStringContainsString('name="dns_verified"', $html);
-        $this->assertStringContainsString('data-domain-remove-form="7"', $html);
+        $dangerStart = strpos($html, 'data-domain-tab-panel="danger"');
+        $this->assertIsInt($dangerStart);
+        $dangerHtml = substr($html, $dangerStart);
+
+        $this->assertStringContainsString('data-domain-remove-form="7"', $dangerHtml);
+        $this->assertStringNotContainsString('data-domain-override-form', $dangerHtml);
+        $this->assertStringNotContainsString('name="status"', $dangerHtml);
+        $this->assertStringNotContainsString('name="dns_verified"', $dangerHtml);
     }
 
     public function testOverviewTabHasNoAdminDomainTypeOption(): void
