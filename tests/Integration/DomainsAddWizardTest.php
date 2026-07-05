@@ -38,10 +38,11 @@ final class DomainsAddWizardTest extends TestCase
     {
         $html = $this->renderTemplate([]);
         $wizardStart = strpos($html, 'id="add-domain-modal"');
-        $wizardEnd = strpos($html, 'id="edit-domain-modal"');
         $this->assertIsInt($wizardStart);
-        $this->assertIsInt($wizardEnd);
-        $wizardHtml = substr($html, $wizardStart, $wizardEnd - $wizardStart);
+        // The Add Domain wizard modal is the last modal-like block in this template
+        // (the old standalone Edit Domain modal was removed - inline editing in the
+        // Manage panel's Overview tab replaced it, per spec §5) - slice to end of file.
+        $wizardHtml = substr($html, $wizardStart);
 
         $this->assertStringNotContainsString('value="admin"', $wizardHtml);
         $this->assertStringNotContainsString('Admin domain', $wizardHtml);
@@ -51,5 +52,17 @@ final class DomainsAddWizardTest extends TestCase
     {
         $html = $this->renderTemplate([]);
         $this->assertMatchesRegularExpression('/<form[^>]*action="\/admin\/domains"[^>]*data-no-ajax/', $html);
+    }
+
+    public function testNoAdminDomainTypeOptionAnywhereOnThePage(): void
+    {
+        // The standalone Edit Domain modal (the only other place `admin` used to
+        // appear) was removed as dead markup - inline editing in the Manage panel's
+        // Overview tab (built in an earlier task) replaced it. Nothing on this page
+        // should offer `admin` as a selectable domain type anymore.
+        $html = $this->renderTemplate([]);
+        $this->assertStringNotContainsString('value="admin"', $html);
+        $this->assertStringNotContainsString('Admin domain', $html);
+        $this->assertStringNotContainsString('id="edit-domain-modal"', $html);
     }
 }
