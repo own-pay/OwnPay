@@ -69,7 +69,12 @@
     }
 
     // --- Card expand/collapse -------------------------------------------
-    document.querySelectorAll("[data-manage-toggle]").forEach(function (el) {
+    // Only bind to the row (.op-domain-card-row) - the Manage button is
+    // nested inside it, so a click there already bubbles up to this same
+    // handler. Also binding the button would fire the toggle twice per
+    // click (once on the button, once again on bubble-up to the row),
+    // which cancels itself out and makes the panel appear to never open.
+    document.querySelectorAll(".op-domain-card-row[data-manage-toggle]").forEach(function (el) {
         el.addEventListener("click", function (e) {
             if (e.target.closest("form")) { return; }
             var id = this.dataset.manageToggle;
