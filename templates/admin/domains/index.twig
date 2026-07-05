@@ -43,7 +43,7 @@
 {% endfor %}
 </div>
 
-{# -- Add Domain Modal ------------------------------------------ #}
+{# -- Add Domain Wizard Modal ------------------------------------ #}
 <div class="op-modal" id="add-domain-modal" hidden>
     <div class="op-modal-backdrop" data-close-modal="add-domain-modal"></div>
     <div class="op-modal-dialog">
@@ -51,9 +51,16 @@
             <h3>Add Custom Domain</h3>
             <button class="op-modal-close" type="button" data-close-modal="add-domain-modal">×</button>
         </div>
-        <form method="POST" action="/admin/domains">
+
+        <div class="op-wizard-progress">
+            <div class="op-wizard-progress-bar" data-wizard-bar-step="1"></div>
+        </div>
+
+        {# -- Step 1: domain name + type -- #}
+        <form method="POST" action="/admin/domains" class="op-wizard-step active" data-wizard-step="1" data-no-ajax id="add-domain-wizard-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <div class="op-modal-body">
+                <div class="op-label">Step 1 of 3</div>
                 <div class="op-form-group">
                     <label>Domain Name *</label>
                     <input type="text" name="domain" class="op-input op-input-lg" placeholder="pay.yourbusiness.com"
@@ -65,7 +72,6 @@
                     <label>Domain Type</label>
                     <select name="type" class="op-input">
                         <option value="checkout">Checkout domain</option>
-                        <option value="admin">Admin domain</option>
                         <option value="api">API domain</option>
                     </select>
                 </div>
@@ -74,15 +80,51 @@
                     <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
                     <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
                 </div>
-                <div class="op-alert op-alert-info">
-                    After adding, you'll see the TXT verification token and server IP to configure in your DNS provider.
-                </div>
             </div>
             <div class="op-modal-footer">
                 <button type="button" class="op-btn op-btn-outline" data-close-modal="add-domain-modal">Cancel</button>
-                <button type="submit" class="op-btn op-btn-primary">Add Domain</button>
+                <button type="submit" class="op-btn op-btn-primary">Next →</button>
             </div>
         </form>
+
+        {# -- Step 2: TXT record (populated client-side after step 1's AJAX response) -- #}
+        <div class="op-wizard-step" data-wizard-step="2">
+            <div class="op-modal-body">
+                <div class="op-label">Step 2 of 3</div>
+                <h4>Add this TXT record</h4>
+                <div class="op-dns-record-details">
+                    <div>Name/Host: <code id="wizard-txt-host">_ownpay-verify.</code>
+                        <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="wizard-txt-host">Copy</button></div>
+                    <div>Value: <code id="wizard-txt-val"></code>
+                        <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="wizard-txt-val">Copy</button></div>
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-wizard-back="2">← Back</button>
+                <button type="button" class="op-btn op-btn-primary" data-wizard-next="2">Next →</button>
+            </div>
+        </div>
+
+        {# -- Step 3: A/CNAME record + verify -- #}
+        <div class="op-wizard-step" data-wizard-step="3">
+            <div class="op-modal-body">
+                <div class="op-label">Step 3 of 3</div>
+                <h4>Point your A or CNAME record</h4>
+                <div class="op-dns-record-details">
+                    <div>Option A - CNAME target: <code id="wizard-cname">testing.ownpay.org</code>
+                        <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="wizard-cname">Copy</button></div>
+                    <div>Option B - A record IP: <code id="wizard-a">{{ server_ip }}</code>
+                        <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="wizard-a">Copy</button></div>
+                </div>
+                <div class="op-alert op-alert-info op-mt-3">DNS propagation takes 5-30 minutes. You can close this and verify later from the domain's DNS Setup tab.</div>
+                <div class="op-wizard-verify-result" id="wizard-verify-result"></div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-wizard-back="3">← Back</button>
+                <button type="button" class="op-btn op-btn-outline" id="wizard-verify-btn" data-wizard-domain-id="">Verify DNS</button>
+                <button type="button" class="op-btn op-btn-primary" data-close-modal="add-domain-modal">Done</button>
+            </div>
+        </div>
     </div>
 </div>
 
