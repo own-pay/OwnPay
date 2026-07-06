@@ -4,10 +4,39 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use OwnPay\Controller\Webhook\UnifiedWebhookController;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 class UnifiedWebhookControllerTest extends TestCase
 {
+    private function extractTrxRef(string $rawBody): string
+    {
+        $reflection = new ReflectionClass(UnifiedWebhookController::class);
+        $controller = $reflection->newInstanceWithoutConstructor();
+        $method = $reflection->getMethod('extractTrxRef');
+        $method->setAccessible(true);
+        return $method->invoke($controller, $rawBody);
+    }
+
+    public function testExtractTrxRefFindsJsonFieldByPriority(): void
+    {
+        $this->assertSame('TRX-1', $this->extractTrxRef('{"trx_id":"TRX-1","order_id":"ORD-2"}'));
+        $this->assertSame('ORD-2', $this->extractTrxRef('{"order_id":"ORD-2"}'));
+    }
+
+    public function testExtractTrxRefFindsFormEncodedField(): void
+    {
+        $this->assertSame('REF-9', $this->extractTrxRef('reference=REF-9&status=paid'));
+    }
+
+    public function testExtractTrxRefReturnsEmptyWhenNoRecognizedField(): void
+    {
+        $this->assertSame('', $this->extractTrxRef('{"unrelated_field":"x"}'));
+        $this->assertSame('', $this->extractTrxRef(''));
+        $this->assertSame('', $this->extractTrxRef('not json or form data{{{'));
+    }
+
     public function testGatewaySlugValidation(): void
     {
         $valid = ['stripe', 'bkash', 'sslcommerz', 'upay', 'my-gateway-2'];
