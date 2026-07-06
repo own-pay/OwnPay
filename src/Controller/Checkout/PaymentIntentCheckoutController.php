@@ -154,6 +154,25 @@ final class PaymentIntentCheckoutController
 
         $intentStatusVal = $intent['status'] ?? '';
         $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+
+        // The customer returned to the plain checkout URL (browser back, either right after
+        // picking a gateway or from the external gateway's own page) rather than the gateway's
+        // own return URL (which always targets /status). Nothing was confirmed at the gateway,
+        // so let them pick again instead of getting stuck on a permanent "processing" screen.
+        if ($intentStatus === 'processing') {
+            $intentIdVal = $intent['id'] ?? 0;
+            $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
+            if ($this->intents->reactivateForRetry($token)) {
+                $this->txnRepo->reactivateForRetryByIntentId($intentId);
+                $intent = $this->paymentService->findByToken($token);
+                if (!$intent) {
+                    return $this->renderStatus($token, 'expired');
+                }
+                $intentStatusVal = $intent['status'] ?? '';
+                $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+            }
+        }
+
         if ($intentStatus !== 'pending') {
             return $this->renderStatus($token, $intentStatus, $intent);
         }
@@ -684,6 +703,18 @@ final class PaymentIntentCheckoutController
             return Response::redirect("/checkout/intent/{$token}/status");
         }
 
+        // Atomically claim the transaction (status must still be 'pending') before calling out
+        // to the gateway. The FOR UPDATE lock above prevents duplicate/corrupted transaction
+        // rows, but is released before the (slow) external gateway call - without this claim, a
+        // second concurrent request could still reach the gateway and create a second live
+        // payment session for the same transaction.
+        if (!$this->txnRepo->claimPendingForPay($txnId, $gateway, 'processing', $mid)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+            }
+            return $this->renderStatus($token, 'processing', $intent);
+        }
+
         // Initialize gateway integration handshake and resolve external redirection parameters.
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
@@ -750,8 +781,7 @@ final class PaymentIntentCheckoutController
                     ]);
 
                     if ($result['success'] && !empty($result['redirect_url'])) {
-                        // Track external gateway initiation stage by updating transaction state to processing.
-                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
+                        // Track external gateway initiation stage on the parent intent.
                         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
                         if ($req->isAjax()) {
@@ -762,8 +792,7 @@ final class PaymentIntentCheckoutController
                         }
                         return Response::redirect($result['redirect_url']);
                     } elseif ($result['success'] && !empty($result['form_html'])) {
-                        // Track external gateway initiation stage by updating transaction state to processing.
-                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
+                        // Track external gateway initiation stage on the parent intent.
                         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
                         if ($req->isAjax()) {
@@ -775,12 +804,21 @@ final class PaymentIntentCheckoutController
                         return Response::html($result['form_html']);
                     }
 
+                    // Gateway did not return a usable session - release the claim so the
+                    // customer can retry instead of getting stuck on "processing" with no
+                    // in-flight payment.
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
                     $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                     if ($req->isAjax()) {
                         return Response::json(['success' => false, 'error' => $errorMsg], 422);
                     }
+                } else {
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
                 }
             } catch (\Throwable $e) {
+                $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->error(
@@ -793,6 +831,8 @@ final class PaymentIntentCheckoutController
                 }
             }
         } else {
+            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
             if ($req->isAjax()) {
                 return Response::json(['success' => false, 'error' => 'Payment service is not configured.'], 500);
             }
@@ -1305,6 +1345,13 @@ final class PaymentIntentCheckoutController
         $txnIdVal = $txn['id'] ?? 0;
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
+        // Atomically claim the transaction (status must still be 'pending') before calling out
+        // to the gateway - see the identical guard in pay() for why this is needed even though
+        // the transaction row itself was just created/reused under a FOR UPDATE lock above.
+        if (!$this->txnRepo->claimPendingForPay($txnId, $gatewaySlug, 'processing', $mid)) {
+            return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+        }
+
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
@@ -1312,7 +1359,7 @@ final class PaymentIntentCheckoutController
                     $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
                     if ($urlService instanceof \OwnPay\Service\Domain\DomainUrlService) {
                         $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
-                        
+
                         $txnAmountVal = $txn['amount'] ?? '0';
                         $txnAmount = (is_string($txnAmountVal) || is_int($txnAmountVal) || is_float($txnAmountVal)) ? (string) $txnAmountVal : '0';
                         $txnCurrencyVal = $txn['currency'] ?? 'BDT';
@@ -1330,7 +1377,6 @@ final class PaymentIntentCheckoutController
                         ]);
 
                         if ($result['success'] && !empty($result['redirect_url'])) {
-                            $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'processing', $mid);
                             $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
                             return Response::json([
@@ -1338,6 +1384,8 @@ final class PaymentIntentCheckoutController
                                 'redirect_url' => $result['redirect_url'],
                             ]);
                         }
+
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
 
                         $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                         $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
@@ -1349,8 +1397,13 @@ final class PaymentIntentCheckoutController
 
                         return Response::json(['success' => false, 'error' => $errorMsg], 422);
                     }
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
+                } else {
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
                 }
             } catch (\Throwable $e) {
+                $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
+
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->error(
@@ -1359,6 +1412,8 @@ final class PaymentIntentCheckoutController
                 }
                 return Response::json(['success' => false, 'error' => 'Gateway connection error. Please try again.'], 422);
             }
+        } else {
+            $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
         }
 
         return Response::json(['success' => false, 'error' => 'Payment service is not configured.'], 500);

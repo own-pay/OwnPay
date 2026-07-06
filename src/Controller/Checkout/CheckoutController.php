@@ -104,6 +104,13 @@ final class CheckoutController
     public function show(Request $req): Response
     {
         $ref = (string) $req->param('token');
+
+        // The customer returned to the plain checkout URL (browser back, either right after
+        // picking a gateway or from the external gateway's own page) rather than the gateway's
+        // own return URL (which always targets /status). Nothing was confirmed at the gateway,
+        // so let them pick again instead of getting stuck on a permanent "processing" screen.
+        $this->txnRepo->reactivateForRetry($ref);
+
         $txn = $this->txnRepo->findActiveForCheckout($ref);
 
         if ($txn === null) {
@@ -562,7 +569,34 @@ final class CheckoutController
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
         if ($gatewayMode === 'manual') {
-            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'awaiting_verification', $mid);
+            // Assert the submitted gateway is one of this merchant's actually-configured active
+            // manual gateways (expressPay() already does the equivalent check for API gateways) -
+            // otherwise an arbitrary client-supplied string gets stored as gateway_slug.
+            $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
+            $activeManualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
+            $isActiveManual = false;
+            foreach ($activeManualGateways as $gw) {
+                if (($gw['slug'] ?? '') === $gateway) {
+                    $isActiveManual = true;
+                    break;
+                }
+            }
+            if (!$isActiveManual) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+                }
+                return $this->renderStatus($token, 'expired');
+            }
+
+            // Atomically claim the transaction (status must still be 'pending') before writing
+            // anything - closes the race where two near-simultaneous submissions (double-click,
+            // two tabs) would otherwise both pass the earlier unlocked status check.
+            if (!$this->txnRepo->claimPendingForPay($txnId, $gateway, 'awaiting_verification', $mid)) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+                }
+                return $this->renderStatus($token, 'awaiting_verification');
+            }
 
             $details = $req->post('payment_details', []);
             if (is_array($details) && !empty($details)) {
@@ -572,6 +606,16 @@ final class CheckoutController
                 ], $mid);
             }
             return Response::redirect("/checkout/{$token}/status");
+        }
+
+        // Atomically claim the transaction for an external gateway attempt BEFORE calling out -
+        // a losing concurrent request is rejected here and never reaches the gateway, preventing
+        // two live payment sessions from being created for one transaction.
+        if (!$this->txnRepo->claimPendingForPay($txnId, $gateway, 'processing', $mid)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+            }
+            return $this->renderStatus($token, 'processing');
         }
 
         // API Handshake: delegate connection requests targeting external gateways.
@@ -594,10 +638,6 @@ final class CheckoutController
                         ]);
 
                         if ($result['success'] && !empty($result['redirect_url'])) {
-                            $this->txnRepo->setGatewayAndStatus(
-                                $txnId, $gateway, 'processing', $mid
-                            );
-
                             // Dispatch ajax redirects for asynchronous capture handlers.
                             if ($req->isAjax()) {
                                 return Response::json([
@@ -607,10 +647,6 @@ final class CheckoutController
                             }
                             return Response::redirect((string) $result['redirect_url']);
                         } elseif ($result['success'] && !empty($result['form_html'])) {
-                            $this->txnRepo->setGatewayAndStatus(
-                                $txnId, $gateway, 'processing', $mid
-                            );
-
                             if ($req->isAjax()) {
                                 return Response::json([
                                     'success'   => true,
@@ -619,6 +655,11 @@ final class CheckoutController
                             }
                             return Response::html((string) $result['form_html']);
                         }
+
+                        // Gateway did not return a usable session - release the claim so the
+                        // customer can retry (with this or another gateway) instead of getting
+                        // stuck on a "processing" status with no in-flight payment.
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
 
                         $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                         $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
@@ -634,9 +675,15 @@ final class CheckoutController
                                 'error'   => $errorMsg,
                             ], 422);
                         }
+                    } else {
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
                     }
+                } else {
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
                 }
             } catch (\Throwable $e) {
+                $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->error(
@@ -652,6 +699,8 @@ final class CheckoutController
                 }
             }
         } else {
+            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
             if ($req->isAjax()) {
                 return Response::json([
                     'success' => false,
@@ -964,6 +1013,14 @@ final class CheckoutController
             return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
         }
 
+        // Atomically claim the transaction (status must still be 'pending') before calling out
+        // to the gateway - closes the race where two near-simultaneous express-pay submissions
+        // would otherwise both pass the earlier unlocked status check and create two live
+        // payment sessions.
+        if (!$this->txnRepo->claimPendingForPay($txnId, $gatewaySlug, 'processing', $mid)) {
+            return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+        }
+
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
@@ -982,15 +1039,13 @@ final class CheckoutController
                         ]);
 
                         if ($result['success'] && !empty($result['redirect_url'])) {
-                            $this->txnRepo->setGatewayAndStatus(
-                                $txnId, $gatewaySlug, 'processing', $mid
-                            );
-
                             return Response::json([
                                 'success'      => true,
                                 'redirect_url' => (string) $result['redirect_url'],
                             ]);
                         }
+
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
 
                         $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                         $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
@@ -1005,8 +1060,13 @@ final class CheckoutController
                             'error'   => $errorMsg,
                         ], 422);
                     }
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
+                } else {
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
                 }
             } catch (\Throwable $e) {
+                $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
+
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->error(
@@ -1019,6 +1079,8 @@ final class CheckoutController
                     'error'   => 'The payment gateway could not process your request. Please try again or choose another method.',
                 ], 422);
             }
+        } else {
+            $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
         }
 
         return Response::json([
