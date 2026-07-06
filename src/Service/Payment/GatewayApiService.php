@@ -199,7 +199,7 @@ final class GatewayApiService
         $amountMismatch = false;
 
         try {
-            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, &$transaction, &$amountMismatch) {
+            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, $gatewaySlug, &$transaction, &$amountMismatch) {
                 if ($trxId !== '') {
                     $transaction = $db->fetchOne(
                         "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
@@ -235,7 +235,7 @@ final class GatewayApiService
                         return;
                     }
 
-                    if (in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
+                    if ($this->isCompletionEligible($transaction, $gatewaySlug)) {
                         $txnId = $transaction['id'] ?? 0;
                         $amt = $transaction['amount'] ?? '0.00';
                         $feeVal = $transaction['fee'] ?? '0.00';
@@ -270,6 +270,67 @@ final class GatewayApiService
         }
 
         return ['success' => false, 'error' => 'Transaction not found or already processed'];
+    }
+
+    /**
+     * Checks whether a webhook for the given gateway is allowed to complete a referenced
+     * transaction, WITHOUT completing it - a pre-dispatch guard for plugin-registered webhook
+     * handlers (see UnifiedWebhookController), which call TransactionService::complete()
+     * directly and have no access to the core callback pipeline's gateway-match check.
+     *
+     * Reuses the exact isCompletionEligible() rule the core handleCallback() path already
+     * enforces: a stale/replayed webhook from a gateway the customer has since abandoned must
+     * not complete the transaction under the wrong gateway's identity. Fails OPEN (returns true)
+     * when no transaction can be positively identified by the given reference - this only
+     * rejects a positively-identified mismatch, it never blocks a plugin handler that resolves
+     * the transaction some other way (e.g. solely by gateway_trx_id after its own lookup).
+     *
+     * @param string $trxRef Transaction reference extracted from the webhook payload (trx_id/order_id/etc).
+     * @param int $merchantId The ID of the merchant/brand the webhook was routed to.
+     * @param string $gatewaySlug The gateway that sent this webhook (route-determined, not attacker-controlled).
+     * @return bool True if the webhook may proceed to complete this transaction.
+     */
+    public function isTransactionEligibleForWebhookCompletion(string $trxRef, int $merchantId, string $gatewaySlug): bool
+    {
+        if ($trxRef === '') {
+            return true;
+        }
+        $db = \OwnPay\Core\Database::getInstance();
+        $transaction = $db->fetchOne(
+            "SELECT status, gateway_slug FROM op_transactions
+             WHERE (trx_id = :t OR gateway_trx_id = :t2) AND merchant_id = :mid LIMIT 1",
+            ['t' => $trxRef, 't2' => $trxRef, 'mid' => $merchantId]
+        );
+        if ($transaction === null) {
+            return true;
+        }
+        return $this->isCompletionEligible($transaction, $gatewaySlug);
+    }
+
+    /**
+     * Determines whether a webhook/callback is allowed to complete the given transaction.
+     *
+     * `pending` transactions are always eligible (pre-existing behavior, unrelated to the guard
+     * below). Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
+     * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this prevents
+     * a late/stale webhook from a gateway the customer has since abandoned (e.g. went back to
+     * checkout and picked a different gateway) from completing the transaction under the wrong
+     * gateway's identity.
+     *
+     * @param array<string, mixed> $transaction The locked transaction row.
+     * @param string $gatewaySlug The gateway that sent this callback (route-determined, not attacker-controlled).
+     * @return bool True if the callback may complete this transaction.
+     */
+    private function isCompletionEligible(array $transaction, string $gatewaySlug): bool
+    {
+        $status = $transaction['status'] ?? '';
+        if (!in_array($status, ['pending', 'processing', 'callback_processing'], true)) {
+            return false;
+        }
+        if ($status === 'pending') {
+            return true;
+        }
+        return ($transaction['gateway_slug'] ?? null) === $gatewaySlug;
     }
 
     /**
