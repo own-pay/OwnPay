@@ -1,57 +1,91 @@
-# Environment & secrets
+# =============================================================
+# OwnPay .gitignore
+# =============================================================
+
+# --------------- Dependencies ---------------
+/node_modules/
+
+# --------------- Environment ---------------
 .env
-.env.*
-!.env.example
+.env.local
+.env.*.local
+.gitignore
 
-# PHPUnit cache
-.phpunit.cache/
-
-# Debug / test artifacts
-cookie.txt
-test_*.php
-check_db.php
-phpstan_report*.txt
-phpstan_results.json
-
-# Dependencies
-node_modules/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
-.idea/
+# --------------- IDE / Editor ---------------
 .vscode/
+.idea/
 *.swp
 *.swo
-
-# Installer lock file (generated at runtime)
-storage/.installed
-
-# IDE 
-.github/
-cli/
-update/
-
-# Runtime storage (keep structure, ignore contents)
-storage/cache/*
-storage/logs/*
-storage/pdf/*
-storage/sessions/*
-storage/backups/*
-!storage/*/.gitkeep
-
-#Php cli nd update
-/update/releases/*
-storage/cron/98a234fa4953567787cf87e47c1f5e21.lock
-update_private_key.pem
-public/assets/uploads/site_logo_1779482544.jpg
-public/storage/
-
-# Local HTTP debugging files (curl output, cookie jars)
-
-storage/update.lock
-storage/cron/98a234fa4953567787cf87e47c1f5e21.running.lock
-storage/cron/250aafceaee3b63c95d9d5352b43431d.running.lock
+*~
 *.zip
+
+# --------------- OS ---------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --------------- PHP Tooling ---------------
+.phpunit.cache/
+.twig-cs-fixer.cache
+
+# --------------- JS Tooling ---------------
+.vitest/
+
+# --------------- Agent / AI Tooling ---------------
+.agents/
+.claude/
+.planning/
+graphify-out/
+task_plan.md
+findings.md
+progress.md
+output/
+AGENTS.md
+ARCHITECTURE.md
+CLAUDE.md
+
+
+# --------------- Non-Core Projects (separate repos) ---------------
+mobile-app/
+landing_page/
+dev/
+
+cli/
+.docker/
+docs/images/ownpay_logo/
+docs/v2/
+docs/changelog.md
+docker-compose.yml
+Dockerfile
+
+
+
+# --------------- Storage Runtime Artifacts ---------------
+storage/logs/*.log
+storage/sessions/**
+storage/cache/**
+storage/backups/**
+storage/cron/*.lock
+storage/cron/*.running.lock
+storage/framework/**
+storage/temp/**
+storage/pdf/**
+storage/update.lock
+storage/.installed
+public/assets/uploads/**
+public/assets/img/**
+.dockerignore
+storage/languages
+
+# --------------- Generated Reports ---------------
+audit_report.md
+phpstan_output.json
+phpunit_output.txt
+
+# --------------- Misc ---------------
+*.pem
+.phpunit.result.cache
+.gitignore
+install.sh
+update/
+.superpowers/
