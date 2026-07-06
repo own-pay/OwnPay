@@ -7,6 +7,7 @@ namespace Tests\Integration;
 use OwnPay\Container;
 use OwnPay\Core\Database;
 use OwnPay\Repository\ApiKeyRepository;
+use OwnPay\Service\Customer\ApiKeyService;
 
 /**
  * Regression coverage for the Developer Hub API Keys restructure: op_api_keys.status
@@ -17,6 +18,7 @@ final class ApiKeyLockUnlockTest extends IntegrationTestCase
 {
     private Database $db;
     private ApiKeyRepository $keys;
+    private ApiKeyService $service;
     private int $merchantId = 1;
 
     protected function setUp(): void
@@ -36,6 +38,10 @@ final class ApiKeyLockUnlockTest extends IntegrationTestCase
         $keys = $container->get(ApiKeyRepository::class);
         $this->assertInstanceOf(ApiKeyRepository::class, $keys);
         $this->keys = $keys;
+
+        $service = $container->get(ApiKeyService::class);
+        $this->assertInstanceOf(ApiKeyService::class, $service);
+        $this->service = $service;
 
         $this->cleanup();
     }
@@ -97,5 +103,59 @@ final class ApiKeyLockUnlockTest extends IntegrationTestCase
         $names = array_column($otherTenantResult, 'name');
 
         $this->assertNotContains('zzkey-mine', $names);
+    }
+
+    public function testLockTransitionsActiveKeyToLocked(): void
+    {
+        $id = $this->insertKey('zzkey-to-lock', 'active');
+
+        $affected = $this->service->lock($this->merchantId, $id);
+
+        $this->assertSame(1, $affected);
+        $row = $this->db->fetchOne("SELECT status FROM op_api_keys WHERE id = :id", ['id' => $id]);
+        $this->assertSame('locked', $row['status']);
+    }
+
+    public function testUnlockTransitionsLockedKeyToActive(): void
+    {
+        $id = $this->insertKey('zzkey-to-unlock', 'locked');
+
+        $affected = $this->service->unlock($this->merchantId, $id);
+
+        $this->assertSame(1, $affected);
+        $row = $this->db->fetchOne("SELECT status FROM op_api_keys WHERE id = :id", ['id' => $id]);
+        $this->assertSame('active', $row['status']);
+    }
+
+    public function testLockIsScopedToTenant(): void
+    {
+        $id = $this->insertKey('zzkey-cross-tenant', 'active');
+
+        $affected = $this->service->lock(999999, $id);
+
+        $this->assertSame(0, $affected, 'a merchant must not be able to lock a key it does not own');
+        $row = $this->db->fetchOne("SELECT status FROM op_api_keys WHERE id = :id", ['id' => $id]);
+        $this->assertSame('active', $row['status'], 'status must be unchanged by a wrong-tenant lock attempt');
+    }
+
+    public function testListAllMasksHashAndDecodesScopes(): void
+    {
+        $this->insertKey('zzkey-list-all', 'locked');
+
+        $all = $this->service->listAll($this->merchantId);
+        $found = null;
+        foreach ($all as $row) {
+            if ($row['name'] === 'zzkey-list-all') {
+                $found = $row;
+                break;
+            }
+        }
+
+        $this->assertNotNull($found);
+        $this->assertArrayNotHasKey('key_hash', $found);
+        $this->assertArrayNotHasKey('hash', $found);
+        $this->assertIsArray($found['scopes']);
+        $this->assertSame(['read'], $found['scopes']);
+        $this->assertSame('locked', $found['status']);
     }
 }
