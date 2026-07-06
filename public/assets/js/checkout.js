@@ -413,10 +413,11 @@
             }
             noteEl.textContent = "Converted from " + (cfg.originalCurrency || "USD") + " at current exchange rate";
         } else if (amountEl) {
-            // Reset to original amount for non-converted gateways
-            var origSymbol = cfg.originalCurrencySymbol || "$";
-            var origAmount = parseFloat(cfg.originalAmount || "0").toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            amountEl.textContent = origSymbol + origAmount;
+            // Non-converted gateway: leave the server-rendered amount (set once from the
+            // transaction at page load) untouched. cfg.originalAmount/originalCurrencySymbol
+            // are only ever populated on the payment-intent checkout flow, not here, so
+            // reading them unconditionally used to blank the amount to "$0.00" on every
+            // manual-gateway popup open.
             var existingNote = document.getElementById("mpConvNote");
             if (existingNote) {existingNote.remove();}
         }

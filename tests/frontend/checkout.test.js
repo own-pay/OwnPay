@@ -729,6 +729,21 @@ describe('checkout.js', () => {
       expect(document.getElementById('mpFooter').textContent).toBe('Secured by OwnPay');
     });
 
+    // Regression: openManualPopup()'s non-converted-gateway branch unconditionally overwrote
+    // #mpAmountValue using cfg.originalAmount/cfg.originalCurrencySymbol, which the regular
+    // checkout flow (CheckoutController) never sets (those keys are only ever populated by the
+    // separate payment-intent checkout flow) - so the fallback defaults ("0"/"$") always fired,
+    // blanking the correct server-rendered amount to "$0.00" the instant any manual popup opened.
+    it('openManualPopup does not overwrite the server-rendered amount for a non-converted gateway', () => {
+      document.getElementById('mpAmountValue').textContent = '৳250.00';
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX' };
+      const card = document.createElement('div');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+
+      expect(document.getElementById('mpAmountValue').textContent).toBe('৳250.00');
+    });
+
     it('copyTextFrom copies the amount value and shows the toast on success', () => {
       document.getElementById('mpAmountValue').textContent = '500.00 BDT';
       const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
