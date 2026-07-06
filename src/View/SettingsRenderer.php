@@ -78,7 +78,7 @@ final class SettingsRenderer
                 'textarea' => self::textarea($name, $value, $required),
                 'select'   => self::select($name, $value, $options, $required),
                 'checkbox', 'toggle' => self::toggle($name, $value),
-                'password' => self::input($name, $value, 'password', $required),
+                'password' => self::passwordInput($name, $value, $required),
                 'number'   => self::input($name, $value, 'number', $required),
                 'email'    => self::input($name, $value, 'email', $required),
                 'color'    => self::input($name, $value, 'color', $required),
@@ -121,6 +121,32 @@ final class SettingsRenderer
         return '<input type="' . $type . '" name="settings[' . self::e($name) . ']" '
             . 'id="setting_' . self::e($name) . '" '
             . 'value="' . self::e($value) . '" '
+            . 'class="op-input"' . $req . '>';
+    }
+
+    /**
+     * Render a password input that never echoes its stored secret back into the page.
+     *
+     * The real value is only ever known server-side; the field renders blank with a hint
+     * indicating whether a value is already configured. A blank submission on save is treated
+     * as "leave unchanged" by the controller, so this never forces re-entry of a secret.
+     *
+     * @param string $name The name attribute of the input control.
+     * @param string $value The currently-stored value (used only to decide the placeholder, never rendered).
+     * @param bool $required Flag indicating whether the field must be completed.
+     * @return string The generated input element HTML markup.
+     */
+    private static function passwordInput(string $name, string $value, bool $required): string
+    {
+        // A blank submission is valid once a value already exists (means "keep unchanged"), so
+        // the HTML5 required constraint only applies for first-time, not-yet-configured fields -
+        // otherwise the browser would block re-saving the form without re-entering every secret.
+        $req = ($required && $value === '') ? ' required' : '';
+        $placeholder = $value !== '' ? 'Already set - leave blank to keep unchanged' : 'Enter value';
+        return '<input type="password" name="settings[' . self::e($name) . ']" '
+            . 'id="setting_' . self::e($name) . '" '
+            . 'value="" placeholder="' . self::e($placeholder) . '" '
+            . 'autocomplete="new-password" '
             . 'class="op-input"' . $req . '>';
     }
 

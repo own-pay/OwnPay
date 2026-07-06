@@ -40,6 +40,8 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
     {
         parent::setUp();
 
+        $_ENV['ENCRYPTION_KEY'] = $_ENV['PII_ENCRYPTION_KEY'] ?? 'cd4c6edf857c4ad19cb41784e849adf79ec3fc20319c28e735bd3fbd801eca33';
+
         $this->db = Database::getInstance();
 
         $this->c = new Container();
@@ -126,7 +128,7 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
 
         file_put_contents($this->modulesPath . '/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT));
         file_put_contents($this->modulesPath . '/logo.png', 'fake image bytes');
-        file_put_contents($this->modulesPath . '/TestGatewayPlugin.php', "<?php\n\nnamespace OwnPay\\Plugins\\TestGatewayPlugin;\n\nclass TestGatewayPlugin implements \\OwnPay\\Plugin\\PluginInterface {\n    public function boot(\\OwnPay\\Container \$c): void {}\n    public function deactivate(\\OwnPay\\Container \$c): void {}\n    public function uninstall(\\OwnPay\\Container \$c): void {}\n    public function capabilities(): array { return [\\OwnPay\\Plugin\\Capability::Checkout]; }\n    public function fields(): array { return []; }\n}\n");
+        file_put_contents($this->modulesPath . '/TestGatewayPlugin.php', "<?php\n\nnamespace OwnPay\\Plugins\\TestGatewayPlugin;\n\nclass TestGatewayPlugin implements \\OwnPay\\Plugin\\PluginInterface {\n    public static function metadata(): array { return ['name' => 'Test Gateway Plugin', 'slug' => 'test-gateway-plugin', 'version' => '1.0.0', 'description' => 'Dummy test gateway.', 'author' => 'Test', 'type' => 'gateway']; }\n    public function register(\\OwnPay\\Event\\EventManager \$events, \\OwnPay\\Container \$c): void {}\n    public function boot(\\OwnPay\\Container \$c): void {}\n    public function deactivate(\\OwnPay\\Container \$c): void {}\n    public function uninstall(\\OwnPay\\Container \$c): void {}\n    public function capabilities(): array { return [\\OwnPay\\Plugin\\Capability::Checkout]; }\n    public function fields(): array { return [['name' => 'secret_key', 'label' => 'Secret Key', 'type' => 'password', 'required' => true]]; }\n}\n");
 
         $this->pluginRepo->create([
             'slug' => $this->dummySlug,
@@ -209,5 +211,48 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
         $checkoutGws = $this->gwConfigRepo->forTenant($merchantId)->listActiveForCheckout();
         $slugs = array_column($checkoutGws, 'slug');
         $this->assertContains($this->dummySlug, $slugs);
+    }
+
+    public function testCredentialsAreEncryptedAndBlankPasswordFieldPreservesExisting(): void
+    {
+        $this->createDummyPlugin();
+        $merchantId = $this->createTestMerchant('Gateway Brand Enc', 'gateway-brand-enc', 'gatewaybrandenc@example.com');
+        $this->pluginManager->activate($this->dummySlug, $merchantId);
+        $gw = $this->gwRepo->findBySlug($this->dummySlug);
+        $gwId = (int) $gw['id'];
+
+        $this->brandContext->setActiveBrandId($merchantId);
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            @session_start();
+        }
+        $_SESSION['active_brand_id'] = $merchantId;
+
+        $request = new Request([], ['settings' => ['secret_key' => 'super-secret-value']]);
+        $request->setRouteParams(['slug' => $this->dummySlug]);
+        $this->pluginController->saveSettings($request);
+
+        $config = $this->gwConfigRepo->forTenant($merchantId)->findForGateway($gwId);
+        $this->assertNotEmpty($config['credentials_enc'] ?? '', 'credentials_enc must be populated');
+
+        /** @var \OwnPay\Security\FieldEncryptor $encryptor */
+        $encryptor = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        $decoded = json_decode($encryptor->decrypt($config['credentials_enc']), true);
+        $this->assertSame('super-secret-value', $decoded['secret_key']);
+
+        $settingsRow = $this->db->fetchOne(
+            "SELECT value FROM op_system_settings WHERE group_name = :g AND key_name = 'secret_key' AND merchant_id = :mid",
+            ['g' => "plugin.{$this->dummySlug}", 'mid' => $merchantId]
+        );
+        $this->assertNull($settingsRow, 'Password-type credential must never be persisted in plaintext op_system_settings');
+
+        // Re-save with the password field left blank (as the form always submits it, since the
+        // real secret is never echoed back) - the previously-stored secret must survive.
+        $request2 = new Request([], ['settings' => ['secret_key' => '']]);
+        $request2->setRouteParams(['slug' => $this->dummySlug]);
+        $this->pluginController->saveSettings($request2);
+
+        $config2 = $this->gwConfigRepo->forTenant($merchantId)->findForGateway($gwId);
+        $decoded2 = json_decode($encryptor->decrypt($config2['credentials_enc']), true);
+        $this->assertSame('super-secret-value', $decoded2['secret_key'], 'Blank password submission must not wipe the existing secret');
     }
 }
