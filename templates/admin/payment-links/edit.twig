@@ -25,13 +25,23 @@
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>Amount (Leave empty for custom)</label>
-                        <input type="number" name="amount" value="{{ link.amount ?? '' }}" step="0.01" class="op-input">
+                        <input type="number" name="amount" value="{{ link.amount ?? '' }}" step="0.01" min="0" class="op-input">
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>Currency</label>
                         <select name="currency" class="op-input">
                             {% for cur in currencies %}<option value="{{ cur.code }}" {{ (link.currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }}</option>{% endfor %}
                         </select>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Minimum Amount (custom-amount links only)</label>
+                        <input type="number" name="min_amount" value="{{ link.min_amount ?? '' }}" step="0.01" min="0" class="op-input">
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Maximum Amount (custom-amount links only)</label>
+                        <input type="number" name="max_amount" value="{{ link.max_amount ?? '' }}" step="0.01" min="0" class="op-input">
                     </div>
                 </div>
             </div>
