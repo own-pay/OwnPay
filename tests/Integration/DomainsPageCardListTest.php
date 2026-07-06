@@ -16,6 +16,7 @@ final class DomainsPageCardListTest extends TestCase
         $twig->addFunction(new \Twig\TwigFunction('hook', fn (string $name) => ''));
         $twig->addFunction(new \Twig\TwigFunction('locale', fn (): string => 'en'));
         $twig->addFunction(new \Twig\TwigFunction('__', fn (string $key, ...$args) => $key));
+        $twig->addFunction(new \Twig\TwigFunction('enqueued_assets', fn (string $type) => '', ['is_safe' => ['html']]));
 
         return $twig->render('admin/domains/index.twig', array_merge([
             'app_name' => 'OwnPay', 'app_version' => '0.2.0', 'csrf_token' => 'test-token',
