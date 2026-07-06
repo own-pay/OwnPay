@@ -130,6 +130,48 @@ final class PluginLoader
     }
 
     /**
+     * Loads a single plugin into the registry by slug, without touching any
+     * other already-loaded plugin.
+     *
+     * Unlike loadActive()/boot(), which reprocesses every active plugin and
+     * re-runs boot() on each already-loaded instance, this only loads the one
+     * requested slug - safe to call mid-request (e.g. right after activating a
+     * plugin whose row didn't exist when Kernel::boot() ran at the top of this
+     * same request, so hasCapability() would otherwise fail closed for it until
+     * the next request). Does not call the plugin's own boot() - callers that
+     * need full plugin initialization, not just registry presence for a
+     * capability check, should rely on the next request's normal boot cycle.
+     *
+     * @param string $slug
+     * @return bool True if the plugin is now loaded (already was, or just got loaded).
+     */
+    public function loadOne(string $slug): bool
+    {
+        if ($this->registry->isLoaded($slug)) {
+            return true;
+        }
+
+        $repo = $this->container->get(\OwnPay\Repository\PluginRepository::class);
+        if (!$repo instanceof \OwnPay\Repository\PluginRepository) {
+            return false;
+        }
+        $pluginData = $repo->findBySlug($slug);
+        if ($pluginData === null) {
+            return false;
+        }
+
+        try {
+            $this->loadPlugin($pluginData);
+        } catch (\Throwable $e) {
+            $this->registry->markError($slug, $e->getMessage());
+            $this->events->doAction('plugin.load_error', $slug, $e);
+            return false;
+        }
+
+        return $this->registry->isLoaded($slug);
+    }
+
+    /**
      * Load, validate, sandbox, and register active plugins.
      *
      * Wires gateway plugins into the core GatewayBridge payment pipeline.
