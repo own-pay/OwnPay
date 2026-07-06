@@ -64,6 +64,7 @@ final class TwigExtensions extends AbstractExtension
             new TwigFunction('app_version', [$this, 'appVersion']),
             new TwigFunction('setting', [$this, 'setting']),
             new TwigFunction('flash_messages', [$this, 'flashMessages']),
+            new TwigFunction('enqueued_assets', [$this, 'enqueuedAssets'], ['is_safe' => ['html']]),
         ];
     }
 
@@ -217,6 +218,33 @@ final class TwigExtensions extends AbstractExtension
 
         // The markup kept mutating across passes - adversarial input. Refuse it.
         return '';
+    }
+
+    /**
+     * Prints all assets enqueued this request via AssetManager, dependency-ordered.
+     *
+     * Deliberately does NOT go through EventManager::doAction()/sanitizeHookOutput() -
+     * unlike hook(), which buffers and sanitizes arbitrary plugin closure output, this
+     * builds a fixed-shape <link>/<script> tag from AssetManager's already-validated
+     * handle/url/version data. See docs/superpowers/specs/2026-07-06-asset-enqueueing-design.md.
+     *
+     * @param string $type 'style' or 'script'.
+     * @return string The rendered tags, or '' if AssetManager isn't bound or $type is unrecognized.
+     */
+    public function enqueuedAssets(string $type): string
+    {
+        if (!$this->container->has(\OwnPay\Service\System\AssetManager::class)) {
+            return '';
+        }
+        $assets = $this->container->get(\OwnPay\Service\System\AssetManager::class);
+        if (!$assets instanceof \OwnPay\Service\System\AssetManager) {
+            return '';
+        }
+        return match ($type) {
+            'style' => $assets->renderStyles(),
+            'script' => $assets->renderScripts(),
+            default => '',
+        };
     }
 
     /**
