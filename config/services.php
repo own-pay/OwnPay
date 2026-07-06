@@ -416,6 +416,12 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    // --- Asset Enqueueing
+    $c->singleton(\OwnPay\Service\System\AssetManager::class, static function (\OwnPay\Container $c): \OwnPay\Service\System\AssetManager {
+        $logger = ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class);
+        return new \OwnPay\Service\System\AssetManager($logger);
+    });
+
     // --- Plugin System
     $c->singleton(\OwnPay\Plugin\PluginRegistry::class, static function (\OwnPay\Container $c): \OwnPay\Plugin\PluginRegistry {
         return new \OwnPay\Plugin\PluginRegistry(
