@@ -427,12 +427,19 @@ final class CheckoutController
         $txnTrxIdVal = $txn['trx_id'] ?? '';
         $txnRef = is_string($txnTrxIdVal) ? $txnTrxIdVal : '';
 
+        // Manual popup footer reads this to render "Secured by {brand}"; fall back to
+        // "OwnPay" only when the brand truly has no name (never an empty string in practice
+        // since loadBrand()/BrandThemeService already fall back, but guarded defensively here).
+        $brandNameVal = $brand['name'] ?? null;
+        $brandName = (is_string($brandNameVal) && $brandNameVal !== '') ? $brandNameVal : 'OwnPay';
+
         return [
             'txnRef'           => $txnRef,
             'timeoutEnabled'   => $timerEnabled === '1',
             'timeoutSeconds'   => $timerSeconds,
             'timeoutRemaining' => $remaining,
             'gatewayMeta'      => $gatewayMeta,
+            'brandName'        => $brandName,
         ];
     }
 

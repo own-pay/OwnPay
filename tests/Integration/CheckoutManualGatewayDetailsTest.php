@@ -114,4 +114,89 @@ final class CheckoutManualGatewayDetailsTest extends IntegrationTestCase
         $this->assertNull($details['zzmgd-manual-bank']['qr_code_path']);
         $this->assertSame('', $details['zzmgd-manual-bank']['payment_number']);
     }
+
+    /**
+     * Regression for checkout-gateway-bugs final review Finding 1: buildJsConfig() never set a
+     * 'brandName' key, so the manual popup footer ("Secured by {brand}") always fell back to the
+     * JS default "OwnPay" in production, even for merchants with a real brand name. Asserts the
+     * page's data-config payload carries the real brand name, and falls back to "OwnPay" only
+     * when the brand truly has no name.
+     */
+    private function fetchJsConfig(string $trxId): array
+    {
+        $req = new Request([], [], ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => "/checkout/{$trxId}"]);
+        $req->setRouteParams(['token' => $trxId]);
+        $res = $this->checkout->show($req);
+        $html = $res->getBody();
+
+        $this->assertMatchesRegularExpression('/data-config="([^"]*)"/', $html);
+        preg_match('/data-config="([^"]*)"/', $html, $matches);
+        $decoded = json_decode(html_entity_decode($matches[1]), true);
+        $this->assertIsArray($decoded);
+        return $decoded;
+    }
+
+    public function testJsConfigBrandNameReflectsRealBrandName(): void
+    {
+        $merchantRepo = new \OwnPay\Repository\MerchantRepository($this->db);
+        $merchantId = (int) $merchantRepo->createMerchant([
+            'name'             => 'Acme Brand Co',
+            'slug'             => 'zzmgd-acme-brand-co',
+            'email'            => 'zzmgd-acme@example.com',
+            'phone'            => '01700000001',
+            'timezone'         => 'Asia/Dhaka',
+            'default_currency' => 'BDT',
+            'status'           => 'active',
+        ]);
+        $this->assertGreaterThan(0, $merchantId);
+
+        try {
+            $this->db->execute(
+                "INSERT INTO op_transactions (merchant_id, uuid, trx_id, gateway_slug, amount, net_amount, currency, method, status)
+                 VALUES (:mid, :uuid, 'zzmgd-txn-brand-1', '', '100.00', '100.00', 'BDT', 'manual', 'pending')",
+                ['mid' => $merchantId, 'uuid' => '11111111-2222-4333-8444-zzmgdbrand1']
+            );
+
+            $config = $this->fetchJsConfig('zzmgd-txn-brand-1');
+
+            $this->assertSame('Acme Brand Co', $config['brandName']);
+        } finally {
+            $this->db->execute("DELETE FROM op_transactions WHERE trx_id = 'zzmgd-txn-brand-1'");
+            $this->db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $merchantId]);
+        }
+    }
+
+    public function testJsConfigBrandNameFallsBackToOwnPayWhenBrandHasNoName(): void
+    {
+        // BrandThemeService::getBrandTheme() resolves 'name' from the merchant record and
+        // falls back to the global app_name setting (default 'OwnPay') when the merchant name
+        // is not a scalar/non-empty value. A merchant row with an empty name string exercises
+        // buildJsConfig()'s own defensive fallback to 'OwnPay' end-to-end.
+        $merchantRepo = new \OwnPay\Repository\MerchantRepository($this->db);
+        $merchantId = (int) $merchantRepo->createMerchant([
+            'name'             => '',
+            'slug'             => 'zzmgd-noname-brand',
+            'email'            => 'zzmgd-noname@example.com',
+            'phone'            => '01700000002',
+            'timezone'         => 'Asia/Dhaka',
+            'default_currency' => 'BDT',
+            'status'           => 'active',
+        ]);
+        $this->assertGreaterThan(0, $merchantId);
+
+        try {
+            $this->db->execute(
+                "INSERT INTO op_transactions (merchant_id, uuid, trx_id, gateway_slug, amount, net_amount, currency, method, status)
+                 VALUES (:mid, :uuid, 'zzmgd-txn-brand-2', '', '100.00', '100.00', 'BDT', 'manual', 'pending')",
+                ['mid' => $merchantId, 'uuid' => '11111111-2222-4333-8444-zzmgdbrand2']
+            );
+
+            $config = $this->fetchJsConfig('zzmgd-txn-brand-2');
+
+            $this->assertSame('OwnPay', $config['brandName']);
+        } finally {
+            $this->db->execute("DELETE FROM op_transactions WHERE trx_id = 'zzmgd-txn-brand-2'");
+            $this->db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $merchantId]);
+        }
+    }
 }
