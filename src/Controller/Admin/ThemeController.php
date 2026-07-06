@@ -197,6 +197,7 @@ final class ThemeController
     {
         $slug   = (string) $request->param('slug');
         $plugin = $this->repo->findBySlug($slug);
+        $result = null;
 
         if ($plugin === null) {
             // Theme not in DB - try to register from filesystem
@@ -228,7 +229,11 @@ final class ThemeController
         }
 
         if ($plugin['status'] !== 'active') {
-            $this->manager->activate($slug);
+            $result = $this->manager->activate($slug);
+            if (!$result['success']) {
+                $this->session->flashError($result['error'] ?? 'Failed to activate theme');
+                return Response::redirect('/admin/themes');
+            }
         }
 
         // Ensure the plugin is present in the in-memory registry before checking its
@@ -248,6 +253,9 @@ final class ThemeController
         $this->settings->set('appearance', 'active_theme', $slug);
         $pluginName = is_string($plugin['name'] ?? null) ? $plugin['name'] : 'Unknown';
         $this->session->flashSuccess("Theme '{$pluginName}' activated!");
+        if (is_array($result) && !empty($result['warning']) && is_string($result['warning'])) {
+            $this->session->flashError($result['warning']);
+        }
 
         $events = $this->c->get(\OwnPay\Event\EventManager::class);
         if ($events instanceof \OwnPay\Event\EventManager) {

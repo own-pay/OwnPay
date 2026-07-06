@@ -205,6 +205,7 @@ final class PluginManager
             $this->repo->activate($slug);
         }
 
+        $themeScanWarnings = [];
         try {
             $loader = $this->container->get(PluginLoader::class);
             if ($loader instanceof PluginLoader) {
@@ -218,6 +219,14 @@ final class PluginManager
                         }
                     }
                 }
+            }
+
+            if (($plugin['type'] ?? '') === 'theme') {
+                $scanResult = \OwnPay\Plugin\ThemeSecurityScanner::scan($this->resolveDir($plugin));
+                if (!empty($scanResult['blocked'])) {
+                    throw new \RuntimeException('Theme blocked - dangerous template pattern(s) found: ' . implode('; ', $scanResult['blocked']));
+                }
+                $themeScanWarnings = $scanResult['warnings'];
             }
         } catch (\Throwable $e) {
             if ($brandId !== null && $brandId > 0) {
@@ -266,7 +275,11 @@ final class PluginManager
 
         $this->events->doAction('plugin.activated', $slug, $ran, $brandId);
 
-        return ['success' => true, 'migrations_run' => count($ran)];
+        $successResult = ['success' => true, 'migrations_run' => count($ran)];
+        if (!empty($themeScanWarnings)) {
+            $successResult['warning'] = 'Theme activated with warnings: ' . implode('; ', $themeScanWarnings);
+        }
+        return $successResult;
     }
 
     /**
