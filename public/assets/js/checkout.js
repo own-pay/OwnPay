@@ -341,12 +341,23 @@
         if (nameEl) {nameEl.textContent = name;}
         var typeEl = document.getElementById("mpType");
         if (typeEl) {typeEl.textContent = meta.type || "Send Money";}
-        var iconEl = document.getElementById("mpIcon");
-        if (iconEl) {
-            iconEl.className = "ck-popup-gw-icon";
+
+        var logoEl = document.getElementById("mpLogo");
+        var fallbackEl = document.getElementById("mpLogoFallback");
+        if (fallbackEl) {
             var gwColor = meta.color || (gwData.colors && gwData.colors.primary) || "#0D9488";
-            iconEl.style.setProperty("background", gwColor, "important");
-            iconEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
+            fallbackEl.style.setProperty("background", gwColor, "important");
+            fallbackEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
+        }
+        if (logoEl) {
+            if (gwData.logo_path) {
+                logoEl.src = gwData.logo_path;
+                logoEl.classList.remove("ck-hidden");
+                if (fallbackEl) {fallbackEl.classList.add("ck-hidden");}
+            } else {
+                logoEl.classList.add("ck-hidden");
+                if (fallbackEl) {fallbackEl.classList.remove("ck-hidden");}
+            }
         }
 
         var stepsEl = document.getElementById("mpSteps");
@@ -368,22 +379,26 @@
 
         var numEl = document.getElementById("mpNumber");
         if (numEl) {
-            var fields = gwData.input_fields || [];
-            var paymentNumber = "";
-            for (var f = 0; f < fields.length; f++) {
-                if (fields[f].type === "payment_number" || fields[f].name === "payment_number") {
-                    paymentNumber = fields[f].value || fields[f].default || "";
-                    break;
-                }
-            }
-            // Fallback: try top-level number field
-            if (!paymentNumber && gwData.payment_number) {
-                paymentNumber = gwData.payment_number;
-            }
-            numEl.textContent = paymentNumber || "N/A";
+            numEl.textContent = gwData.payment_number || "N/A";
         }
 
-        var amountEl = document.querySelector("#mpStep1 .ck-popup-value");
+        var qrWrapEl = document.getElementById("mpQrWrap");
+        var qrImgEl = document.getElementById("mpQr");
+        if (qrWrapEl && qrImgEl) {
+            if (gwData.qr_code_path) {
+                qrImgEl.src = gwData.qr_code_path;
+                qrWrapEl.classList.remove("ck-hidden");
+            } else {
+                qrWrapEl.classList.add("ck-hidden");
+            }
+        }
+
+        var footerEl = document.getElementById("mpFooter");
+        if (footerEl) {
+            footerEl.textContent = "Secured by " + (cfg.brandName || "OwnPay");
+        }
+
+        var amountEl = document.getElementById("mpAmountValue");
         if (amountEl && gwData.converted_amount && gwData.converted_currency) {
             var convSymbol = gwData.converted_currency === "BDT" ? "৳" : gwData.converted_currency + " ";
             var formatted = parseFloat(gwData.converted_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -513,24 +528,23 @@
     };
 
     // ---------- COPY ----------
-    window.copyNum = function () {
-        var num = document.getElementById("mpNumber");
-        if (!num) { return; }
-        var text = num.textContent;
+    // Generalized copy-from-element helper - both the payment-number and amount copy buttons
+    // use this. Checkout has no admin.js here (public, unauthenticated page) so this can't reuse
+    // admin.js's shared opCopyText helper - same fallback chain, kept local to this file.
+    window.copyTextFrom = function (elementId) {
+        var el = document.getElementById(elementId);
+        if (!el) { return; }
+        var text = el.textContent;
 
         function showToast() {
             var t = document.getElementById("cToast");
             if (t) { t.classList.add("vis"); setTimeout(function () { t.classList.remove("vis"); }, 1800); }
         }
 
-        // execCommand first: synchronous, works reliably within this click's
-        // user gesture, no permission prompt. Checkout has no admin.js here
-        // (public, unauthenticated page) so this can't reuse admin.js's
-        // shared opCopyText helper — same fallback chain reimplemented
-        // locally. The old code went straight to the async Clipboard API
-        // with no .catch(), so any rejection (denied permission, unfocused
-        // document, managed-browser policy) left the customer clicking Copy
-        // with zero feedback mid-payment.
+        // execCommand first: synchronous, works reliably within this click's user gesture, no
+        // permission prompt. The old code went straight to the async Clipboard API with no
+        // .catch(), so any rejection (denied permission, unfocused document, managed-browser
+        // policy) left the customer clicking Copy with zero feedback mid-payment.
         var textarea = document.createElement("textarea");
         textarea.value = text;
         textarea.className = "ck-clipboard-textarea";
@@ -619,7 +633,9 @@
         } else if (action === "close-manual") {
             window.closeManual();
         } else if (action === "copy-num") {
-            window.copyNum();
+            window.copyTextFrom("mpNumber");
+        } else if (action === "copy-amount") {
+            window.copyTextFrom("mpAmountValue");
         } else if (action === "go-mp-step") {
             window.goMpStep(Number(target.getAttribute("data-step")));
         } else if (action === "toggle-mobile-summary") {

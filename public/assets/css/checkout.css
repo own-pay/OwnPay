@@ -441,6 +441,13 @@
 .ck-popup-back-link { background: none; border: none; color: var(--teal); cursor: pointer; font-size: 13px; margin-bottom: 12px; padding: 0; display: inline-block; font-family: var(--font); font-weight: 600; }
 .ck-popup-conv-note { font-size: 11px; color: var(--mute); margin-top: 4px; text-align: center; }
 
+/* Manual popup redesign: logo image, QR section, footer (.ck-popup-label already defined above) */
+.ck-popup-gw-logo { width: 38px; height: 38px; border-radius: var(--r-lg); object-fit: contain; }
+.ck-popup-label-center { text-align: center; }
+.ck-popup-qr-wrap { margin-top: 12px; margin-bottom: 12px; }
+.ck-popup-qr { width: 100%; max-width: 100%; height: auto; border-radius: 8px; background: #f1f5f9; }
+.ck-popup-footer { margin-top: 12px; font-size: 11px; color: var(--mute); text-align: center; }
+
 /* ========================= MODALS (transitions-dev) ========================= */
 .ck-modal {
     position: fixed; inset: 0; z-index: 200;

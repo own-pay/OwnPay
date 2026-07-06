@@ -63,12 +63,17 @@ describe('checkout.js', () => {
           <div class="ck-popup-backdrop" data-action="close-manual"></div>
           <div class="ck-popup-dialog">
             <button type="button" data-action="close-manual" class="ck-popup-close">&times;</button>
+            <img id="mpLogo" class="ck-popup-gw-logo ck-hidden" alt="">
+            <span id="mpLogoFallback" class="ck-popup-gw-icon"></span>
             <p id="mpName"></p>
             <p id="mpType"></p>
-            <div id="mpIcon"></div>
-            <p id="mpNumber"></p>
             <div id="mpSteps"></div>
-            <div id="mpStep1"></div>
+            <div id="mpStep1">
+              <p class="ck-popup-value" id="mpAmountValue"></p>
+              <p id="mpNumber"></p>
+              <div id="mpQrWrap" class="ck-hidden"><img id="mpQr" alt=""></div>
+              <p id="mpFooter"></p>
+            </div>
             <div id="mpStep2" class="ck-hidden"><form id="mpVerifyForm"></form></div>
           </div>
         </div>
@@ -622,7 +627,7 @@ describe('checkout.js', () => {
     it('tries execCommand first and shows the toast on success', () => {
       const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
 
-      window.copyNum();
+      window.copyTextFrom('mpNumber');
 
       expect(execSpy).toHaveBeenCalledWith('copy');
       expect(document.getElementById('cToast').classList.contains('vis')).toBe(true);
@@ -635,7 +640,7 @@ describe('checkout.js', () => {
         configurable: true,
       });
 
-      window.copyNum();
+      window.copyTextFrom('mpNumber');
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('01994493830');
@@ -650,11 +655,98 @@ describe('checkout.js', () => {
         configurable: true,
       });
 
-      window.copyNum();
+      window.copyTextFrom('mpNumber');
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('01994493830'));
       expect(document.getElementById('cToast').classList.contains('vis')).toBe(false);
+    });
+  });
+
+  describe('Manual popup redesign: logo, QR, amount copy, footer', () => {
+    beforeEach(() => {
+      window.OP_MANUAL_GATEWAYS = window.OP_MANUAL_GATEWAYS || {};
+      // jsdom doesn't implement execCommand by default; stub it so
+      // vi.spyOn has a real method to override per-test.
+      if (typeof document.execCommand !== 'function') {
+        document.execCommand = () => false;
+      }
+    });
+
+    it('openManualPopup shows the logo image and hides the initials fallback when logo_path is set', () => {
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX', logo_path: '/uploads/bkash.png' };
+      const card = document.createElement('div');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+
+      expect(document.getElementById('mpLogo').classList.contains('ck-hidden')).toBe(false);
+      expect(document.getElementById('mpLogo').src).toContain('/uploads/bkash.png');
+      expect(document.getElementById('mpLogoFallback').classList.contains('ck-hidden')).toBe(true);
+    });
+
+    it('openManualPopup shows the initials fallback and hides the logo image when logo_path is absent', () => {
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX' };
+      const card = document.createElement('div');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+
+      expect(document.getElementById('mpLogo').classList.contains('ck-hidden')).toBe(true);
+      expect(document.getElementById('mpLogoFallback').classList.contains('ck-hidden')).toBe(false);
+    });
+
+    it('openManualPopup shows the QR image when qr_code_path is set, hides it otherwise', () => {
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX', qr_code_path: '/uploads/qr.png' };
+      const card = document.createElement('div');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+
+      expect(document.getElementById('mpQrWrap').classList.contains('ck-hidden')).toBe(false);
+      expect(document.getElementById('mpQr').src).toContain('/uploads/qr.png');
+
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX' };
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+      expect(document.getElementById('mpQrWrap').classList.contains('ck-hidden')).toBe(true);
+    });
+
+    it('openManualPopup renders the "Secured by" footer with the brand name from cfg', () => {
+      window.OP_CHECKOUT_CONFIG.brandName = 'Acme Brand';
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX' };
+      const card = document.createElement('div');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+
+      expect(document.getElementById('mpFooter').textContent).toBe('Secured by Acme Brand');
+    });
+
+    it('openManualPopup falls back to "OwnPay" in the footer when no brand name is configured', () => {
+      delete window.OP_CHECKOUT_CONFIG.brandName;
+      window.OP_MANUAL_GATEWAYS.bkash = { payment_number: '01711-XXXXXX' };
+      const card = document.createElement('div');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+      document.getElementById('mfsBtn').onclick();
+
+      expect(document.getElementById('mpFooter').textContent).toBe('Secured by OwnPay');
+    });
+
+    it('copyTextFrom copies the amount value and shows the toast on success', () => {
+      document.getElementById('mpAmountValue').textContent = '500.00 BDT';
+      const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
+
+      window.copyTextFrom('mpAmountValue');
+
+      expect(execSpy).toHaveBeenCalledWith('copy');
+      expect(document.getElementById('cToast').classList.contains('vis')).toBe(true);
+    });
+
+    it('the copy-num button still copies the payment number via the generalized helper', () => {
+      document.getElementById('mpNumber').textContent = '01994493830';
+      const execSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
+
+      window.copyTextFrom('mpNumber');
+
+      expect(execSpy).toHaveBeenCalledWith('copy');
+      expect(document.getElementById('cToast').classList.contains('vis')).toBe(true);
     });
   });
 });
