@@ -57,6 +57,13 @@
                 </div>
             </div>
             <div class="op-form-row">
+                <div class="op-form-group op-col-12">
+                    <label for="payment_number">Payment Number</label>
+                    <input type="text" id="payment_number" name="payment_number" value="{{ old.payment_number ?? '' }}" class="op-input" placeholder="e.g. 01711-XXXXXX">
+                    <small class="op-text-muted">The number customers should send money to. Shown on the checkout payment popup with a copy button.</small>
+                </div>
+            </div>
+            <div class="op-form-row">
                 <div class="op-form-group op-col-4">
                     <label for="color_primary">Primary Color</label>
                     <input type="color" id="color_primary" name="color_primary" value="{{ old.color_primary ?? '#E2136E' }}" class="op-input-color">

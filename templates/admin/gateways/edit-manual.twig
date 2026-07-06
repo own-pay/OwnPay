@@ -60,6 +60,13 @@
                     <input type="file" name="qr_code" accept="image/*" class="op-input-file">
                 </div>
             </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-12">
+                    <label for="payment_number">Payment Number</label>
+                    <input type="text" id="payment_number" name="payment_number" value="{{ gateway.payment_number ?? '' }}" class="op-input" placeholder="e.g. 01711-XXXXXX">
+                    <small class="op-text-muted">The number customers should send money to. Shown on the checkout payment popup with a copy button.</small>
+                </div>
+            </div>
             {% set colors = gateway.colors is defined ? gateway.colors : {} %}
             <div class="op-form-row">
                 <div class="op-form-group op-col-4">
