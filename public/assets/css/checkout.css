@@ -61,7 +61,9 @@
 .ck-body {
     font-family: var(--font); background: var(--cloud); color: var(--ink);
     -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-    min-height: 100vh; display: flex; align-items: center;
+    min-height: 100vh; /* fallback for browsers without dvh support */
+    min-height: 100dvh; /* accounts for mobile browsers' collapsing address bar */
+    display: flex; align-items: center;
     justify-content: center; padding: 12px; overflow-x: hidden;
 }
 ::-webkit-scrollbar { width: 3px; }
@@ -454,6 +456,11 @@
     display: flex; align-items: center; justify-content: center;
     padding: 16px; pointer-events: none;
 }
+
+/* Without this, the modal fades in and LOOKS open but stays fully click-inert - none of its
+   buttons (including its own close button) can ever receive a real mouse click, only a
+   JS-dispatched .click() (which ignores pointer-events and gives a false "it works" signal). */
+.ck-modal.is-open { pointer-events: all; }
 .ck-modal-backdrop {
     position: absolute; inset: 0;
     background: rgb(8 13 26 / 45%); backdrop-filter: blur(14px);
@@ -612,7 +619,7 @@
 
 @media (max-width: 480px) {
     .ck-body { padding: 0; align-items: stretch; }
-    .ck-shell { border-radius: 0; min-height: 100vh; }
+    .ck-shell { border-radius: 0; min-height: 100vh; min-height: 100dvh; }
     .ck-topbar { padding: 10px 14px; }
     .ck-scroll { padding: 14px 14px 12px; }
     .ck-gw-grid { gap: 10px; }
