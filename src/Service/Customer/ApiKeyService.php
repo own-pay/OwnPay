@@ -85,6 +85,31 @@ final class ApiKeyService
     }
 
     /**
+     * Locks an API key, immediately preventing it from authorizing any request.
+     * Reversible via unlock() - no key rotation is required or performed.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $keyId Unique identifier of the API key to lock.
+     * @return int Number of keys actually locked (0 if the id does not exist or belongs to another merchant).
+     */
+    public function lock(int $merchantId, int $keyId): int
+    {
+        return $this->keys->forTenant($merchantId)->updateScoped($keyId, ['status' => 'locked']);
+    }
+
+    /**
+     * Unlocks a previously locked API key, restoring it to active immediately.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $keyId Unique identifier of the API key to unlock.
+     * @return int Number of keys actually unlocked (0 if the id does not exist or belongs to another merchant).
+     */
+    public function unlock(int $merchantId, int $keyId): int
+    {
+        return $this->keys->forTenant($merchantId)->updateScoped($keyId, ['status' => 'active']);
+    }
+
+    /**
      * Retrieves active API keys for a merchant, masking hash fields.
      *
      * @param int $merchantId Unique identifier of the merchant/brand.
@@ -93,10 +118,32 @@ final class ApiKeyService
     public function list(int $merchantId): array
     {
         $keys = $this->keys->forTenant($merchantId)->listActiveKeys();
-        
+
         return array_map(function (array $key) {
             // The stored hash column is `key_hash`; defensively strip it (and the
             // legacy `hash` alias) so it can never leak even if the SELECT changes.
+            unset($key['key_hash'], $key['hash']);
+            if (isset($key['scopes']) && is_string($key['scopes'])) {
+                $key['scopes'] = json_decode($key['scopes'], true);
+            }
+            if (!is_array($key['scopes'] ?? null)) {
+                $key['scopes'] = [];
+            }
+            return $key;
+        }, $keys);
+    }
+
+    /**
+     * Retrieves every API key for a merchant regardless of status, masking hash fields.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return array<int, array<string, mixed>> List of all API key records with hashes removed.
+     */
+    public function listAll(int $merchantId): array
+    {
+        $keys = $this->keys->forTenant($merchantId)->listAllKeys();
+
+        return array_map(function (array $key) {
             unset($key['key_hash'], $key['hash']);
             if (isset($key['scopes']) && is_string($key['scopes'])) {
                 $key['scopes'] = json_decode($key['scopes'], true);
