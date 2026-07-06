@@ -431,6 +431,87 @@ describe('checkout.js', () => {
     });
   });
 
+  // Regression: pickGW() only cleared ".on" from the grid the user just clicked in, and each
+  // tab's Pay button stayed independently armed once picked. Picking a gateway under one tab,
+  // switching tabs, and picking a different gateway there left BOTH tabs visually "selected"
+  // and BOTH buttons enabled/clickable with their own stale selection.
+  describe('Cross-tab single selection', () => {
+    function setupTwoTabDom() {
+      const html = `
+        <!DOCTYPE html>
+        <html><body>
+          <div id="op-checkout-data" data-config='{"txnRef":"TXN123"}' data-manual-gateways='{}'></div>
+          <div class="ck-gw-grid" id="cardG">
+            <div class="ck-gw" data-tab="card" data-slug="adyen" data-name="Adyen" data-mode="api" data-color="#ECEEF5"></div>
+          </div>
+          <button type="button" id="cardBtn" disabled class="ck-pay-btn ck-pay-disabled">Select a gateway</button>
+          <div class="ck-gw-grid" id="mfsG">
+            <div class="ck-gw" data-tab="mfs" data-slug="bkash" data-name="bKash" data-mode="manual" data-color="#E2136E"></div>
+          </div>
+          <button type="button" id="mfsBtn" disabled class="ck-pay-btn ck-pay-disabled">Select a provider</button>
+        </body></html>
+      `;
+      const newDom = new JSDOM(html, { url: 'http://localhost', runScripts: 'dangerously' });
+      const w = newDom.window;
+      const d = w.document;
+      var runScript = w['eval'];
+      runScript.call(w, opFetchCode);
+      runScript.call(w, checkoutCode);
+      return { newDom, w, d };
+    }
+
+    it('picking a gateway in a second tab clears the ".on" class from the first tab\'s card', () => {
+      const { newDom, w, d } = setupTwoTabDom();
+      const cardCard = d.querySelector('.ck-gw[data-tab="card"]');
+      const mfsCard = d.querySelector('.ck-gw[data-tab="mfs"]');
+
+      w.pickGW(cardCard, 'card', 'adyen', 'Adyen', 'api');
+      expect(cardCard.classList.contains('on')).toBe(true);
+
+      w.pickGW(mfsCard, 'mfs', 'bkash', 'bKash', 'manual');
+      expect(mfsCard.classList.contains('on')).toBe(true);
+      expect(cardCard.classList.contains('on')).toBe(false);
+
+      newDom.window.close();
+    });
+
+    it('picking a gateway in a second tab resets the first tab\'s button to disabled/default', () => {
+      const { newDom, w, d } = setupTwoTabDom();
+      const cardCard = d.querySelector('.ck-gw[data-tab="card"]');
+      const mfsCard = d.querySelector('.ck-gw[data-tab="mfs"]');
+      const cardBtn = d.getElementById('cardBtn');
+      const mfsBtn = d.getElementById('mfsBtn');
+
+      w.pickGW(cardCard, 'card', 'adyen', 'Adyen', 'api');
+      expect(cardBtn.disabled).toBe(false);
+      expect(cardBtn.textContent).toBe('Continue with Adyen');
+
+      w.pickGW(mfsCard, 'mfs', 'bkash', 'bKash', 'manual');
+
+      expect(cardBtn.disabled).toBe(true);
+      expect(cardBtn.className).toBe('ck-pay-btn ck-pay-disabled');
+      expect(cardBtn.textContent).toBe('Select a gateway');
+      expect(mfsBtn.disabled).toBe(false);
+      expect(mfsBtn.textContent).toBe('Pay manually via bKash');
+
+      newDom.window.close();
+    });
+
+    it('the reset first-tab button no longer submits the stale gateway on click', () => {
+      const { newDom, w, d } = setupTwoTabDom();
+      const cardCard = d.querySelector('.ck-gw[data-tab="card"]');
+      const mfsCard = d.querySelector('.ck-gw[data-tab="mfs"]');
+      const cardBtn = d.getElementById('cardBtn');
+
+      w.pickGW(cardCard, 'card', 'adyen', 'Adyen', 'api');
+      w.pickGW(mfsCard, 'mfs', 'bkash', 'bKash', 'manual');
+
+      expect(cardBtn.onclick).toBe(null);
+
+      newDom.window.close();
+    });
+  });
+
   // Regression: executeGW()/doQP() had no guard against a double-click or double-tap firing two
   // concurrent /pay or /express requests before the first response returned - a customer could
   // end up with two live gateway payment sessions for one transaction. Fixed with a shared

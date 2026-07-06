@@ -171,18 +171,35 @@
     };
 
     // ---------- GATEWAY PICK ----------
-    var gwState = { card: empty(), mfs: empty(), bank: empty() };
-    function empty() { return { slug: "", name: "", mode: "" }; }
+    var GW_TABS = ["card", "mfs", "bank"];
+    var GW_GRID_IDS = { card: "cardG", mfs: "mfsG", bank: "bankG" };
+    var GW_BTN_IDS = { card: "cardBtn", mfs: "mfsBtn", bank: "bankBtn" };
+    var GW_BTN_DEFAULT_TEXT = { card: "Select a gateway", mfs: "Select a provider", bank: "Select a bank" };
+
+    // Only one gateway can be selected at a time across all tabs (not one per tab) - picking a
+    // gateway under any tab clears every other tab's card highlight and re-disables its button.
+    var selectedGateway = empty();
+    function empty() { return { tab: "", slug: "", name: "", mode: "" }; }
+
+    function resetTabButton(tab) {
+        var btn = document.getElementById(GW_BTN_IDS[tab]);
+        if (!btn) {return;}
+        btn.disabled = true;
+        btn.className = "ck-pay-btn ck-pay-disabled";
+        btn.textContent = GW_BTN_DEFAULT_TEXT[tab];
+        btn.onclick = null;
+    }
 
     window.pickGW = function (cardEl, tab, slug, name, mode) {
-        var gridId = tab === "card" ? "cardG" : tab === "mfs" ? "mfsG" : "bankG";
-        var grid = document.getElementById(gridId);
-        if (grid) {grid.querySelectorAll(".ck-gw").forEach(function (c) { c.classList.remove("on"); });}
+        GW_TABS.forEach(function (t) {
+            var grid = document.getElementById(GW_GRID_IDS[t]);
+            if (grid) {grid.querySelectorAll(".ck-gw").forEach(function (c) { c.classList.remove("on"); });}
+            if (t !== tab) {resetTabButton(t);}
+        });
         cardEl.classList.add("on");
-        gwState[tab] = { slug: slug, name: name, mode: mode };
+        selectedGateway = { tab: tab, slug: slug, name: name, mode: mode };
 
-        var btnId = tab === "card" ? "cardBtn" : tab === "mfs" ? "mfsBtn" : "bankBtn";
-        var btn = document.getElementById(btnId);
+        var btn = document.getElementById(GW_BTN_IDS[tab]);
         if (!btn) {return;}
         btn.disabled = false;
         btn.className = "ck-pay-btn ck-pay-active";
@@ -211,8 +228,8 @@
     }
 
     function executeGW(tab) {
-        var s = gwState[tab];
-        if (!s.slug) {return;}
+        if (selectedGateway.tab !== tab || !selectedGateway.slug) {return;}
+        var s = selectedGateway;
         if (s.mode === "manual") {
             openManualPopup(s.slug, s.name);
             return;
@@ -431,8 +448,8 @@
 
         var data = new FormData(form);
 
-        // Determine active gateway slug from any active tab
-        var activeGw = gwState.mfs.slug || gwState.bank.slug || gwState.card.slug;
+        // Determine active gateway slug (single selection across all tabs)
+        var activeGw = selectedGateway.slug;
 
         // First submit gateway selection via POST form (manual mode needs checkout_hash)
         var payForm = document.createElement("form");
