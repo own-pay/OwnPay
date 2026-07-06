@@ -237,7 +237,7 @@
         if (paymentInFlight) {return;}
         paymentInFlight = true;
 
-        var btnId = tab === "card" ? "cardBtn" : tab === "mfs" ? "mfsBtn" : "bankBtn";
+        var btnId = GW_BTN_IDS[tab];
         var btn = document.getElementById(btnId);
         if (btn) {btn.disabled = true;}
 
