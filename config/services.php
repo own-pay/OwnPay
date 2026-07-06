@@ -411,6 +411,7 @@ return static function (\OwnPay\Container $c): void {
         $appCfg = ensureArray($c->get('config.app'));
         $paths = ensureArray($appCfg['paths'] ?? null);
         return new \OwnPay\Service\System\Logger(
+            'app',
             ensureString($paths['logs'] ?? '')
         );
     });
