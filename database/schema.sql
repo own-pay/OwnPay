@@ -166,6 +166,7 @@ CREATE TABLE `op_manual_gateways` (
   `name` VARCHAR(150) NOT NULL,
   `logo_path` VARCHAR(500) DEFAULT NULL,
   `qr_code_path` VARCHAR(500) DEFAULT NULL,
+  `payment_number` VARCHAR(100) DEFAULT NULL,
   `colors` JSON DEFAULT NULL,
   `input_fields` JSON DEFAULT NULL,
   `instructions` JSON DEFAULT NULL,
