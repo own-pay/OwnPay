@@ -148,6 +148,17 @@ final class Kernel
             // Graceful - column check just won't run this request (e.g. DB not ready/setup yet)
         }
 
+        try {
+            if ($this->container->has(\OwnPay\Core\Database::class)) {
+                $db = $this->container->get(\OwnPay\Core\Database::class);
+                if ($db instanceof \OwnPay\Core\Database) {
+                    $this->ensureApiKeyLockedStatus($db);
+                }
+            }
+        } catch (\Throwable) {
+            // Graceful - column check just won't run this request (e.g. DB not ready/setup yet)
+        }
+
         // 3. Set timezone
         $appConfig = $this->container->get('config.app');
         $tz = 'UTC';
@@ -368,6 +379,20 @@ final class Kernel
         $col = $db->fetchOne("SHOW COLUMNS FROM op_manual_gateways LIKE 'payment_number'");
         if (!is_array($col)) {
             $db->execute("ALTER TABLE op_manual_gateways ADD COLUMN payment_number VARCHAR(100) DEFAULT NULL AFTER qr_code_path");
+        }
+    }
+
+    /**
+     * Widens op_api_keys.status to include 'locked' on already-installed instances that
+     * predate it. Fresh installs get it directly from schema.sql; this covers upgrades,
+     * following the same SHOW COLUMNS / ALTER TABLE MODIFY COLUMN pattern
+     * PluginLoader::boot() uses for op_plugins.status.
+     */
+    private function ensureApiKeyLockedStatus(\OwnPay\Core\Database $db): void
+    {
+        $col = $db->fetchOne("SHOW COLUMNS FROM op_api_keys LIKE 'status'");
+        if (is_array($col) && isset($col['Type']) && is_string($col['Type']) && !str_contains($col['Type'], 'locked')) {
+            $db->execute("ALTER TABLE op_api_keys MODIFY COLUMN status ENUM('active','locked','revoked') NOT NULL DEFAULT 'active'");
         }
     }
 

@@ -78,4 +78,20 @@ final class ApiKeyRepository extends BaseRepository
             ['mid' => $this->requireTenant()]
         );
     }
+
+    /**
+     * Lists every API key under the active tenant context, regardless of status.
+     *
+     * @return array<int, array<string, mixed>> List of API key records (active, locked, and revoked).
+     */
+    public function listAllKeys(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT id, name, key_prefix, scopes, last_used_at, expires_at, status, created_at
+             FROM {$this->table}
+             WHERE merchant_id = :mid
+             ORDER BY created_at DESC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
 }
