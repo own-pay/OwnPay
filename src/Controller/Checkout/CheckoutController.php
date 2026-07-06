@@ -272,7 +272,7 @@ final class CheckoutController
             $inputFieldsStr = is_string($inputFieldsRaw) ? $inputFieldsRaw : '[]';
             $inputFieldsVal = json_decode($inputFieldsStr, true);
             $inputFields = is_array($inputFieldsVal) ? $inputFieldsVal : [];
-            
+
             $instructionsRaw = $gw['instructions'] ?? '[]';
             $instructionsStr = is_string($instructionsRaw) ? $instructionsRaw : '[]';
             $instructionsObj = json_decode($instructionsStr, true);
@@ -284,17 +284,11 @@ final class CheckoutController
                 $instructions = [$instructionsObj];
             }
 
-            // Isolate the primary payment address fields for inline client reference.
-            $paymentNumber = '';
-            foreach ($inputFields as $field) {
-                if (is_array($field)) {
-                    if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
-                        $paymentNumberVal = $field['value'] ?? $field['default'] ?? '';
-                        $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
-                        break;
-                    }
-                }
-            }
+            $paymentNumberVal = $gw['payment_number'] ?? '';
+            $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
+
+            $logoPathVal = $gw['logo_path'] ?? null;
+            $qrCodePathVal = $gw['qr_code_path'] ?? null;
 
             $gwColorsRaw = $gw['colors'] ?? '{}';
             $gwColorsStr = is_string($gwColorsRaw) ? $gwColorsRaw : '{}';
@@ -306,6 +300,8 @@ final class CheckoutController
                 'instructions'   => $instructions,
                 'colors'         => is_array($gwColors) ? $gwColors : [],
                 'payment_number' => $paymentNumber,
+                'logo_path'      => is_string($logoPathVal) ? $logoPathVal : null,
+                'qr_code_path'   => is_string($qrCodePathVal) ? $qrCodePathVal : null,
             ];
         }
 
