@@ -257,6 +257,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/api-keys', 'Admin\\ApiKeyController@index', 'admin');
     $router->post('/admin/api-keys/generate', 'Admin\\ApiKeyController@generate', 'admin');
     $router->post('/admin/api-keys/{id}/revoke', 'Admin\\ApiKeyController@revoke', 'admin');
+    $router->post('/admin/api-keys/{id}/lock', 'Admin\\ApiKeyController@lock', 'admin');
+    $router->post('/admin/api-keys/{id}/unlock', 'Admin\\ApiKeyController@unlock', 'admin');
 
     // Developer Hub
     $router->get('/admin/developer', 'Admin\\DeveloperController@index', 'admin');
