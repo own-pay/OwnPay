@@ -121,16 +121,9 @@ final class InvoiceCheckoutController
             }
         }
 
-        // Retrieve any existing pending transaction session linked to this invoice to prevent double-billing.
         $invoiceIdVal = $invoice['id'] ?? 0;
         $invoiceId = (is_int($invoiceIdVal) || is_string($invoiceIdVal)) ? (int) $invoiceIdVal : 0;
-        $existingTxn = $this->invoiceRepo->findPendingTransaction($invoiceId);
-        if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
-            return Response::redirect("/checkout/{$existingTxn['trx_id']}");
-        }
 
-        // Create new transaction with ALL required NOT NULL fields
-        $trxId = $this->txnRepo->generateTrxId();
         $totalVal = $invoice['total'] ?? '0';
         $total = is_string($totalVal) || is_int($totalVal) || is_float($totalVal) ? (string) $totalVal : '0';
 
@@ -146,20 +139,38 @@ final class InvoiceCheckoutController
         $invoiceNumVal = $invoice['invoice_number'] ?? '';
         $invoiceNum = is_string($invoiceNumVal) ? $invoiceNumVal : '';
 
-        $this->txnRepo->create([
-            'uuid'         => Uuid::uuid4()->toString(),
-            'trx_id'       => $trxId,
-            'merchant_id'  => $merchantId,
-            'payment_intent_id' => null,
-            'customer_id'  => $customerId,
-            'gateway_slug' => 'invoice',
-            'amount'       => $total,
-            'net_amount'   => $total,
-            'currency'     => $currency,
-            'method'       => 'invoice',
-            'status'       => 'pending',
-            'metadata'     => json_encode(['invoice_id' => $invoiceId, 'invoice_number' => $invoiceNum]),
-        ]);
+        // Lock the invoice row for the duration of the check-then-create so two concurrent
+        // requests for the same invoice (e.g. a customer opening the link in two tabs) can't
+        // both observe "no pending transaction" and each create a separate one.
+        $db = \OwnPay\Core\Database::getInstance();
+        $trxId = '';
+        $db->transaction(function () use ($db, $invoiceId, $merchantId, $customerId, $total, $currency, $invoiceNum, &$trxId) {
+            $db->fetchOne("SELECT id FROM op_invoices WHERE id = :id FOR UPDATE", ['id' => $invoiceId]);
+
+            $existingTxn = $this->invoiceRepo->findPendingTransaction($invoiceId);
+            if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
+                $trxId = $existingTxn['trx_id'];
+                return;
+            }
+
+            $trxId = $this->txnRepo->generateTrxId();
+            $this->txnRepo->create([
+                'uuid'               => Uuid::uuid4()->toString(),
+                'trx_id'             => $trxId,
+                'merchant_id'        => $merchantId,
+                'payment_intent_id'  => null,
+                'customer_id'        => $customerId,
+                'gateway_slug'       => 'invoice',
+                'amount'             => $total,
+                'net_amount'         => $total,
+                'currency'           => $currency,
+                'method'             => 'invoice',
+                'status'             => 'pending',
+                // invoice_id is a MySQL STORED GENERATED column derived from metadata.invoice_id
+                // - it is populated automatically, never assigned directly.
+                'metadata'           => json_encode(['invoice_id' => $invoiceId, 'invoice_number' => $invoiceNum]),
+            ]);
+        });
 
         return Response::redirect("/checkout/{$trxId}");
     }

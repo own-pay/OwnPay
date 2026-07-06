@@ -64,6 +64,24 @@ final class PaymentIntentRepository extends BaseRepository
     }
 
     /**
+     * Reverts a payment intent from `processing` back to `pending` so the customer can pick a
+     * different gateway from the checkout page. Scoped strictly to `processing` - never touches
+     * `completed`/`failed`/`cancelled`/`expired`.
+     *
+     * @param string $token Secure intent token.
+     * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     */
+    public function reactivateForRetry(string $token): bool
+    {
+        $stmt = $this->db->execute(
+            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
+             WHERE token = :t AND status = 'processing'",
+            ['t' => $token]
+        );
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Expire stale pending payment intents.
      *
      * Utilizes the `idx_expires` database index for fast execution.

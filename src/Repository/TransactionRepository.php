@@ -514,6 +514,44 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
+     * Reverts a transaction from `processing` back to `pending` so the customer can pick a
+     * different gateway from the checkout page. Scoped strictly to the `processing` status -
+     * never touches `completed`/`failed`/`cancelled`/`awaiting_verification`/etc, so it can only
+     * ever undo an in-flight API-gateway redirect the customer abandoned, not a genuinely
+     * finished or manually-verified transaction.
+     *
+     * @param string $trxId Unique transaction identifier.
+     * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     */
+    public function reactivateForRetry(string $trxId): bool
+    {
+        $stmt = $this->db->execute(
+            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
+             WHERE trx_id = :ref AND status = 'processing'",
+            ['ref' => $trxId]
+        );
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Same as {@see reactivateForRetry()}, but looks the transaction up by its linked payment
+     * intent ID instead of its own trx_id - used by the Payment Intent checkout flow, where the
+     * customer-facing token belongs to the intent, not the transaction.
+     *
+     * @param int $intentId Linked `op_payment_intents.id`.
+     * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     */
+    public function reactivateForRetryByIntentId(int $intentId): bool
+    {
+        $stmt = $this->db->execute(
+            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
+             WHERE payment_intent_id = :pi AND status = 'processing'",
+            ['pi' => $intentId]
+        );
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Updates the gateway slug and status for a transaction.
      *
      * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
@@ -537,6 +575,31 @@ final class TransactionRepository extends BaseRepository
                 ['gw' => $gateway, 'st' => $status, 'id' => $id]
             );
         }
+    }
+
+    /**
+     * Atomically claims a pending transaction for payment processing.
+     *
+     * Guards the transition with `WHERE status = 'pending'` so exactly one of two concurrent
+     * /pay requests for the same transaction succeeds; the other observes zero affected rows and
+     * must not proceed to call an external gateway, preventing a double-charge/double-session
+     * race. Callers must revert to 'pending' (see setGatewayAndStatus) if a subsequent external
+     * gateway call fails, so the customer can retry.
+     *
+     * @param int $id Primary key identifier.
+     * @param string $gateway Gateway adapter slug name.
+     * @param string $status Target transaction status string (e.g. 'processing', 'awaiting_verification').
+     * @param int $merchantId Scoping merchant ID.
+     * @return bool True if this call won the claim, false if the transaction was no longer pending.
+     */
+    public function claimPendingForPay(int $id, string $gateway, string $status, int $merchantId): bool
+    {
+        $stmt = $this->db->execute(
+            "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW()
+             WHERE id = :id AND merchant_id = :mid AND status = 'pending'",
+            ['gw' => $gateway, 'st' => $status, 'id' => $id, 'mid' => $merchantId]
+        );
+        return $stmt->rowCount() > 0;
     }
 
     /**
