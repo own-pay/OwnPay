@@ -113,7 +113,6 @@ final class DashboardController
     {
         $this->brand->resolveFromRequest($req);
 
-        /** @var \OwnPay\Repository\SettingsRepository $onboardingCheckRepo */
         $onboardingCheckRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         if (!$onboardingCheckRepo instanceof \OwnPay\Repository\SettingsRepository) {
             throw new \RuntimeException('SettingsRepository service unavailable');
@@ -822,7 +821,8 @@ final class DashboardController
         $existingBrand = $merchantRepo->findFirst();
 
         if ($existingBrand !== null) {
-            $brandIdInt = (int) $existingBrand['id'];
+            $brandIdVal = $existingBrand['id'] ?? 0;
+            $brandIdInt = (is_int($brandIdVal) || is_string($brandIdVal)) ? (int) $brandIdVal : 0;
             $merchantRepo->updateBrand($brandIdInt, [
                 'name'             => $brandName,
                 'email'            => $brandEmail,

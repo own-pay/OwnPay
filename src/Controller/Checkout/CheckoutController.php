@@ -329,7 +329,8 @@ final class CheckoutController
 
         $tplFilter = $this->events->applyFilter('checkout.template', 'checkout/checkout.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout.twig';
-        $brandId = isset($txn['merchant_id']) ? (int) $txn['merchant_id'] : null;
+        $merchantIdVal = $txn['merchant_id'] ?? null;
+        $brandId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : null;
         return $this->renderThemed($tplName, $brandId, $data);
     }
 

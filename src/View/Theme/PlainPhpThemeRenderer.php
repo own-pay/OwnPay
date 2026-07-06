@@ -29,8 +29,10 @@ final class PlainPhpThemeRenderer implements ThemeRendererInterface
         }
 
         $renderInIsolation = static function () use ($templatePath, $context): string {
-            /** @var callable $esc */
-            $esc = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+            $esc = static function (mixed $value): string {
+                $str = is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
+                return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+            };
             extract($context, EXTR_SKIP);
             ob_start();
             try {

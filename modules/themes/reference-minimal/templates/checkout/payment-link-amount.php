@@ -1,21 +1,26 @@
 <?php
 /**
  * @var callable $esc
- * @var array $link
- * @var string $csrf_token
- * @var string|null $error
+ * @var mixed $link
+ * @var mixed $csrf_token
+ * @var mixed $error
  */
 require_once __DIR__ . '/layout.php';
 
 use function OwnPay\Modules\Themes\ReferenceMinimal\render_layout;
 
 $linkArr = is_array($link ?? null) ? $link : [];
-$slug = (string) ($linkArr['slug'] ?? '');
-$currency = (string) ($linkArr['currency'] ?? '');
-$minAmount = (string) ($linkArr['min_amount'] ?? '0');
-$maxAmount = (string) ($linkArr['max_amount'] ?? '');
+$slugVal = $linkArr['slug'] ?? '';
+$slug = is_scalar($slugVal) ? (string) $slugVal : '';
+$currencyVal = $linkArr['currency'] ?? '';
+$currency = is_scalar($currencyVal) ? (string) $currencyVal : '';
+$minAmountVal = $linkArr['min_amount'] ?? '0';
+$minAmount = is_scalar($minAmountVal) ? (string) $minAmountVal : '0';
+$maxAmountVal = $linkArr['max_amount'] ?? '';
+$maxAmount = is_scalar($maxAmountVal) ? (string) $maxAmountVal : '';
 $errorStr = is_string($error ?? null) ? $error : '';
-$csrfStr = (string) ($csrf_token ?? '');
+$csrfVal = $csrf_token ?? '';
+$csrfStr = is_scalar($csrfVal) ? (string) $csrfVal : '';
 
 $errorHtml = $errorStr !== '' ? '<p style="color:#dc2626;font-size:13px;">' . $esc($errorStr) . '</p>' : '';
 $hintParts = [];

@@ -1,18 +1,22 @@
 <?php
 /**
  * @var callable $esc
- * @var array $txn
- * @var array $gateways
- * @var array $brand
- * @var string $checkout_hash
+ * @var mixed $txn
+ * @var mixed $gateways
+ * @var mixed $brand
+ * @var mixed $checkout_hash
  */
 require_once __DIR__ . '/layout.php';
 
 use function OwnPay\Modules\Themes\ReferenceMinimal\render_layout;
 
-$amount = is_array($txn ?? null) ? (string) ($txn['amount'] ?? '0.00') : '0.00';
-$currency = is_array($txn ?? null) ? (string) ($txn['currency'] ?? '') : '';
-$trxId = is_array($txn ?? null) ? (string) ($txn['trx_id'] ?? '') : '';
+$amountVal = is_array($txn ?? null) ? ($txn['amount'] ?? '0.00') : '0.00';
+$amount = is_scalar($amountVal) ? (string) $amountVal : '0.00';
+$currencyVal = is_array($txn ?? null) ? ($txn['currency'] ?? '') : '';
+$currency = is_scalar($currencyVal) ? (string) $currencyVal : '';
+$trxIdVal = is_array($txn ?? null) ? ($txn['trx_id'] ?? '') : '';
+$trxId = is_scalar($trxIdVal) ? (string) $trxIdVal : '';
+/** @var array<string, mixed> $brandArr */
 $brandArr = is_array($brand ?? null) ? $brand : [];
 $gatewaysArr = is_array($gateways ?? null) ? $gateways : [];
 $checkoutHashVal = is_string($checkout_hash ?? null) ? $checkout_hash : '';
@@ -29,8 +33,10 @@ foreach ($groupLabels as $groupKey => $groupLabel) {
         if (!is_array($gw)) {
             continue;
         }
-        $gwSlug = (string) ($gw['slug'] ?? '');
-        $gwName = (string) ($gw['name'] ?? $gwSlug);
+        $gwSlugVal = $gw['slug'] ?? '';
+        $gwSlug = is_scalar($gwSlugVal) ? (string) $gwSlugVal : '';
+        $gwNameVal = $gw['name'] ?? $gwSlug;
+        $gwName = is_scalar($gwNameVal) ? (string) $gwNameVal : $gwSlug;
         $itemsHtml .= '<button type="submit" name="gateway" value="' . $esc($gwSlug) . '" class="op-ref-gateway-item">' . $esc($gwName) . '</button>';
     }
     if ($itemsHtml === '') {

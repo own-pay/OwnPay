@@ -350,7 +350,6 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\View\Theme\ActiveThemeResolver(
             ensureType($c->get(\OwnPay\Repository\SettingsRepository::class), \OwnPay\Repository\SettingsRepository::class),
             ensureType($c->get(\OwnPay\Plugin\PluginRegistry::class), \OwnPay\Plugin\PluginRegistry::class),
-            ensureType($c->get(\OwnPay\Repository\PluginRepository::class), \OwnPay\Repository\PluginRepository::class),
             $themesBaseDir,
             'own-pay'
         );

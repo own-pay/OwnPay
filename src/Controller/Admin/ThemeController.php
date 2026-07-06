@@ -393,7 +393,8 @@ final class ThemeController
 
         $events = $this->c->get(\OwnPay\Event\EventManager::class);
 
-        $slug = trim((string) $request->post('slug', ''));
+        $slugVal = $request->post('slug', '');
+        $slug = trim(is_scalar($slugVal) ? (string) $slugVal : '');
         if ($slug === '') {
             // Clear override: delete the brand row so getScoped falls back to global.
             $this->settings->deleteSettingScoped('appearance', 'active_theme', $brandId);

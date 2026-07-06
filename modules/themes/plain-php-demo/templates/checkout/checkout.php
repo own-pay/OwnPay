@@ -2,13 +2,16 @@
 /**
  * Plain-PHP proof-of-concept checkout template.
  * @var callable $esc
- * @var array $txn
- * @var array $brand
- * @var array $gateways
+ * @var mixed $txn
+ * @var mixed $brand
+ * @var mixed $gateways
  */
-$brandName = is_array($brand ?? null) ? (string) ($brand['name'] ?? 'Checkout') : 'Checkout';
-$amount = is_array($txn ?? null) ? (string) ($txn['amount'] ?? '') : '';
-$currency = is_array($txn ?? null) ? (string) ($txn['currency'] ?? '') : '';
+$brandNameVal = is_array($brand ?? null) ? ($brand['name'] ?? 'Checkout') : 'Checkout';
+$brandName = is_scalar($brandNameVal) ? (string) $brandNameVal : 'Checkout';
+$amountVal = is_array($txn ?? null) ? ($txn['amount'] ?? '') : '';
+$amount = is_scalar($amountVal) ? (string) $amountVal : '';
+$currencyVal = is_array($txn ?? null) ? ($txn['currency'] ?? '') : '';
+$currency = is_scalar($currencyVal) ? (string) $currencyVal : '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -25,7 +28,11 @@ $currency = is_array($txn ?? null) ? (string) ($txn['currency'] ?? '') : '';
         <h2>Payment methods</h2>
         <ul>
             <?php foreach ((is_array($gateways ?? null) ? $gateways : []) as $gw): ?>
-                <li><?= $esc(is_array($gw) ? (string) ($gw['name'] ?? '') : (string) $gw) ?></li>
+                <?php
+                $gwNameVal = is_array($gw) ? ($gw['name'] ?? '') : $gw;
+                $gwName = is_scalar($gwNameVal) ? (string) $gwNameVal : '';
+                ?>
+                <li><?= $esc($gwName) ?></li>
             <?php endforeach; ?>
         </ul>
     </main>

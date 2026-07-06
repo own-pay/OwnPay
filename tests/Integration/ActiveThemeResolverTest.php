@@ -44,7 +44,6 @@ final class ActiveThemeResolverTest extends IntegrationTestCase
         $this->resolver = new ActiveThemeResolver(
             $this->settings,
             $registry,
-            $this->pluginRepo,
             dirname(__DIR__, 2) . '/modules/themes',
             'own-pay'
         );

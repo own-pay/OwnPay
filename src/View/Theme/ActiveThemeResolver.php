@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OwnPay\View\Theme;
 
 use OwnPay\Plugin\PluginRegistry;
-use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
@@ -20,7 +19,6 @@ final class ActiveThemeResolver
     public function __construct(
         private readonly SettingsRepository $settings,
         private readonly PluginRegistry $registry,
-        private readonly PluginRepository $repo,
         private readonly string $themesBaseDir,
         private readonly string $fallbackSlug = 'own-pay'
     ) {
