@@ -577,7 +577,21 @@ final class PluginController
 
         $plugin = $this->repo->findBySlug($slug);
         $isGateway = $plugin !== null && ($plugin['type'] ?? '') === 'gateway';
-        $passwordFields = $this->passwordFieldNames($this->resolvePluginInstance($slug));
+        $instance = $this->resolvePluginInstance($slug);
+        $passwordFields = $this->passwordFieldNames($instance);
+
+        if ($instance !== null) {
+            $existingValues = $isGateway
+                ? $this->readGatewayCredentials($slug, $brandId ?? 0)
+                : (($brandId !== null && $brandId > 0)
+                    ? $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId)
+                    : $settingsRepo->getGroup("plugin.{$slug}"));
+            $missingFields = self::validateRequiredFields($instance, $settings, $existingValues);
+            if (!empty($missingFields)) {
+                $this->session->flashError('Missing required field(s): ' . implode(', ', $missingFields) . '.');
+                return Response::redirect("/admin/plugins/{$slug}/settings");
+            }
+        }
 
         if ($brandId !== null && $brandId > 0) {
             if ($isGateway) {
@@ -660,6 +674,43 @@ final class PluginController
             }
         }
         return $names;
+    }
+
+    /**
+     * Server-side re-check of each field a plugin declares required - the HTML5
+     * `required` attribute SettingsRenderer renders only stops a normal browser
+     * submission, not a scripted/bypassed POST.
+     *
+     * @param PluginInterface $instance The plugin instance to validate against.
+     * @param array<string, mixed> $settings The submitted settings values.
+     * @param array<string, string> $existingValues Currently-stored values keyed by field name.
+     * @return array<int, string> Labels of any required fields that are missing.
+     */
+    private static function validateRequiredFields(PluginInterface $instance, array $settings, array $existingValues): array
+    {
+        $missing = [];
+        foreach ($instance->fields() as $field) {
+            if (($field['required'] ?? false) !== true) {
+                continue;
+            }
+            $name = $field['name'] ?? '';
+            if ($name === '') {
+                continue;
+            }
+            $submitted = isset($settings[$name]) && is_scalar($settings[$name]) ? (string) $settings[$name] : '';
+            if ($submitted !== '') {
+                continue;
+            }
+            if (($field['type'] ?? '') === 'password') {
+                $existing = $existingValues[$name] ?? '';
+                if ($existing !== '') {
+                    continue;
+                }
+            }
+            $label = is_string($field['label'] ?? null) && $field['label'] !== '' ? $field['label'] : $name;
+            $missing[] = $label;
+        }
+        return $missing;
     }
 
     /**
