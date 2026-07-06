@@ -147,7 +147,12 @@ final class InvoiceController
         if ($guard = $this->requireActiveBrand($mid, '/admin/invoices')) {
             return $guard;
         }
-        $invoice = $this->invoices->create($mid, $postData);
+        try {
+            $invoice = $this->invoices->create($mid, $postData);
+        } catch (\InvalidArgumentException $e) {
+            $this->session->flashError($e->getMessage());
+            return Response::redirect('/admin/invoices/create');
+        }
         $this->events->doAction('invoice.created', $invoice);
 
         $this->session->flashSuccess('Invoice created');
@@ -192,7 +197,12 @@ final class InvoiceController
         $data = $req->post();
         /** @var array{customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string, discount?: float|int|string, status?: string, items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>} $postData */
         $postData = is_array($data) ? $data : [];
-        $updated = $this->invoices->update($mid, $id, $postData);
+        try {
+            $updated = $this->invoices->update($mid, $id, $postData);
+        } catch (\InvalidArgumentException $e) {
+            $this->session->flashError($e->getMessage());
+            return Response::redirect("/admin/invoices/{$id}");
+        }
         $this->events->doAction('invoice.updated', $updated);
 
         $this->session->flashSuccess('Invoice updated');
