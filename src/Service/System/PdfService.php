@@ -43,7 +43,10 @@ final class PdfService
      */
     public function generateFromHtml(string $html, string $filename, array $options = []): string
     {
-        $path = $this->outputDir . '/' . $filename . '.html';
+        // Defense in depth: strip anything but a safe filename character set before it ever
+        // reaches the filesystem, regardless of what the caller passed in.
+        $safeFilename = preg_replace('/[^A-Za-z0-9_-]/', '_', $filename);
+        $path = $this->outputDir . '/' . $safeFilename . '.html';
         file_put_contents($path, $this->wrapPrintableHtml($html));
         return $path;
     }
@@ -88,9 +91,13 @@ final class PdfService
             $html = str_replace('{{items_rows}}', $itemsHtml, $html);
         }
 
-        $invNumVal = $invoiceData['invoice_number'] ?? null;
-        $invNum = is_scalar($invNumVal) ? (string)$invNumVal : (new \DateTimeImmutable())->format('YmdHis');
-        $filename = 'invoice_' . $invNum;
+        // The filename is derived from the invoice's internal numeric ID, never from
+        // invoice_number (an admin-editable free-text field) - using unsanitized user input
+        // here would let a crafted invoice_number (e.g. "/../../../public/x") traverse out of
+        // the output directory via generateFromHtml()'s path concatenation.
+        $idVal = $invoiceData['id'] ?? null;
+        $safeId = is_numeric($idVal) ? (string) (int) $idVal : (new \DateTimeImmutable())->format('YmdHis');
+        $filename = 'invoice_' . $safeId;
         return $this->generateFromHtml($html, $filename);
     }
 
