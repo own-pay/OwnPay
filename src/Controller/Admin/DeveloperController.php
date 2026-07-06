@@ -67,7 +67,7 @@ final class DeveloperController
         if (!$apiKeySvc instanceof ApiKeyService) {
             throw new \RuntimeException('ApiKeyService service unavailable');
         }
-        $apiKeys = $apiKeySvc->list($mid);
+        $apiKeys = $apiKeySvc->listAll($mid);
 
         $settings = $this->c->get(SettingsRepository::class);
         if (!$settings instanceof SettingsRepository) {

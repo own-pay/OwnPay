@@ -132,4 +132,58 @@ final class ApiKeyController
             : '/admin/developer';
         return Response::redirect($redirectUrl);
     }
+
+    /**
+     * Locks an existing API key for the active brand, immediately preventing it from
+     * authorizing any request. Reversible via unlock().
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP response redirecting back to the developer hub.
+     */
+    public function lock(Request $req): Response
+    {
+        $idVal = $req->param('id');
+        $id = (int) $idVal;
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getWriteMerchantId();
+        $this->keys->lock($mid, $id);
+        $this->session->flashSuccess('API key locked');
+        $referer = $req->header('Referer');
+        $redirectUrl = str_contains($referer, '/admin/settings')
+            ? '/admin/settings#tab-api'
+            : '/admin/developer';
+        return Response::redirect($redirectUrl);
+    }
+
+    /**
+     * Unlocks a previously locked API key for the active brand, restoring it to active
+     * immediately.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP response redirecting back to the developer hub.
+     */
+    public function unlock(Request $req): Response
+    {
+        $idVal = $req->param('id');
+        $id = (int) $idVal;
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getWriteMerchantId();
+        $this->keys->unlock($mid, $id);
+        $this->session->flashSuccess('API key unlocked');
+        $referer = $req->header('Referer');
+        $redirectUrl = str_contains($referer, '/admin/settings')
+            ? '/admin/settings#tab-api'
+            : '/admin/developer';
+        return Response::redirect($redirectUrl);
+    }
 }
