@@ -124,7 +124,12 @@ final class PaymentLinkController
             }
         }
 
-        $link = $this->links->create($mid, $data);
+        try {
+            $link = $this->links->create($mid, $data);
+        } catch (\InvalidArgumentException $e) {
+            $this->session->flashError($e->getMessage());
+            return Response::redirect('/admin/payment-links/create');
+        }
         $this->events->doAction('payment_link.created', $link);
         $this->session->flashSuccess('Payment link created');
         return Response::redirect('/admin/payment-links');
@@ -139,9 +144,17 @@ final class PaymentLinkController
      */
     public function edit(Request $req): Response
     {
-        $mid = $this->resolveMerchant($req);
         $id = (int) $req->param('id');
-        $link = $this->links->find($mid, $id);
+
+        // In the global "All Brands" view, the admin's active brand context is 0 (no single
+        // brand selected), which never matches any real payment link's merchant_id - resolve
+        // the link's OWN owning merchant instead, so a superadmin can edit any brand's link from
+        // global view, matching what index() already lets them browse.
+        $mid = $this->isGlobalView()
+            ? ($this->links->findOwningMerchantId($id) ?? 0)
+            : $this->resolveMerchant($req);
+
+        $link = $mid > 0 ? $this->links->find($mid, $id) : null;
 
         if (!$link) {
             $this->session->flashError('Not found');
@@ -157,9 +170,14 @@ final class PaymentLinkController
         }
 
         $postData = $req->post();
-        /** @var array{title?: string, description?: string|null, amount?: float|int|string|null, currency?: string, status?: string} $data */
+        /** @var array{title?: string, description?: string|null, amount?: float|int|string|null, min_amount?: float|int|string|null, max_amount?: float|int|string|null, currency?: string, status?: string} $data */
         $data = is_array($postData) ? $postData : [];
-        $updated = $this->links->update($mid, $id, $data);
+        try {
+            $updated = $this->links->update($mid, $id, $data);
+        } catch (\InvalidArgumentException $e) {
+            $this->session->flashError($e->getMessage());
+            return Response::redirect("/admin/payment-links/{$id}");
+        }
         $this->events->doAction('payment_link.updated', $updated);
         $this->session->flashSuccess('Updated');
         return Response::redirect('/admin/payment-links');
