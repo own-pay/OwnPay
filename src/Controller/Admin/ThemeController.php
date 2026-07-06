@@ -219,6 +219,7 @@ final class ThemeController
                 $this->session->flashError($result['error'] ?? 'Failed to activate theme');
                 return Response::redirect('/admin/themes');
             }
+            $plugin = $this->repo->findBySlug($slug);
         }
 
         if ($plugin === null) {
@@ -229,6 +230,14 @@ final class ThemeController
         if ($plugin['status'] !== 'active') {
             $this->manager->activate($slug);
         }
+
+        // Ensure the plugin is present in the in-memory registry before checking its
+        // capability - Kernel::boot() only loads plugins active as of request start, so
+        // a theme activated for the first time this same request (via the discovery
+        // branch above) would otherwise fail hasCapability() closed until the next request.
+        /** @var PluginLoader $loaderForCapability */
+        $loaderForCapability = $this->c->get(PluginLoader::class);
+        $loaderForCapability->loadOne($slug);
 
         $registry = $this->c->get(PluginRegistry::class);
         if (!$registry instanceof PluginRegistry || !$registry->hasCapability($slug, Capability::THEME)) {
