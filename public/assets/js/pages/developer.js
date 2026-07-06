@@ -39,6 +39,21 @@
         });
     }
 
+    // --- Reference Sub-Nav (scoped to #ref-subnav, independent of #dev-tabs) -
+    document.querySelectorAll("#ref-subnav .op-subnav-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+            document.querySelectorAll("#ref-subnav .op-subnav-item").forEach(function (e) {
+                e.classList.remove("active");
+            });
+            document.querySelectorAll(".op-subnav-panel").forEach(function (e) {
+                e.classList.remove("active");
+            });
+            this.classList.add("active");
+            var panel = document.getElementById("subnav-" + this.dataset.subnav);
+            if (panel) { panel.classList.add("active"); }
+        });
+    });
+
     // --- Copy Buttons (.op-copy-btn) -----------------------------------------
     document.querySelectorAll(".op-copy-btn").forEach(function (btn) {
         btn.addEventListener("click", function (e) {

@@ -75,3 +75,52 @@ describe('developer.js', () => {
     expect(clipboardSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('developer.js sub-nav (Endpoint Reference / Authentication)', () => {
+  let dom, window, document;
+
+  beforeEach(() => {
+    const html = `
+      <!DOCTYPE html>
+      <html><body>
+        <div id="dev-tabs">
+          <button class="op-tab active" data-tab="api-keys">API Keys</button>
+        </div>
+        <div class="op-tab-panel active" id="tab-api-keys">
+          <div class="op-subnav" id="ref-subnav">
+            <button type="button" class="op-subnav-item active" data-subnav="endpoints">Endpoint Reference</button>
+            <button type="button" class="op-subnav-item" data-subnav="auth">Authentication</button>
+          </div>
+          <div class="op-subnav-panel active" id="subnav-endpoints">Endpoints content</div>
+          <div class="op-subnav-panel" id="subnav-auth">Auth content</div>
+        </div>
+      </body></html>
+    `;
+    dom = new JSDOM(html, { url: 'http://localhost/admin/developer', runScripts: 'dangerously', resources: 'usable' });
+    window = dom.window;
+    document = window.document;
+    window.OP_CSRF = 'test-csrf-token';
+    var runScript = window['eval'];
+    runScript.call(window, jsCode);
+  });
+
+  afterEach(() => {
+    dom.window.close();
+  });
+
+  it('clicking the Authentication sub-nav item shows the auth panel and hides endpoints', () => {
+    document.querySelector('.op-subnav-item[data-subnav="auth"]').click();
+
+    expect(document.getElementById('subnav-auth').classList.contains('active')).toBe(true);
+    expect(document.getElementById('subnav-endpoints').classList.contains('active')).toBe(false);
+    expect(document.querySelector('.op-subnav-item[data-subnav="auth"]').classList.contains('active')).toBe(true);
+    expect(document.querySelector('.op-subnav-item[data-subnav="endpoints"]').classList.contains('active')).toBe(false);
+  });
+
+  it('clicking sub-nav items does not touch the outer #dev-tabs tab state', () => {
+    document.querySelector('.op-subnav-item[data-subnav="auth"]').click();
+
+    expect(document.querySelector('#dev-tabs .op-tab[data-tab="api-keys"]').classList.contains('active')).toBe(true);
+    expect(document.getElementById('tab-api-keys').classList.contains('active')).toBe(true);
+  });
+});
