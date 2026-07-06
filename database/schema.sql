@@ -99,7 +99,7 @@ CREATE TABLE `op_api_keys` (
   `scopes` JSON DEFAULT NULL,
   `last_used_at` DATETIME(6) DEFAULT NULL,
   `expires_at` DATETIME(6) DEFAULT NULL,
-  `status` ENUM('active','revoked') NOT NULL DEFAULT 'active',
+  `status` ENUM('active','locked','revoked') NOT NULL DEFAULT 'active',
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_merchant` (`merchant_id`),
