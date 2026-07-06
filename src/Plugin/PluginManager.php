@@ -218,6 +218,19 @@ final class PluginManager
                             throw new \RuntimeException('Invalid manifest: ' . implode(', ', $errors));
                         }
                     }
+
+                    $unmetDependencies = [];
+                    foreach ($manifest->dependencies as $depSlug) {
+                        $depPlugin = $this->repo->findBySlug($depSlug);
+                        if ($depPlugin === null) {
+                            $unmetDependencies[] = "{$depSlug} (not installed)";
+                        } elseif (($depPlugin['status'] ?? '') !== 'active') {
+                            $unmetDependencies[] = "{$depSlug} (not active)";
+                        }
+                    }
+                    if (!empty($unmetDependencies)) {
+                        throw new \RuntimeException('Missing required dependencies: ' . implode(', ', $unmetDependencies) . '.');
+                    }
                 }
             }
 
