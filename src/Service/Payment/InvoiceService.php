@@ -161,6 +161,9 @@ final class InvoiceService
         $dueDate    = !empty($data['due_date']) ? $data['due_date'] : null;
         $notes      = !empty($data['notes']) ? $data['notes'] : null;
         $items = $data['items'] ?? [];
+        if ($items === []) {
+            throw new \InvalidArgumentException('Invoice must include at least one line item.');
+        }
         $subtotal = '0.00';
         foreach ($items as &$item) {
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
@@ -230,7 +233,7 @@ final class InvoiceService
     public function update(int $merchantId, int $id, array $data): array
     {
         $invoice = $this->db->fetchOne(
-            "SELECT id FROM op_invoices WHERE id = :id AND merchant_id = :mid",
+            "SELECT id, status, paid_at FROM op_invoices WHERE id = :id AND merchant_id = :mid",
             ['id' => $id, 'mid' => $merchantId]
         );
         if ($invoice === null) {
@@ -273,11 +276,20 @@ final class InvoiceService
 
         $currency = is_string($data['currency'] ?? null) ? $data['currency'] : 'BDT';
 
+        // Admins can mark an invoice paid manually (e.g. offline/bank-transfer payment) - stamp
+        // paid_at the same way the real payment-completion path does, but only on the actual
+        // transition into 'paid' so re-saving an already-paid invoice doesn't overwrite the
+        // original payment date with the edit time.
+        $paidAt = is_string($invoice['paid_at'] ?? null) ? $invoice['paid_at'] : null;
+        if ($status === 'paid' && $paidAt === null) {
+            $paidAt = \OwnPay\Support\DateHelper::nowMicro();
+        }
+
         $this->db->transaction(function () use (
-            $id, $merchantId, $customerId, $subtotal, $tax, $discount, $total, $currency, $notes, $dueDate, $status, $items
+            $id, $merchantId, $customerId, $subtotal, $tax, $discount, $total, $currency, $notes, $dueDate, $status, $paidAt, $items
         ): void {
             $this->db->update(
-                "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, status = :status, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+                "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, status = :status, paid_at = :paid_at, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
                 [
                     'cust'     => $customerId,
                     'sub'      => $subtotal,
@@ -288,6 +300,7 @@ final class InvoiceService
                     'notes'    => $notes,
                     'due'      => $dueDate,
                     'status'   => $status,
+                    'paid_at'  => $paidAt,
                     'id'       => $id,
                     'mid'      => $merchantId
                 ]
@@ -329,6 +342,16 @@ final class InvoiceService
         if (!$invoice) {
             return '';
         }
+
+        // The template below references {{merchant_name}} and {{amount}} - neither is a real
+        // op_invoices column (the row only has merchant_id and subtotal/tax/discount/total), so
+        // both must be populated explicitly or PdfService::generateInvoice() leaves the literal
+        // placeholder text in the rendered document.
+        $merchantRow = $this->db->fetchOne("SELECT name FROM op_merchants WHERE id = :id", ['id' => $merchantId]);
+        $invoice['merchant_name'] = ($merchantRow !== null && is_scalar($merchantRow['name'] ?? null))
+            ? (string) $merchantRow['name']
+            : 'OwnPay';
+        $invoice['amount'] = $invoice['total'] ?? '0.00';
 
         $template = <<<HTML
         <h2>Invoice #{{invoice_number}}</h2>
