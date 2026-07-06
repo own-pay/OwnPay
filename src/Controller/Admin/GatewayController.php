@@ -518,12 +518,14 @@ final class GatewayController
         $logoVal = $account['logo_path'] ?? ($template['logo_path'] ?? null);
         $qrVal = $account['qr_code_path'] ?? ($template['qr_code_path'] ?? null);
         $instructionsVal = $account['instructions'] ?? ($template['instructions'] ?? null);
+        $paymentNumberVal = $account['payment_number'] ?? ($template['payment_number'] ?? null);
 
         return [
             'slug'               => is_string($template['slug'] ?? null) ? $template['slug'] : '',
             'name'               => is_string($template['name'] ?? null) ? $template['name'] : '',
             'logo_path'          => is_string($logoVal) ? $logoVal : null,
             'qr_code_path'       => is_string($qrVal) ? $qrVal : null,
+            'payment_number'     => is_string($paymentNumberVal) ? $paymentNumberVal : null,
             'colors'             => is_string($template['colors'] ?? null) ? $template['colors'] : null,
             'input_fields'       => is_string($template['input_fields'] ?? null) ? $template['input_fields'] : null,
             'instructions'       => is_string($instructionsVal) ? $instructionsVal : null,
@@ -552,6 +554,7 @@ final class GatewayController
         $fieldsVal = $data['fields'] ?? [];
         $minVal = $data['min_amount'] ?? '0';
         $maxVal = $data['max_amount'] ?? '0';
+        $paymentNumberVal = $data['payment_number'] ?? '';
 
         /** @var array<int, array<string, mixed>> $fieldsArray */
         $fieldsArray = [];
@@ -571,6 +574,7 @@ final class GatewayController
             'instructions'     => $this->buildInstructionsJson(is_string($instructionsVal) ? $instructionsVal : ''),
             'colors'           => $this->buildColorsJson($data),
             'input_fields'     => $this->buildFieldsJson($fieldsArray),
+            'payment_number'   => InputSanitizer::string(is_string($paymentNumberVal) ? $paymentNumberVal : ''),
             'min_amount'       => InputSanitizer::decimal(is_string($minVal) ? $minVal : '0'),
             'max_amount'       => InputSanitizer::decimal(is_string($maxVal) ? $maxVal : '0'),
             'sms_verification' => 1,
