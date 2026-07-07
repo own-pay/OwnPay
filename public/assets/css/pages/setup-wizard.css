@@ -548,7 +548,6 @@ input:checked+.op-wizard-slider::before {
 }
 
 @keyframes wizardShake {
-
     0%,
     100% {
         transform: translateX(0);
@@ -897,8 +896,8 @@ input:checked+.op-wizard-slider::before {
     min-height: 100vh;
     padding: 48px 24px;
     background:
-        radial-gradient(1200px 500px at 15% -10%, rgba(15, 151, 237, 0.25), transparent 60%),
-        radial-gradient(900px 500px at 100% 110%, rgba(99, 102, 241, 0.20), transparent 55%),
+        radial-gradient(1200px 500px at 15% -10%, rgb(15 151 237 / 25%), transparent 60%),
+        radial-gradient(900px 500px at 100% 110%, rgb(99 102 241 / 20%), transparent 55%),
         linear-gradient(180deg, #0a0e17 0%, #0d1220 100%);
     color: #e5e7eb;
 }
@@ -925,7 +924,7 @@ input:checked+.op-wizard-slider::before {
     height: 28px;
     border-radius: 8px;
     background: linear-gradient(135deg, var(--op-primary, #0F97ED), #6366F1);
-    box-shadow: 0 4px 14px rgba(15, 151, 237, 0.4);
+    box-shadow: 0 4px 14px rgb(15 151 237 / 40%);
 }
 
 .op-wizard-skip-setup-link,
@@ -980,14 +979,14 @@ input:checked+.op-wizard-slider::before {
     background: linear-gradient(135deg, var(--op-primary, #0F97ED), #6366F1);
     color: #fff;
     font-weight: 600;
-    box-shadow: 0 0 0 5px rgba(15, 151, 237, 0.18), 0 6px 16px rgba(15, 151, 237, 0.35);
+    box-shadow: 0 0 0 5px rgb(15 151 237 / 18%), 0 6px 16px rgb(15 151 237 / 35%);
     border-color: transparent;
 }
 
 .op-wizard-tracker-node.completed .op-wizard-tracker-circle {
     background: var(--op-primary, #0F97ED);
     color: #fff;
-    box-shadow: 0 0 0 4px rgba(15, 151, 237, 0.15);
+    box-shadow: 0 0 0 4px rgb(15 151 237 / 15%);
     border-color: transparent;
 }
 
@@ -1018,16 +1017,16 @@ input:checked+.op-wizard-slider::before {
 .op-setup-wizard-card {
     max-width: 480px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgb(255 255 255 / 3%);
+    border: 1px solid rgb(255 255 255 / 8%);
     border-radius: 16px;
     padding: 36px;
     backdrop-filter: blur(12px);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
 }
 
 .op-setup-wizard-card .op-wizard-btn-next,
 .op-setup-wizard-card .op-wizard-btn-finish {
     background: linear-gradient(135deg, var(--op-primary, #0F97ED), #0b7fc9);
-    box-shadow: 0 8px 20px rgba(15, 151, 237, 0.35);
+    box-shadow: 0 8px 20px rgb(15 151 237 / 35%);
 }

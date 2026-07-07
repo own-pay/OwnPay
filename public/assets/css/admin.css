@@ -1359,7 +1359,6 @@ code {
 }
 
 @keyframes op-badge-pulse {
-
   0%,
   100% {
     box-shadow: 0 0 0 0 rgb(239 68 68 / 40%);
@@ -3060,7 +3059,7 @@ small {
 }
 
 .op-tab.active .op-tab-count {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
   color: #fff;
 }
 
@@ -3879,7 +3878,7 @@ small {
   border: none;
   border-radius: 12px;
   background: var(--op-bg-card);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 3%);
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -3887,15 +3886,15 @@ small {
 
 .op-gateway-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 6%);
 }
 
 [data-theme="dark"] .op-gateway-card {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 30%);
 }
 
 [data-theme="dark"] .op-gateway-card:hover {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 40%);
 }
 
 .op-gateway-active::before {
@@ -4881,7 +4880,7 @@ label.op-toggle-label {
 .op-field-group .op-select:focus {
   outline: none;
   border-color: var(--op-primary);
-  box-shadow: 0 0 0 2px rgba(15, 151, 237, 0.1);
+  box-shadow: 0 0 0 2px rgb(15 151 237 / 10%);
 }
 
 .op-field-help {
@@ -5220,7 +5219,6 @@ label.op-toggle-label {
    MOBILE
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-
   /* Layout */
   .op-layout {
     flex-direction: column;
@@ -5250,7 +5248,6 @@ label.op-toggle-label {
     gap: 10px;
     flex-wrap: nowrap;
     overflow: hidden;
-    position: -webkit-sticky;
     position: sticky;
     top: 0;
     z-index: 50;
@@ -5897,8 +5894,7 @@ label.op-toggle-label {
   }
 
   .op-card-body.op-p-0 {
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: auto hidden;
   }
 
   .op-card-body.op-p-0 .op-table tbody td {
@@ -6099,10 +6095,7 @@ label.op-toggle-label {
 
   .op-calendar-popover {
     position: absolute;
-    top: calc(100% + 6px);
-    bottom: auto;
-    left: 0;
-    right: 0;
+    inset: calc(100% + 6px) 0 auto;
     width: 100%;
     min-width: 0;
     border-radius: 10px;
@@ -6186,8 +6179,7 @@ label.op-toggle-label {
   }
 
   .op-card-body.op-p-0 {
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: auto hidden;
   }
 
   .op-card-body.op-p-0 .op-table tbody td {
@@ -6293,8 +6285,7 @@ label.op-toggle-label {
   }
 
   .op-card-body.op-p-0 {
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: auto hidden;
   }
 
   .op-card-body.op-p-0 .op-table tbody td {

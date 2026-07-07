@@ -493,14 +493,14 @@
 }
 
 .op-settings-sidebar .op-tab.active {
-    background: rgba(15, 151, 237, 0.1);
+    background: rgb(15 151 237 / 10%);
     color: var(--op-primary);
     font-weight: 600;
 }
 
 /* Dark mode overrides for active states */
 [data-theme="dark"] .op-settings-sidebar .op-tab.active {
-    background: rgba(15, 151, 237, 0.15);
+    background: rgb(15 151 237 / 15%);
     color: var(--op-primary);
 }
 
@@ -540,7 +540,6 @@
    MOBILE - Compact settings for ≤768px
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-
     /* Page header */
     .op-page-header {
         margin-top: 16px;
@@ -565,8 +564,7 @@
     /* Sidebar - horizontal scroll strip, override ALL desktop flex-col rules */
     .op-settings-layout .op-settings-sidebar {
         display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-flow: row nowrap !important;
         width: 100% !important;
         gap: 0 !important;
         border-right: none !important;
@@ -574,8 +572,7 @@
         padding-right: 0 !important;
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
+        overflow: auto hidden !important;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         align-items: stretch;
@@ -588,7 +585,6 @@
 
     /* Initial scroll hint animation */
     @keyframes tabScrollHint {
-
         0%,
         100% {
             transform: translateX(0);
@@ -656,8 +652,7 @@
     /* Groups - inline, no wrapping */
     .op-settings-layout .op-sidebar-group {
         display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-flow: row nowrap !important;
         width: auto !important;
         min-width: 0 !important;
         gap: 0 !important;
@@ -677,8 +672,7 @@
     /* Navs - inline */
     .op-settings-layout .op-sidebar-nav {
         display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-flow: row nowrap !important;
         width: auto !important;
         min-width: 0 !important;
         gap: 2px !important;

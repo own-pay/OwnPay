@@ -118,7 +118,6 @@
 }
 
 @keyframes su-pulse {
-
   0%,
   100% {
     box-shadow: 0 0 0 0 currentcolor;
@@ -1254,7 +1253,6 @@ input[type="radio"]:checked+.op-segment-label {
    RESPONSIVE
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-
   .op-update-hero-row,
   .op-update-info-row {
     grid-template-columns: 1fr;

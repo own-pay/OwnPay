@@ -42,7 +42,6 @@
 
 /* Pulse - loading/breathing (checkout: st-pulse) */
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -105,7 +104,6 @@
 
 /* Shake - form validation error */
 @keyframes shake {
-
   0%,
   100% {
     transform: translateX(0);
