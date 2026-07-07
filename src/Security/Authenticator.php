@@ -5,6 +5,7 @@ namespace OwnPay\Security;
 
 use OwnPay\Repository\LoginAttemptRepository;
 use OwnPay\Repository\MerchantUserRepository;
+use OwnPay\Repository\RoleRepository;
 use OwnPay\Event\EventManager;
 
 /**
@@ -34,6 +35,11 @@ final class Authenticator
     private ?EventManager $events;
 
     /**
+     * @var \OwnPay\Repository\RoleRepository|null
+     */
+    private ?RoleRepository $roles;
+
+    /**
      * Authenticator constructor.
      *
      * Resolves dependencies for user records, login auditing, and system events.
@@ -41,15 +47,18 @@ final class Authenticator
      * @param \OwnPay\Repository\MerchantUserRepository|null $users The user repository.
      * @param \OwnPay\Repository\LoginAttemptRepository|null $attempts The login attempts repository.
      * @param \OwnPay\Event\EventManager|null $events The event manager.
+     * @param \OwnPay\Repository\RoleRepository|null $roles The role/permission repository.
      */
     public function __construct(
         ?MerchantUserRepository $users = null,
         ?LoginAttemptRepository $attempts = null,
-        ?EventManager $events = null
+        ?EventManager $events = null,
+        ?RoleRepository $roles = null
     ) {
         $this->users = $users;
         $this->attempts = $attempts;
         $this->events = $events;
+        $this->roles = $roles;
     }
 
     /**
@@ -154,15 +163,32 @@ final class Authenticator
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
+            $isSuperadmin = (bool) ($user['is_superadmin'] ?? false);
+            $roleIdVal = $user['role_id'] ?? null;
+            $roleId = is_scalar($roleIdVal) ? (int) $roleIdVal : 0;
+            $canAccessAllBrands = $isSuperadmin
+                || ($this->roles !== null && $roleId > 0 && in_array('brands.access_all', $this->roles->getPermissions($roleId), true));
+
             $_SESSION['auth_user_id'] = $user['id'];
             $_SESSION['auth_merchant_id'] = $user['merchant_id'];
-            $_SESSION['active_brand_id'] = $user['merchant_id'];
             $_SESSION['auth_role_id'] = $user['role_id'];
             $_SESSION['auth_email'] = $user['email'];
             $_SESSION['auth_name'] = $user['name'];
-            $_SESSION['is_superadmin'] = (bool) ($user['is_superadmin'] ?? false);
+            $_SESSION['is_superadmin'] = $isSuperadmin;
             $_SESSION['two_fa_enabled'] = (bool) ($user['two_factor_enabled'] ?? false);
             $_SESSION['auth_at'] = time();
+
+            // Land users who can see across brands on the global "All Brands" view
+            // instead of scoping them to their own merchant record - matches the
+            // same pairing BrandController::switchBrand() and onboarding-completion
+            // use for entering global view.
+            if ($canAccessAllBrands) {
+                $_SESSION['brand_view_mode'] = 'global';
+                $_SESSION['active_brand_id'] = 0;
+            } else {
+                $_SESSION['brand_view_mode'] = 'single';
+                $_SESSION['active_brand_id'] = $user['merchant_id'];
+            }
         }
     }
 
