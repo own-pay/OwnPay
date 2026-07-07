@@ -566,7 +566,7 @@ final class CheckoutController
 
         $this->events->doAction('checkout.gateway.selected', $txn, $gateway);
 
-        $extraRaw = $req->post('extra');
+        $extraRaw = $req->input('extra');
         $extra = is_array($extraRaw) ? $extraRaw : [];
         $this->events->doAction('checkout.extra_fields', $extra, $txn);
 
