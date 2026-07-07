@@ -103,6 +103,8 @@ return [
     'checkout.payment_link.template'    => ['type' => 'filter', 'location' => 'PaymentLinkCheckoutController'],
     'checkout.gateway.selected'         => ['type' => 'action', 'location' => 'CheckoutController'],
     'checkout.gateway.extra'            => ['type' => 'action', 'location' => 'checkout/partials/_gateway-grid.twig (per gateway row, all 3 tabs)'],
+    'checkout.form.fields'               => ['type' => 'action', 'location' => 'checkout/checkout.twig (#op-extra-fields container)'],
+    'checkout.extra_fields'              => ['type' => 'action', 'location' => 'CheckoutController::pay()'],
     'checkout.cancelled'                => ['type' => 'action', 'location' => 'CheckoutController'],
     'checkout.manual_verify.submitted'  => ['type' => 'action', 'location' => 'CheckoutController, PaymentIntentCheckoutController'],
     'checkout.head'                     => ['type' => 'action', 'location' => 'checkout/checkout.twig <head>'],

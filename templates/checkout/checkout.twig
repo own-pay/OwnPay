@@ -66,6 +66,7 @@
          data-custom-css="{{ brand.custom_css|default('') }}"
          data-custom-js="{{ brand.custom_js|default('') }}">
     </div>
+    <div id="op-extra-fields">{{ hook('checkout.form.fields')|raw }}</div>
 
     <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
     <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js?v=001"></script>

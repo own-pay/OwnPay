@@ -610,6 +610,77 @@ describe('checkout.js', () => {
     });
   });
 
+  describe('collectExtraFields / extra payload wiring', () => {
+    function setupDomWithExtraFields() {
+      const html = `
+        <!DOCTYPE html>
+        <html><body>
+          <div id="op-checkout-data" data-config='{"txnRef":"TXN123"}' data-manual-gateways='{}'></div>
+          <div id="op-extra-fields">
+            <input type="text" name="order_note" value="Leave at the door">
+            <select name="delivery_speed"><option value="fast" selected>Fast</option></select>
+          </div>
+          <div class="ck-gw" data-tab="card" data-color="#ECEEF5"><div class="ck-gw-ico"></div></div>
+          <button type="button" id="cardBtn" disabled class="ck-pay-btn">Select a provider</button>
+        </body></html>
+      `;
+      const newDom = new JSDOM(html, { url: 'http://localhost', runScripts: 'dangerously' });
+      const w = newDom.window;
+      const d = w.document;
+      const runScript = w['eval'];
+      runScript.call(w, opFetchCode);
+      runScript.call(w, checkoutCode);
+      return { newDom, w, d };
+    }
+
+    it('collectExtraFields returns a plain object of name/value pairs from #op-extra-fields', () => {
+      const { newDom, w } = setupDomWithExtraFields();
+
+      const result = w.collectExtraFields();
+
+      expect(result).toEqual({ order_note: 'Leave at the door', delivery_speed: 'fast' });
+      newDom.window.close();
+    });
+
+    it('collectExtraFields returns an empty object when the container has no inputs', () => {
+      const html = `
+        <!DOCTYPE html>
+        <html><body>
+          <div id="op-checkout-data" data-config='{"txnRef":"TXN123"}' data-manual-gateways='{}'></div>
+        </body></html>
+      `;
+      const newDom = new JSDOM(html, { url: 'http://localhost', runScripts: 'dangerously' });
+      const w = newDom.window;
+      const runScript = w['eval'];
+      runScript.call(w, opFetchCode);
+      runScript.call(w, checkoutCode);
+
+      expect(w.collectExtraFields()).toEqual({});
+      newDom.window.close();
+    });
+
+    it('executeGW payload includes the collected extra object alongside the existing keys', async () => {
+      const { newDom, w, d } = setupDomWithExtraFields();
+
+      let capturedBody = null;
+      w.fetch = vi.fn((url, opts) => {
+        capturedBody = JSON.parse(opts.body);
+        return new Promise(() => {});
+      });
+
+      const card = d.querySelector('.ck-gw[data-tab="card"]');
+      w.pickGW(card, 'card', 'stripe', 'Stripe', 'api');
+
+      const btn = d.getElementById('cardBtn');
+      btn.onclick();
+
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody.gateway).toBe('stripe');
+      expect(capturedBody.extra).toEqual({ order_note: 'Leave at the door', delivery_speed: 'fast' });
+      newDom.window.close();
+    });
+  });
+
   // Regression: copyNum() called navigator.clipboard.writeText(text).then(showToast)
   // with no .catch() - a rejected promise (denied permission, unfocused document,
   // managed-browser policy) silently stranded the customer with no feedback on the
