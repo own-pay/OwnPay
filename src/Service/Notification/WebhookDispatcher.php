@@ -131,12 +131,48 @@ final class WebhookDispatcher
             }
         }
 
+        $amount   = $data['amount'] ?? '0.00';
+        $currency = $data['currency'] ?? 'BDT';
+        $fee      = $data['fee'] ?? '0.00';
+
+        $intentIdVal = $data['payment_intent_id'] ?? null;
+        $intentId = is_scalar($intentIdVal) ? (int) $intentIdVal : null;
+        $intent = null;
+        if ($intentId !== null && $intentId > 0) {
+            $intent = $this->db->fetchOne(
+                "SELECT amount, currency FROM op_payment_intents WHERE id = :id LIMIT 1",
+                ['id' => $intentId]
+            );
+        }
+
+        if (is_array($intent)) {
+            $intentCurrencyVal = $intent['currency'] ?? null;
+            $intentCurrency = is_scalar($intentCurrencyVal) ? (string) $intentCurrencyVal : null;
+            $intentAmountVal = $intent['amount'] ?? null;
+            $intentAmount = is_scalar($intentAmountVal) ? (string) $intentAmountVal : null;
+
+            if ($intentCurrency !== null && $intentAmount !== null && $currency !== $intentCurrency) {
+                // Currency conversion happened. Override with original values from the payment intent!
+                $rateVal = 0.0;
+                if (is_numeric($amount) && is_numeric($intentAmount) && (float)$intentAmount > 0) {
+                    $rateVal = (float)$amount / (float)$intentAmount;
+                }
+                if ($rateVal > 0) {
+                    $feeVal = is_numeric($fee) ? (float)$fee : 0.0;
+                    $fee = number_format($feeVal / $rateVal, 2, '.', '');
+                }
+                $amount   = $intentAmount;
+                $currency = $intentCurrency;
+            }
+        }
+
         return [
             'event'          => $event,
             'transaction_id' => $data['transaction_id'] ?? '',
             'gateway_trx_id' => $gatewayTrxId,
-            'amount'         => $data['amount'] ?? '0.00',
-            'currency'       => $data['currency'] ?? 'BDT',
+            'amount'         => $amount,
+            'currency'       => $currency,
+            'fee'            => $fee,
             'gateway'        => $data['gateway'] ?? '',
             'gateway_type'   => $data['gateway_type'] ?? 'unknown',
             'status'         => $data['status'] ?? '',
