@@ -693,7 +693,7 @@ final class PluginController
             if (($field['required'] ?? false) !== true) {
                 continue;
             }
-            $name = $field['name'] ?? '';
+            $name = $field['name'];
             if ($name === '') {
                 continue;
             }
@@ -701,13 +701,13 @@ final class PluginController
             if ($submitted !== '') {
                 continue;
             }
-            if (($field['type'] ?? '') === 'password') {
+            if ($field['type'] === 'password') {
                 $existing = $existingValues[$name] ?? '';
                 if ($existing !== '') {
                     continue;
                 }
             }
-            $label = is_string($field['label'] ?? null) && $field['label'] !== '' ? $field['label'] : $name;
+            $label = ($field['label'] ?? '') !== '' ? $field['label'] : $name;
             $missing[] = $label;
         }
         return $missing;

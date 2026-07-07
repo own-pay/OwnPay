@@ -144,7 +144,7 @@ final class PluginManager
      *
      * @param string   $slug    Unique plugin identifier.
      * @param int|null $brandId The brand ID context.
-     * @return array{success: bool, message?: string, error?: string, migrations_run?: int} Activation outcome.
+     * @return array{success: bool, message?: string, error?: string, migrations_run?: int, warning?: string} Activation outcome.
      */
     public function activate(string $slug, ?int $brandId = null): array
     {

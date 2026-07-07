@@ -86,7 +86,7 @@ interface PluginInterface
      * Allows plugins to expose key-value settings (e.g. API credentials for Stripe or bKash)
      * which are dynamically rendered in the admin dashboard and saved to the settings repository.
      *
-     * @return array<int, array{name: string, label: string, type: string, default?: mixed, options?: array<string, string>}> List of field definitions.
+     * @return array<int, array{name: string, label?: string, type: string, default?: mixed, options?: array<string, string>, required?: bool}> List of field definitions.
      */
     public function fields(): array;
 }

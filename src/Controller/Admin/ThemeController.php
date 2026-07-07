@@ -253,7 +253,7 @@ final class ThemeController
         $this->settings->set('appearance', 'active_theme', $slug);
         $pluginName = is_string($plugin['name'] ?? null) ? $plugin['name'] : 'Unknown';
         $this->session->flashSuccess("Theme '{$pluginName}' activated!");
-        if (is_array($result) && !empty($result['warning']) && is_string($result['warning'])) {
+        if (!empty($result['warning'])) {
             $this->session->flashError($result['warning']);
         }
 
