@@ -6,6 +6,53 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.0] — 2026-07-07
+
+### Added
+
+- Custom themes can now register their own rendering engine (in addition to the built-in template engine), and a brand-scoped Appearance page lets each brand pick its own theme independently.
+- Themes going through activation are now scanned for dangerous code patterns before being allowed to run, and unsafe themes are blocked with a clear warning instead of being silently activated.
+- Plugins can declare other plugins they depend on; activating one now checks that its dependencies are installed and active first, instead of failing later in a confusing way.
+- Checkout pages gained two new customization points: gateways can add their own markup next to their name in the gateway list, and merchants can inject extra form fields into checkout that are submitted along with the payment.
+- The admin panel gained a pluggable rendering-engine system and a stylesheet/script "enqueue" system so themes and admin pages can register their own assets cleanly instead of hard-coding tags into templates.
+- Required settings fields declared by a plugin are now validated on the server when saved, not just in the browser, closing a gap where a scripted request could bypass the "required" marking entirely.
+- API keys can now be temporarily locked (suspended) without fully revoking them, and the admin can see every key's status - active, locked, or revoked - in one list.
+- The Developer Hub page was reorganized: Endpoint Reference and Authentication were merged into the API Keys tab, and webhook-related settings were separated out for clarity.
+- The Domains page was redesigned with a card-based layout, a tabbed management panel per domain, and a guided 3-step wizard for adding new domains, replacing the old flat table and static instructions.
+- Manual (offline) payment methods gained a dedicated payment/account number field, and the customer-facing popup for manual payments was redesigned with the gateway logo, a QR code, and a one-tap copy-amount button.
+- Every schema change now ships with a matching upgrade file, so existing installations pick up new database columns automatically on update instead of needing a fresh install.
+- After a successful system update, old log files are now automatically cleaned up as part of routine housekeeping.
+
+### Changed
+
+- The setup wizard was rebuilt as a dedicated full-screen experience with a cleaner step tracker, resumable progress, and the option to skip optional steps.
+- Finishing or dismissing the setup wizard now always lands the admin on the All Brands view instead of a single brand.
+- Logging in now correctly lands superadmins (and any staff granted All-Brands access) on the global All Brands view, instead of always dropping them into a single brand's dashboard.
+- Gateway selection on the checkout page now behaves consistently across all payment method tabs, and gateway logos in the list are larger and easier to read.
+
+### Fixed
+
+- Manual gateway checkout popups no longer show a blank $0.00 amount and now correctly display the brand name in the footer.
+- Four payment gateway adapters no longer treat an unreachable webhook confirmation as a completed payment ("fail open"); they now correctly wait for a real confirmation.
+- Checkout no longer allows two rapid submissions of the same payment to both go through, and returning to a checkout page via the browser back button no longer leaves it in a broken state.
+- Fixed a bug where a gateway's resolved currency, amount, and fee could be wrong when processing a payment via a payment intent.
+- Invoices no longer show placeholder text in the generated PDF, no longer crash when an invoice has zero line items, and correctly record the paid date.
+- Payment links can now be edited from the All-Brands view, no longer return a server error on a duplicate link name, and now properly validate their input.
+- Fixed the setup wizard's copy-to-clipboard buttons (OTP and account number) failing silently in some browser contexts.
+- A theme's first-time activation no longer incorrectly reports "failed to activate" even though it actually succeeded.
+- Removing a domain, toggling a domain's manage panel, and the domain wizard's UI state all had bugs that are now fixed.
+- Fixed several PHPStan static-analysis errors representing genuine logic bugs, including an incorrect argument order in the application logger's setup and unreachable validation code.
+- Fixed an overly broad version-control ignore rule that was unintentionally also hiding a real source code folder.
+
+### Security
+
+- Payment gateway credentials (API keys, secrets, passwords) are now encrypted at rest instead of being stored in plaintext, and are no longer echoed back into the settings form.
+- Closed a gap in the webhook pipeline where gateway identity wasn't fully verified and a server-side request forgery (SSRF) vector was possible.
+- Invoice PDF downloads now sanitize the output filename to prevent path traversal.
+- The brand Appearance (theme) page now correctly requires the plugin view/manage permission instead of being open to anyone with admin access.
+
+---
+
 ## [0.1.0] — 2026-06-30
 
 > **Initial public release.** OwnPay is a self-hosted, enterprise-grade, open-source payment
@@ -13,207 +60,4 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 > brands (stores) run under isolated custom domains — each with its own gateways, ledger,
 > customers, and visual identity.
 
----
-
-### Added
-
-#### Core Framework
-
-- Lightweight **PSR-11 dependency injection container** with reflection-based auto-wiring and singleton/transient lifecycle support.
-- 10-step **Kernel boot cycle**: environment loading → container build → timezone config → plugin boot → middleware stack → `system.boot` event → route compilation → request matching → controller dispatch → `system.shutdown` event.
-- **WordPress-style hook/filter system** (`EventManager`) with named action queues and priority-ordered filter chains, available to every plugin.
-- **PSR-4 autoloading** of all application code under the `OwnPay\` namespace (`src/`).
-- **Graceful last-resort error renderer** (`ErrorPageRenderer`) — fully inline HTML, zero service dependencies, renders 500/503/maintenance pages even when Twig, the database, or the DI container is broken.
-- **Maintenance mode** with segment-aware path whitelist (`/admin`, `/login`, `/webhook`, `/cron`, `/checkout`) so gateway callbacks continue processing and the operator can still log in during downtime.
-
-#### Multi-Brand Architecture
-
-- **Single-owner, multi-brand model**: one super-administrator manages N brands (`op_merchants`), each isolated by `merchant_id` across every scoped database table.
-- **`TenantScope` trait** — enforces brand data isolation at the query layer; provides `forTenant()`, `forAllTenants()`, `paginateScoped()`, `findScoped()`, `createScoped()`, `updateScoped()`, `deleteScoped()`.
-- **`BrandContext` service** — resolves active brand from request, handles the All-Brands (platform) scope, exposes `getPlatformId()` and `getWriteMerchantId()` to prevent data cross-contamination.
-- **Reserved platform-owner row** (`is_platform = 1`, slug `__platform__`) seeded by migration `013_add_platform_owner.sql`; excluded from all brand selectors.
-- **Brand-scoped settings cascade**: `SettingsRepository::getScoped()` resolves brand override → All-Brands global default → code default.
-- **Per-brand RBAC** — `op_roles` + `op_role_permissions`; `brands.access_all` permission gates cross-brand (All-Brands) access. `PermissionMiddleware::resolvePermission()` maps every admin route to its required permission slug.
-
-#### White-Label Custom Domains
-
-- **`DomainMiddleware`** — resolves every inbound `HTTP_HOST` against `op_domains`; injects `merchant_id`, `custom_domain`, and `domain_type` into request attributes; returns HTTP 404 for `/admin/*` paths on custom domains; returns HTTP 503 for domains pending DNS verification.
-- **`DomainUrlService`** — single source of truth for all customer-facing and gateway-facing URL construction with priority: `GATEWAY_CALLBACK_URL` env → brand custom domain → `APP_URL` → request host → `https://localhost`.
-- DNS verification workflow with `dns_verified` flag; unverified domains are fully blocked.
-- `APP_DOMAIN` bare-hostname env var used as the master-domain sentinel.
-
-#### Installer Wizard
-
-- Four-step guided installation: directory permission checks → database probing + schema build → superadmin & default brand creation → key generation + `.env` write + `storage/.installed` lock marker.
-- Installer middleware group is **database-independent** by design — no session, settings, or DB-backed rate-limiter middleware; `RateLimiterMiddleware` wraps DB access in try/catch for graceful bypass.
-- Base64-safe `.env` parsing via `vlucas/phpdotenv` (avoids `parse_ini_file` breakage on base64 `APP_KEY`/`ENCRYPTION_KEY`).
-
-#### Admin Panel
-
-- Responsive admin panel with dark-mode, glassmorphism UI, and mobile-aware sidebar navigation.
-- Sidebar order: Dashboard → Payments → Gateways → People → Mobile & SMS → Reports & Finance → Developers → Appearance → System → Account.
-- Dashboard with real-time KPIs: total revenue, pending transactions, active gateways, and brand health indicators.
-- **`AdminPageTrait`** — centralises template rendering, brand-scoped logo/favicon injection, and `requireGlobalView()` guard for All-Brands-only operations.
-- Full CRUD admin pages: Brands, Staff, Roles & Permissions, Customers, Gateways, API Keys, Invoices, Payment Links, Transactions, Manual Gateways, Webhooks/IPN, Audit Log, System Settings, Currency Management, Exchange Rates, Reports, Appearance / Branding, Landing Page CMS, and Dispute Management.
-
-#### Payment Gateway Plugin System
-
-- **123 bundled gateway plugins** covering global, regional, and crypto payment networks, including:
-  - **Southeast Asia**: bKash API, Nagad Merchant API, SSLCommerz, PortWallet, ShurjoPay, AamarPay, CellFin, NexusPay, Rocket, uPay, OK Wallet, GCash, Maya, GrabPay, ShopeePay, OVO, DANA, Touch 'n Go, PromptPay, TrueMoney, QRIS (Midtrans).
-  - **South Asia**: Razorpay, Cashfree, Instamojo, CCAvenue, PayTM, PhonePe, MobiKwik, JazzCash, EasyPaisa.
-  - **Africa**: M-Pesa, MTN MoMo, Flutterwave, Paystack, Airtel Money, Orange Money, Fawry, MyFatoorah, OPay.
-  - **Latin America**: MercadoPago, MercadoLibre Wallet, EBANX, dLocal, Pix (Brazil), PagSeguro, PayU, Kushki.
-  - **Europe / Global**: Stripe, PayPal Checkout, Adyen, Braintree, Klarna, Mollie, Authorize.Net, Square, 2Checkout, Checkout.com, Worldpay, CyberSource, BlueSnap, Heartland, NMI, Rapyd, Wise, Worldline, GoCardless, iDEAL, Bancontact, Sofort, Giropay, Trustly, Przelewy24, BLIK, EPS, Skrill, Neteller, Paddle, FastSpring.
-  - **Crypto**: Binance Merchant API, Binance Personal, BitPay, BTCPay, Coinbase Commerce, OpenNode, NowPayments, OxaPay.
-  - **Middle East & Pacific**: Tap Payments, PayTabs, Payme (Israel), PayStation (NZ), Moneris (CA), First Data, Fiserv, Elavon, FattMerchant, Stax, Helcim, PayTrace, TrustCommerce, TSYS, Chase Paymentech, Payment Depot, Biller Genie, Amazon Pay, Apple Pay, Google Pay, Kakaopay, Toss, Billplz, PayFast, Sezzle, Afterpay, Affirm.
-- **Plugin manifest schema** (`manifest.json`) with slug validation, entrypoint declaration, type whitelist (`gateway|addon|theme`), optional `routes`, `cron`, `admin_menu`, `namespace`, `migrations`, and `csp` keys.
-- **Footgun scanner** (`PluginSandbox`) — token-scans every plugin PHP file at load time and blocks `eval`, `exec`, `shell_exec`, `system`, `passthru`, `popen`, `proc_open`.
-- **Dynamic plugin logo resolution** (`PluginManager::resolveIconPath()`) — copies gateway icons into `public/assets/img/gateways/` on demand; rejects non-image extensions.
-- Plugin activation, deactivation, and uninstall lifecycle with database migration execution.
-- Per-brand plugin activation state enforced through `EventManager` owner stack.
-- **Multi-file plugin support**: PSR-4 autoloader registered per plugin, realpath-contained to the plugin directory.
-
-#### Manual (Offline) Gateway System
-
-- **Platform template + per-brand account** model: All-Brands view defines the gateway type (slug, name, logo, input schema, currency limits, SMS rules); each brand adds its own account row (payment instructions, QR code).
-- `ManualGatewayRepository::listActiveForCheckout()` — collapses template + brand account into one row per slug at checkout; brand account always wins over platform template.
-- `GatewayController::createManual` guarded by `requireGlobalView()`.
-
-#### Double-Entry Ledger Engine
-
-- Full **GAAP-compliant double-entry bookkeeping** (`op_ledger_accounts`, `op_ledger_transactions`, `op_ledger_entries`).
-- Every journal entry posts balanced debit/credit pairs; balance is maintained as a schema-level constraint.
-- GAAP directionality enforced: Asset/Expense balances increase on debit; Liability/Equity/Revenue balances increase on credit.
-- Ledger accounts strictly scoped to brand via `LedgerRepository::findOrCreateAccount()`.
-- Mutex-locked transaction posting to prevent race-condition double-posting.
-- Refund processing integrated into the ledger with atomic DB transactions and balance validation (`RefundService`).
-
-#### Checkout & Payment Flows
-
-- **Payment Intent checkout** (`/checkout/{token}`) — branded, white-labeled single-page checkout with per-brand CSS variables, custom CSS/JS injection, and checkout hook triggers.
-- **Invoice system** — line-item invoices with dynamic subtotal/total recalculation; `op_invoice_items` purged and reinserted on every update to prevent orphan records.
-- **Payment links** (`/pay/{slug}`) — shareable, reusable payment pages with configurable amounts.
-- **Dispute management** — dispute creation, status tracking, and resolution workflow.
-- **Gateway callback lease** — atomic `status: processing → callback_processing` UPDATE prevents concurrent double-capture; lease is released on soft failure so later retries can still complete.
-- **Webhook IPN processor** (`WebhookInboundProcessor`) — processes inbound gateway webhooks, accepts `callback_processing` transactions as completable, with retry queue and audit-log integrity tracking.
-- **Dynamic Content Security Policy** built from active gateway manifest `csp` declarations only (never all 123 bundles); 7,500-byte failsafe prevents FastCGI header overflow on shared hosting.
-- **CSRF protection** on all mutation endpoints via `CsrfMiddleware` and `SecurityHelpers::csrfToken()`.
-
-#### Multi-Currency & Exchange Rates
-
-- Currency management with `op_currencies` (ISO 4217) seeded for all major currencies; `decimal_places` per currency.
-- `op_exchange_rates` — `base_currency`/`target_currency` UNIQUE pair with manual and automated rate update support.
-- `CurrencyService::convert()` — pivots through system base currency at checkout for automatic gateway currency conversion.
-- Immutable audit trail fields (`original_amount`, `original_currency`, `exchange_rate`, `converted_amount`, `converted_currency`) persisted in `op_transactions.metadata`.
-- `supportedCurrencies(): array` on every gateway adapter; empty array = any currency via `GatewayDefaults` trait; BDT-only gateways (bKash, Nagad) explicitly declare `['BDT']`.
-
-#### Companion Mobile App & SMS Verification
-
-- **Android companion app** backend: device pairing via OTP exchange, JWT issuance and rotation, JTI blacklisting in `op_cache`.
-- `op_paired_devices` — stores paired device UUID, last heartbeat, and revocation state.
-- **`JwtAuthMiddleware`** — validates JWT tokens against live database state; revoked/deactivated devices are denied immediately.
-- **SMS verification engine** (`SmsVerificationJob`) — matches inbound bank/gateway SMS against pending transactions by provider transaction ID (exact) or amount + gateway + time window (single unambiguous brand match only; ambiguous multi-brand amounts are refused).
-- **All-Brands device scope**: a platform-scoped device matches SMS globally across all brands with safe cross-brand re-attribution via `SmsParsedRepository::rebindToBrand()`.
-- Real-time device online status (180s heartbeat threshold) driven by companion `POST /api/mobile/v1/devices/heartbeat`.
-- SMS template management — platform-owned global templates created in All-Brands view; device sender whitelist includes platform templates so All-Brands templates apply to every paired device.
-
-#### Security Hardening
-
-- **Argon2id** password hashing for all admin and staff accounts.
-- **TOTP two-factor authentication** (`two_factor_enabled`, `totp_secret_enc`) with replay protection.
-- **Self-service password reset** — 256-bit random tokens; only SHA-256 hash stored in `op_password_resets`; single-use, 1-hour TTL, DB-clock freshness; no account enumeration on the forgot-password surface.
-- **Rate limiting** (`RateLimiterMiddleware`) on authentication, password reset, OTP, and sensitive API endpoints.
-- **`SecurityHeadersMiddleware`** — injects HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and dynamic CSP on every response.
-- **Parameterized PDO queries** enforced throughout; SQL string concatenation is strictly prohibited.
-- Route parameter regex constraints prevent route-based injection; `{identifier}` is the sole exception allowing `@`, `+`, `%` for customer email/phone lookup.
-- All secrets loaded from environment variables; `.env` excluded from version control.
-- `window.opCopyText()` global clipboard helper in the admin panel — HTTP/HTTPS compatible clipboard fallback to prevent JavaScript clipboard API failures on non-secure local contexts.
-
-#### API Layers
-
-- **Merchant REST API** — authenticated via API key (`op_api_keys`); payment initiation, transaction status, refund, and webhook management endpoints.
-- **Mobile API** (`/api/mobile/v1/`) — JWT-authenticated companion device endpoints: pairing, heartbeat, SMS submission, notification acknowledgment with device-UUID–scoped IDOR prevention.
-- **Admin API** — internal admin-facing endpoints for live dashboard data and device status polling.
-- **OpenAPI 3.1.1 specification** at `docs/v2/api/openapi.yaml`; interactive public API tester bundled in `docs/v2/api/`.
-- **Webhook retry system** — failed webhook deliveries are queued and retried.
-
-#### Notification & Email System
-
-- Event-driven email notifications (`EmailNotificationService`) triggered on `payment.transaction.completed` and `refund.created`.
-- Per-brand sender identity (`mail_from_email`, `mail_from_name`) resolved via the brand → global settings cascade.
-- Email failure is fully isolated inside try/catch and never disrupts payment completion.
-- Transactional email templates: `payment_completed.twig`, `refund_created.twig`, `password_reset.twig`.
-
-#### Fee Rules Engine
-
-- `op_fee_rules` — brand-scoped commission configuration with four-tier specificity resolution: Brand+Gateway → Brand+Any Gateway → Global+Gateway → Global+Any Gateway.
-- Currency is an exact `CHAR(3)` match; no currency-agnostic fallback.
-- `FeeRuleRepository::resolveActiveRule()` resolves the most specific active rule at transaction time; ties broken by newest rule ID.
-
-#### Brand Theme Engine
-
-- `BrandThemeService` — resolves per-brand visual identity with field-level priority: brand-scoped `op_system_settings` → `op_merchants.settings` JSON → global settings.
-- Fields: `name`, `logo`, `favicon`, `color`, `accent_color`, `support_email`, `custom_css`, `custom_js`, `footer_text`, `show_powered_by`.
-- Per-brand logo and favicon uploaded to `public/assets/uploads/brands/`.
-- Custom CSS/JS injected raw into checkout templates; theme hook triggers fire via `checkout.head` and `checkout.footer` filters.
-- **`own-pay` default theme plugin** bundled under `modules/themes/own-pay`.
-
-#### Addon Plugins
-
-- **`mail-gateway` addon** — pluggable transactional mail transport.
-- **`sms-gateway` addon** — pluggable outbound SMS transport for OTP and notifications.
-- **`telegram-bot` addon** — Telegram bot integration for real-time payment notifications.
-- **`example-kit` addon** — developer reference addon demonstrating the plugin API.
-
-#### Developer Tools & Observability
-
-- **Audit log** (`op_audit_log`) — tamper-evident event trail for all security-relevant operations with integrity hashing.
-- **Cron runner** (`CronJobRunner`) — declarative cron scheduling via plugin manifests; `RefundReconciliationJob` reconciles gateway refund states on schedule.
-- **CLI tools** (`cli/`) — developer command-line utilities.
-- **Balance verification report** — cross-checks ledger balances against transaction totals.
-- **Multi-language (i18n) system** — file-based translation loading with auto-recovery directory management.
-- **Contributors dashboard** — live GitHub contributors data visualisation in the admin panel.
-- **Landing page CMS** — full-featured public marketing page with admin-editable content blocks.
-- **PHPStan Level 9** static analysis enforced across the entire codebase with zero allowed errors.
-- **390+ PHPUnit test cases** covering business logic, ledger invariants, plugin lifecycle, security controls, and regression guards.
-- **Twig CS Fixer**, **ESLint**, and **Stylelint** integrated for template, JS, and CSS quality gates.
-- **WooCommerce gateway plugin** (`ownpay-wordpress.zip`) for WordPress/WooCommerce e-commerce integration.
-
-#### Database Schema
-
-- All tables prefixed with `op_`; strict naming conventions enforced (e.g. `two_factor_enabled`, `totp_secret_enc`, `decimal_places`, `base_currency`, `target_currency`, `match_status`, `device_id`).
-- **Stored Generated Columns** on `op_transactions` — `invoice_id` and `payment_link_id` extracted from `metadata` JSON as indexed `BIGINT UNSIGNED STORED` columns for hot-path lookups without JSON extraction overhead.
-- `op_system_settings` — unified key-value store replacing the decommissioned legacy SQLite `op_env` table; nullable `merchant_id` with `uk_group_key_merchant` unique constraint enables brand-scoped overrides alongside global defaults.
-- `op_password_resets` — OWASP-aligned token table: `token_hash CHAR(64) UNIQUE`, `used_at` (NULL until consumed), `expires_at`, `user_id FK → op_merchant_users ON DELETE CASCADE`.
-- `op_cache` — generic key/TTL cache store; used for JTI blacklisting and rate limiter state.
-- 16 sequential migration files (`database/migrations/`) bootstrapping the complete schema and seeding default data.
-- **Decommissioned and purged**: `op_settlements`, `op_settlement_items`, `SettlementService`, `SettlementRepository`.
-
----
-
-### Dependencies
-
-| Package | Version | Purpose |
-|---|---|---|
-| `php` | `^8.3` | Runtime requirement |
-| `twig/twig` | `^3.26` | Auto-escaped server-side templating |
-| `vlucas/phpdotenv` | `^5.6` | Environment variable loading |
-| `firebase/php-jwt` | `^7.0` | Mobile companion JWT issuance and validation |
-| `ramsey/uuid` | `^4.9` | UUID generation for devices and tokens |
-| `chillerlan/php-qrcode` | `^5.0` | QR code generation for manual gateways |
-| `ext-bcmath` | `*` | Arbitrary-precision financial arithmetic |
-| `ext-openssl` | `*` | Encryption, TOTP, and HMAC operations |
-| `phpstan/phpstan` | `^2.1` | Static analysis at Level 9 |
-| `phpunit/phpunit` | `12.5.29` | Unit and integration test suite |
-| `vincentlanglet/twig-cs-fixer` | `^3.14` | Twig template linting and formatting |
-
----
-
-### Notes
-
-This is the **initial release** — there is no prior version to upgrade from.  
-For a fresh installation, deploy the codebase and run the guided installer wizard at `/install`.
-
-> **License:** AGPL-3.0-or-later
-
-[0.1.0]: https://github.com/own-pay/ownpay/releases/tag/v0.1.0
+[0.2.0]: https://github.com/own-pay/ownpay/releases/tag/v0.2.0
