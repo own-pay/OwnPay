@@ -24,6 +24,7 @@ use OwnPay\Support\DateHelper;
 final class CheckoutController
 {
     use CheckoutPresentationTrait;
+    use \OwnPay\View\Theme\RendersThemedResponsesTrait;
 
     /**
      * @var \OwnPay\Container The dependency injection container.
@@ -103,6 +104,13 @@ final class CheckoutController
     public function show(Request $req): Response
     {
         $ref = (string) $req->param('token');
+
+        // The customer returned to the plain checkout URL (browser back, either right after
+        // picking a gateway or from the external gateway's own page) rather than the gateway's
+        // own return URL (which always targets /status). Nothing was confirmed at the gateway,
+        // so let them pick again instead of getting stuck on a permanent "processing" screen.
+        $this->txnRepo->reactivateForRetry($ref);
+
         $txn = $this->txnRepo->findActiveForCheckout($ref);
 
         if ($txn === null) {
@@ -271,7 +279,7 @@ final class CheckoutController
             $inputFieldsStr = is_string($inputFieldsRaw) ? $inputFieldsRaw : '[]';
             $inputFieldsVal = json_decode($inputFieldsStr, true);
             $inputFields = is_array($inputFieldsVal) ? $inputFieldsVal : [];
-            
+
             $instructionsRaw = $gw['instructions'] ?? '[]';
             $instructionsStr = is_string($instructionsRaw) ? $instructionsRaw : '[]';
             $instructionsObj = json_decode($instructionsStr, true);
@@ -283,17 +291,11 @@ final class CheckoutController
                 $instructions = [$instructionsObj];
             }
 
-            // Isolate the primary payment address fields for inline client reference.
-            $paymentNumber = '';
-            foreach ($inputFields as $field) {
-                if (is_array($field)) {
-                    if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
-                        $paymentNumberVal = $field['value'] ?? $field['default'] ?? '';
-                        $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
-                        break;
-                    }
-                }
-            }
+            $paymentNumberVal = $gw['payment_number'] ?? '';
+            $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
+
+            $logoPathVal = $gw['logo_path'] ?? null;
+            $qrCodePathVal = $gw['qr_code_path'] ?? null;
 
             $gwColorsRaw = $gw['colors'] ?? '{}';
             $gwColorsStr = is_string($gwColorsRaw) ? $gwColorsRaw : '{}';
@@ -305,6 +307,8 @@ final class CheckoutController
                 'instructions'   => $instructions,
                 'colors'         => is_array($gwColors) ? $gwColors : [],
                 'payment_number' => $paymentNumber,
+                'logo_path'      => is_string($logoPathVal) ? $logoPathVal : null,
+                'qr_code_path'   => is_string($qrCodePathVal) ? $qrCodePathVal : null,
             ];
         }
 
@@ -325,11 +329,9 @@ final class CheckoutController
 
         $tplFilter = $this->events->applyFilter('checkout.template', 'checkout/checkout.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout.twig';
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
-        return Response::html($twig->render($tplName, $data));
+        $merchantIdVal = $txn['merchant_id'] ?? null;
+        $brandId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : null;
+        return $this->renderThemed($tplName, $brandId, $data);
     }
 
     /**
@@ -343,10 +345,6 @@ final class CheckoutController
      */
     private function renderStatus(string $ref, string $status): Response
     {
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
         $txn = $this->txnRepo->findAnyByTrxId($ref);
         $mid = 0;
         if (is_array($txn) && isset($txn['merchant_id'])) {
@@ -367,7 +365,8 @@ final class CheckoutController
 
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
-        return Response::html($twig->render($tplName, [
+        $brandId = $mid > 0 ? $mid : null;
+        return $this->renderThemed($tplName, $brandId, [
             'txn'          => $txn ?? ['trx_id' => $ref],
             'status'       => $status ?: (is_array($txn) && is_string($txn['status'] ?? null) ? $txn['status'] : 'expired'),
             'status_label' => $this->statusLabel($status),
@@ -377,7 +376,7 @@ final class CheckoutController
                 'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
                 'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
-        ]));
+        ]);
     }
 
     /**
@@ -436,12 +435,19 @@ final class CheckoutController
         $txnTrxIdVal = $txn['trx_id'] ?? '';
         $txnRef = is_string($txnTrxIdVal) ? $txnTrxIdVal : '';
 
+        // Manual popup footer reads this to render "Secured by {brand}"; fall back to
+        // "OwnPay" only when the brand truly has no name (never an empty string in practice
+        // since loadBrand()/BrandThemeService already fall back, but guarded defensively here).
+        $brandNameVal = $brand['name'] ?? null;
+        $brandName = (is_string($brandNameVal) && $brandNameVal !== '') ? $brandNameVal : 'OwnPay';
+
         return [
             'txnRef'           => $txnRef,
             'timeoutEnabled'   => $timerEnabled === '1',
             'timeoutSeconds'   => $timerSeconds,
             'timeoutRemaining' => $remaining,
             'gatewayMeta'      => $gatewayMeta,
+            'brandName'        => $brandName,
         ];
     }
 
@@ -560,11 +566,42 @@ final class CheckoutController
 
         $this->events->doAction('checkout.gateway.selected', $txn, $gateway);
 
+        $extraRaw = $req->input('extra');
+        $extra = is_array($extraRaw) ? $extraRaw : [];
+        $this->events->doAction('checkout.extra_fields', $extra, $txn);
+
         $txnIdVal = $txn['id'] ?? 0;
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
         if ($gatewayMode === 'manual') {
-            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'awaiting_verification', $mid);
+            // Assert the submitted gateway is one of this merchant's actually-configured active
+            // manual gateways (expressPay() already does the equivalent check for API gateways) -
+            // otherwise an arbitrary client-supplied string gets stored as gateway_slug.
+            $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
+            $activeManualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
+            $isActiveManual = false;
+            foreach ($activeManualGateways as $gw) {
+                if (($gw['slug'] ?? '') === $gateway) {
+                    $isActiveManual = true;
+                    break;
+                }
+            }
+            if (!$isActiveManual) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+                }
+                return $this->renderStatus($token, 'expired');
+            }
+
+            // Atomically claim the transaction (status must still be 'pending') before writing
+            // anything - closes the race where two near-simultaneous submissions (double-click,
+            // two tabs) would otherwise both pass the earlier unlocked status check.
+            if (!$this->txnRepo->claimPendingForPay($txnId, $gateway, 'awaiting_verification', $mid)) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+                }
+                return $this->renderStatus($token, 'awaiting_verification');
+            }
 
             $details = $req->post('payment_details', []);
             if (is_array($details) && !empty($details)) {
@@ -574,6 +611,16 @@ final class CheckoutController
                 ], $mid);
             }
             return Response::redirect("/checkout/{$token}/status");
+        }
+
+        // Atomically claim the transaction for an external gateway attempt BEFORE calling out -
+        // a losing concurrent request is rejected here and never reaches the gateway, preventing
+        // two live payment sessions from being created for one transaction.
+        if (!$this->txnRepo->claimPendingForPay($txnId, $gateway, 'processing', $mid)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+            }
+            return $this->renderStatus($token, 'processing');
         }
 
         // API Handshake: delegate connection requests targeting external gateways.
@@ -596,10 +643,6 @@ final class CheckoutController
                         ]);
 
                         if ($result['success'] && !empty($result['redirect_url'])) {
-                            $this->txnRepo->setGatewayAndStatus(
-                                $txnId, $gateway, 'processing', $mid
-                            );
-
                             // Dispatch ajax redirects for asynchronous capture handlers.
                             if ($req->isAjax()) {
                                 return Response::json([
@@ -609,10 +652,6 @@ final class CheckoutController
                             }
                             return Response::redirect((string) $result['redirect_url']);
                         } elseif ($result['success'] && !empty($result['form_html'])) {
-                            $this->txnRepo->setGatewayAndStatus(
-                                $txnId, $gateway, 'processing', $mid
-                            );
-
                             if ($req->isAjax()) {
                                 return Response::json([
                                     'success'   => true,
@@ -621,6 +660,11 @@ final class CheckoutController
                             }
                             return Response::html((string) $result['form_html']);
                         }
+
+                        // Gateway did not return a usable session - release the claim so the
+                        // customer can retry (with this or another gateway) instead of getting
+                        // stuck on a "processing" status with no in-flight payment.
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
 
                         $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                         $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
@@ -636,9 +680,15 @@ final class CheckoutController
                                 'error'   => $errorMsg,
                             ], 422);
                         }
+                    } else {
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
                     }
+                } else {
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
                 }
             } catch (\Throwable $e) {
+                $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->error(
@@ -654,6 +704,8 @@ final class CheckoutController
                 }
             }
         } else {
+            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'pending', $mid);
+
             if ($req->isAjax()) {
                 return Response::json([
                     'success' => false,
@@ -966,6 +1018,14 @@ final class CheckoutController
             return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
         }
 
+        // Atomically claim the transaction (status must still be 'pending') before calling out
+        // to the gateway - closes the race where two near-simultaneous express-pay submissions
+        // would otherwise both pass the earlier unlocked status check and create two live
+        // payment sessions.
+        if (!$this->txnRepo->claimPendingForPay($txnId, $gatewaySlug, 'processing', $mid)) {
+            return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+        }
+
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
@@ -984,15 +1044,13 @@ final class CheckoutController
                         ]);
 
                         if ($result['success'] && !empty($result['redirect_url'])) {
-                            $this->txnRepo->setGatewayAndStatus(
-                                $txnId, $gatewaySlug, 'processing', $mid
-                            );
-
                             return Response::json([
                                 'success'      => true,
                                 'redirect_url' => (string) $result['redirect_url'],
                             ]);
                         }
+
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
 
                         $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                         $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
@@ -1007,8 +1065,13 @@ final class CheckoutController
                             'error'   => $errorMsg,
                         ], 422);
                     }
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
+                } else {
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
                 }
             } catch (\Throwable $e) {
+                $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
+
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->error(
@@ -1021,6 +1084,8 @@ final class CheckoutController
                     'error'   => 'The payment gateway could not process your request. Please try again or choose another method.',
                 ], 422);
             }
+        } else {
+            $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'pending', $mid);
         }
 
         return Response::json([

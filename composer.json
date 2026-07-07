@@ -12,6 +12,7 @@
     "ext-pdo": "*",
     "chillerlan/php-qrcode": "^5.0",
     "firebase/php-jwt": "^7.0",
+    "nikic/php-parser": "^5.7",
     "ramsey/uuid": "^4.9",
     "twig/twig": "^3.26.0",
     "vlucas/phpdotenv": "^5.6"

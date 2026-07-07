@@ -7,8 +7,10 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Plugin\Capability;
 use OwnPay\Plugin\PluginLoader;
 use OwnPay\Plugin\PluginManager;
+use OwnPay\Plugin\PluginRegistry;
 use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\SettingsRepository;
 
@@ -195,6 +197,7 @@ final class ThemeController
     {
         $slug   = (string) $request->param('slug');
         $plugin = $this->repo->findBySlug($slug);
+        $result = null;
 
         if ($plugin === null) {
             // Theme not in DB - try to register from filesystem
@@ -217,6 +220,7 @@ final class ThemeController
                 $this->session->flashError($result['error'] ?? 'Failed to activate theme');
                 return Response::redirect('/admin/themes');
             }
+            $plugin = $this->repo->findBySlug($slug);
         }
 
         if ($plugin === null) {
@@ -225,12 +229,39 @@ final class ThemeController
         }
 
         if ($plugin['status'] !== 'active') {
-            $this->manager->activate($slug);
+            $result = $this->manager->activate($slug);
+            if (!$result['success']) {
+                $this->session->flashError($result['error'] ?? 'Failed to activate theme');
+                return Response::redirect('/admin/themes');
+            }
+        }
+
+        // Ensure the plugin is present in the in-memory registry before checking its
+        // capability - Kernel::boot() only loads plugins active as of request start, so
+        // a theme activated for the first time this same request (via the discovery
+        // branch above) would otherwise fail hasCapability() closed until the next request.
+        /** @var PluginLoader $loaderForCapability */
+        $loaderForCapability = $this->c->get(PluginLoader::class);
+        $loaderForCapability->loadOne($slug);
+
+        $registry = $this->c->get(PluginRegistry::class);
+        if (!$registry instanceof PluginRegistry || !$registry->hasCapability($slug, Capability::THEME)) {
+            $this->session->flashError('This plugin does not declare theme capability.');
+            return Response::redirect('/admin/themes');
         }
 
         $this->settings->set('appearance', 'active_theme', $slug);
         $pluginName = is_string($plugin['name'] ?? null) ? $plugin['name'] : 'Unknown';
         $this->session->flashSuccess("Theme '{$pluginName}' activated!");
+        if (!empty($result['warning'])) {
+            $this->session->flashError($result['warning']);
+        }
+
+        $events = $this->c->get(\OwnPay\Event\EventManager::class);
+        if ($events instanceof \OwnPay\Event\EventManager) {
+            $events->doAction('theme.activated', $slug);
+        }
+
         return Response::redirect('/admin/themes');
     }
 
@@ -304,6 +335,102 @@ final class ThemeController
         }
 
         return Response::redirect('/admin/themes');
+    }
+
+    /**
+     * Brand-scoped Appearance page: lets the admin of the currently-active
+     * brand pick a theme independent of the global default. Only valid inside
+     * an active brand context; global (all-brands) view is redirected to the
+     * global themes page.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP response with the appearance page, or a redirect.
+     * @throws \RuntimeException If the BrandContext service is not registered.
+     */
+    public function brandAppearance(Request $request): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($request);
+        $brandId = $brand->getActiveBrandId();
+        if ($brand->isGlobalView() || $brandId === null) {
+            $this->session->flashError('Select a specific brand to configure its appearance.');
+            return Response::redirect('/admin/themes');
+        }
+
+        $themes = $this->repo->listByType('theme');
+        $override = $this->settings->getScopedOverride('appearance', 'active_theme', $brandId);
+        $globalTheme = $this->settings->get('appearance', 'active_theme', 'own-pay');
+
+        $resolver = $this->c->get(\OwnPay\View\Theme\ActiveThemeResolver::class);
+        $fellBack = $resolver instanceof \OwnPay\View\Theme\ActiveThemeResolver
+            && $resolver->resolve($brandId)->fellBack;
+
+        return $this->renderAdminPage('admin/appearance/index.twig', [
+            'themes'         => $themes,
+            'brand_override' => $override,          // null => inherits global
+            'global_theme'   => $globalTheme,
+            'fell_back'      => $fellBack,
+            'active_page'    => 'appearance',
+            'is_global_view' => false,
+        ]);
+    }
+
+    /**
+     * Persists (or clears) the brand's theme override. Empty slug clears the
+     * override so the brand inherits the global theme again.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \RuntimeException If the BrandContext service is not registered.
+     */
+    public function saveBrandTheme(Request $request): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($request);
+        $brandId = $brand->getActiveBrandId();
+        if ($brand->isGlobalView() || $brandId === null) {
+            $this->session->flashError('Select a specific brand first.');
+            return Response::redirect('/admin/themes');
+        }
+
+        $events = $this->c->get(\OwnPay\Event\EventManager::class);
+
+        $slugVal = $request->post('slug', '');
+        $slug = trim(is_scalar($slugVal) ? (string) $slugVal : '');
+        if ($slug === '') {
+            // Clear override: delete the brand row so getScoped falls back to global.
+            $this->settings->deleteSettingScoped('appearance', 'active_theme', $brandId);
+            $this->session->flashSuccess('Reverted to the default theme.');
+            if ($events instanceof \OwnPay\Event\EventManager) {
+                $events->doAction('theme.brand_override.changed', $brandId, null);
+            }
+            return Response::redirect('/admin/appearance');
+        }
+
+        $theme = $this->repo->findBySlug($slug);
+        if ($theme === null || ($theme['type'] ?? '') !== 'theme' || ($theme['status'] ?? '') !== 'active') {
+            $this->session->flashError('That theme is not available.');
+            return Response::redirect('/admin/appearance');
+        }
+
+        $registry = $this->c->get(PluginRegistry::class);
+        if (!$registry instanceof PluginRegistry || !$registry->hasCapability($slug, Capability::THEME)) {
+            $this->session->flashError('This plugin does not declare theme capability.');
+            return Response::redirect('/admin/appearance');
+        }
+
+        $this->settings->setScoped('appearance', 'active_theme', $slug, $brandId);
+        $this->session->flashSuccess('Theme updated for this brand.');
+        if ($events instanceof \OwnPay\Event\EventManager) {
+            $events->doAction('theme.brand_override.changed', $brandId, $slug);
+        }
+        return Response::redirect('/admin/appearance');
     }
 
     /**

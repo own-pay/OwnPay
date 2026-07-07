@@ -226,7 +226,7 @@ return static function (\OwnPay\Container $c): void {
             $twig->addExtension(new \OwnPay\View\TwigExtensions($c));
         }
         // Register CoreExtension - provides ownpay_footer(), ownpay_meta()
-        $appVersion = ensureString($appCfg['version'] ?? '0.1.0');
+        $appVersion = ensureString($appCfg['version'] ?? \OwnPay\Support\Version::CURRENT);
         $appUrlRaw = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
         $appUrl = rtrim(is_string($appUrlRaw) ? $appUrlRaw : '', '/');
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
@@ -312,6 +312,77 @@ return static function (\OwnPay\Container $c): void {
         return $twig;
     });
 
+    // --- Theme Rendering Abstraction
+    $c->singleton(\OwnPay\View\Theme\ThemeRendererRegistry::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ThemeRendererRegistry {
+        $twig = ensureType($c->get(\Twig\Environment::class), \Twig\Environment::class);
+        $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
+        $baseEngines = [
+            'twig' => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
+            'php'  => new \OwnPay\View\Theme\PlainPhpThemeRenderer(),
+        ];
+        // Let plugins register additional rendering engines (e.g. Blade, Markdown)
+        // without editing core - see docs/superpowers/specs/2026-07-04-theme-plugin-extensibility-design.md.
+        $filtered = $events->applyFilter('theme.engines.register', $baseEngines);
+        // A plugin's filter listener runs arbitrary code and could return malformed
+        // data (non-array, non-string keys, non-renderer values). Validate before
+        // construction so a broken plugin fails loudly here instead of corrupting
+        // ThemeRendererRegistry::get() far from the actual cause.
+        $logger = $c->get(\OwnPay\Service\System\Logger::class);
+        $engines = \OwnPay\View\Theme\ThemeRendererRegistry::sanitizeEngines(
+            $filtered,
+            $baseEngines,
+            static function (int|string $name, mixed $value) use ($logger): void {
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $type = is_object($value) ? get_class($value) : gettype($value);
+                    $logger->warning(
+                        "theme.engines.register filter returned an invalid entry for key '{$name}' (type: {$type}) - discarding it."
+                    );
+                }
+            }
+        );
+        return new \OwnPay\View\Theme\ThemeRendererRegistry($engines);
+    });
+
+    // --- Admin Panel Rendering Abstraction
+    // Mirrors the customer-facing ThemeRendererRegistry above: infrastructure only, every
+    // built-in admin template stays Twig. A plugin can register a new admin rendering
+    // engine via the 'admin.engines.register' filter; see
+    // docs/superpowers/specs/2026-07-06-admin-renderer-abstraction-design.md.
+    $c->singleton('admin.renderer_registry', static function (\OwnPay\Container $c): \OwnPay\View\Theme\ThemeRendererRegistry {
+        $twig = ensureType($c->get(\Twig\Environment::class), \Twig\Environment::class);
+        $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
+        $baseEngines = [
+            'twig' => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
+        ];
+        $filtered = $events->applyFilter('admin.engines.register', $baseEngines);
+        $logger = $c->get(\OwnPay\Service\System\Logger::class);
+        $engines = \OwnPay\View\Theme\ThemeRendererRegistry::sanitizeEngines(
+            $filtered,
+            $baseEngines,
+            static function (int|string $name, mixed $value) use ($logger): void {
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $type = is_object($value) ? get_class($value) : gettype($value);
+                    $logger->warning(
+                        "admin.engines.register filter returned an invalid entry for key '{$name}' (type: {$type}) - discarding it."
+                    );
+                }
+            }
+        );
+        return new \OwnPay\View\Theme\ThemeRendererRegistry($engines);
+    });
+
+    $c->singleton(\OwnPay\View\Theme\ActiveThemeResolver::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ActiveThemeResolver {
+        $appCfg = ensureArray($c->get('config.app'));
+        $paths = ensureArray($appCfg['paths'] ?? null);
+        $themesBaseDir = ensureString($paths['modules'] ?? '') . '/themes';
+        return new \OwnPay\View\Theme\ActiveThemeResolver(
+            ensureType($c->get(\OwnPay\Repository\SettingsRepository::class), \OwnPay\Repository\SettingsRepository::class),
+            ensureType($c->get(\OwnPay\Plugin\PluginRegistry::class), \OwnPay\Plugin\PluginRegistry::class),
+            $themesBaseDir,
+            'own-pay'
+        );
+    });
+
     // --- Smart SMS Analyzer
     $c->singleton(\OwnPay\Service\Sms\SmartSmsAnalyzer::class, static function (): \OwnPay\Service\Sms\SmartSmsAnalyzer {
         return new \OwnPay\Service\Sms\SmartSmsAnalyzer();
@@ -340,8 +411,15 @@ return static function (\OwnPay\Container $c): void {
         $appCfg = ensureArray($c->get('config.app'));
         $paths = ensureArray($appCfg['paths'] ?? null);
         return new \OwnPay\Service\System\Logger(
+            'app',
             ensureString($paths['logs'] ?? '')
         );
+    });
+
+    // --- Asset Enqueueing
+    $c->singleton(\OwnPay\Service\System\AssetManager::class, static function (\OwnPay\Container $c): \OwnPay\Service\System\AssetManager {
+        $logger = ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class);
+        return new \OwnPay\Service\System\AssetManager($logger);
     });
 
     // --- Plugin System
@@ -692,7 +770,7 @@ return static function (\OwnPay\Container $c): void {
 
     $c->singleton(\OwnPay\Cron\SystemUpdateJob::class, static function (\OwnPay\Container $c): \OwnPay\Cron\SystemUpdateJob {
         $appCfg = ensureArray($c->get('config.app'));
-        $version = ensureString($appCfg['version'] ?? '0.1.0');
+        $version = ensureString($appCfg['version'] ?? \OwnPay\Support\Version::CURRENT);
         return new \OwnPay\Cron\SystemUpdateJob(
             $version,
             ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),

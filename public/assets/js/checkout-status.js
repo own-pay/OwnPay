@@ -10,6 +10,26 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
+    // 1b. Download Receipt - triggers the browser print dialog. Wired via a real event
+    // listener (not a `javascript:` href) since the checkout CSP's script-src has no
+    // 'unsafe-inline' and nonces don't cover javascript: URIs - a javascript: href is
+    // silently blocked and never fires.
+    document.addEventListener("click", function (e) {
+        var target = e.target.closest('[data-action="print-receipt"]');
+        if (!target) { return; }
+        e.preventDefault();
+        window.print();
+    });
+
+    // 1c. Refresh Status - same javascript:-href CSP block as Download Receipt above, applied
+    // to the pending/processing status page's manual refresh button.
+    document.addEventListener("click", function (e) {
+        var target = e.target.closest('[data-action="refresh-status"]');
+        if (!target) { return; }
+        e.preventDefault();
+        window.location.reload();
+    });
+
     // 2. Autonomous handoff / countdown redirect handling
     var wrapper = document.getElementById("countdown-wrapper");
     if (wrapper) {
@@ -17,7 +37,16 @@ document.addEventListener("DOMContentLoaded", function() {
         var paymentId = wrapper.getAttribute("data-payment-id");
         var status = wrapper.getAttribute("data-status");
 
-        if (redirectUrl) {
+        // Refuses javascript:/data:/vbscript: (and any other non-http(s)) URL schemes. The server
+        // already rejects non-http(s) redirect_url values at intent creation, but this stays the
+        // last line of defense before the value drives href/location.href navigation targets.
+        var hasSafeUrlScheme = function (url) {
+            if (!url) { return false; }
+            var schemeMatch = url.trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+            return !schemeMatch || schemeMatch[1].toLowerCase() === "http" || schemeMatch[1].toLowerCase() === "https";
+        };
+
+        if (redirectUrl && hasSafeUrlScheme(redirectUrl)) {
             // Construct target URL with query parameters
             var separator = redirectUrl.indexOf("?") !== -1 ? "&" : "?";
             var finalUrl = redirectUrl + separator + "payment_id=" + encodeURIComponent(paymentId) + "&status=" + encodeURIComponent(status);
@@ -29,7 +58,10 @@ document.addEventListener("DOMContentLoaded", function() {
                     btn.setAttribute("href", finalUrl);
                     var label = btn.querySelector(".st-btn-label");
                     if (label) {
-                        label.innerHTML = "Return to<br>Merchant";
+                        label.textContent = "";
+                        label.appendChild(document.createTextNode("Return to"));
+                        label.appendChild(document.createElement("br"));
+                        label.appendChild(document.createTextNode("Merchant"));
                     }
                 }
             });

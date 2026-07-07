@@ -326,7 +326,6 @@ tr:hover .op-device-icon {
 }
 
 @keyframes op-dot-pulse {
-
     0%,
     100% {
         opacity: 1;

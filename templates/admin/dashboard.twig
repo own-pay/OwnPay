@@ -4,16 +4,9 @@
 
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/dashboard.css?v=025">
-    {% if onboarding_completed == 0 %}
-        <link rel="stylesheet" href="/assets/css/pages/setup-wizard.css?v=016">
-    {% endif %}
 {% endblock %}
 
 {% block content %}
-
-{% if onboarding_completed == 0 %}
-    {% include 'admin/dashboard/_setup_wizard.twig' %}
-{% endif %}
 
 {{ hook('admin.dashboard.before')|raw }}
 

@@ -53,6 +53,19 @@ final class MerchantRepository extends BaseRepository
     }
 
     /**
+     * Finds the earliest-created merchant record (lowest id), used by the
+     * onboarding wizard to detect whether any brand already exists.
+     *
+     * @return array<string, mixed>|null The merchant record, or null if none exist.
+     */
+    public function findFirst(): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} ORDER BY id ASC LIMIT 1"
+        );
+    }
+
+    /**
      * Creates a new merchant brand.
      *
      * Automatically generates a UUIDv4 and a secure random webhook secret.

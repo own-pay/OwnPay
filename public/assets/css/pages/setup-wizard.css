@@ -3,34 +3,6 @@
    Synced with admin.css design tokens (light + dark)
    ═══════════════════════════════════════════════════════ */
 
-/* -- Wizard Card -- */
-.op-setup-wizard-card {
-    background: var(--op-bg-card);
-    border: 1px solid var(--op-border);
-    border-radius: var(--op-radius-lg);
-    padding: 2.5rem;
-    margin-top: 32px;
-    margin-bottom: 2rem;
-    box-shadow: var(--op-shadow);
-    color: var(--op-text);
-    position: relative;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    animation: wizardSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes wizardSlideIn {
-    from {
-        transform: translateY(-20px);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
 /* -- Dismiss Button -- */
 .op-wizard-dismiss {
     position: absolute;
@@ -576,7 +548,6 @@ input:checked+.op-wizard-slider::before {
 }
 
 @keyframes wizardShake {
-
     0%,
     100% {
         transform: translateX(0);
@@ -825,8 +796,13 @@ input:checked+.op-wizard-slider::before {
     }
 
     .op-wizard-actions>button,
-    .op-wizard-actions>.op-flex-gap-1rem {
+    .op-wizard-actions>.op-flex-gap-1rem,
+    .op-wizard-actions>.op-wizard-skip-step-link {
         width: 100%;
+    }
+
+    .op-wizard-actions>.op-wizard-skip-step-link {
+        text-align: center;
     }
 
     .op-wizard-btn {
@@ -839,6 +815,11 @@ input:checked+.op-wizard-slider::before {
     .op-flex-gap-1rem {
         flex-direction: column;
         gap: 0.5rem;
+    }
+
+    .op-flex-gap-1rem>.op-wizard-skip-step-link {
+        width: 100%;
+        text-align: center;
     }
 
     .op-flex-gap-1rem .op-wizard-btn {
@@ -903,4 +884,149 @@ input:checked+.op-wizard-slider::before {
         font-size: 0.9rem;
         margin-bottom: 0.75rem;
     }
+}
+
+/* --- Premium full-screen wizard shell (phase 2 redesign) --- */
+.op-wizard-body {
+    margin: 0;
+    min-height: 100vh;
+}
+
+.op-setup-wizard-shell {
+    min-height: 100vh;
+    padding: 48px 24px;
+    background:
+        radial-gradient(1200px 500px at 15% -10%, rgb(15 151 237 / 25%), transparent 60%),
+        radial-gradient(900px 500px at 100% 110%, rgb(99 102 241 / 20%), transparent 55%),
+        linear-gradient(180deg, #0a0e17 0%, #0d1220 100%);
+    color: #e5e7eb;
+}
+
+.op-wizard-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 640px;
+    margin: 0 auto 40px;
+}
+
+.op-wizard-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.2px;
+}
+
+.op-wizard-brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--op-primary, #0F97ED), #6366F1);
+    box-shadow: 0 4px 14px rgb(15 151 237 / 40%);
+}
+
+.op-wizard-skip-setup-link,
+.op-wizard-skip-step-link {
+    color: #6b7280;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.op-wizard-skip-setup-link:hover,
+.op-wizard-skip-step-link:hover {
+    color: #9ca3af;
+}
+
+.op-wizard-tracker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 640px;
+    margin: 0 auto 48px;
+}
+
+.op-wizard-tracker-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.op-wizard-tracker-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #161b26;
+    border: 1px solid #262b38;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #4b5563;
+    position: relative;
+    transition: all 0.25s ease;
+}
+
+.op-wizard-tracker-check { display: none; }
+
+.op-wizard-tracker-node.active .op-wizard-tracker-circle {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--op-primary, #0F97ED), #6366F1);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 0 5px rgb(15 151 237 / 18%), 0 6px 16px rgb(15 151 237 / 35%);
+    border-color: transparent;
+}
+
+.op-wizard-tracker-node.completed .op-wizard-tracker-circle {
+    background: var(--op-primary, #0F97ED);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgb(15 151 237 / 15%);
+    border-color: transparent;
+}
+
+.op-wizard-tracker-node.completed .op-wizard-tracker-num { display: none; }
+.op-wizard-tracker-node.completed .op-wizard-tracker-check { display: inline; }
+
+.op-wizard-tracker-node .op-wizard-tracker-label {
+    font-size: 11px;
+    color: #4b5563;
+}
+
+.op-wizard-tracker-node.active .op-wizard-tracker-label {
+    color: #e5e7eb;
+    font-weight: 500;
+}
+
+.op-wizard-tracker-node.completed .op-wizard-tracker-label {
+    color: #6b7280;
+}
+
+.op-wizard-tracker-line {
+    width: 56px;
+    height: 2px;
+    background: #1f2937;
+    margin: 0 4px 20px;
+}
+
+.op-setup-wizard-card {
+    max-width: 480px;
+    margin: 0 auto;
+    background: rgb(255 255 255 / 3%);
+    border: 1px solid rgb(255 255 255 / 8%);
+    border-radius: 16px;
+    padding: 36px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+}
+
+.op-setup-wizard-card .op-wizard-btn-next,
+.op-setup-wizard-card .op-wizard-btn-finish {
+    background: linear-gradient(135deg, var(--op-primary, #0F97ED), #0b7fc9);
+    box-shadow: 0 8px 20px rgb(15 151 237 / 35%);
 }

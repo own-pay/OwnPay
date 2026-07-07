@@ -58,21 +58,27 @@
             document.head.appendChild(style);
         }
 
-        // Inject Custom JS if present
+        // Inject Custom JS if present (CSP nonce required for security)
         var customJs = dataEl.getAttribute("data-custom-js");
-        if (customJs) {
+        if (customJs && nonce) {
+            // SECURITY: Only allow custom JS when CSP nonce is present
+            // This prevents execution if nonce is missing or compromised
             var script = document.createElement("script");
-            if (nonce) {
-                script.setAttribute("nonce", nonce);
-            }
+            script.setAttribute("nonce", nonce);
             script.textContent = customJs;
             document.body.appendChild(script);
         }
     }
 
     var basePath = cfg.checkoutBasePath || ("/checkout/" + cfg.txnRef);
+    // Defense in depth: basePath drives form.action targets below - it must always be a
+    // same-origin relative path, never an absolute URL with an attacker-influenceable scheme.
+    if (typeof basePath !== "string" || !basePath.startsWith("/")) {
+        basePath = "/checkout/" + (cfg.txnRef || "");
+    }
 
     // ---------- TIMER ----------
+    var TIMER_URGENCY_THRESHOLD_SEC = 60; // Show urgent style when less than 60 seconds remain
     var tEl = document.getElementById("timer");
     if (cfg.timeoutEnabled && tEl) {
         var storageKey = "op_timer_" + cfg.txnRef;
@@ -102,7 +108,7 @@
             var m = String(Math.floor(sec / 60)).padStart(2, "0");
             var s = String(sec % 60).padStart(2, "0");
             tEl.textContent = m + ":" + s;
-            if (sec <= 60) {
+            if (sec <= TIMER_URGENCY_THRESHOLD_SEC) {
                 tEl.classList.add("ck-timer-urgent");
             } else {
                 tEl.classList.remove("ck-timer-urgent");
@@ -142,32 +148,58 @@
                     cancelForm.submit();
                 }
             }, 1000);
+
+            // Cleanup timer on page unload to prevent memory leak
+            window.addEventListener("beforeunload", function () {
+                clearInterval(iv);
+            });
         }
     }
 
     // ---------- TABS ----------
     window.goT = function (t) {
+        if (!t || typeof t !== "string") { return; }
+        // Sanitize: only allow alphanumeric, hyphens, underscores
+        var safe = t.replace(/[^a-zA-Z0-9_-]/g, "");
+        if (!safe) { return; }
         document.querySelectorAll(".ck-tab").forEach(function (b) { b.classList.remove("on"); });
-        var tab = document.querySelector('.ck-tab[data-t="' + t + '"]');
+        var tab = document.querySelector('.ck-tab[data-t="' + safe + '"]');
         if (tab) {tab.classList.add("on");}
         document.querySelectorAll(".ck-tc").forEach(function (c) { c.classList.add("ck-hidden"); });
-        var pane = document.getElementById("t-" + t);
+        var pane = document.getElementById("t-" + safe);
         if (pane) {pane.classList.remove("ck-hidden");}
     };
 
     // ---------- GATEWAY PICK ----------
-    var gwState = { card: empty(), mfs: empty(), bank: empty() };
-    function empty() { return { slug: "", name: "", mode: "" }; }
+    var GW_TABS = ["card", "mfs", "bank"];
+    var GW_GRID_IDS = { card: "cardG", mfs: "mfsG", bank: "bankG" };
+    var GW_BTN_IDS = { card: "cardBtn", mfs: "mfsBtn", bank: "bankBtn" };
+    var GW_BTN_DEFAULT_TEXT = { card: "Select a gateway", mfs: "Select a provider", bank: "Select a bank" };
+
+    // Only one gateway can be selected at a time across all tabs (not one per tab) - picking a
+    // gateway under any tab clears every other tab's card highlight and re-disables its button.
+    var selectedGateway = empty();
+    function empty() { return { tab: "", slug: "", name: "", mode: "" }; }
+
+    function resetTabButton(tab) {
+        var btn = document.getElementById(GW_BTN_IDS[tab]);
+        if (!btn) {return;}
+        btn.disabled = true;
+        btn.className = "ck-pay-btn ck-pay-disabled";
+        btn.textContent = GW_BTN_DEFAULT_TEXT[tab];
+        btn.onclick = null;
+    }
 
     window.pickGW = function (cardEl, tab, slug, name, mode) {
-        var gridId = tab === "card" ? "cardG" : tab === "mfs" ? "mfsG" : "bankG";
-        var grid = document.getElementById(gridId);
-        if (grid) {grid.querySelectorAll(".ck-gw").forEach(function (c) { c.classList.remove("on"); });}
+        GW_TABS.forEach(function (t) {
+            var grid = document.getElementById(GW_GRID_IDS[t]);
+            if (grid) {grid.querySelectorAll(".ck-gw").forEach(function (c) { c.classList.remove("on"); });}
+            if (t !== tab) {resetTabButton(t);}
+        });
         cardEl.classList.add("on");
-        gwState[tab] = { slug: slug, name: name, mode: mode };
+        selectedGateway = { tab: tab, slug: slug, name: name, mode: mode };
 
-        var btnId = tab === "card" ? "cardBtn" : tab === "mfs" ? "mfsBtn" : "bankBtn";
-        var btn = document.getElementById(btnId);
+        var btn = document.getElementById(GW_BTN_IDS[tab]);
         if (!btn) {return;}
         btn.disabled = false;
         btn.className = "ck-pay-btn ck-pay-active";
@@ -175,13 +207,52 @@
         btn.onclick = function () { executeGW(tab); };
     };
 
+    // Guards executeGW/doQP/submitManual against a double-click or double-tap firing two
+    // concurrent /pay or /express requests before the first one's response comes back.
+    var paymentInFlight = false;
+
+    // Shared payment response handler
+    function handlePaymentResponse(res, fallbackError) {
+        if (res.ok && res.data && res.data.success && res.data.redirect_url) {
+            window.location.href = res.data.redirect_url;
+            return;
+        }
+        hideLoading();
+        var errorMsg = (res.data && res.data.error) ? res.data.error : fallbackError;
+        showCheckoutError(errorMsg);
+    }
+
+    function handlePaymentError(fallbackError) {
+        hideLoading();
+        showCheckoutError(fallbackError);
+    }
+
+    // Collects every named input/select/textarea inside #op-extra-fields into a plain
+    // object, so a plugin-injected checkout.form.fields hook's field values actually
+    // reach the payment payload instead of being purely decorative.
+    window.collectExtraFields = function () {
+        var result = {};
+        var container = document.getElementById("op-extra-fields");
+        if (!container) {return result;}
+        container.querySelectorAll("input[name], select[name], textarea[name]").forEach(function (el) {
+            result[el.name] = el.value;
+        });
+        return result;
+    };
+
     function executeGW(tab) {
-        var s = gwState[tab];
-        if (!s.slug) {return;}
+        if (selectedGateway.tab !== tab || !selectedGateway.slug) {return;}
+        var s = selectedGateway;
         if (s.mode === "manual") {
             openManualPopup(s.slug, s.name);
             return;
         }
+        if (paymentInFlight) {return;}
+        paymentInFlight = true;
+
+        var btnId = GW_BTN_IDS[tab];
+        var btn = document.getElementById(btnId);
+        if (btn) {btn.disabled = true;}
 
         showLoading();
 
@@ -192,25 +263,20 @@
             gateway: s.slug,
             gateway_mode: "api",
             checkout_hash: hashEl ? hashEl.value : "",
-            _csrf_token: csrf ? csrf.value : ""
+            _csrf_token: csrf ? csrf.value : "",
+            extra: window.collectExtraFields()
         };
 
         window.opPost(basePath + "/pay", payload)
             .then(function (res) {
-                if (res.ok && res.data && res.data.success && res.data.redirect_url) {
-                    window.location.href = res.data.redirect_url;
-                    return;
-                }
-
-                hideLoading();
-                var errorMsg = (res.data && res.data.error)
-                    ? res.data.error
-                    : "Payment gateway is temporarily unavailable. Please try another method.";
-                showCheckoutError(errorMsg);
+                paymentInFlight = false;
+                if (btn) {btn.disabled = false;}
+                handlePaymentResponse(res, "Payment gateway is temporarily unavailable. Please try another method.");
             })
             .catch(function () {
-                hideLoading();
-                showCheckoutError("Network error. Please check your connection and try again.");
+                paymentInFlight = false;
+                if (btn) {btn.disabled = false;}
+                handlePaymentError("Network error. Please check your connection and try again.");
             });
     }
 
@@ -242,6 +308,9 @@
         if (overlay) {overlay.remove();}
     }
 
+    var ERROR_TOAST_DURATION_MS = 8000; // Auto-dismiss error toast after 8 seconds
+    var ERROR_TOAST_FADE_MS = 300; // Fade animation duration
+
     function showCheckoutError(msg) {
         var existing = document.getElementById("ck-error-toast");
         if (existing) {existing.remove();}
@@ -271,12 +340,14 @@
         setTimeout(function () {
             if (toast.parentNode) {
                 toast.classList.add("ck-error-toast-fade");
-                setTimeout(function () { toast.remove(); }, 300);
+                setTimeout(function () { toast.remove(); }, ERROR_TOAST_FADE_MS);
             }
-        }, 8000);
+        }, ERROR_TOAST_DURATION_MS);
     }
 
     // ---------- MANUAL POPUP ----------
+    var POPUP_CLOSE_DUR_MS = 300; // Matches --dur-normal in checkout.css (.ck-popup opacity transition)
+
     function openManualPopup(slug, name) {
         var meta = (cfg.gatewayMeta && cfg.gatewayMeta[slug]) || { color: "#0D9488", type: "Send Money", logoText: "" };
         var gwData = manualGateways[slug] || {};
@@ -284,12 +355,23 @@
         if (nameEl) {nameEl.textContent = name;}
         var typeEl = document.getElementById("mpType");
         if (typeEl) {typeEl.textContent = meta.type || "Send Money";}
-        var iconEl = document.getElementById("mpIcon");
-        if (iconEl) {
-            iconEl.className = "ck-popup-gw-icon";
+
+        var logoEl = document.getElementById("mpLogo");
+        var fallbackEl = document.getElementById("mpLogoFallback");
+        if (fallbackEl) {
             var gwColor = meta.color || (gwData.colors && gwData.colors.primary) || "#0D9488";
-            iconEl.style.setProperty("background", gwColor, "important");
-            iconEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
+            fallbackEl.style.setProperty("background", gwColor, "important");
+            fallbackEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
+        }
+        if (logoEl) {
+            if (gwData.logo_path) {
+                logoEl.src = gwData.logo_path;
+                logoEl.classList.remove("ck-hidden");
+                if (fallbackEl) {fallbackEl.classList.add("ck-hidden");}
+            } else {
+                logoEl.classList.add("ck-hidden");
+                if (fallbackEl) {fallbackEl.classList.remove("ck-hidden");}
+            }
         }
 
         var stepsEl = document.getElementById("mpSteps");
@@ -311,22 +393,26 @@
 
         var numEl = document.getElementById("mpNumber");
         if (numEl) {
-            var fields = gwData.input_fields || [];
-            var paymentNumber = "";
-            for (var f = 0; f < fields.length; f++) {
-                if (fields[f].type === "payment_number" || fields[f].name === "payment_number") {
-                    paymentNumber = fields[f].value || fields[f].default || "";
-                    break;
-                }
-            }
-            // Fallback: try top-level number field
-            if (!paymentNumber && gwData.payment_number) {
-                paymentNumber = gwData.payment_number;
-            }
-            numEl.textContent = paymentNumber || "N/A";
+            numEl.textContent = gwData.payment_number || "N/A";
         }
 
-        var amountEl = document.querySelector("#mpStep1 .ck-popup-value");
+        var qrWrapEl = document.getElementById("mpQrWrap");
+        var qrImgEl = document.getElementById("mpQr");
+        if (qrWrapEl && qrImgEl) {
+            if (gwData.qr_code_path) {
+                qrImgEl.src = gwData.qr_code_path;
+                qrWrapEl.classList.remove("ck-hidden");
+            } else {
+                qrWrapEl.classList.add("ck-hidden");
+            }
+        }
+
+        var footerEl = document.getElementById("mpFooter");
+        if (footerEl) {
+            footerEl.textContent = "Secured by " + (cfg.brandName || "OwnPay");
+        }
+
+        var amountEl = document.getElementById("mpAmountValue");
         if (amountEl && gwData.converted_amount && gwData.converted_currency) {
             var convSymbol = gwData.converted_currency === "BDT" ? "৳" : gwData.converted_currency + " ";
             var formatted = parseFloat(gwData.converted_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -341,21 +427,32 @@
             }
             noteEl.textContent = "Converted from " + (cfg.originalCurrency || "USD") + " at current exchange rate";
         } else if (amountEl) {
-            // Reset to original amount for non-converted gateways
-            var origSymbol = cfg.originalCurrencySymbol || "$";
-            var origAmount = parseFloat(cfg.originalAmount || "0").toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            amountEl.textContent = origSymbol + origAmount;
+            // Non-converted gateway: leave the server-rendered amount (set once from the
+            // transaction at page load) untouched. cfg.originalAmount/originalCurrencySymbol
+            // are only ever populated on the payment-intent checkout flow, not here, so
+            // reading them unconditionally used to blank the amount to "$0.00" on every
+            // manual-gateway popup open.
             var existingNote = document.getElementById("mpConvNote");
             if (existingNote) {existingNote.remove();}
         }
 
         var popup = document.getElementById("manualPopup");
-        if (popup) {popup.classList.remove("ck-hidden");}
+        if (popup) {
+            popup.classList.remove("ck-hidden");
+            // Force a reflow so the display:none -> flex change is committed before adding "vis",
+            // otherwise the opacity transition collapses into an instant, un-animated jump.
+            void popup.offsetWidth;
+            popup.classList.add("vis");
+        }
     }
 
     window.closeManual = function () {
         var p = document.getElementById("manualPopup");
-        if (p) {p.classList.add("ck-hidden");}
+        if (!p) {return;}
+        // "vis" gates both opacity and pointer-events in CSS - removing it makes the popup
+        // instantly click-inert even before the fade-out transition finishes.
+        p.classList.remove("vis");
+        setTimeout(function () { p.classList.add("ck-hidden"); }, POPUP_CLOSE_DUR_MS);
     };
 
     window.goMpStep = function (step) {
@@ -372,11 +469,17 @@
 
     window.submitManual = function (e) {
         e.preventDefault();
+        if (paymentInFlight) {return false;}
+        paymentInFlight = true;
+
         var form = document.getElementById("mpVerifyForm");
+        var submitBtn = form ? form.querySelector('[type="submit"]') : null;
+        if (submitBtn) {submitBtn.disabled = true;}
+
         var data = new FormData(form);
 
-        // Determine active gateway slug from any active tab
-        var activeGw = gwState.mfs.slug || gwState.bank.slug || gwState.card.slug;
+        // Determine active gateway slug (single selection across all tabs)
+        var activeGw = selectedGateway.slug;
 
         // First submit gateway selection via POST form (manual mode needs checkout_hash)
         var payForm = document.createElement("form");
@@ -415,73 +518,108 @@
     };
 
     // ---------- MODALS ----------
+    var MODAL_CLOSE_DUR_MS = 150; // Matches --modal-close-dur in checkout.css (.ck-modal.is-closing)
+
     window.openMdl = function (id) {
         var e = document.getElementById(id);
-        if (e) {e.classList.remove("ck-hidden");}
+        if (!e) {return;}
+        e.classList.remove("ck-hidden");
+        // Force a reflow so the display:none -> flex change is committed before adding
+        // "is-open", otherwise the opacity/transform transition collapses into an instant jump.
+        void e.offsetWidth;
+        e.classList.add("is-open");
     };
     window.closeMdl = function (id) {
         var e = document.getElementById(id);
-        if (e) {e.classList.add("ck-hidden");}
+        if (!e) {return;}
+        // "is-open" gates visibility/pointer-events in CSS; swap to "is-closing" so the close
+        // transition plays, then restore ck-hidden once it finishes.
+        e.classList.remove("is-open");
+        e.classList.add("is-closing");
+        setTimeout(function () {
+            e.classList.remove("is-closing");
+            e.classList.add("ck-hidden");
+        }, MODAL_CLOSE_DUR_MS);
     };
 
     // ---------- COPY ----------
-    window.copyNum = function () {
-        var num = document.getElementById("mpNumber");
-        if (!num) { return; }
-        var text = num.textContent;
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(text).then(showToast);
-        } else {
-            // Fallback for non-HTTPS or legacy browsers
-            var textarea = document.createElement("textarea");
-            textarea.value = text;
-            textarea.className = "ck-clipboard-textarea";
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                document.execCommand("copy");
-                showToast();
-            } catch (err) {
-                console.error("Fallback copy failed", err);
-            }
-            document.body.removeChild(textarea);
-        }
+    // Generalized copy-from-element helper - both the payment-number and amount copy buttons
+    // use this. Checkout has no admin.js here (public, unauthenticated page) so this can't reuse
+    // admin.js's shared opCopyText helper - same fallback chain, kept local to this file.
+    window.copyTextFrom = function (elementId) {
+        var el = document.getElementById(elementId);
+        if (!el) { return; }
+        var text = el.textContent;
 
         function showToast() {
             var t = document.getElementById("cToast");
             if (t) { t.classList.add("vis"); setTimeout(function () { t.classList.remove("vis"); }, 1800); }
+        }
+
+        // execCommand first: synchronous, works reliably within this click's user gesture, no
+        // permission prompt. The old code went straight to the async Clipboard API with no
+        // .catch(), so any rejection (denied permission, unfocused document, managed-browser
+        // policy) left the customer clicking Copy with zero feedback mid-payment.
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.className = "ck-clipboard-textarea";
+        textarea.setAttribute("readonly", "");
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        var execCommandSucceeded = false;
+        try {
+            execCommandSucceeded = document.execCommand("copy");
+        } catch (err) {
+            console.warn("execCommand copy failed", err);
+        }
+        document.body.removeChild(textarea);
+
+        if (execCommandSucceeded) {
+            showToast();
+            return;
+        }
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(text).then(showToast).catch(function (err) {
+                console.error("Async copy failed completely", err);
+                alert("Could not copy the number automatically. Here it is:\n\n" + text);
+            });
+        } else {
+            alert("Could not copy the number automatically. Here it is:\n\n" + text);
         }
     };
 
     // ---------- EXPRESS CHECKOUT ----------
     window.doQP = function (provider) {
         if (typeof window.opPost !== "function") {return;}
+        if (paymentInFlight) {return;}
+        paymentInFlight = true;
+
+        var qpBtn = document.querySelector('[data-action="do-qp"][data-provider="' + provider + '"]');
+        if (qpBtn) {qpBtn.disabled = true;}
+
         showLoading();
         var csrf = document.getElementById("op-csrf");
         var hashEl = document.getElementById("op-checkout-hash");
-        
+
         var payload = {
             provider: provider,
             checkout_hash: hashEl ? hashEl.value : "",
             _csrf_token: csrf ? csrf.value : ""
         };
-        
+
         window.opPost(basePath + "/express", payload)
             .then(function (res) {
-                if (res.ok && res.data && res.data.success && res.data.redirect_url) {
-                    window.location.href = res.data.redirect_url;
-                    return;
-                }
-                hideLoading();
-                var errorMsg = (res.data && res.data.error)
-                    ? res.data.error
-                    : "Express checkout failed. Please try another method.";
-                showCheckoutError(errorMsg);
+                paymentInFlight = false;
+                if (qpBtn) {qpBtn.disabled = false;}
+                handlePaymentResponse(res, "Express checkout failed. Please try another method.");
             })
             .catch(function () {
-                hideLoading();
-                showCheckoutError("Express checkout is temporarily unavailable. Please try another method.");
+                paymentInFlight = false;
+                if (qpBtn) {qpBtn.disabled = false;}
+                handlePaymentError("Express checkout is temporarily unavailable. Please try another method.");
             });
     };
 
@@ -510,7 +648,9 @@
         } else if (action === "close-manual") {
             window.closeManual();
         } else if (action === "copy-num") {
-            window.copyNum();
+            window.copyTextFrom("mpNumber");
+        } else if (action === "copy-amount") {
+            window.copyTextFrom("mpAmountValue");
         } else if (action === "go-mp-step") {
             window.goMpStep(Number(target.getAttribute("data-step")));
         } else if (action === "toggle-mobile-summary") {

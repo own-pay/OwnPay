@@ -22,6 +22,8 @@ use OwnPay\Support\DateHelper;
  */
 final class PaymentLinkCheckoutController
 {
+    use \OwnPay\View\Theme\RendersThemedResponsesTrait;
+
     /**
      * @var \OwnPay\Container The dependency injection container.
      */
@@ -73,17 +75,14 @@ final class PaymentLinkCheckoutController
     {
         $slug = (string) $req->param('slug');
         $link = $this->linkRepo->findActiveBySlug($slug);
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
 
         if (!$link) {
-            return $this->renderExpired($twig);
+            return $this->renderExpired(null);
         }
 
         $merchantIdVal = $link['merchant_id'] ?? 0;
         $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+        $brandId = $merchantId > 0 ? $merchantId : null;
         $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
             $brandCtx->setActiveBrandId($merchantId);
@@ -95,13 +94,13 @@ final class PaymentLinkCheckoutController
         $useCountVal = $link['use_count'] ?? 0;
         $useCount = (is_int($useCountVal) || is_string($useCountVal)) ? (int) $useCountVal : 0;
         if ($maxUses > 0 && $useCount >= $maxUses) {
-            return $this->renderExpired($twig);
+            return $this->renderExpired($brandId);
         }
 
         $expiresAtVal = $link['expires_at'] ?? '';
         $expiresAt = is_string($expiresAtVal) ? $expiresAtVal : '';
         if ($expiresAt && DateHelper::isPast($expiresAt)) {
-            return $this->renderExpired($twig);
+            return $this->renderExpired($brandId);
         }
 
         $linkAmtVal = $link['amount'] ?? null;
@@ -141,11 +140,11 @@ final class PaymentLinkCheckoutController
             $error = ($queryAmt !== '' && is_numeric($queryAmt) && bccomp($queryAmtStr, '0', 2) > 0)
                 ? 'Amount is out of valid bounds.'
                 : null;
-            return Response::html($twig->render($tpl, [
+            return $this->renderThemed($tpl, $brandId, [
                 'link'       => $link,
                 'csrf_token' => $csrf,
                 'error'      => $error,
-            ]));
+            ]);
         }
 
         // Check for an existing active transaction session key to avoid duplicate ledger allocations.
@@ -209,17 +208,14 @@ final class PaymentLinkCheckoutController
     {
         $slug = (string) $req->param('slug');
         $link = $this->linkRepo->findActiveBySlug($slug);
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
 
         if (!$link) {
-            return $this->renderExpired($twig);
+            return $this->renderExpired(null);
         }
 
         $merchantIdVal = $link['merchant_id'] ?? 0;
         $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+        $brandId = $merchantId > 0 ? $merchantId : null;
         $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
             $brandCtx->setActiveBrandId($merchantId);
@@ -237,11 +233,11 @@ final class PaymentLinkCheckoutController
 
         // Perform basic sanity check using high-precision BCMath comparison (must be greater than zero).
         if (bccomp($amountStr, '0', 2) <= 0) {
-            return Response::html($twig->render($tpl, [
+            return $this->renderThemed($tpl, $brandId, [
                 'link'       => $link,
                 'error'      => 'Please enter a valid amount',
                 'csrf_token' => $csrf,
-            ]));
+            ]);
         }
 
         // Enforce configured minimum and maximum boundary constraints utilizing BCMath.
@@ -260,18 +256,18 @@ final class PaymentLinkCheckoutController
         $currency = is_string($currencyVal) ? $currencyVal : 'BDT';
 
         if (bccomp($minAmount, '0', 2) > 0 && bccomp($amountStr, $minAmount, 2) < 0) {
-            return Response::html($twig->render($tpl, [
+            return $this->renderThemed($tpl, $brandId, [
                 'link'       => $link,
                 'error'      => "Minimum amount is {$minAmount} {$currency}",
                 'csrf_token' => $csrf,
-            ]));
+            ]);
         }
         if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amountStr, $maxAmount, 2) > 0) {
-            return Response::html($twig->render($tpl, [
+            return $this->renderThemed($tpl, $brandId, [
                 'link'       => $link,
                 'error'      => "Maximum amount is {$maxAmount} {$currency}",
                 'csrf_token' => $csrf,
-            ]));
+            ]);
         }
 
         // Prevent double-submission: reuse existing pending transaction reference registered in current session.
@@ -316,19 +312,19 @@ final class PaymentLinkCheckoutController
     /**
      * Renders the expired or invalid payment link status page.
      *
-     * @param \Twig\Environment $twig The Twig template engine environment.
+     * @param int|null $brandId The link's merchant/brand identifier, or null when unavailable.
      * @return \OwnPay\Http\Response The HTML response.
      */
-    private function renderExpired(\Twig\Environment $twig): Response
+    private function renderExpired(?int $brandId): Response
     {
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
-        return Response::html($twig->render($tpl, [
+        return $this->renderThemed($tpl, $brandId, [
             'status'       => 'expired',
             'status_label' => 'Payment Link Expired',
             'txn'          => [],
             'brand'        => ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],
-        ]));
+        ]);
     }
 }

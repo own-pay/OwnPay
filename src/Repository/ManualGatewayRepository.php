@@ -28,7 +28,7 @@ final class ManualGatewayRepository extends BaseRepository
     protected array $fillable = [
         'merchant_id', 'slug', 'name', 'logo_path', 'qr_code_path', 'colors',
         'input_fields', 'instructions', 'admin_notes', 'sms_verification',
-        'sms_sender_pattern', 'sms_regex_template', 'currency',
+        'sms_sender_pattern', 'sms_regex_template', 'currency', 'payment_number',
         'min_amount', 'max_amount', 'sort_order', 'status',
     ];
 

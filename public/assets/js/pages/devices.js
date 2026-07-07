@@ -293,7 +293,10 @@
     }
 
     function escapeId(id) {
-        return (window.CSS && CSS.escape) ? CSS.escape(id) : String(id).replace(/"/g, '\\"');
+        if (window.CSS && CSS.escape) { return CSS.escape(id); }
+        // Escape backslashes first, then quotes - escaping quotes alone leaves a trailing
+        // backslash able to consume the closing quote and break out of the attribute selector.
+        return String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     }
 
     function prettifyInitialLastSeen() {

@@ -4,7 +4,7 @@
 (function () {
     "use strict";
 
-    let onboardingBrandId = 0;
+    let onboardingBrandId = window.OP_ONBOARDING_BRAND_ID || 0;
     let selectedGatewayType = "";
     let selectedMailProvider = "smtp";
 
@@ -15,27 +15,21 @@
         const otpEl = document.getElementById("op-wizard-otp-display");
         const otpText = otpEl ? otpEl.textContent : "";
         if (otpText && otpText !== "------") {
-            if (typeof window.opCopyText === "function") {
-                window.opCopyText(otpText, otpEl, function () {
-                    const copiedEl = document.getElementById("op-wizard-otp-copied");
-                    if (copiedEl) {
-                        copiedEl.style.display = "inline";
-                        setTimeout(() => {
-                            copiedEl.style.display = "none";
-                        }, 2000);
-                    }
-                });
-            } else {
-                navigator.clipboard.writeText(otpText).then(() => {
-                    const copiedEl = document.getElementById("op-wizard-otp-copied");
-                    if (copiedEl) {
-                        copiedEl.style.display = "inline";
-                        setTimeout(() => {
-                            copiedEl.style.display = "none";
-                        }, 2000);
-                    }
-                });
-            }
+            // admin.js (which defines window.opCopyText) always loads before
+            // this page script — see #op-page-scripts in wizard.twig — so no
+            // typeof guard/fallback is needed. The old fallback called
+            // navigator.clipboard.writeText() directly with no .catch(),
+            // silently stranding the user mid-onboarding on any rejection
+            // (denied permission, unfocused document, managed-browser policy).
+            window.opCopyText(otpText, otpEl, function () {
+                const copiedEl = document.getElementById("op-wizard-otp-copied");
+                if (copiedEl) {
+                    copiedEl.style.display = "inline";
+                    setTimeout(() => {
+                        copiedEl.style.display = "none";
+                    }, 2000);
+                }
+            });
         }
     }
 
@@ -148,11 +142,7 @@
     }
 
     function showStep(step) {
-        const progressBar = document.getElementById("wizard-progress-bar");
-        const percentage = ((step - 1) / 4) * 100;
-        if (progressBar) {progressBar.style.width = percentage + "%";}
-
-        document.querySelectorAll(".op-wizard-step").forEach(el => {
+        document.querySelectorAll(".op-wizard-tracker-node").forEach(el => {
             const stepNum = parseInt(el.getAttribute("data-step"));
             el.classList.remove("active", "completed");
             if (stepNum === step) {
@@ -168,29 +158,9 @@
         const activePanel = document.getElementById("panel-" + step);
         if (activePanel) {activePanel.classList.add("active");}
 
-        const titleEl = document.getElementById("wizard-title");
-        const subtitleEl = document.getElementById("wizard-subtitle");
-        if (titleEl && subtitleEl) {
-            if (step === 1) {
-                titleEl.textContent = "1. General Platform Settings";
-                subtitleEl.textContent = "Configure baseline system attributes, core branding, and system timezone.";
-            } else if (step === 2) {
-                titleEl.textContent = "2. Create First Brand / Store";
-                subtitleEl.textContent = "OwnPay supports white-labeled brands. Create your first store dashboard details.";
-            } else if (step === 3) {
-                titleEl.textContent = "3. Outgoing Mail Configuration";
-                subtitleEl.textContent = "Configure your transactional email server (SMTP, Mailgun, or SendGrid) to send receipts.";
-            } else if (step === 4) {
-                titleEl.textContent = "4. Gateway Configuration";
-                subtitleEl.textContent = "Connect to common credit card or wallet gateways. Choose one below to quick start.";
-            } else if (step === 5) {
-                titleEl.textContent = "5. Secure Native Device Pairing";
-                subtitleEl.textContent = "Pair native devices to securely audit double-entry ledgers and intercept payments.";
-                loadPairingDetails();
-            }
-        }
-
-        if (step !== 5) {
+        if (step === 5) {
+            loadPairingDetails();
+        } else {
             stopPairingPoll();
         }
 
@@ -612,6 +582,57 @@
             });
         }
 
+        // Skip setup entirely (every step)
+        const skipSetupLink = document.getElementById("op-wizard-skip-setup");
+        if (skipSetupLink) {
+            skipSetupLink.addEventListener("click", function (e) {
+                e.preventDefault();
+                dismissWizard();
+            });
+        }
+
+        // Skip this step (steps 1, 2, 4)
+        const skipStep1 = document.getElementById("btn-skip-step1");
+        if (skipStep1) {
+            skipStep1.addEventListener("click", function (e) {
+                e.preventDefault();
+                clearWizardMessages();
+                fetch("/admin/setup-wizard/save-settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRF-Token": window.OP_CSRF || "" },
+                    body: JSON.stringify({ skip: "1" })
+                })
+                .then(res => res.json())
+                .then(data => { if (data.success) { showStep(2); } else { showWizardError("Failed to skip this step."); } })
+                .catch(() => showWizardError("Network error while skipping this step."));
+            });
+        }
+
+        const skipStep2 = document.getElementById("btn-skip-step2");
+        if (skipStep2) {
+            skipStep2.addEventListener("click", function (e) {
+                e.preventDefault();
+                clearWizardMessages();
+                showStep(3);
+            });
+        }
+
+        const skipStep4 = document.getElementById("btn-skip-step4");
+        if (skipStep4) {
+            skipStep4.addEventListener("click", function (e) {
+                e.preventDefault();
+                clearWizardMessages();
+                fetch("/admin/setup-wizard/setup-gateway", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRF-Token": window.OP_CSRF || "" },
+                    body: JSON.stringify({ skip: "1" })
+                })
+                .then(res => res.json())
+                .then(data => { if (data.success) { showStep(5); } else { showWizardError("Failed to skip this step."); } })
+                .catch(() => showWizardError("Network error while skipping this step."));
+            });
+        }
+
         // Dismiss Wizard Button
         const dismissBtn = document.querySelector(".op-wizard-dismiss");
         if (dismissBtn) {
@@ -667,6 +688,10 @@
         if (finishBtn) {
             finishBtn.addEventListener("click", completeWizard);
         }
+
+        // Mark step 1 active on first render — the tracker has no server-rendered
+        // active state, only showStep() toggles it, so it must run once on load.
+        showStep(1);
     });
 
 }());

@@ -5,6 +5,7 @@ namespace OwnPay\Update;
 
 use OwnPay\Service\System\Logger;
 use OwnPay\Support\DateHelper;
+use OwnPay\Support\Version;
 
 /**
  * OwnPay backup and rollback recovery service (Enterprise Grade).
@@ -77,7 +78,7 @@ class BackupService
 
         file_put_contents($backupPath . '/manifest.json', json_encode([
             'timestamp'  => $timestamp,
-            'version'    => getenv('APP_VERSION') ?: '0.1.0',
+            'version'    => Version::CURRENT,
             'php'        => PHP_VERSION,
             'db_file'    => 'database.sql',
             'code_file'  => 'code.zip',
@@ -319,13 +320,38 @@ class BackupService
             );
             foreach ($iterator as $item) {
                 if ($item instanceof \SplFileInfo && $item->isFile()) {
-                    $relativePath = $dir . '/' . $iterator->getSubPathname();
+                    $relativePath = $this->relativePathForIteratedFile($dir, $iterator);
                     $zip->addFile($item->getPathname(), $relativePath);
                 }
             }
         }
 
         $zip->close();
+    }
+
+    /**
+     * Computes a file's archive-relative path (`$dirPrefix/<sub-path-within-dirPrefix>`) for an
+     * entry currently being visited by a `RecursiveIteratorIterator` over a
+     * `RecursiveDirectoryIterator`.
+     *
+     * `RecursiveIteratorIterator` forwards `getSubPathname()` to its current inner iterator via
+     * PHP's `__call()` magic dispatch, which works correctly but isn't declared on the class -
+     * IDEs that don't model that dispatch flag it as an undefined method. Calling it on the
+     * actual `RecursiveDirectoryIterator` (via `getInnerIterator()`) is equally correct and
+     * avoids relying on that dispatch.
+     *
+     * @param string                      $dirPrefix Prefix to prepend to the sub-path (e.g. `src`, `config`).
+     * @param \RecursiveIteratorIterator<\RecursiveDirectoryIterator> $iterator  The active iterator, positioned at the target file.
+     *
+     * @return string The archive-relative path for the current file.
+     */
+    private function relativePathForIteratedFile(string $dirPrefix, \RecursiveIteratorIterator $iterator): string
+    {
+        $inner = $iterator->getInnerIterator();
+        if (!$inner instanceof \RecursiveDirectoryIterator) {
+            throw new \RuntimeException('Expected a RecursiveDirectoryIterator as the inner iterator.');
+        }
+        return $dirPrefix . '/' . $inner->getSubPathname();
     }
 
     /**

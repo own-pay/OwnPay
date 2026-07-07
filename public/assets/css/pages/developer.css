@@ -189,14 +189,14 @@
 .op-stat-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 8px;
 }
 
 .op-stat-box {
     background: var(--op-bg-input);
     border: 1px solid var(--op-border);
     border-radius: var(--op-radius);
-    padding: 16px;
+    padding: 12px;
     text-align: center;
 }
 
@@ -285,4 +285,50 @@
     .op-stat-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* Reference sub-nav (Endpoint Reference / Authentication) - lighter-weight pill
+   switcher nested inside the API Keys tab, visually distinct from the outer
+   #dev-tabs primary tab bar so the two levels of navigation read as separate. */
+.op-subnav {
+    display: flex;
+    gap: 4px;
+    margin: 20px 0 12px;
+    padding: 3px;
+    background: var(--op-bg-input);
+    border-radius: 8px;
+    width: fit-content;
+}
+
+.op-subnav-item {
+    padding: 6px 14px;
+    background: none;
+    border: none;
+    color: var(--op-text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.op-subnav-item:hover {
+    color: var(--op-text);
+}
+
+.op-subnav-item.active {
+    color: #fff;
+    background: var(--op-primary);
+}
+
+.op-subnav-panel {
+    display: none;
+}
+
+.op-subnav-panel.active {
+    display: block;
+}
+
+.op-key-row-revoked {
+    opacity: 0.55;
 }

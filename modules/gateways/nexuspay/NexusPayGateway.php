@@ -265,12 +265,14 @@ final class NexusPayGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if ($httpCode !== 200 || $response === false) {
-            // If the DBBL servers are momentarily down, fallback safely based on signature since it was fully validated
+            // Fail closed for the same reason as the curl_init failure above - a matching
+            // signature proves the caller knew the shared secret, not that the bank actually
+            // confirmed the payment.
             return [
-                'success'        => true,
+                'success'        => false,
                 'gateway_trx_id' => $gatewayTrxId,
                 'amount'         => $amountDecimal,
-                'status'         => 'completed',
+                'status'         => 'failed',
             ];
         }
 

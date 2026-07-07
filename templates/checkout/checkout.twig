@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
     <link rel="stylesheet" href="/assets/css/reset.css?v=016">
     <link rel="stylesheet" href="/assets/css/animations.css?v=014">
-    <link rel="stylesheet" href="/assets/css/checkout.css?v=014">
+    <link rel="stylesheet" href="/assets/css/checkout.css?v=016">
+    {{ enqueued_assets('style') }}
     <meta name="csrf-token" content="{{ csrf_token }}">
     {{ hook('checkout.head')|raw }}
     <meta name="csp-nonce" content="{{ csp_nonce }}">
@@ -65,9 +66,11 @@
          data-custom-css="{{ brand.custom_css|default('') }}"
          data-custom-js="{{ brand.custom_js|default('') }}">
     </div>
+    <div id="op-extra-fields">{{ hook('checkout.form.fields')|raw }}</div>
 
     <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
-    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js?v=001"></script>
+    {{ enqueued_assets('script') }}
     {{ hook('checkout.footer')|raw }}
 </body>
 </html>

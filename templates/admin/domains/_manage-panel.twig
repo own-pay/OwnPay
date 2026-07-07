@@ -1,0 +1,90 @@
+<div class="op-domain-manage" data-domain-manage="{{ d.id }}" hidden>
+    <div class="op-domain-tabs" data-domain-manage="{{ d.id }}">
+        <button type="button" class="op-domain-tab active" data-domain-tab="overview" data-domain-manage="{{ d.id }}">Overview</button>
+        <button type="button" class="op-domain-tab" data-domain-tab="dns-setup" data-domain-manage="{{ d.id }}">DNS Setup</button>
+        <button type="button" class="op-domain-tab" data-domain-tab="danger" data-domain-manage="{{ d.id }}">Danger Zone</button>
+    </div>
+
+    {# -- Overview -- #}
+    <div class="op-domain-tab-panel active" data-domain-tab-panel="overview" data-domain-manage="{{ d.id }}">
+        <div class="op-domain-badges">
+            <span class="op-badge {{ d.ssl_status == 'active' ? 'op-badge-success' : (d.ssl_status == 'expired' ? 'op-badge-danger' : 'op-badge-secondary') }}">
+                {{ d.ssl_status == 'active' ? '🔒 SSL Active' : (d.ssl_status == 'expired' ? 'SSL Expired' : 'SSL Pending') }}
+            </span>
+            <span class="op-badge {{ d.dns_verified ? 'op-badge-success' : 'op-badge-warning' }}">
+                {{ d.dns_verified ? '✓ DNS Verified' : 'DNS Pending' }}
+            </span>
+        </div>
+
+        <form method="POST" action="/admin/domains/{{ d.id }}/update" class="op-domain-inline-form" data-no-ajax data-domain-inline-update="{{ d.id }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="status" value="{{ d.status }}">
+            <input type="hidden" name="dns_verified" value="{{ d.dns_verified ? '1' : '0' }}">
+            <input type="hidden" name="is_primary" value="{{ d.is_primary ? '1' : '0' }}">
+            <div class="op-form-group">
+                <label>Domain Type</label>
+                <select name="type" class="op-input">
+                    <option value="checkout" {{ d.type == 'checkout' ? 'selected' : '' }}>Checkout domain</option>
+                    <option value="api" {{ d.type == 'api' ? 'selected' : '' }}>API domain</option>
+                </select>
+            </div>
+            <div class="op-form-group">
+                <label>Redirect URL</label>
+                <input type="url" name="redirect_url" class="op-input" value="{{ d.redirect_url }}" placeholder="https://example.com/failed-direct">
+                <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+            </div>
+            <button type="submit" class="op-btn op-btn-primary op-btn-sm">Save</button>
+        </form>
+
+        {% if not d.is_primary %}
+        <form method="POST" action="/admin/domains/{{ d.id }}/primary" class="op-domain-inline-form" data-no-ajax data-domain-primary-form="{{ d.id }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="op-btn op-btn-outline op-btn-sm">Set Primary</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {# -- DNS Setup -- #}
+    <div class="op-domain-tab-panel" data-domain-tab-panel="dns-setup" data-domain-manage="{{ d.id }}">
+        <div class="op-dns-record-details">
+            <div><strong>TXT Record</strong></div>
+            <div>Name/Host: <code id="dns-txt-host-{{ d.id }}">_ownpay-verify.{{ d.domain }}</code>
+                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-txt-host-{{ d.id }}">Copy</button></div>
+            <div>Value: <code id="dns-txt-val-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
+                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-txt-val-{{ d.id }}">Copy</button></div>
+        </div>
+        <div class="op-dns-record-details op-mt-3">
+            <div><strong>A / CNAME Record</strong> (choose one)</div>
+            <div>CNAME target: <code id="dns-cname-{{ d.id }}">testing.ownpay.org</code>
+                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-cname-{{ d.id }}">Copy</button></div>
+            <div>A record IP: <code id="dns-a-{{ d.id }}">{{ server_ip }}</code>
+                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-a-{{ d.id }}">Copy</button></div>
+        </div>
+        <div class="op-alert op-alert-info op-mt-3">
+            DNS is automatically re-checked hourly - no need to click Verify DNS unless you want an immediate result. If this domain stays unverified for 7 days, it's automatically removed.
+        </div>
+        <div class="op-alert op-alert-info op-mt-2">
+            SSL status is not checked automatically - click Check SSL any time you renew or change your certificate.
+        </div>
+        <div class="op-domain-actions op-mt-3">
+            <form method="POST" action="/admin/domains/{{ d.id }}/verify" class="op-domain-inline-form" data-no-ajax data-domain-verify-form="{{ d.id }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="op-btn op-btn-success op-btn-sm">Verify DNS</button>
+            </form>
+            <form method="POST" action="/admin/domains/{{ d.id }}/check-ssl" class="op-domain-inline-form" data-no-ajax data-domain-ssl-form="{{ d.id }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="op-btn op-btn-outline op-btn-sm">Check SSL</button>
+            </form>
+        </div>
+    </div>
+
+    {# -- Danger Zone -- #}
+    <div class="op-domain-tab-panel" data-domain-tab-panel="danger" data-domain-manage="{{ d.id }}">
+        <p class="op-text-muted">Permanently remove this domain and its DNS verification state. This cannot be undone.</p>
+        <form method="POST" action="/admin/domains/{{ d.id }}/delete" class="op-domain-inline-form" data-no-ajax data-domain-remove-form="{{ d.id }}"
+              data-domain-confirm="Remove {{ d.domain }}? This cannot be undone.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="op-btn op-btn-danger op-btn-sm">Remove Domain</button>
+        </form>
+    </div>
+</div>

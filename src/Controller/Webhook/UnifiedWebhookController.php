@@ -101,6 +101,23 @@ final class UnifiedWebhookController
 
         // 1. Plugin hook - if a plugin registered a listener, let it handle
         if ($this->events->hasHook($hookName)) {
+            // Guard: a plugin's own handleWebhook() typically completes the referenced
+            // transaction directly (TransactionService::complete()) with no gateway-match check
+            // of its own - reject here, before the plugin ever runs, if we can positively
+            // identify that this transaction has already moved on to a different gateway. This
+            // mirrors the same guard the core fallback path (below) already enforces, applied at
+            // the one shared dispatch point instead of in every individual gateway module.
+            if ($this->c->has(GatewayApiService::class)) {
+                $trxRef = $this->extractTrxRef($rawBody);
+                $svc = $this->c->get(GatewayApiService::class);
+                if ($svc instanceof GatewayApiService
+                    && !$svc->isTransactionEligibleForWebhookCompletion($trxRef, $merchantId, $gateway)
+                ) {
+                    $this->logAttempt($gateway, 'stale_gateway_mismatch', $req);
+                    return Response::json(['error' => 'Transaction is no longer associated with this gateway'], 409);
+                }
+            }
+
             $payload = new WebhookPayload(
                 gateway: $gateway,
                 merchantId: $merchantId,
@@ -161,6 +178,32 @@ final class UnifiedWebhookController
         // 3. No handler available at all
         $this->logAttempt($gateway, 'no_handler', $req);
         return Response::json(['error' => 'Unknown gateway'], 404);
+    }
+
+    /**
+     * Extracts a transaction reference from the raw webhook body, checking the same common
+     * field names used across the codebase's other gateway-agnostic reference lookups
+     * (see resolveMerchantFromPayload() and GatewayApiService::handleCallback()).
+     *
+     * @param string $rawBody The raw (JSON or form-encoded) webhook request body.
+     * @return string The first recognized reference value found, or '' if none.
+     */
+    private function extractTrxRef(string $rawBody): string
+    {
+        $data = json_decode($rawBody, true);
+        if (!is_array($data)) {
+            parse_str($rawBody, $data);
+        }
+
+        $refFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id', 'invoice_id', 'client_reference_id'];
+        foreach ($refFields as $field) {
+            $val = $data[$field] ?? null;
+            if (is_scalar($val) && (string) $val !== '') {
+                return (string) $val;
+            }
+        }
+
+        return '';
     }
 
     /**

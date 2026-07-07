@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Support\DateHelper;
+use OwnPay\Support\Version;
 
 /**
  * Controller for performing system health check operations.
@@ -115,7 +116,7 @@ final class HealthController
         $code = $dbOk ? 200 : 503;
         
         $appConfig = $this->c->get('config.app');
-        $version = (is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version'])) ? $appConfig['version'] : '0.1.0';
+        $version = (is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version'])) ? $appConfig['version'] : Version::CURRENT;
 
         $headers = [
             'X-API-Version' => $version,

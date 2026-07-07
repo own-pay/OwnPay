@@ -144,7 +144,7 @@ final class PluginManager
      *
      * @param string   $slug    Unique plugin identifier.
      * @param int|null $brandId The brand ID context.
-     * @return array{success: bool, message?: string, error?: string, migrations_run?: int} Activation outcome.
+     * @return array{success: bool, message?: string, error?: string, migrations_run?: int, warning?: string} Activation outcome.
      */
     public function activate(string $slug, ?int $brandId = null): array
     {
@@ -205,6 +205,7 @@ final class PluginManager
             $this->repo->activate($slug);
         }
 
+        $themeScanWarnings = [];
         try {
             $loader = $this->container->get(PluginLoader::class);
             if ($loader instanceof PluginLoader) {
@@ -217,7 +218,28 @@ final class PluginManager
                             throw new \RuntimeException('Invalid manifest: ' . implode(', ', $errors));
                         }
                     }
+
+                    $unmetDependencies = [];
+                    foreach ($manifest->dependencies as $depSlug) {
+                        $depPlugin = $this->repo->findBySlug($depSlug);
+                        if ($depPlugin === null) {
+                            $unmetDependencies[] = "{$depSlug} (not installed)";
+                        } elseif (($depPlugin['status'] ?? '') !== 'active') {
+                            $unmetDependencies[] = "{$depSlug} (not active)";
+                        }
+                    }
+                    if (!empty($unmetDependencies)) {
+                        throw new \RuntimeException('Missing required dependencies: ' . implode(', ', $unmetDependencies) . '.');
+                    }
                 }
+            }
+
+            if (($plugin['type'] ?? '') === 'theme') {
+                $scanResult = \OwnPay\Plugin\ThemeSecurityScanner::scan($this->resolveDir($plugin));
+                if (!empty($scanResult['blocked'])) {
+                    throw new \RuntimeException('Theme blocked - dangerous template pattern(s) found: ' . implode('; ', $scanResult['blocked']));
+                }
+                $themeScanWarnings = $scanResult['warnings'];
             }
         } catch (\Throwable $e) {
             if ($brandId !== null && $brandId > 0) {
@@ -266,7 +288,11 @@ final class PluginManager
 
         $this->events->doAction('plugin.activated', $slug, $ran, $brandId);
 
-        return ['success' => true, 'migrations_run' => count($ran)];
+        $successResult = ['success' => true, 'migrations_run' => count($ran)];
+        if (!empty($themeScanWarnings)) {
+            $successResult['warning'] = 'Theme activated with warnings: ' . implode('; ', $themeScanWarnings);
+        }
+        return $successResult;
     }
 
     /**

@@ -20,6 +20,8 @@ use Ramsey\Uuid\Uuid;
  */
 final class InvoiceCheckoutController
 {
+    use \OwnPay\View\Theme\RendersThemedResponsesTrait;
+
     /**
      * @var \OwnPay\Container The dependency injection container.
      */
@@ -73,15 +75,9 @@ final class InvoiceCheckoutController
         // Apply a whitelist verification checks on status to only permit payable invoices.
         $allowedStatuses = ['sent', 'overdue'];
 
-        // Initialize Twig template engine environment prior to processing render loops.
-        $twig = $this->c->get(\Twig\Environment::class);
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException("Twig Environment not found");
-        }
-
         // If no active invoice record exists, return an expired/unavailable response page.
         if (!$invoice) {
-            return $this->renderExpired($twig);
+            return $this->renderExpired(null);
         }
 
         $merchantIdVal = $invoice['merchant_id'] ?? 0;
@@ -101,7 +97,8 @@ final class InvoiceCheckoutController
                 'void'  => 'Invoice Voided',
             ];
             $label = $statusLabels[$status] ?? 'Invoice Unavailable';
-            return $this->renderExpired($twig, $label);
+            $brandId = $merchantId > 0 ? $merchantId : null;
+            return $this->renderExpired($brandId, $label);
         }
 
         // Assess invoice deadline: automatically transition 'sent' invoices to 'overdue' if the due date has elapsed.
@@ -124,16 +121,9 @@ final class InvoiceCheckoutController
             }
         }
 
-        // Retrieve any existing pending transaction session linked to this invoice to prevent double-billing.
         $invoiceIdVal = $invoice['id'] ?? 0;
         $invoiceId = (is_int($invoiceIdVal) || is_string($invoiceIdVal)) ? (int) $invoiceIdVal : 0;
-        $existingTxn = $this->invoiceRepo->findPendingTransaction($invoiceId);
-        if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
-            return Response::redirect("/checkout/{$existingTxn['trx_id']}");
-        }
 
-        // Create new transaction with ALL required NOT NULL fields
-        $trxId = $this->txnRepo->generateTrxId();
         $totalVal = $invoice['total'] ?? '0';
         $total = is_string($totalVal) || is_int($totalVal) || is_float($totalVal) ? (string) $totalVal : '0';
 
@@ -149,20 +139,38 @@ final class InvoiceCheckoutController
         $invoiceNumVal = $invoice['invoice_number'] ?? '';
         $invoiceNum = is_string($invoiceNumVal) ? $invoiceNumVal : '';
 
-        $this->txnRepo->create([
-            'uuid'         => Uuid::uuid4()->toString(),
-            'trx_id'       => $trxId,
-            'merchant_id'  => $merchantId,
-            'payment_intent_id' => null,
-            'customer_id'  => $customerId,
-            'gateway_slug' => 'invoice',
-            'amount'       => $total,
-            'net_amount'   => $total,
-            'currency'     => $currency,
-            'method'       => 'invoice',
-            'status'       => 'pending',
-            'metadata'     => json_encode(['invoice_id' => $invoiceId, 'invoice_number' => $invoiceNum]),
-        ]);
+        // Lock the invoice row for the duration of the check-then-create so two concurrent
+        // requests for the same invoice (e.g. a customer opening the link in two tabs) can't
+        // both observe "no pending transaction" and each create a separate one.
+        $db = \OwnPay\Core\Database::getInstance();
+        $trxId = '';
+        $db->transaction(function () use ($db, $invoiceId, $merchantId, $customerId, $total, $currency, $invoiceNum, &$trxId) {
+            $db->fetchOne("SELECT id FROM op_invoices WHERE id = :id FOR UPDATE", ['id' => $invoiceId]);
+
+            $existingTxn = $this->invoiceRepo->findPendingTransaction($invoiceId);
+            if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
+                $trxId = $existingTxn['trx_id'];
+                return;
+            }
+
+            $trxId = $this->txnRepo->generateTrxId();
+            $this->txnRepo->create([
+                'uuid'               => Uuid::uuid4()->toString(),
+                'trx_id'             => $trxId,
+                'merchant_id'        => $merchantId,
+                'payment_intent_id'  => null,
+                'customer_id'        => $customerId,
+                'gateway_slug'       => 'invoice',
+                'amount'             => $total,
+                'net_amount'         => $total,
+                'currency'           => $currency,
+                'method'             => 'invoice',
+                'status'             => 'pending',
+                // invoice_id is a MySQL STORED GENERATED column derived from metadata.invoice_id
+                // - it is populated automatically, never assigned directly.
+                'metadata'           => json_encode(['invoice_id' => $invoiceId, 'invoice_number' => $invoiceNum]),
+            ]);
+        });
 
         return Response::redirect("/checkout/{$trxId}");
     }
@@ -170,20 +178,20 @@ final class InvoiceCheckoutController
     /**
      * Renders the expired/unavailable invoice error page.
      *
-     * @param \Twig\Environment $twig The Twig template engine.
+     * @param int|null $brandId The invoice's merchant/brand identifier, or null when unavailable.
      * @param string $label The message label to show.
      * @return \OwnPay\Http\Response The HTML response.
      */
-    private function renderExpired(\Twig\Environment $twig, string $label = 'Invoice Expired'): Response
+    private function renderExpired(?int $brandId, string $label = 'Invoice Expired'): Response
     {
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
-        return Response::html($twig->render($tpl, [
+        return $this->renderThemed($tpl, $brandId, [
             'status'       => 'expired',
             'status_label' => $label,
             'txn'          => [],
             'brand'        => ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],
-        ]));
+        ]);
     }
 }

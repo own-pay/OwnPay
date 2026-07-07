@@ -38,7 +38,6 @@ final class PluginManifestTest extends TestCase
             'cron'       => [
                 ['name' => 'cleanup', 'schedule' => '0 0 * * *', 'description' => 'daily cleanup'],
             ],
-            'migrations' => ['migrations/001_init.sql'],
         ];
     }
 
@@ -57,7 +56,6 @@ final class PluginManifestTest extends TestCase
         $this->assertSame(['invoice.total'], $m->hooks['filters']);
         $this->assertCount(1, $m->adminMenu);
         $this->assertCount(1, $m->cron);
-        $this->assertSame(['migrations/001_init.sql'], $m->migrations);
     }
 
     public function testFromArrayUsesSafeDefaultsForMissingFields(): void
@@ -246,22 +244,6 @@ final class PluginManifestTest extends TestCase
         $errors = $m->validate();
         $this->assertContains('Cron entry #0: missing "name"', $errors);
         $this->assertContains('Cron entry #0: missing "schedule"', $errors);
-    }
-
-    public function testValidateRejectsMigrationsWithTraversal(): void
-    {
-        $data = $this->validManifestData();
-        $data['migrations'] = ['migrations/../../etc/passwd'];
-        $m = PluginManifest::fromArray($data);
-        $errors = $m->validate();
-        $found = false;
-        foreach ($errors as $e) {
-            if (str_contains($e, 'path traversal')) {
-                $found = true;
-                break;
-            }
-        }
-        $this->assertTrue($found);
     }
 
     public function testHasCapabilityChecksDeclaredCapabilities(): void

@@ -6,6 +6,7 @@ namespace OwnPay\Controller\Install;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Support\DateHelper;
+use OwnPay\Support\Version;
 
 /**
  * Class InstallerController
@@ -596,8 +597,8 @@ final class InstallerController
                 ['general',  'app_name',        $appName,                  'string'],
                 ['general',  'timezone',        $timezone,                 'string'],
                 ['general',  'currency',        $currency,                 'string'],
-                ['general',  'active_theme',    'own-pay',                 'string'],
-                ['general',  'version',         '0.1.0',                   'string'],
+                ['appearance', 'active_theme',    'own-pay',                 'string'],
+                ['general',  'version',         Version::CURRENT,          'string'],
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
@@ -628,7 +629,7 @@ final class InstallerController
                 @chmod($destEn, 0664);
             }
 
-            file_put_contents($this->markerFile, "Installed: " . DateHelper::iso() . "\nVersion: 0.1.0\n", LOCK_EX);
+            file_put_contents($this->markerFile, "Installed: " . DateHelper::iso() . "\nVersion: " . Version::CURRENT . "\n", LOCK_EX);
             @chmod($this->markerFile, 0640);
             @unlink($tempEnv);
 

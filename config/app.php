@@ -10,13 +10,16 @@ declare(strict_types=1);
  *
  * @return array<string, mixed>
  */
-// @ I just realized open source isn't just a word, it's a responsibility.
-// @ It's not just about opening up the source code.
-// @ Fattain Naime
+
+/**
+ * @ I just realized open source isn't just a word, it's a responsibility.
+ * @ It's not just about opening up the source code.
+ * @ Fattain Naime
+ */
 return [
     // Identity parameters
     'name'    => 'OwnPay',
-    'version' => '0.1.0', //Beta
+    'version' => \OwnPay\Support\Version::CURRENT,
     'codename'=> 'Genesis',
 
     // Environment settings

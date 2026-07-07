@@ -12,7 +12,7 @@
     --teal: #0D9488; --teal-deep: #0A7B70; --teal-pale: #CCFBF1;
     --teal-glow: rgb(13 148 136 / 10%);
     --red: #EF4444; --green: #10B981;
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font: 'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', sans-serif;
     --mono: 'JetBrains Mono', 'Fira Code', monospace;
 
     /* Radius */
@@ -61,7 +61,9 @@
 .ck-body {
     font-family: var(--font); background: var(--cloud); color: var(--ink);
     -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-    min-height: 100vh; display: flex; align-items: center;
+    min-height: 100vh; /* fallback for browsers without dvh support */
+    min-height: 100dvh; /* accounts for mobile browsers' collapsing address bar */
+    display: flex; align-items: center;
     justify-content: center; padding: 12px; overflow-x: hidden;
 }
 ::-webkit-scrollbar { width: 3px; }
@@ -82,18 +84,21 @@
     background: linear-gradient(160deg, #080D1A 0%, #1A2038 55%, #2D3555 100%);
     color: #fff;
 }
+
 .ck-left::before {
     content: ''; position: absolute; width: 700px; height: 700px;
     background: radial-gradient(circle, rgb(13 148 136 / 8%) 0%, transparent 60%);
     top: -250px; right: -250px; pointer-events: none;
 }
+
 .ck-left::after {
     content: ''; position: absolute; width: 350px; height: 350px;
-    background: radial-gradient(circle, rgba(94,234,212,.04) 0%, transparent 70%);
+    background: radial-gradient(circle, rgb(94 234 212 / 4%) 0%, transparent 70%);
     bottom: -80px; left: -100px; pointer-events: none;
 }
 
 .ck-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; position: relative; z-index: 1; }
+
 .ck-brand-logo {
     width: 48px; height: 48px; border-radius: var(--r-xl);
     background: rgb(255 255 255 / 10%); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -134,6 +139,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 20px; border-bottom: 1px solid var(--cloud); flex-shrink: 0;
 }
+
 .ck-icon-btn {
     width: 34px; height: 34px; border-radius: var(--r-lg);
     border: 1px solid var(--cloud); display: flex; align-items: center;
@@ -149,20 +155,24 @@
     background: var(--snow); border-radius: 20px; padding: 7px 14px;
 }
 .ck-timer svg, .ck-timer-pill svg { width: 12px; height: 12px; color: var(--mute); flex-shrink: 0; }
+
 .ck-timer-text {
     font-size: 13px; font-family: var(--mono); font-weight: 700;
     color: var(--ink-4); transition: color .3s;
 }
+
 .ck-timer-text.urgent, .ck-timer-urgent {
     color: var(--red) !important;
     animation: ckTimerPulse 1s ease infinite;
 }
+
 @keyframes ckTimerPulse { 0%,100% { opacity:1; } 50% { opacity:.6; } }
 
 .ck-topbar-actions { display: flex; align-items: center; gap: 2px; }
 
 /* ========================= MOBILE SUMMARY (Dropdown) ========================= */
 .ck-mobile-summary { display: none; margin-bottom: 14px; }
+
 .ck-mobile-trigger {
     width: 100%; background: var(--snow); border: none;
     border-radius: var(--r-2xl); padding: 12px 14px;
@@ -171,27 +181,32 @@
     font-family: var(--font); text-align: left;
 }
 .ck-mobile-trigger:hover { background: var(--cloud); }
+
 .ck-mobile-logo {
     width: 30px; height: 30px; border-radius: var(--r-md);
     background: var(--cloud); display: flex; align-items: center;
     justify-content: center; flex-shrink: 0;
 }
 .ck-mobile-logo svg { width: 14px; height: 14px; }
+
 .ck-mobile-merchant {
     font-size: 13px; font-weight: 700; line-height: 1.2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     min-width: 0; flex: 1; color: var(--ink);
 }
+
 .ck-mobile-amount {
     font-size: 16px; font-weight: 700; font-family: var(--mono);
     white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums;
     letter-spacing: -.3px; color: var(--ink);
 }
 .ck-mobile-dec { font-size: 11px; color: var(--mute); font-weight: 500; }
+
 .ck-mobile-chevron {
     flex-shrink: 0; color: var(--mute);
     transition: transform var(--dur-fast) var(--ease-out);
 }
+
 .ck-mobile-trigger[aria-expanded="true"] .ck-mobile-chevron {
     transform: rotate(180deg);
 }
@@ -202,32 +217,39 @@
     transition: max-height .35s var(--ease-out), opacity .25s ease;
     opacity: 0;
 }
+
 .ck-mobile-details.is-open {
     opacity: 1;
 }
+
 .ck-mobile-details-inner {
     background: var(--snow); border-radius: 0 0 var(--r-2xl) var(--r-2xl);
     padding: 0 14px 14px; margin-top: -2px;
 }
+
 .ck-mobile-line {
     display: flex; justify-content: space-between; align-items: center;
     padding: 7px 0; font-size: 12px; font-weight: 600; color: var(--ink);
 }
+
 .ck-mobile-line-name {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     margin-right: 12px; color: var(--ink-3);
 }
+
 .ck-mobile-line-price {
     font-family: var(--mono); font-variant-numeric: tabular-nums;
     white-space: nowrap; flex-shrink: 0;
 }
 .ck-mobile-line-muted { color: var(--mute); font-weight: 500; }
 .ck-mobile-line-muted span { color: var(--mute); }
+
 .ck-mobile-line-total {
     font-weight: 800; font-size: 13px; color: var(--ink);
     padding-top: 8px;
 }
 .ck-mobile-line-total span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
 .ck-mobile-divider {
     height: 1px; background: var(--cloud); margin: 4px 0;
 }
@@ -237,6 +259,7 @@
     position: relative; display: flex; gap: 3px; padding: 3px;
     background: var(--snow); border-radius: var(--r-2xl); margin-bottom: 14px;
 }
+
 .ck-tab {
     position: relative; flex: 1; padding: 9px 6px; font-size: 12px;
     font-weight: 700; border-radius: var(--r-xl); cursor: pointer;
@@ -247,9 +270,11 @@
     font-family: var(--font); white-space: nowrap;
 }
 .ck-tab svg { width: 13px; height: 13px; flex-shrink: 0; }
+
 /* New: aria-based active state */
 .ck-tab[aria-selected="true"] { color: var(--ink); }
 .ck-tab:not([aria-selected="true"]):hover { color: var(--ink-3); }
+
 /* Legacy: .on class (kept for Twig compat) */
 .ck-tab.on { color: var(--ink); }
 
@@ -257,11 +282,12 @@
 .ck-tabs-pill {
     position: absolute; top: 3px; left: 0; height: calc(100% - 6px);
     background: var(--white); border-radius: var(--r-xl);
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
     transform: translateX(0); width: 0;
     transition: transform var(--tabs-dur) var(--tabs-ease), width var(--tabs-dur) var(--tabs-ease);
     will-change: transform, width; z-index: 0; pointer-events: none;
 }
+
 /* Legacy: instant tab switch (no pill) — .on class toggles bg */
 .ck-tab.on:not([aria-selected="true"]) {
     background: var(--ink); color: var(--white);
@@ -270,6 +296,7 @@
 
 /* ========================= GATEWAY GRID ========================= */
 .ck-gw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+
 .ck-gw {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 6px; padding: 14px 6px;
@@ -279,28 +306,32 @@
     min-height: 82px;
 }
 .ck-gw:hover { border-color: var(--whisper); transform: translateY(-2px); box-shadow: var(--shadow-gw-hover); }
+
 .ck-gw.on {
     border-color: var(--teal); background: var(--teal-pale);
     box-shadow: var(--shadow-gw-selected);
 }
+
 .ck-gw.on::after {
     content: ''; position: absolute; top: 6px; right: 6px;
     width: 18px; height: 18px; background: var(--teal); border-radius: 50%;
     background-image: url("data:image/svg+xml,%3Csvg width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: center; background-size: 10px;
 }
+
 .ck-gw-badge {
     position: absolute; top: 6px; left: 6px;
     background: var(--ink); color: var(--white);
     font-size: 7px; font-weight: 800; padding: 2px 5px;
     border-radius: 5px; letter-spacing: .5px; text-transform: uppercase;
 }
+
 .ck-gw-ico {
     width: 36px; height: 36px; border-radius: var(--r-lg);
     display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 12px; flex-shrink: 0;
 }
-.ck-gw-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
+.ck-gw-logo { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; }
 .ck-gw-name { font-size: 10.5px; font-weight: 700; text-align: center; line-height: 1.2; }
 .ck-empty-gw { grid-column: 1 / -1; text-align: center; font-size: 13px; color: var(--mute); padding: 24px; }
 .ck-hidden { display: none !important; }
@@ -318,6 +349,7 @@
     justify-content: center; gap: 8px;
 }
 .ck-pay-disabled { background: var(--cloud); color: var(--faint); cursor: not-allowed; }
+
 .ck-pay-active {
     background: var(--teal); color: var(--white);
     box-shadow: 0 4px 20px rgb(13 148 136 / 22%);
@@ -328,6 +360,7 @@
 /* ========================= EXPRESS CHECKOUT ========================= */
 .ck-express { margin-bottom: 14px; }
 .ck-express-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
 .ck-qpay {
     display: flex; align-items: center; justify-content: center; gap: 7px;
     padding: 12px; border-radius: var(--r-xl); font-weight: 700; font-size: 13px;
@@ -354,11 +387,13 @@
     transition: opacity var(--dur-normal) ease;
 }
 .ck-popup.vis { opacity: 1; pointer-events: all; }
+
 .ck-popup-backdrop {
     position: absolute; inset: 0;
     background: rgb(8 13 26 / 55%); backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
 }
+
 .ck-popup-dialog {
     position: relative; z-index: 1; width: 100%; max-width: 460px;
     max-height: 92vh; overflow-y: auto; background: var(--white);
@@ -367,6 +402,7 @@
     transform: translateY(100%); transition: transform .4s var(--ease-out);
 }
 .ck-popup.vis .ck-popup-dialog { transform: translateY(0); }
+
 @media (min-width: 640px) {
     .ck-popup { align-items: center; padding: 16px; }
     .ck-popup-dialog { border-radius: var(--r-popup); transform: translateY(30px) scale(.96); }
@@ -379,6 +415,7 @@
     position: sticky; top: 0; background: var(--white); z-index: 2;
 }
 .ck-popup-gw-info { display: flex; align-items: center; gap: 10px; }
+
 .ck-popup-gw-icon {
     width: 38px; height: 38px; border-radius: var(--r-lg);
     display: flex; align-items: center; justify-content: center;
@@ -408,6 +445,7 @@
 
 .ck-popup-field { margin-bottom: 14px; }
 .ck-popup-field label { display: block; font-size: 11px; font-weight: 700; color: var(--ink-4); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; }
+
 .ck-popup-input {
     width: 100%; padding: 12px 14px; border: 1.5px solid var(--cloud);
     border-radius: var(--r-xl); font-size: 14px; font-family: var(--mono);
@@ -418,10 +456,12 @@
 .ck-popup-input::placeholder { color: var(--faint); font-family: var(--font); font-weight: 400; letter-spacing: 0; }
 
 /* Error shake on input (transitions-dev) */
-.ck-popup-input.is-error { border-color: var(--red); box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+.ck-popup-input.is-error { border-color: var(--red); box-shadow: 0 0 0 3px rgb(239 68 68 / 10%); }
+
 .ck-popup-input.is-shaking {
     animation: t-input-shake calc(var(--shake-dur-a) * 2 + var(--shake-dur-b) * 2) linear;
 }
+
 @keyframes t-input-shake {
     0%      { transform: translateX(0); }
     28.57%  { transform: translateX(var(--shake-distance)); }
@@ -441,18 +481,32 @@
 .ck-popup-back-link { background: none; border: none; color: var(--teal); cursor: pointer; font-size: 13px; margin-bottom: 12px; padding: 0; display: inline-block; font-family: var(--font); font-weight: 600; }
 .ck-popup-conv-note { font-size: 11px; color: var(--mute); margin-top: 4px; text-align: center; }
 
+/* Manual popup redesign: logo image, QR section, footer (.ck-popup-label already defined above) */
+.ck-popup-gw-logo { width: 38px; height: 38px; border-radius: var(--r-lg); object-fit: contain; }
+.ck-popup-label-center { text-align: center; }
+.ck-popup-qr-wrap { margin-top: 12px; margin-bottom: 12px; }
+.ck-popup-qr { width: 100%; max-width: 100%; height: auto; border-radius: 8px; background: #f1f5f9; }
+.ck-popup-footer { margin-top: 12px; font-size: 11px; color: var(--mute); text-align: center; }
+
 /* ========================= MODALS (transitions-dev) ========================= */
 .ck-modal {
     position: fixed; inset: 0; z-index: 200;
     display: flex; align-items: center; justify-content: center;
     padding: 16px; pointer-events: none;
 }
+
+/* Without this, the modal fades in and LOOKS open but stays fully click-inert - none of its
+   buttons (including its own close button) can ever receive a real mouse click, only a
+   JS-dispatched .click() (which ignores pointer-events and gives a false "it works" signal). */
+.ck-modal.is-open { pointer-events: all; }
+
 .ck-modal-backdrop {
     position: absolute; inset: 0;
     background: rgb(8 13 26 / 45%); backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     opacity: 0; transition: opacity var(--modal-open-dur) var(--modal-ease);
 }
+
 .ck-modal.is-open .ck-modal-backdrop,
 .ck-modal.is-closing .ck-modal-backdrop { opacity: 1; }
 .ck-modal.is-closing .ck-modal-backdrop { transition-duration: var(--modal-close-dur); }
@@ -468,6 +522,7 @@
     will-change: transform, opacity;
 }
 .ck-modal.is-open .ck-modal-dialog { transform: scale(1); opacity: 1; }
+
 .ck-modal.is-closing .ck-modal-dialog {
     transform: scale(var(--modal-scale-close)); opacity: 0;
     transition-duration: var(--modal-close-dur);
@@ -478,6 +533,7 @@
 .ck-modal-body { font-size: 13px; color: var(--ink-4); line-height: 1.6; }
 .ck-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
 .ck-modal-actions form { flex: 1; }
+
 .ck-modal-btn {
     flex: 1; padding: 11px; border-radius: var(--r-xl);
     font-weight: 700; font-size: 12.5px; cursor: pointer;
@@ -500,6 +556,7 @@
 .ck-faq-item { border-bottom: 1px solid var(--cloud); }
 .ck-faq-item summary { padding: 10px 0; font-weight: 700; font-size: 13px; cursor: pointer; }
 .ck-faq-item p { padding: 0 0 10px; font-size: 12px; color: var(--ink-4); line-height: 1.6; }
+
 .ck-help-email {
     display: flex; align-items: center; gap: 10px; padding: 10px;
     border-radius: var(--r-xl); text-decoration: none;
@@ -514,14 +571,17 @@
     display: flex; align-items: center; justify-content: center;
     gap: 6px; font-size: 9px; color: var(--faint); flex-shrink: 0;
 }
+
 .ck-footer-container {
     display: flex !important; flex-direction: column !important;
     align-items: center !important; gap: 4px !important; justify-content: center !important;
 }
+
 .ck-footer-row {
     display: flex !important; align-items: center !important;
     gap: 6px !important; justify-content: center !important;
 }
+
 .ck-footer-attribution-style {
     font-size: 10px !important; opacity: 0.8 !important; margin-top: 2px !important;
 }
@@ -546,12 +606,14 @@
     z-index: 9999; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
 }
 .ck-loading-content { text-align: center; color: #fff; }
+
 .ck-loading-spinner {
     width: 36px; height: 36px; border: 2.5px solid rgb(255 255 255 / 20%);
     border-top-color: #5EEAD4; border-radius: 50%;
     animation: ck-spin .7s linear infinite; margin: 0 auto 12px;
 }
 .ck-loading-text { font-family: var(--font); font-size: 13px; }
+
 @keyframes ck-spin { to { transform: rotate(360deg); } }
 
 /* ========================= ERROR TOAST ========================= */
@@ -569,6 +631,7 @@
 .ck-error-toast-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
 .ck-error-toast-msg { flex: 1; line-height: 1.4; }
 .ck-error-toast-close { flex-shrink: 0; background: none; border: none; color: #94A3B8; cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+
 @keyframes ck-slideDown { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
 
 .ck-clipboard-textarea { position: fixed; opacity: 0; pointer-events: none; }
@@ -587,6 +650,7 @@
 /* ========================= ANIMATIONS ========================= */
 @keyframes ck-fu { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 .ck-fi { animation: ck-fu .45s var(--ease-out) forwards; opacity: 0; }
+
 /* Stagger delays */
 .ck-fi-1 { animation-delay: .04s; }
 .ck-fi-2 { animation-delay: .08s; }
@@ -605,12 +669,13 @@
 
 @media (max-width: 480px) {
     .ck-body { padding: 0; align-items: stretch; }
-    .ck-shell { border-radius: 0; min-height: 100vh; }
+    .ck-shell { border-radius: 0; min-height: 100vh; min-height: 100dvh; }
     .ck-topbar { padding: 10px 14px; }
     .ck-scroll { padding: 14px 14px 12px; }
     .ck-gw-grid { gap: 10px; }
     .ck-gw { min-height: 76px; padding: 12px 6px; gap: 5px; }
     .ck-gw-ico { width: 34px; height: 34px; border-radius: 8px; font-size: 11px; }
+    .ck-gw-logo { width: 32px; height: 32px; }
     .ck-gw-name { font-size: 10px; }
     .ck-gw.on::after { width: 16px; height: 16px; top: 5px; right: 5px; background-size: 9px; }
     .ck-gw-badge { font-size: 6.5px; padding: 1px 4px; top: 5px; left: 5px; }

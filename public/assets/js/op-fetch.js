@@ -55,11 +55,22 @@
                 data = await response.text();
             }
 
+            // Extract error message from various response formats
+            var errorMsg = null;
+            if (!response.ok) {
+                if (data && typeof data === "object") {
+                    errorMsg = data.message || data.error || data.msg || data.detail || data.reason;
+                }
+                if (!errorMsg) {
+                    errorMsg = `HTTP ${response.status}`;
+                }
+            }
+
             return {
                 ok: response.ok,
                 status: response.status,
                 data: data,
-                error: response.ok ? null : (data?.message || data?.error || `HTTP ${response.status}`),
+                error: errorMsg,
             };
         } catch (err) {
             return {

@@ -1,0 +1,9 @@
+{% extends 'admin/layout/wizard.twig' %}
+
+{% block content %}
+{% include 'admin/dashboard/_setup_wizard.twig' %}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">window.OP_ONBOARDING_BRAND_ID = {{ existing_brand.id ?? 'null' }};</script>
+{% endblock %}

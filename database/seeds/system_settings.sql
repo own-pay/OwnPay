@@ -18,7 +18,8 @@ INSERT INTO `op_system_settings` (`group_name`, `key_name`, `value`, `type`) VAL
 ('checkout', 'require_customer_email', '1', 'bool'),
 ('checkout', 'require_customer_phone', '0', 'bool'),
 ('checkout', 'show_faq', '1', 'bool'),
-('checkout', 'active_theme', 'own-pay', 'string'),
+-- Appearance
+('appearance', 'active_theme', 'own-pay', 'string'),
 -- Security
 ('security', 'max_login_attempts', '20', 'int'),
 ('security', 'lockout_duration', '3', 'int'),

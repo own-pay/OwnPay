@@ -5,6 +5,7 @@ namespace OwnPay\View;
 
 use OwnPay\Container;
 use OwnPay\Event\EventManager;
+use OwnPay\Support\Version;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -63,6 +64,7 @@ final class TwigExtensions extends AbstractExtension
             new TwigFunction('app_version', [$this, 'appVersion']),
             new TwigFunction('setting', [$this, 'setting']),
             new TwigFunction('flash_messages', [$this, 'flashMessages']),
+            new TwigFunction('enqueued_assets', [$this, 'enqueuedAssets'], ['is_safe' => ['html']]),
         ];
     }
 
@@ -123,7 +125,7 @@ final class TwigExtensions extends AbstractExtension
     public function asset(string $path): string
     {
         $configApp = $this->container->get('config.app');
-        $version = '0.1.0';
+        $version = Version::CURRENT;
         if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
             $version = $configApp['version'];
         }
@@ -219,6 +221,33 @@ final class TwigExtensions extends AbstractExtension
     }
 
     /**
+     * Prints all assets enqueued this request via AssetManager, dependency-ordered.
+     *
+     * Deliberately does NOT go through EventManager::doAction()/sanitizeHookOutput() -
+     * unlike hook(), which buffers and sanitizes arbitrary plugin closure output, this
+     * builds a fixed-shape <link>/<script> tag from AssetManager's already-validated
+     * handle/url/version data. See docs/superpowers/specs/2026-07-06-asset-enqueueing-design.md.
+     *
+     * @param string $type 'style' or 'script'.
+     * @return string The rendered tags, or '' if AssetManager isn't bound or $type is unrecognized.
+     */
+    public function enqueuedAssets(string $type): string
+    {
+        if (!$this->container->has(\OwnPay\Service\System\AssetManager::class)) {
+            return '';
+        }
+        $assets = $this->container->get(\OwnPay\Service\System\AssetManager::class);
+        if (!$assets instanceof \OwnPay\Service\System\AssetManager) {
+            return '';
+        }
+        return match ($type) {
+            'style' => $assets->renderStyles(),
+            'script' => $assets->renderScripts(),
+            default => '',
+        };
+    }
+
+    /**
      * Apply filter hook processors to a value and return the mutated result.
      *
      * @param string $hookName The target filter event registry key.
@@ -262,7 +291,7 @@ final class TwigExtensions extends AbstractExtension
         if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
             return $configApp['version'];
         }
-        return '0.1.0';
+        return Version::CURRENT;
     }
 
     /**

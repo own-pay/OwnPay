@@ -5,6 +5,7 @@ namespace OwnPay\Controller\Admin;
 
 use OwnPay\Http\Response;
 use OwnPay\Service\Admin\AdminSession;
+use OwnPay\Support\Version;
 
 /**
  * Trait AdminPageTrait
@@ -40,11 +41,10 @@ trait AdminPageTrait
     {
         $c = $this->c;
         $session = $this->session;
-        $twig = $c->get(\Twig\Environment::class);
-        
+
         $appConfig = $c->get('config.app');
         $appName = is_array($appConfig) && isset($appConfig['name']) && is_string($appConfig['name']) ? $appConfig['name'] : 'OwnPay';
-        $appVersion = is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version']) ? $appConfig['version'] : '0.1.0';
+        $appVersion = is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version']) ? $appConfig['version'] : Version::CURRENT;
 
         $data['app_name']    = $appName;
         $data['app_version'] = $appVersion;
@@ -121,10 +121,6 @@ trait AdminPageTrait
             }
         }
 
-        if (!$twig instanceof \Twig\Environment) {
-            throw new \RuntimeException('Twig Environment not found');
-        }
-
         // Resolve documentation URL based on active page or route
         //
         // * TODO: Need to proparly map admin routes to documentation URLs in a single place.
@@ -159,7 +155,32 @@ trait AdminPageTrait
         $docPath = $docMap[is_string($activePage) ? $activePage : ''] ?? '';
         $data['doc_url'] = 'https://learn.ownpay.org/user-guide' . ($docPath !== '' ? '/' . $docPath : '');
 
-        return Response::html($twig->render($tpl, $data));
+        $registry = $c->has('admin.renderer_registry') ? $c->get('admin.renderer_registry') : null;
+        if (!$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
+            throw new \RuntimeException('Admin renderer registry not found');
+        }
+
+        $engineName = '';
+        if ($c->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $settingsRepo = $c->get(\OwnPay\Repository\SettingsRepository::class);
+            if ($settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
+                $engineName = (string) $settingsRepo->get('appearance', 'admin_engine', '');
+            }
+        }
+
+        try {
+            $renderer = $registry->get($engineName === '' ? 'twig' : $engineName);
+        } catch (\InvalidArgumentException) {
+            if ($c->has(\OwnPay\Service\System\Logger::class)) {
+                $logger = $c->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->warning("Admin render engine '{$engineName}' not registered; falling back to twig.");
+                }
+            }
+            $renderer = $registry->get('twig');
+        }
+
+        return Response::html($renderer->render($tpl, $data));
     }
 
     /**

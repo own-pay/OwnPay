@@ -41,14 +41,14 @@
                 <div class="op-form-group op-col-6">
                     <label for="qr_code">QR Code</label>
                     {% if (account.qr_code_path ?? '') %}
-                    <div class="op-mb-2"><img src="/storage/{{ account.qr_code_path }}" alt="" width="64" class="op-rounded"></div>
+                    <div class="op-mb-2"><img src="{{ account.qr_code_path }}" alt="" width="64" class="op-rounded"></div>
                     {% endif %}
                     <input type="file" id="qr_code" name="qr_code" accept="image/*" class="op-input-file">
                 </div>
                 <div class="op-form-group op-col-6">
                     <label for="logo">Logo override</label>
                     {% if (account.logo_path ?? '') %}
-                    <div class="op-mb-2"><img src="/storage/{{ account.logo_path }}" alt="" width="64" class="op-rounded"></div>
+                    <div class="op-mb-2"><img src="{{ account.logo_path }}" alt="" width="64" class="op-rounded"></div>
                     {% endif %}
                     <input type="file" id="logo" name="logo" accept="image/*" class="op-input-file">
                     <small>Leave empty to use the platform logo.</small>

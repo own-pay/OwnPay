@@ -5,6 +5,8 @@ namespace OwnPay\Plugin;
 
 use OwnPay\Container;
 use OwnPay\Event\EventManager;
+use OwnPay\Plugin\Capability;
+use OwnPay\Support\Version;
 
 /**
  * PluginLoader scans, discovers, validates, and boots active plugins.
@@ -128,6 +130,48 @@ final class PluginLoader
     }
 
     /**
+     * Loads a single plugin into the registry by slug, without touching any
+     * other already-loaded plugin.
+     *
+     * Unlike loadActive()/boot(), which reprocesses every active plugin and
+     * re-runs boot() on each already-loaded instance, this only loads the one
+     * requested slug - safe to call mid-request (e.g. right after activating a
+     * plugin whose row didn't exist when Kernel::boot() ran at the top of this
+     * same request, so hasCapability() would otherwise fail closed for it until
+     * the next request). Does not call the plugin's own boot() - callers that
+     * need full plugin initialization, not just registry presence for a
+     * capability check, should rely on the next request's normal boot cycle.
+     *
+     * @param string $slug
+     * @return bool True if the plugin is now loaded (already was, or just got loaded).
+     */
+    public function loadOne(string $slug): bool
+    {
+        if ($this->registry->isLoaded($slug)) {
+            return true;
+        }
+
+        $repo = $this->container->get(\OwnPay\Repository\PluginRepository::class);
+        if (!$repo instanceof \OwnPay\Repository\PluginRepository) {
+            return false;
+        }
+        $pluginData = $repo->findBySlug($slug);
+        if ($pluginData === null) {
+            return false;
+        }
+
+        try {
+            $this->loadPlugin($pluginData);
+        } catch (\Throwable $e) {
+            $this->registry->markError($slug, $e->getMessage());
+            $this->events->doAction('plugin.load_error', $slug, $e);
+            return false;
+        }
+
+        return $this->registry->isLoaded($slug);
+    }
+
+    /**
      * Load, validate, sandbox, and register active plugins.
      *
      * Wires gateway plugins into the core GatewayBridge payment pipeline.
@@ -203,7 +247,7 @@ final class PluginLoader
 
         // Version compatibility check
         $configApp = $this->container->get('config.app');
-        $coreVersion = '0.1.0';
+        $coreVersion = Version::CURRENT;
         if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
             $coreVersion = $configApp['version'];
         }
@@ -297,12 +341,15 @@ final class PluginLoader
         $this->events->pushOwner($slug);
         try {
             $instance->register($this->events, $this->container);
+            // Register into the registry before the capability-gated admin-menu check below:
+            // hasCapability() fails closed for any slug not yet present in the loaded map, so the
+            // plugin must already be recorded here or the check would always deny the menu.
+            $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
             $this->registerManifestAdminMenu($manifest);
         } finally {
             $this->events->popOwner();
         }
 
-        $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
         $this->container->instance($className, $instance);
     }
 
@@ -395,6 +442,16 @@ final class PluginLoader
     private function registerManifestAdminMenu(PluginManifest $manifest): void
     {
         if (empty($manifest->adminMenu)) {
+            return;
+        }
+
+        if (!$this->registry->hasCapability($manifest->slug, Capability::DASHBOARD)) {
+            $logger = $this->container->has(\OwnPay\Service\System\Logger::class)
+                ? $this->container->get(\OwnPay\Service\System\Logger::class)
+                : null;
+            if ($logger instanceof \OwnPay\Service\System\Logger) {
+                $logger->warning("Plugin '{$manifest->slug}' declares adminMenu entries but not the dashboard capability - menu registration skipped.");
+            }
             return;
         }
 

@@ -29,6 +29,6 @@
     </div>
 </main>
 
-<div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v0.1.0</div>
+<div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v<?php echo \OwnPay\Support\Version::CURRENT; ?></div>
 </body>
 </html>

@@ -10,6 +10,7 @@ use OwnPay\Http\Response;
 use OwnPay\Update\UpdateService;
 use OwnPay\Repository\SettingsRepository;
 use OwnPay\Repository\UpdateHistoryRepository;
+use OwnPay\Support\Version;
 
 /**
  * Controller for checking and installing system updates.
@@ -96,7 +97,7 @@ final class SystemUpdateController
         $preUpdateBackup = $this->settingsRepo->get('general', 'pre_update_backup', '1');
 
         $configApp = $this->c->get('config.app');
-        $currentVersion = is_array($configApp) && isset($configApp['version']) && is_string($configApp['version']) ? $configApp['version'] : '0.1.0';
+        $currentVersion = is_array($configApp) && isset($configApp['version']) && is_string($configApp['version']) ? $configApp['version'] : Version::CURRENT;
         $latestVersion  = is_array($latestCheck) && isset($latestCheck['version']) && is_string($latestCheck['version']) ? $latestCheck['version'] : $currentVersion;
 
         // Dynamic server-side diagnostics

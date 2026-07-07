@@ -324,13 +324,36 @@ final class PaymentController
         $payment = $this->transactions->forTenant($mid)->findByIntentId($intentId);
 
         if (is_array($payment)) {
+            $amount   = $payment['amount'] ?? null;
+            $currency = $payment['currency'] ?? null;
+            $fee      = $payment['fee'] ?? '0.00';
+
+            $intentCurrencyVal = $intent['currency'] ?? null;
+            $intentCurrency = is_scalar($intentCurrencyVal) ? (string) $intentCurrencyVal : null;
+            $intentAmountVal = $intent['amount'] ?? null;
+            $intentAmount = is_scalar($intentAmountVal) ? (string) $intentAmountVal : null;
+
+            if ($intentCurrency !== null && $intentAmount !== null && $currency !== $intentCurrency) {
+                // Currency conversion happened. Override with original values from the payment intent!
+                $rateVal = 0.0;
+                if (is_numeric($amount) && is_numeric($intentAmount) && (float)$intentAmount > 0) {
+                    $rateVal = (float)$amount / (float)$intentAmount;
+                }
+                if ($rateVal > 0) {
+                    $feeVal = is_numeric($fee) ? (float)$fee : 0.0;
+                    $fee = number_format($feeVal / $rateVal, 2, '.', '');
+                }
+                $amount   = $intentAmount;
+                $currency = $intentCurrency;
+            }
+
             $response = [
                 'id'             => $payment['id'] ?? null,
                 'trx_id'         => $payment['trx_id'] ?? null,
                 'gateway_trx_id' => $payment['gateway_trx_id'] ?? null,
-                'amount'         => $payment['amount'] ?? null,
-                'currency'       => $payment['currency'] ?? null,
-                'fee'            => $payment['fee'] ?? '0.00',
+                'amount'         => $amount,
+                'currency'       => $currency,
+                'fee'            => $fee,
                 'status'         => $payment['status'] ?? null,
                 'gateway'        => $payment['gateway_slug'] ?? null,
                 'method'         => $payment['method'] ?? null,

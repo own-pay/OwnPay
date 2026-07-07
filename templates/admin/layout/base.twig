@@ -13,9 +13,11 @@
     <link rel="stylesheet" href="/assets/css/animations.css?v=015">
     <link rel="stylesheet" href="/assets/css/utilities.css?v=015">
     <link rel="stylesheet" href="/assets/css/admin.css?v=058">
+    {{ enqueued_assets('style') }}
     <meta name="csrf-token" content="{{ csrf_token }}">
     <script nonce="{{ csp_nonce }}" src="/assets/js/theme-init.js"></script>
     <script nonce="{{ csp_nonce }}">window.OP_DOC_URL = "{{ doc_url }}";</script>
+    <script nonce="{{ csp_nonce }}">window.OP_CSP_NONCE = "{{ csp_nonce }}";</script>
     {% block head %}{% endblock %}
     {{ hook('admin.head')|raw }}
 </head>
@@ -52,7 +54,8 @@
     {% include 'admin/layout/modals.twig' %}
 
     <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=048"></script>
-    {% block scripts %}{% endblock %}
+    {{ enqueued_assets('script') }}
+    <div id="op-page-scripts">{% block scripts %}{% endblock %}</div>
     {{ hook('admin.footer')|raw }}
     <div id="toast-container" class="op-toast-container"></div>
 </body>

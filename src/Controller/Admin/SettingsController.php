@@ -662,7 +662,7 @@ final class SettingsController
 
         $isBrandView = ($mid > 0);
         $saved = [];
-        $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+        $fs = new \OwnPay\Service\System\FilesystemService();
 
         if ($isBrandView) {
             $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
@@ -690,8 +690,7 @@ final class SettingsController
             if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
                 try {
                     if (isset($logoFile['name'], $logoFile['tmp_name']) && is_string($logoFile['name']) && is_string($logoFile['tmp_name'])) {
-                        $storedPath = $fs->storeUpload($logoFile, 'uploads/brands');
-                        $logoPath = '/assets/' . $storedPath;
+                        $logoPath = $fs->storePublicUpload($logoFile, 'brands');
                         $saved['logo'] = $logoPath;
                     }
                 } catch (\Throwable $e) {
@@ -703,8 +702,7 @@ final class SettingsController
             if ($faviconFile !== null && ($faviconFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
                 try {
                     if (isset($faviconFile['name'], $faviconFile['tmp_name']) && is_string($faviconFile['name']) && is_string($faviconFile['tmp_name'])) {
-                        $storedPath = $fs->storeUpload($faviconFile, 'uploads/brands');
-                        $faviconPath = '/assets/' . $storedPath;
+                        $faviconPath = $fs->storePublicUpload($faviconFile, 'brands');
                         $saved['favicon'] = $faviconPath;
                     }
                 } catch (\Throwable $e) {
@@ -739,8 +737,7 @@ final class SettingsController
 
             try {
                 if (isset($file['name'], $file['tmp_name']) && is_string($file['name']) && is_string($file['tmp_name'])) {
-                    $storedPath = $fs->storeUpload($file, 'uploads');
-                    $path = '/assets/' . $storedPath;
+                    $path = $fs->storePublicUpload($file, 'branding');
                     $this->settingsRepo->set('branding', $field, $path);
                     $saved[$field] = $path;
                 }

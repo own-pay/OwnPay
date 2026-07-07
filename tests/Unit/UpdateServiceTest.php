@@ -20,6 +20,7 @@ class TestableUpdateService extends UpdateService
     public bool $extractPackageCalled = false;
     public bool $runMigrationsCalled = false;
     public bool $clearCacheCalled = false;
+    public bool $optimizeCalled = false;
 
     protected function fetchManifest(): array
     {
@@ -51,6 +52,11 @@ class TestableUpdateService extends UpdateService
     protected function clearCache(): void
     {
         $this->clearCacheCalled = true;
+    }
+
+    protected function optimize(): void
+    {
+        $this->optimizeCalled = true;
     }
 }
 
@@ -269,6 +275,66 @@ class UpdateServiceTest extends TestCase
         $this->assertTrue($updater->extractPackageCalled);
         $this->assertTrue($updater->runMigrationsCalled);
         $this->assertTrue($updater->clearCacheCalled);
+        $this->assertTrue($updater->optimizeCalled);
+    }
+
+    public function testOptimizeRunsOnlyAfterSuccessfulUpdate(): void
+    {
+        $updater = $this->createUpdateService();
+        $updater->mockPackagePath = $this->tempZipPath;
+        $updater->mockManifest = [
+            'releases' => [
+                [
+                    'version' => '0.2.1',
+                    'download_url' => 'https://update.ownpay.org/releases/ownpay-0.2.1.zip',
+                    'checksum_sha256' => 'incorrect-checksum-hash',
+                    'signature' => 'some-signature',
+                ],
+            ],
+        ];
+
+        $result = $updater->execute('0.2.1');
+
+        $this->assertFalse($result['success']);
+        $this->assertFalse($updater->optimizeCalled, 'A failed update must never run post-update optimization');
+    }
+
+    public function testPurgeOldLogsRemovesOnlyFilesOlderThanRetentionWindow(): void
+    {
+        $logsDir = sys_get_temp_dir() . '/op_test_logs_' . bin2hex(random_bytes(6));
+        mkdir($logsDir, 0755, true);
+
+        $oldFile = $logsDir . '/app-2020-01-01.log';
+        $recentFile = $logsDir . '/app-today.log';
+        file_put_contents($oldFile, 'stale entry');
+        file_put_contents($recentFile, 'fresh entry');
+
+        // Backdate the old file well past the retention window; leave the recent
+        // file at its just-written mtime.
+        touch($oldFile, time() - (40 * 86400));
+
+        try {
+            $updater = $this->createUpdateService();
+            $method = new \ReflectionMethod(UpdateService::class, 'purgeOldLogs');
+            $method->invoke($updater, 30, $logsDir);
+
+            $this->assertFileDoesNotExist($oldFile, 'file older than the retention window must be removed');
+            $this->assertFileExists($recentFile, 'file within the retention window must be kept');
+        } finally {
+            @unlink($oldFile);
+            @unlink($recentFile);
+            @rmdir($logsDir);
+        }
+    }
+
+    public function testPurgeOldLogsIsANoOpWhenDirectoryIsMissing(): void
+    {
+        $updater = $this->createUpdateService();
+        $method = new \ReflectionMethod(UpdateService::class, 'purgeOldLogs');
+
+        // Must not throw when storage/logs (or an override) doesn't exist.
+        $method->invoke($updater, 30, sys_get_temp_dir() . '/op_test_logs_missing_' . bin2hex(random_bytes(6)));
+        $this->addToAssertionCount(1);
     }
 
     /** @return array<int, string> */

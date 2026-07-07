@@ -8,13 +8,14 @@
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
-                    <img src="{% if gw.mode == 'manual' %}/storage/{% endif %}{{ gw.logo }}" alt="" class="ck-gw-logo">
+                    <img src="{{ gw.logo }}" alt="" class="ck-gw-logo">
                     <span class="ck-gw-fallback">{{ gw.name[:2] }}</span>
                 {% else %}
                     <span class="ck-gw-fallback op-show-fallback">{{ gw.name[:2] }}</span>
                 {% endif %}
             </div>
             <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
+            {{ hook('checkout.gateway.extra', gw)|raw }}
         </div>
         {% endfor %}
         {% if gateways.global is empty %}
@@ -32,13 +33,14 @@
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
-                    <img src="{% if gw.mode == 'manual' %}/storage/{% endif %}{{ gw.logo }}" alt="" class="ck-gw-logo">
+                    <img src="{{ gw.logo }}" alt="" class="ck-gw-logo">
                     <span class="ck-gw-fallback">{{ gw.name[:2] }}</span>
                 {% else %}
                     <span class="ck-gw-fallback op-show-fallback">{{ gw.name[:2] }}</span>
                 {% endif %}
             </div>
             <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
+            {{ hook('checkout.gateway.extra', gw)|raw }}
         </div>
         {% endfor %}
         {% if gateways.mfs is empty %}
@@ -56,13 +58,14 @@
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
-                    <img src="{% if gw.mode == 'manual' %}/storage/{% endif %}{{ gw.logo }}" alt="" class="ck-gw-logo">
+                    <img src="{{ gw.logo }}" alt="" class="ck-gw-logo">
                     <span class="ck-gw-fallback">{{ gw.name[:2] }}</span>
                 {% else %}
                     <span class="ck-gw-fallback op-show-fallback">{{ gw.name[:2] }}</span>
                 {% endif %}
             </div>
             <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
+            {{ hook('checkout.gateway.extra', gw)|raw }}
         </div>
         {% endfor %}
         {% if gateways.bank is empty %}

@@ -235,11 +235,15 @@ final class TapGateway implements PluginInterface, GatewayAdapterInterface
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
         $ch = curl_init($baseUrl . '/api/v1/payment/verify');
         if ($ch === false) {
+            // Fail closed: a matching signature only proves the caller knew the shared secret,
+            // not that the payment was actually confirmed by the gateway. Treating "can't reach
+            // the checkback API" as success would let a compromised secret (or a down/DNS-
+            // poisoned verify endpoint) complete a transaction with no real confirmation.
             return [
-                'success'        => true, // signature is authentic, allow safe callback fallback
+                'success'        => false,
                 'gateway_trx_id' => $gatewayTrxId,
                 'amount'         => $amountDecimal,
-                'status'         => 'completed',
+                'status'         => 'failed',
             ];
         }
 
@@ -266,11 +270,12 @@ final class TapGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if ($httpCode !== 200 || $response === false) {
+            // Fail closed for the same reason as the curl_init failure above.
             return [
-                'success'        => true, // Signature matches, trust transaction state
+                'success'        => false,
                 'gateway_trx_id' => $gatewayTrxId,
                 'amount'         => $amountDecimal,
-                'status'         => 'completed',
+                'status'         => 'failed',
             ];
         }
 

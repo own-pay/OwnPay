@@ -17,9 +17,7 @@
 
 <div class="op-tabs" id="dev-tabs">
     <button class="op-tab active" data-tab="api-keys">API Keys</button>
-    <button class="op-tab" data-tab="endpoints">Endpoint Reference</button>
-    <button class="op-tab" data-tab="webhooks">Webhooks / IPN</button>
-    <button class="op-tab" data-tab="auth">Authentication</button>
+    <button class="op-tab" data-tab="webhooks">Webhooks</button>
     <button class="op-tab" data-tab="rate-limits">Rate Limits</button>
 </div>
 
@@ -62,48 +60,8 @@
         </div>
     </div>
     {% endif %}
-    <div class="op-card">
-        <div class="op-card-header">
-            <h3>API Keys</h3>
-            <span class="op-text-muted op-text-sm">Use Bearer token authentication: <code>Authorization: Bearer &lt;key&gt;</code></span>
-        </div>
-        <div class="op-card-body op-p-0">
-            <div class="op-table-responsive">
-            <table class="op-table">
-                <thead><tr><th>Label</th><th>Key Prefix</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
-                <tbody>
-                    {% for key in api_keys %}
-                    <tr>
-                        <td data-label="Label"><strong>{{ key.name }}</strong></td>
-                        <td data-label="Key Prefix">
-                            <code class="op-code-pill">{{ key.key_prefix }}••••••••••••••••</code>
-                        </td>
-                        <td data-label="Scopes">
-                            {% for scope in key.scopes %}
-                                <span class="op-badge op-badge-{{ scope == 'admin' ? 'danger' : 'info' }}">{{ scope }}</span>
-                            {% else %}
-                                <span class="op-text-muted">-</span>
-                            {% endfor %}
-                        </td>
-                        <td data-label="Created">{{ key.created_at|date('M d, Y') }}</td>
-                        <td data-label="Last Used">{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '-' }}</td>
-                        <td data-label="Actions">
-                            <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" data-confirm="Revoke this API key? All requests using it will fail immediately.">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="6" class="op-empty">No API keys yet. Generate one below.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            </div>
-        </div>
-    </div>
 
-    <div class="op-card op-mt-4">
+    <div class="op-card">
         <div class="op-card-header"><h3>Generate New API Key</h3></div>
         <div class="op-card-body">
             <form method="POST" action="/admin/api-keys/generate" class="op-form">
@@ -147,57 +105,170 @@
             </div>
         </div>
     </div>
-</div>
 
-{# ══════════════════════════════════════════════════════════
-   TAB: Endpoint Reference
-══════════════════════════════════════════════════════════ #}
-<div class="op-tab-panel" id="tab-endpoints">
-    <div class="op-card op-mb-3">
-        <div class="op-card-body">
-            <div class="op-form-group op-mb-0">
-                <label>Base URL</label>
-                <div class="op-copy-row">
-                    <code class="op-code-block" id="base-url-val">{{ base_url }}</code>
-                    <button class="op-btn op-btn-sm op-btn-outline op-copy-btn" data-copy="base-url-val">Copy</button>
-                </div>
-            </div>
+    <div class="op-card op-mt-4">
+        <div class="op-card-header">
+            <h3>Existing Keys</h3>
+            <span class="op-text-muted op-text-sm">Use Bearer token authentication: <code>Authorization: Bearer &lt;key&gt;</code></span>
         </div>
-    </div>
-
-    {% for section, routes in endpoints %}
-    <div class="op-card op-mb-3">
-        <div class="op-card-header"><h3>{{ section }}</h3></div>
         <div class="op-card-body op-p-0">
             <div class="op-table-responsive">
-            <table class="op-table op-endpoint-table">
-                <thead><tr><th width="80">Method</th><th>Endpoint</th><th width="90">Auth</th><th>Description</th></tr></thead>
+            <table class="op-table">
+                <thead><tr><th>Label</th><th>Key Prefix</th><th>Scopes</th><th>Status</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
                 <tbody>
-                    {% for ep in routes %}
-                    <tr>
-                        <td data-label="Method">
-                            <span class="op-method-badge op-method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                    {% for key in api_keys %}
+                    <tr class="{{ key.status == 'revoked' ? 'op-key-row-revoked' : '' }}">
+                        <td data-label="Label"><strong>{{ key.name }}</strong></td>
+                        <td data-label="Key Prefix">
+                            <code class="op-code-pill">{{ key.key_prefix }}••••••••••••••••</code>
                         </td>
-                        <td data-label="Endpoint">
-                            <div class="op-copy-row">
-                                <code class="op-text-sm">{{ base_url }}{{ ep.path }}</code>
-                                <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ base_url }}{{ ep.path }}" title="Copy URL">
-                                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                </button>
-                            </div>
+                        <td data-label="Scopes">
+                            {% for scope in key.scopes %}
+                                <span class="op-badge op-badge-{{ scope == 'admin' ? 'danger' : 'info' }}">{{ scope }}</span>
+                            {% else %}
+                                <span class="op-text-muted">-</span>
+                            {% endfor %}
                         </td>
-                        <td data-label="Auth">
-                            <span class="op-badge op-badge-{{ ep.auth == 'Bearer' ? 'info' : (ep.auth == 'JWT' ? 'warning' : (ep.auth == 'None' ? 'muted' : 'success')) }}">{{ ep.auth }}</span>
+                        <td data-label="Status">
+                            {% if key.status == 'active' %}
+                                <span class="op-badge op-badge-success">Active</span>
+                            {% elseif key.status == 'locked' %}
+                                <span class="op-badge op-badge-warning">Locked</span>
+                            {% else %}
+                                <span class="op-badge op-badge-muted">Revoked</span>
+                            {% endif %}
                         </td>
-                        <td data-label="Description" class="op-text-sm op-text-muted">{{ ep.desc }}</td>
+                        <td data-label="Created">{{ key.created_at|date('M d, Y') }}</td>
+                        <td data-label="Last Used">{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '-' }}</td>
+                        <td data-label="Actions">
+                            {% if key.status == 'active' %}
+                                <form method="POST" action="/admin/api-keys/{{ key.id }}/lock" class="op-inline-form" data-confirm="If you lock this key it will not authorize any request using it. You can unlock it any time to reactivate it.">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-outline">Lock</button>
+                                </form>
+                                <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" data-confirm="Revoke this API key? All requests using it will fail immediately.">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
+                                </form>
+                            {% elseif key.status == 'locked' %}
+                                <form method="POST" action="/admin/api-keys/{{ key.id }}/unlock" class="op-inline-form" data-confirm="Unlock this key? It will immediately start authorizing requests again.">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-outline">Unlock</button>
+                                </form>
+                                <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" data-confirm="Revoke this API key? All requests using it will fail immediately.">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
+                                </form>
+                            {% endif %}
+                        </td>
                     </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="op-empty">No API keys yet. Generate one above.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
             </div>
         </div>
     </div>
-    {% endfor %}
+
+    <div class="op-card op-mt-4">
+        <div class="op-subnav" id="ref-subnav">
+            <button type="button" class="op-subnav-item active" data-subnav="endpoints">Endpoint Reference</button>
+            <button type="button" class="op-subnav-item" data-subnav="auth">Authentication</button>
+        </div>
+
+        <div class="op-subnav-panel active" id="subnav-endpoints">
+            <div class="op-card op-mb-3">
+                <div class="op-card-body">
+                    <div class="op-form-group op-mb-0">
+                        <label>Base URL</label>
+                        <div class="op-copy-row">
+                            <code class="op-code-block" id="base-url-val">{{ base_url }}</code>
+                            <button class="op-btn op-btn-sm op-btn-outline op-copy-btn" data-copy="base-url-val">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% for section, routes in endpoints %}
+            <div class="op-card op-mb-3">
+                <div class="op-card-header"><h3>{{ section }}</h3></div>
+                <div class="op-card-body op-p-0">
+                    <div class="op-table-responsive">
+                    <table class="op-table op-endpoint-table">
+                        <thead><tr><th width="80">Method</th><th>Endpoint</th><th width="90">Auth</th><th>Description</th></tr></thead>
+                        <tbody>
+                            {% for ep in routes %}
+                            <tr>
+                                <td data-label="Method">
+                                    <span class="op-method-badge op-method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                                </td>
+                                <td data-label="Endpoint">
+                                    <div class="op-copy-row">
+                                        <code class="op-text-sm">{{ base_url }}{{ ep.path }}</code>
+                                        <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ base_url }}{{ ep.path }}" title="Copy URL">
+                                            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td data-label="Auth">
+                                    <span class="op-badge op-badge-{{ ep.auth == 'Bearer' ? 'info' : (ep.auth == 'JWT' ? 'warning' : (ep.auth == 'None' ? 'muted' : 'success')) }}">{{ ep.auth }}</span>
+                                </td>
+                                <td data-label="Description" class="op-text-sm op-text-muted">{{ ep.desc }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="op-subnav-panel" id="subnav-auth">
+            <div class="op-card op-mb-4">
+                <div class="op-card-header"><h3>Bearer Token (Merchant API)</h3></div>
+                <div class="op-card-body">
+                    <p class="op-text-muted op-mb-3">All Merchant API endpoints require a Bearer token in the <code>Authorization</code> header. Generate tokens from the <strong>Generate New API Key</strong> form above.</p>
+                    <div class="op-code-example">
+                        <div class="op-code-example-header">
+                            <span>Example Request</span>
+                            <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="curl -H &quot;Authorization: Bearer op_your_api_key&quot; {{ base_url }}/api/v1/transactions">Copy</button>
+                        </div>
+                        <pre class="op-pre">curl -X GET \
+  {{ base_url }}/api/v1/transactions \
+  -H "Authorization: Bearer op_your_api_key" \
+  -H "Accept: application/json"</pre>
+                    </div>
+                </div>
+            </div>
+            <div class="op-card op-mb-4">
+                <div class="op-card-header"><h3>JWT (Mobile Device API)</h3></div>
+                <div class="op-card-body">
+                    <p class="op-text-muted op-mb-3">Mobile companion app endpoints use short-lived JWTs (15 min) issued after device pairing. Include <code>X-Device-Fingerprint</code> header on all requests.</p>
+                    <div class="op-alert op-alert-info">
+                        <strong>Flow:</strong> Admin generates OTP → App scans QR → <code>POST /api/mobile/v1/devices</code> → Receive access_token + refresh_token → Use access_token for all subsequent calls → Refresh with <code>POST /api/mobile/v1/devices/heartbeats</code>
+                    </div>
+                </div>
+            </div>
+            <div class="op-card">
+                <div class="op-card-header"><h3>Webhook Signature Verification</h3></div>
+                <div class="op-card-body">
+                    <p class="op-text-muted op-mb-3">Every outgoing webhook POST includes an <code>X-OwnPay-Signature</code> header. Verify it in your server to prevent spoofed events.</p>
+                    <div class="op-code-example">
+                        <div class="op-code-example-header"><span>PHP Verification Example</span></div>
+                        <pre class="op-pre">$signature = $_SERVER['HTTP_X_OWNPAY_SIGNATURE']; // "sha256=abc123..."
+$body = file_get_contents('php://input');
+$expected = 'sha256=' . hash_hmac('sha256', $body, YOUR_WEBHOOK_SECRET);
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    exit;
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {# ══════════════════════════════════════════════════════════
@@ -207,7 +278,10 @@
     <div class="op-card op-mb-4">
         <div class="op-card-header op-flex-row-space-between">
             <h3>Webhook Endpoints</h3>
-            <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
+            <div class="op-flex-gap-8">
+                <a href="/admin/webhooks/events" class="op-btn op-btn-sm op-btn-outline">View Delivery Log</a>
+                <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
+            </div>
         </div>
         <div class="op-card-body op-p-0">
             <div class="op-table-responsive">
@@ -346,53 +420,6 @@
                 <button type="submit" class="op-btn op-btn-primary" id="webhook-submit-btn">Save Endpoint</button>
             </div>
         </form>
-    </div>
-</div>
-
-{# ══════════════════════════════════════════════════════════
-   TAB: Authentication
-══════════════════════════════════════════════════════════ #}
-<div class="op-tab-panel" id="tab-auth">
-    <div class="op-card op-mb-4">
-        <div class="op-card-header"><h3>Bearer Token (Merchant API)</h3></div>
-        <div class="op-card-body">
-            <p class="op-text-muted op-mb-3">All Merchant API endpoints require a Bearer token in the <code>Authorization</code> header. Generate tokens from the <strong>API Keys</strong> tab.</p>
-            <div class="op-code-example">
-                <div class="op-code-example-header">
-                    <span>Example Request</span>
-                    <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="curl -H &quot;Authorization: Bearer op_your_api_key&quot; {{ base_url }}/api/v1/transactions">Copy</button>
-                </div>
-                <pre class="op-pre">curl -X GET \
-  {{ base_url }}/api/v1/transactions \
-  -H "Authorization: Bearer op_your_api_key" \
-  -H "Accept: application/json"</pre>
-            </div>
-        </div>
-    </div>
-    <div class="op-card op-mb-4">
-        <div class="op-card-header"><h3>JWT (Mobile Device API)</h3></div>
-        <div class="op-card-body">
-            <p class="op-text-muted op-mb-3">Mobile companion app endpoints use short-lived JWTs (15 min) issued after device pairing. Include <code>X-Device-Fingerprint</code> header on all requests.</p>
-            <div class="op-alert op-alert-info">
-                <strong>Flow:</strong> Admin generates OTP → App scans QR → <code>POST /api/mobile/v1/devices</code> → Receive access_token + refresh_token → Use access_token for all subsequent calls → Refresh with <code>POST /api/mobile/v1/devices/heartbeats</code>
-            </div>
-        </div>
-    </div>
-    <div class="op-card">
-        <div class="op-card-header"><h3>Webhook Signature Verification</h3></div>
-        <div class="op-card-body">
-            <p class="op-text-muted op-mb-3">Every outgoing webhook POST includes an <code>X-OwnPay-Signature</code> header. Verify it in your server to prevent spoofed events.</p>
-            <div class="op-code-example">
-                <div class="op-code-example-header"><span>PHP Verification Example</span></div>
-                <pre class="op-pre">$signature = $_SERVER['HTTP_X_OWNPAY_SIGNATURE']; // "sha256=abc123..."
-$body = file_get_contents('php://input');
-$expected = 'sha256=' . hash_hmac('sha256', $body, YOUR_WEBHOOK_SECRET);
-if (!hash_equals($expected, $signature)) {
-    http_response_code(401);
-    exit;
-}</pre>
-            </div>
-        </div>
     </div>
 </div>
 

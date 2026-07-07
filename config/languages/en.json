@@ -184,6 +184,8 @@
   "common.click_to_copy": "Click to Copy",
   "wizard.system_setup": "System Setup Wizard",
   "wizard.welcome_subtitle": "Welcome to OwnPay! Let's get your payment engine professionally configured.",
+  "wizard.skip_setup": "Skip setup",
+  "wizard.skip_step": "Skip this step",
   "wizard.step_platform": "Platform Settings",
   "wizard.step_brand": "First Brand",
   "wizard.step_mail": "Outgoing Mail",

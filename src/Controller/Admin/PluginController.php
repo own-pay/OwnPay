@@ -8,9 +8,14 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Event\EventManager;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\PluginManager;
 use OwnPay\Plugin\PluginRegistry;
+use OwnPay\Repository\GatewayConfigRepository;
+use OwnPay\Repository\GatewayRepository;
 use OwnPay\Repository\PluginRepository;
+use OwnPay\Repository\SettingsRepository;
+use OwnPay\Security\FieldEncryptor;
 use OwnPay\View\SettingsRenderer;
 
 /**
@@ -508,51 +513,24 @@ final class PluginController
         $plugin['author'] = $manifestJson['author'] ?? 'Unknown';
         $plugin['description'] = $manifestJson['description'] ?? '';
 
-        $instance = $this->registry->get($slug);
-
-        // Fallback: plugin active in DB but not booted in current request
-        // → instantiate from filesystem so we can call fields()
-        if ($instance === null) {
-            $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
-            if ($loader instanceof \OwnPay\Plugin\PluginLoader) {
-                $manifests = $loader->discover();
-                $manifest = $manifests[$slug] ?? null;
-                if ($manifest !== null) {
-                    $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
-                    if (file_exists($entrypointFile)) {
-                        require_once $entrypointFile;
-                        $rawManifestJson = file_get_contents($manifest->path . '/manifest.json');
-                        $rawManifest = json_decode(is_string($rawManifestJson) ? $rawManifestJson : '{}', true);
-                        $rawManifest = is_array($rawManifest) ? $rawManifest : [];
-                        if (!empty($rawManifest['namespace']) && is_string($rawManifest['namespace'])) {
-                            $className = rtrim($rawManifest['namespace'], '\\') . '\\' . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
-                        } else {
-                            $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
-                            $className = "OwnPay\\Plugins\\{$pascal}\\" . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
-                        }
-                        if (class_exists($className) && is_subclass_of($className, \OwnPay\Plugin\PluginInterface::class)) {
-                            $instance = new $className();
-                        }
-                    }
-                }
-            }
-        }
+        $instance = $this->resolvePluginInstance($slug);
 
         $settingsHtml = '';
         if ($instance !== null) {
-            $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
-
-
-
-            if ($settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
-                if ($brandId !== null && $brandId > 0) {
-                    $currentValues = $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId);
-                } else {
-                    $currentValues = $settingsRepo->getGroup("plugin.{$slug}");
+            $isGateway = ($plugin['type'] ?? '') === 'gateway';
+            if ($isGateway) {
+                $currentValues = $this->readGatewayCredentials($slug, $brandId ?? 0);
+            } else {
+                $settingsRepo = $this->c->get(SettingsRepository::class);
+                $currentValues = [];
+                if ($settingsRepo instanceof SettingsRepository) {
+                    $currentValues = ($brandId !== null && $brandId > 0)
+                        ? $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId)
+                        : $settingsRepo->getGroup("plugin.{$slug}");
                 }
-                $action = "/admin/plugins/{$slug}/settings";
-                $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action);
             }
+            $action = "/admin/plugins/{$slug}/settings";
+            $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action);
         }
 
         $activePage = match ($plugin['type'] ?? 'plugin') {
@@ -584,8 +562,8 @@ final class PluginController
             $settings = [];
         }
 
-        /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
-        $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+        /** @var SettingsRepository $settingsRepo */
+        $settingsRepo = $this->c->get(SettingsRepository::class);
 
         // Save brand-scoped plugin settings
         $brandId = null;
@@ -597,41 +575,33 @@ final class PluginController
             }
         }
 
-        if ($brandId !== null && $brandId > 0) {
-            $settingsRepo->bulkSetScoped("plugin.{$slug}", $settings, $brandId);
+        $plugin = $this->repo->findBySlug($slug);
+        $isGateway = $plugin !== null && ($plugin['type'] ?? '') === 'gateway';
+        $instance = $this->resolvePluginInstance($slug);
+        $passwordFields = $this->passwordFieldNames($instance);
 
-            // Synchronize with op_gateway_configs if this plugin is a gateway
-            $plugin = $this->repo->findBySlug($slug);
-            if ($plugin !== null && ($plugin['type'] ?? '') === 'gateway') {
-                $gwRepo = $this->c->get(\OwnPay\Repository\GatewayRepository::class);
-                if ($gwRepo instanceof \OwnPay\Repository\GatewayRepository) {
-                    $gw = $gwRepo->findBySlug($slug);
-                    if ($gw !== null) {
-                        $gwId = is_numeric($gw['id'] ?? null) ? (int) $gw['id'] : 0;
-                        if ($gwId > 0) {
-                            $gwConfigRepo = $this->c->get(\OwnPay\Repository\GatewayConfigRepository::class);
-                            if ($gwConfigRepo instanceof \OwnPay\Repository\GatewayConfigRepository) {
-                                $scopedConfigRepo = $gwConfigRepo->forTenant($brandId);
-                                $existing = $scopedConfigRepo->findForGateway($gwId);
-                                if ($existing !== null) {
-                                    $configId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
-                                    $scopedConfigRepo->updateScoped($configId, [
-                                        'status' => 'active',
-                                    ]);
-                                } else {
-                                    $scopedConfigRepo->createScoped([
-                                        'merchant_id' => $brandId,
-                                        'gateway_id'  => $gwId,
-                                        'status'      => 'active',
-                                        'mode'        => 'sandbox',
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-                }
+        if ($instance !== null) {
+            $existingValues = $isGateway
+                ? $this->readGatewayCredentials($slug, $brandId ?? 0)
+                : (($brandId !== null && $brandId > 0)
+                    ? $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId)
+                    : $settingsRepo->getGroup("plugin.{$slug}"));
+            $missingFields = self::validateRequiredFields($instance, $settings, $existingValues);
+            if (!empty($missingFields)) {
+                $this->session->flashError('Missing required field(s): ' . implode(', ', $missingFields) . '.');
+                return Response::redirect("/admin/plugins/{$slug}/settings");
+            }
+        }
+
+        if ($brandId !== null && $brandId > 0) {
+            if ($isGateway) {
+                $this->saveGatewayCredentials($slug, $brandId, $settings, $passwordFields);
+            } else {
+                $this->mergeUnblankedPasswordFields($settings, $passwordFields, $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId));
+                $settingsRepo->bulkSetScoped("plugin.{$slug}", $settings, $brandId);
             }
         } else {
+            $this->mergeUnblankedPasswordFields($settings, $passwordFields, $settingsRepo->getGroup("plugin.{$slug}"));
             $settingsRepo->bulkSet("plugin.{$slug}", $settings);
         }
 
@@ -639,6 +609,245 @@ final class PluginController
 
         $this->session->flashSuccess('Settings saved.');
         return Response::redirect("/admin/plugins/{$slug}/settings");
+    }
+
+    /**
+     * Resolves a plugin's runtime instance, falling back to a fresh filesystem load if the
+     * plugin is registered in the database but not booted in the current request.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return PluginInterface|null The plugin instance, or null if it cannot be resolved.
+     */
+    private function resolvePluginInstance(string $slug): ?PluginInterface
+    {
+        $instance = $this->registry->get($slug);
+        if ($instance !== null) {
+            return $instance;
+        }
+
+        $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
+        if (!$loader instanceof \OwnPay\Plugin\PluginLoader) {
+            return null;
+        }
+        $manifests = $loader->discover();
+        $manifest = $manifests[$slug] ?? null;
+        if ($manifest === null) {
+            return null;
+        }
+        $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
+        if (!file_exists($entrypointFile)) {
+            return null;
+        }
+        require_once $entrypointFile;
+        $rawManifestJson = file_get_contents($manifest->path . '/manifest.json');
+        $rawManifest = json_decode(is_string($rawManifestJson) ? $rawManifestJson : '{}', true);
+        $rawManifest = is_array($rawManifest) ? $rawManifest : [];
+        if (!empty($rawManifest['namespace']) && is_string($rawManifest['namespace'])) {
+            $className = rtrim($rawManifest['namespace'], '\\') . '\\' . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
+        } else {
+            $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
+            $className = "OwnPay\\Plugins\\{$pascal}\\" . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
+        }
+        if (class_exists($className) && is_subclass_of($className, PluginInterface::class)) {
+            return new $className();
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the names of password-type settings fields a plugin declares.
+     *
+     * Used to keep secrets out of both persisted plaintext storage and rendered HTML.
+     *
+     * @param PluginInterface|null $instance The plugin instance, or null if unresolved.
+     * @return array<int, string> Field names declared with type 'password'.
+     */
+    private function passwordFieldNames(?PluginInterface $instance): array
+    {
+        if ($instance === null) {
+            return [];
+        }
+        $names = [];
+        foreach ($instance->fields() as $field) {
+            if ($field['type'] === 'password' && $field['name'] !== '') {
+                $names[] = $field['name'];
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * Server-side re-check of each field a plugin declares required - the HTML5
+     * `required` attribute SettingsRenderer renders only stops a normal browser
+     * submission, not a scripted/bypassed POST.
+     *
+     * @param PluginInterface $instance The plugin instance to validate against.
+     * @param array<string, mixed> $settings The submitted settings values.
+     * @param array<string, string> $existingValues Currently-stored values keyed by field name.
+     * @return array<int, string> Labels of any required fields that are missing.
+     */
+    private static function validateRequiredFields(PluginInterface $instance, array $settings, array $existingValues): array
+    {
+        $missing = [];
+        foreach ($instance->fields() as $field) {
+            if (($field['required'] ?? false) !== true) {
+                continue;
+            }
+            $name = $field['name'];
+            if ($name === '') {
+                continue;
+            }
+            $submitted = isset($settings[$name]) && is_scalar($settings[$name]) ? (string) $settings[$name] : '';
+            if ($submitted !== '') {
+                continue;
+            }
+            if ($field['type'] === 'password') {
+                $existing = $existingValues[$name] ?? '';
+                if ($existing !== '') {
+                    continue;
+                }
+            }
+            $label = ($field['label'] ?? '') !== '' ? $field['label'] : $name;
+            $missing[] = $label;
+        }
+        return $missing;
+    }
+
+    /**
+     * Restores a previously-saved value for any password-type field submitted blank.
+     *
+     * The settings form never round-trips a real secret into its HTML (see SettingsRenderer),
+     * so a blank password field on submit means "not changed", not "clear this value".
+     * Mutates $settings in place.
+     *
+     * @param array<string, mixed> $settings Submitted settings, modified in place.
+     * @param array<int, string> $passwordFields Field names declared with type 'password'.
+     * @param array<string, string> $existingValues Currently-stored values keyed by field name.
+     * @return void
+     */
+    private function mergeUnblankedPasswordFields(array &$settings, array $passwordFields, array $existingValues): void
+    {
+        foreach ($passwordFields as $name) {
+            $submitted = isset($settings[$name]) && is_scalar($settings[$name]) ? (string) $settings[$name] : '';
+            if ($submitted === '' && isset($existingValues[$name]) && $existingValues[$name] !== '') {
+                $settings[$name] = $existingValues[$name];
+            }
+        }
+    }
+
+    /**
+     * Decrypts the currently-stored credentials for a gateway-type plugin under a brand.
+     *
+     * Falls back to legacy plaintext plugin settings if no encrypted credentials exist yet
+     * (pre-migration data), matching GatewayBridge::decryptCredentials()'s own fallback.
+     *
+     * @param string $slug Gateway adapter slug.
+     * @param int $brandId Active brand/merchant ID.
+     * @return array<string, string> Decrypted credential key-value pairs.
+     */
+    private function readGatewayCredentials(string $slug, int $brandId): array
+    {
+        if ($brandId <= 0) {
+            return [];
+        }
+        $gwRepo = $this->c->get(GatewayRepository::class);
+        if (!$gwRepo instanceof GatewayRepository) {
+            return [];
+        }
+        $gw = $gwRepo->findBySlug($slug);
+        $gwId = is_numeric($gw['id'] ?? null) ? (int) $gw['id'] : 0;
+        if ($gwId <= 0) {
+            return [];
+        }
+        $gwConfigRepo = $this->c->get(GatewayConfigRepository::class);
+        if (!$gwConfigRepo instanceof GatewayConfigRepository) {
+            return [];
+        }
+        $existing = $gwConfigRepo->forTenant($brandId)->findForGateway($gwId);
+        $encCreds = is_scalar($existing['credentials_enc'] ?? null) ? (string) $existing['credentials_enc'] : '';
+        if ($encCreds === '') {
+            $settingsRepo = $this->c->get(SettingsRepository::class);
+            return $settingsRepo instanceof SettingsRepository
+                ? $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId)
+                : [];
+        }
+        $encryptor = $this->c->get(FieldEncryptor::class);
+        if (!$encryptor instanceof FieldEncryptor) {
+            return [];
+        }
+        $decoded = json_decode($encryptor->decrypt($encCreds), true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $result = [];
+        foreach ($decoded as $k => $v) {
+            if (is_string($k) && is_scalar($v)) {
+                $result[$k] = (string) $v;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Encrypts and persists submitted settings as a gateway's credentials_enc payload.
+     *
+     * Payment gateway credentials (API keys, secrets, usernames, passwords) are never written
+     * to plaintext op_system_settings - the full field set is encrypted together, mirroring
+     * DashboardController::setupOnboardingGateway()'s already-correct pattern.
+     *
+     * @param string $slug Gateway adapter slug.
+     * @param int $brandId Active brand/merchant ID.
+     * @param array<string, mixed> $settings Submitted settings fields.
+     * @param array<int, string> $passwordFields Field names declared with type 'password'.
+     * @return void
+     */
+    private function saveGatewayCredentials(string $slug, int $brandId, array $settings, array $passwordFields): void
+    {
+        $gwRepo = $this->c->get(GatewayRepository::class);
+        if (!$gwRepo instanceof GatewayRepository) {
+            return;
+        }
+        $gw = $gwRepo->findBySlug($slug);
+        $gwId = is_numeric($gw['id'] ?? null) ? (int) $gw['id'] : 0;
+        if ($gwId <= 0) {
+            return;
+        }
+        $gwConfigRepo = $this->c->get(GatewayConfigRepository::class);
+        if (!$gwConfigRepo instanceof GatewayConfigRepository) {
+            return;
+        }
+        $scopedConfigRepo = $gwConfigRepo->forTenant($brandId);
+        $existing = $scopedConfigRepo->findForGateway($gwId);
+
+        $existingCreds = $this->readGatewayCredentials($slug, $brandId);
+        $merged = $existingCreds;
+        foreach ($settings as $key => $value) {
+            $valueStr = is_scalar($value) ? (string) $value : '';
+            if ($valueStr === '' && in_array($key, $passwordFields, true)
+                && isset($existingCreds[$key]) && $existingCreds[$key] !== '') {
+                continue;
+            }
+            $merged[$key] = $valueStr;
+        }
+
+        $encryptor = $this->c->get(FieldEncryptor::class);
+        $encCreds = $encryptor instanceof FieldEncryptor ? $encryptor->encrypt(json_encode($merged) ?: '{}') : '';
+
+        if ($existing !== null) {
+            $configId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
+            $scopedConfigRepo->updateScoped($configId, [
+                'credentials_enc' => $encCreds,
+                'status'          => 'active',
+            ]);
+        } else {
+            $scopedConfigRepo->createScoped([
+                'merchant_id'     => $brandId,
+                'gateway_id'      => $gwId,
+                'credentials_enc' => $encCreds,
+                'status'          => 'active',
+                'mode'            => 'sandbox',
+            ]);
+        }
     }
 
     /**

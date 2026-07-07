@@ -4,7 +4,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
 
-    {% if config.timeoutEnabled|default(true) %}
+    {# Note: no |default(true) here - Twig's default() filter treats an explicit `false` as
+       "empty" and silently substitutes the fallback, which masked a genuinely-disabled timer
+       (config.timeoutEnabled is always set explicitly by the controller, never left unset). #}
+    {% if config.timeoutEnabled %}
     <div class="ck-timer" role="timer" aria-live="polite">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span id="timer" class="ck-timer-text">{{ '%02d'|format((config.timeoutRemaining ?? config.timeoutSeconds ?? 600) // 60) }}:{{ '%02d'|format((config.timeoutRemaining ?? config.timeoutSeconds ?? 600) % 60) }}</span>

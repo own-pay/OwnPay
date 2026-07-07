@@ -112,6 +112,15 @@ final class DashboardController
     public function index(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
+
+        $onboardingCheckRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+        if (!$onboardingCheckRepo instanceof \OwnPay\Repository\SettingsRepository) {
+            throw new \RuntimeException('SettingsRepository service unavailable');
+        }
+        if ((int) $onboardingCheckRepo->get('system', 'onboarding_completed', '0') === 0) {
+            return Response::redirect('/admin/setup-wizard');
+        }
+
         $range = $req->query('range', 'today');
 
         $dateFilter = match ($range) {
@@ -168,72 +177,6 @@ final class DashboardController
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         if (!$settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
             throw new \RuntimeException('SettingsRepository service unavailable');
-        }
-        $onboardingCompleted = (int) $settingsRepo->get('system', 'onboarding_completed', '0');
-
-        $currencies = [];
-        $timezones = [];
-        if ($onboardingCompleted === 0) {
-            $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
-            if (!$currencySvc instanceof \OwnPay\Service\Payment\CurrencyService) {
-                throw new \RuntimeException('CurrencyService unavailable');
-            }
-            $currencies = $currencySvc->listAll();
-            // TODO: Timezone will be dynamicly show from DB not hardcoded
-            $timezones = [
-                'UTC' => 'UTC (GMT+00:00)',
-
-                // Americas
-                'America/New_York' => 'New York (EST/EDT - GMT-05:00)',
-                'America/Chicago' => 'Chicago (CST/CDT - GMT-06:00)',
-                'America/Denver' => 'Denver (MST/MDT - GMT-07:00)',
-                'America/Phoenix' => 'Phoenix (MST - GMT-07:00)',
-                'America/Los_Angeles' => 'Los Angeles (PST/PDT - GMT-08:00)',
-                'America/Anchorage' => 'Anchorage (AKST/AKDT - GMT-09:00)',
-                'Pacific/Honolulu' => 'Honolulu (HST - GMT-10:00)',
-                'America/Sao_Paulo' => 'Sao Paulo (BRT - GMT-03:00)',
-                'America/Argentina/Buenos_Aires' => 'Buenos Aires (ART - GMT-03:00)',
-                'America/Mexico_City' => 'Mexico City (CST - GMT-06:00)',
-                'America/Toronto' => 'Toronto (EST/EDT - GMT-05:00)',
-
-                // Europe
-                'Europe/London' => 'London (GMT/BST - GMT+00:00)',
-                'Europe/Dublin' => 'Dublin (GMT/IST - GMT+00:00)',
-                'Europe/Paris' => 'Paris (CET/CEST - GMT+01:00)',
-                'Europe/Berlin' => 'Berlin (CET/CEST - GMT+01:00)',
-                'Europe/Rome' => 'Rome (CET/CEST - GMT+01:00)',
-                'Europe/Amsterdam' => 'Amsterdam (CET/CEST - GMT+01:00)',
-                'Europe/Athens' => 'Athens (EET/EEST - GMT+02:00)',
-                'Europe/Istanbul' => 'Istanbul (TRT - GMT+03:00)',
-                'Europe/Moscow' => 'Moscow (MSK - GMT+03:00)',
-
-                // Asia / Middle East
-                'Asia/Dubai' => 'Dubai (GST - GMT+04:00)',
-                'Asia/Karachi' => 'Karachi (PKT - GMT+05:00)',
-                'Asia/Kolkata' => 'Kolkata (IST - GMT+05:30)',
-                'Asia/Kathmandu' => 'Kathmandu (NPT - GMT+05:45)',
-                'Asia/Dhaka' => 'Dhaka (BST - GMT+06:00)',
-                'Asia/Bangkok' => 'Bangkok (ICT - GMT+07:00)',
-                'Asia/Singapore' => 'Singapore (SGT - GMT+08:00)',
-                'Asia/Hong_Kong' => 'Hong Kong (HKT - GMT+08:00)',
-                'Asia/Shanghai' => 'Shanghai (CST - GMT+08:00)',
-                'Asia/Tokyo' => 'Tokyo (JST - GMT+09:00)',
-                'Asia/Seoul' => 'Seoul (KST - GMT+09:00)',
-                'Asia/Jakarta' => 'Jakarta (WIB - GMT+07:00)',
-                'Asia/Manila' => 'Manila (PST - GMT+08:00)',
-
-                // Africa
-                'Africa/Cairo' => 'Cairo (EET/EEST - GMT+02:00)',
-                'Africa/Johannesburg' => 'Johannesburg (SAST - GMT+02:00)',
-                'Africa/Lagos' => 'Lagos (WAT - GMT+01:00)',
-
-                // Oceania
-                'Australia/Perth' => 'Perth (AWST - GMT+08:00)',
-                'Australia/Adelaide' => 'Adelaide (ACST/ACDT - GMT+09:30)',
-                'Australia/Sydney' => 'Sydney (AEST/AEDT - GMT+10:00)',
-                'Australia/Melbourne' => 'Melbourne (AEST/AEDT - GMT+10:00)',
-                'Pacific/Auckland' => 'Auckland (NZST/NZDT - GMT+12:00)',
-            ];
         }
 
         $statsArray = is_array($stats) ? $stats : [];
@@ -491,9 +434,6 @@ final class DashboardController
             'active_page'          => 'dashboard',
             'is_global_view'       => $isGlobal,
             'brand_breakdown'      => $brandBreakdown,
-            'onboarding_completed' => $onboardingCompleted,
-            'currencies'           => $currencies,
-            'timezones'            => $timezones,
             'payment_intents'      => $intentsList,
         ]);
     }
@@ -720,6 +660,53 @@ final class DashboardController
     }
 
     /**
+     * Renders the dedicated full-screen onboarding wizard, or redirects to
+     * the dashboard if onboarding is already complete.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The wizard page, or a redirect.
+     */
+    public function setupWizard(Request $req): Response
+    {
+        $this->brand->resolveFromRequest($req);
+
+        /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
+        $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+        if ((int) $settingsRepo->get('system', 'onboarding_completed', '0') === 1) {
+            return Response::redirect('/admin');
+        }
+
+        /** @var \OwnPay\Repository\MerchantRepository $merchantRepo */
+        $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
+        $existingBrand = $merchantRepo->findFirst();
+
+        /** @var \OwnPay\Service\Payment\CurrencyService $currencySvc */
+        $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+        $currencies = $currencySvc->listAll();
+
+        $timezones = [
+            'UTC' => 'UTC (GMT+00:00)',
+            'America/New_York' => 'New York (EST/EDT - GMT-05:00)',
+            'America/Chicago' => 'Chicago (CST/CDT - GMT-06:00)',
+            'America/Denver' => 'Denver (MST/MDT - GMT-07:00)',
+            'America/Los_Angeles' => 'Los Angeles (PST/PDT - GMT-08:00)',
+            'Europe/London' => 'London (GMT/BST - GMT+00:00)',
+            'Europe/Berlin' => 'Berlin (CET/CEST - GMT+01:00)',
+            'Asia/Dhaka' => 'Dhaka (BST - GMT+06:00)',
+            'Asia/Kolkata' => 'Kolkata (IST - GMT+05:30)',
+            'Asia/Singapore' => 'Singapore (SGT - GMT+08:00)',
+            'Australia/Sydney' => 'Sydney (AEST/AEDT - GMT+10:00)',
+        ];
+
+        return $this->renderAdminPage('admin/setup-wizard/index.twig', [
+            'active_page'    => 'setup-wizard',
+            'currencies'     => $currencies,
+            'timezones'      => $timezones,
+            'existing_brand' => $existingBrand,
+        ]);
+    }
+
+    /**
      * Step 1: Saves platform settings from onboarding wizard.
      *
      * @param Request $req The incoming HTTP request.
@@ -746,6 +733,28 @@ final class DashboardController
         $requirePhone = (is_string($reqPhoneVal) && $reqPhoneVal === '1') ? '1' : '0';
         $landingEnabledVal = $data['landing_page_enabled'] ?? '0';
         $landingPageEnabled = (is_string($landingEnabledVal) && $landingEnabledVal === '1') ? '1' : '0';
+
+        $skip = ($data['skip'] ?? '0') === '1';
+        if ($skip) {
+            /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
+            $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+            $appConfig = $this->c->get('config.app');
+            $defaultName = is_array($appConfig) && isset($appConfig['name']) && is_string($appConfig['name']) ? $appConfig['name'] : 'OwnPay';
+
+            $settingsRepo->set('general', 'app_name', $defaultName);
+            $settingsRepo->set('general', 'site_name', $defaultName);
+            $settingsRepo->set('branding', 'site_name', $defaultName);
+            $settingsRepo->set('general', 'timezone', 'UTC');
+            $settingsRepo->set('general', 'default_timezone', 'UTC');
+            $settingsRepo->set('general', 'currency', 'USD');
+            $settingsRepo->set('general', 'base_currency', 'USD');
+            $settingsRepo->set('general', 'default_currency', 'USD');
+            $settingsRepo->set('general', 'landing_page_enabled', '1');
+            $settingsRepo->set('checkout', 'timer_seconds', '600');
+            $settingsRepo->set('checkout', 'require_customer_phone', '0');
+
+            return Response::json(['success' => true, 'skipped' => true]);
+        }
 
         if ($siteName === '' || $timezone === '' || $currency === '') {
             return Response::json(['success' => false, 'error' => 'System name, currency, and timezone are required.']);
@@ -802,33 +811,56 @@ final class DashboardController
 
         /** @var \OwnPay\Repository\MerchantRepository $merchantRepo */
         $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
-        $slug = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $brandName)));
-        if ($slug === '') {
-            $slug = 'brand';
-        }
-        $existing = $merchantRepo->findBySlug($slug);
-        if ($existing) {
-            $slug .= '-' . random_int(100, 999);
-        }
 
-        $brandId = $merchantRepo->createMerchant([
-            'name'             => $brandName,
-            'slug'             => $slug,
-            'email'            => $brandEmail,
-            'phone'            => $brandPhone,
-            'default_currency' => $brandCurrency,
-            'timezone'         => $brandTimezone,
-            'status'           => 'active',
-            'settings'         => json_encode([
-                'primary_color'   => '#6366f1',
-                'accent_color'    => '#4f46e5',
-                'support_email'   => $brandEmail,
-                'footer_text'     => '© ' . date('Y') . ' ' . $brandName,
-                'show_powered_by' => true
-            ])
-        ]);
+        // If any brand already exists, this is a resumed/abandoned wizard
+        // session (system.onboarding_completed is still 0) - configure that
+        // existing brand instead of creating a duplicate. This assumes
+        // single-tenant onboarding (the first/only brand row is the one
+        // being configured); a future multi-brand-during-onboarding flow
+        // would need a different signal than "any row exists".
+        $existingBrand = $merchantRepo->findFirst();
 
-        $brandIdInt = (int) $brandId;
+        if ($existingBrand !== null) {
+            $brandIdVal = $existingBrand['id'] ?? 0;
+            $brandIdInt = (is_int($brandIdVal) || is_string($brandIdVal)) ? (int) $brandIdVal : 0;
+            $merchantRepo->updateBrand($brandIdInt, [
+                'name'             => $brandName,
+                'email'            => $brandEmail,
+                'phone'            => $brandPhone,
+                'default_currency' => $brandCurrency,
+                'timezone'         => $brandTimezone,
+                'status'           => $existingBrand['status'],
+                'settings'         => $existingBrand['settings'],
+                'logo_path'        => $existingBrand['logo_path'],
+            ]);
+        } else {
+            $slug = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $brandName)));
+            if ($slug === '') {
+                $slug = 'brand';
+            }
+            $slugTaken = $merchantRepo->findBySlug($slug);
+            if ($slugTaken) {
+                $slug .= '-' . random_int(100, 999);
+            }
+
+            $brandId = $merchantRepo->createMerchant([
+                'name'             => $brandName,
+                'slug'             => $slug,
+                'email'            => $brandEmail,
+                'phone'            => $brandPhone,
+                'default_currency' => $brandCurrency,
+                'timezone'         => $brandTimezone,
+                'status'           => 'active',
+                'settings'         => json_encode([
+                    'primary_color'   => '#6366f1',
+                    'accent_color'    => '#4f46e5',
+                    'support_email'   => $brandEmail,
+                    'footer_text'     => '© ' . date('Y') . ' ' . $brandName,
+                    'show_powered_by' => true
+                ])
+            ]);
+            $brandIdInt = (int) $brandId;
+        }
         // Auto-scope superadmin session to this new brand
         $_SESSION['active_brand_id'] = $brandIdInt;
         $_SESSION['auth_merchant_id'] = $brandIdInt;
@@ -964,6 +996,13 @@ final class DashboardController
     public function setupOnboardingGateway(Request $req): Response
     {
         $data = $req->all();
+
+        // Skipping intentionally leaves no gateway configured; completeOnboarding() does not require one.
+        $skip = ($data['skip'] ?? '0') === '1';
+        if ($skip) {
+            return Response::json(['success' => true, 'skipped' => true]);
+        }
+
         $brandIdVal = $data['brand_id'] ?? 0;
         $brandId = is_int($brandIdVal) || is_string($brandIdVal) ? (int)$brandIdVal : 0;
         $gatewayTypeVal = $data['gateway_type'] ?? '';
@@ -1115,6 +1154,13 @@ final class DashboardController
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         $settingsRepo->set('system', 'onboarding_completed', '1');
 
+        // Land on the platform-wide All Brands view right after onboarding,
+        // rather than staying auto-scoped into the brand just configured.
+        // Pair with setActiveBrandId(0), matching BrandController::switchBrand()'s
+        // global-view pattern, so the session isn't left pointing at a stale brand id.
+        $this->brand->setGlobalView(true);
+        $this->brand->setActiveBrandId(0);
+
         return Response::json(['success' => true]);
     }
 
@@ -1129,6 +1175,9 @@ final class DashboardController
         /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         $settingsRepo->set('system', 'onboarding_completed', '1');
+
+        $this->brand->setGlobalView(true);
+        $this->brand->setActiveBrandId(0);
 
         return Response::json(['success' => true]);
     }

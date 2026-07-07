@@ -7,6 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\WebhookRepository;
 use OwnPay\Repository\CommLogRepository;
 use OwnPay\Repository\WebhookEventRepository;
+use OwnPay\Support\Version;
 
 /**
  * Service managing outbound webhook notifications dispatched to merchant API endpoints.
@@ -117,14 +118,28 @@ final class WebhookService
 
         $start = microtime(true);
 
-        // SSRF check
-        if ($url === '' || !$this->isUrlSafe($url)) {
+        // SSRF check. A plain "is this hostname currently public?" check alone only proves that
+        // at check-time (TOCTOU) - cURL re-resolves the hostname itself when it actually connects,
+        // seconds later, which a short-TTL DNS-rebinding attacker can answer differently
+        // (e.g. 169.254.169.254 or 127.0.0.1). resolveSafeWebhookIp() re-validates and returns
+        // the exact IP to pin the connection to via CURLOPT_RESOLVE below, closing that gap -
+        // the same mechanism WebhookDispatcher::doSend() already uses for outbound notifications.
+        $pinnedIp = ($url !== '') ? \OwnPay\Security\UrlValidator::resolveSafeWebhookIp($url) : null;
+        if ($pinnedIp === null) {
             $this->events->doAction('webhook.delivery.failed', $webhook, 'SSRF blocked');
             if ($eventId !== null) {
                 $this->webhookEvents->logDelivery($eventId, null, null, 0, 'SSRF blocked');
                 $this->webhookEvents->updateRetryState($eventId, 'failed', 1, null); // SSRF block is immediately dead-lettered/quarantined
             }
             return false;
+        }
+
+        $urlHost = '';
+        $urlPort = 443;
+        $parsedUrl = parse_url($url);
+        if (is_array($parsedUrl)) {
+            $urlHost = isset($parsedUrl['host']) ? (string) $parsedUrl['host'] : '';
+            $urlPort = isset($parsedUrl['port']) ? (int) $parsedUrl['port'] : (($parsedUrl['scheme'] ?? '') === 'http' ? 80 : 443);
         }
 
         $encoded = json_encode([
@@ -160,7 +175,7 @@ final class WebhookService
 
         try {
             $ch = curl_init($url);
-            curl_setopt_array($ch, [
+            $curlOptions = [
                 CURLOPT_POST           => true,
                 CURLOPT_POSTFIELDS     => $body,
                 CURLOPT_RETURNTRANSFER => true,
@@ -171,10 +186,15 @@ final class WebhookService
                     'X-Signature: sha256=' . $signature,
                     'X-Timestamp: ' . (string) time(),
                     'X-Event: ' . $eventType,
-                    'User-Agent: OwnPay-Webhook/0.1.0',
+                    'User-Agent: OwnPay-Webhook/' . Version::CURRENT,
                 ],
                 CURLOPT_FOLLOWLOCATION => false,
-            ]);
+            ];
+            // Pin host -> validated public IP (TLS SNI/cert validation still uses the hostname).
+            if ($urlHost !== '') {
+                $curlOptions[CURLOPT_RESOLVE] = ["{$urlHost}:{$urlPort}:{$pinnedIp}"];
+            }
+            curl_setopt_array($ch, $curlOptions);
 
             $response = curl_exec($ch);
             $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -273,14 +293,4 @@ final class WebhookService
         }
     }
 
-    /**
-     * Prevents SSRF attacks by checking the webhook URL format and domain/IP destination.
-     *
-     * @param string $url The target delivery URL.
-     * @return bool True if the target URL is approved for outgoing requests, false if blocked.
-     */
-    private function isUrlSafe(string $url): bool
-    {
-        return \OwnPay\Security\UrlValidator::isValidWebhookUrl($url);
-    }
 }

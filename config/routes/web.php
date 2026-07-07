@@ -91,6 +91,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // ─── Admin Panel (SPA-style AJAX fragments :D) ────────────────
     $router->get('/admin', 'Admin\\DashboardController@index', 'admin');
+    $router->get('/admin/setup-wizard', 'Admin\\DashboardController@setupWizard', 'admin');
     $router->get('/admin/contributors', 'Admin\\ContributorController@index', 'admin');
 
     // Onboarding Setup Wizard <!-- note: Need to improve it. Contributor are welcome -->
@@ -256,6 +257,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/api-keys', 'Admin\\ApiKeyController@index', 'admin');
     $router->post('/admin/api-keys/generate', 'Admin\\ApiKeyController@generate', 'admin');
     $router->post('/admin/api-keys/{id}/revoke', 'Admin\\ApiKeyController@revoke', 'admin');
+    $router->post('/admin/api-keys/{id}/lock', 'Admin\\ApiKeyController@lock', 'admin');
+    $router->post('/admin/api-keys/{id}/unlock', 'Admin\\ApiKeyController@unlock', 'admin');
 
     // Developer Hub
     $router->get('/admin/developer', 'Admin\\DeveloperController@index', 'admin');
@@ -309,6 +312,9 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/themes/upload', 'Admin\\ThemeController@upload', 'admin');
     $router->post('/admin/themes/{slug}/activate', 'Admin\\ThemeController@activate', 'admin');
     $router->post('/admin/themes/{slug}/uninstall', 'Admin\\ThemeController@uninstall', 'admin');
+
+    $router->get('/admin/appearance', 'Admin\\ThemeController@brandAppearance', 'admin');
+    $router->post('/admin/appearance/theme', 'Admin\\ThemeController@saveBrandTheme', 'admin');
 
     // System Update
     $router->get('/admin/system-update', 'Admin\\SystemUpdateController@index', 'admin');
