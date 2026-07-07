@@ -36,7 +36,7 @@
             </button>
         </div>
 
-        {% include 'admin/domains/_manage-panel.twig' with { d: d, csrf_token: csrf_token, server_ip: server_ip } %}
+        {% include 'admin/domains/_manage-panel.twig' with {d: d, csrf_token: csrf_token, server_ip: server_ip} %}
     </div>
 {% else %}
     <div class="op-empty op-card op-p-6">No custom domains added yet. Click <strong>"+ Add Domain"</strong> above to get started.</div>
