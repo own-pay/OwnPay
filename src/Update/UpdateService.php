@@ -353,6 +353,9 @@ EOT;
 
             $this->backup->cleanup(5);
 
+            $this->log("Step 11: Running post-update optimization");
+            $this->optimize();
+
             return ['success' => true];
 
         } catch (\Throwable $e) {
@@ -619,6 +622,55 @@ EOT;
         }
 
         return $executed;
+    }
+
+    /**
+     * Days of log history to keep during post-update optimization.
+     */
+    private const LOG_RETENTION_DAYS = 30;
+
+    /**
+     * Runs safe, non-destructive housekeeping after a successful update: purges
+     * log files older than LOG_RETENTION_DAYS. Compiled Twig/cache cleanup already
+     * happened in Step 8 before the health check ran, so it isn't repeated here.
+     * Only ever runs after completeUpdate() has already been recorded, so a
+     * failed/rolled-back update never loses logs it might still need for diagnosis.
+     *
+     * @return void
+     */
+    protected function optimize(): void
+    {
+        $this->purgeOldLogs(self::LOG_RETENTION_DAYS);
+    }
+
+    /**
+     * Deletes log files under storage/logs/ whose last-modified time is older
+     * than the given retention window. Safe because Logger opens, appends, and
+     * closes each log file per write (no persistent file handle to invalidate).
+     *
+     * @param int $days Retention window in days; files older than this are removed.
+     * @param string|null $logsDir Override directory (defaults to the real storage/logs).
+     * @return void
+     */
+    protected function purgeOldLogs(int $days, ?string $logsDir = null): void
+    {
+        $logsDir ??= dirname(__DIR__, 2) . '/storage/logs';
+        if (!is_dir($logsDir)) {
+            return;
+        }
+
+        $cutoff = time() - ($days * 86400);
+        $files = glob($logsDir . '/*.log');
+
+        foreach ($files ?: [] as $file) {
+            if (!is_file($file)) {
+                continue;
+            }
+            $mtime = filemtime($file);
+            if ($mtime !== false && $mtime < $cutoff) {
+                @unlink($file);
+            }
+        }
     }
 
     /**
