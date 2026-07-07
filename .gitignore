@@ -87,5 +87,5 @@ phpunit_output.txt
 .phpunit.result.cache
 .gitignore
 install.sh
-update/
+/update/
 .superpowers/
