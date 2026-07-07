@@ -5,13 +5,14 @@ export default [
   // Global ignores (applies to all files and blocks)
   {
     ignores: [
-      "node_modules/**/*",
-      "vendor/**/*",
+      "**/node_modules/**",
+      "**/vendor/**",
       "composer.lock",
       "package-lock.json",
       "graphify-out/**/*",
       "update/**/*",
-      "mobile_app/**/*",
+      "mobile-app/**/*",
+      "landing_page/**/*",
       "cli/**/*",
       "scratch/**/*",
       ".antigravitycli/**/*",
