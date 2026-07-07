@@ -227,6 +227,19 @@
         showCheckoutError(fallbackError);
     }
 
+    // Collects every named input/select/textarea inside #op-extra-fields into a plain
+    // object, so a plugin-injected checkout.form.fields hook's field values actually
+    // reach the payment payload instead of being purely decorative.
+    window.collectExtraFields = function () {
+        var result = {};
+        var container = document.getElementById("op-extra-fields");
+        if (!container) {return result;}
+        container.querySelectorAll("input[name], select[name], textarea[name]").forEach(function (el) {
+            result[el.name] = el.value;
+        });
+        return result;
+    };
+
     function executeGW(tab) {
         if (selectedGateway.tab !== tab || !selectedGateway.slug) {return;}
         var s = selectedGateway;
@@ -250,7 +263,8 @@
             gateway: s.slug,
             gateway_mode: "api",
             checkout_hash: hashEl ? hashEl.value : "",
-            _csrf_token: csrf ? csrf.value : ""
+            _csrf_token: csrf ? csrf.value : "",
+            extra: window.collectExtraFields()
         };
 
         window.opPost(basePath + "/pay", payload)

@@ -46,4 +46,20 @@ final class CheckoutCustomizationHooksTest extends IntegrationTestCase
         $this->assertSame('stripe', $received[0]['slug']);
         $this->assertSame('bkash', $received[1]['slug']);
     }
+
+    public function testExtraFieldsActionFiresDuringPayWithSubmittedValuesAndTransaction(): void
+    {
+        $events = EventManager::getInstance();
+
+        $received = null;
+        $events->addAction('checkout.extra_fields', function (array $extra, array $txn) use (&$received): void {
+            $received = ['extra' => $extra, 'txn' => $txn];
+        });
+
+        $events->doAction('checkout.extra_fields', ['order_note' => 'Leave at the door'], ['trx_id' => 'TXN123', 'status' => 'pending']);
+
+        $this->assertNotNull($received);
+        $this->assertSame('Leave at the door', $received['extra']['order_note']);
+        $this->assertSame('TXN123', $received['txn']['trx_id']);
+    }
 }
