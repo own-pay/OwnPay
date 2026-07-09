@@ -37,19 +37,23 @@ document.addEventListener("DOMContentLoaded", function() {
         var paymentId = wrapper.getAttribute("data-payment-id");
         var status = wrapper.getAttribute("data-status");
 
-        // Refuses javascript:/data:/vbscript: (and any other non-http(s)) URL schemes. The server
-        // already rejects non-http(s) redirect_url values at intent creation, but this stays the
-        // last line of defense before the value drives href/location.href navigation targets.
-        var hasSafeUrlScheme = function (url) {
-            if (!url) { return false; }
-            var schemeMatch = url.trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
-            return !schemeMatch || schemeMatch[1].toLowerCase() === "http" || schemeMatch[1].toLowerCase() === "https";
-        };
+        var finalUrl = "";
+        try {
+            if (redirectUrl) {
+                // Parse and resolve against origin to handle both relative and absolute URLs.
+                var parsedUrl = new URL(redirectUrl, window.location.origin);
+                // Enforce safe URL schemes (http: and https: only).
+                if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+                    parsedUrl.searchParams.set("payment_id", paymentId || "");
+                    parsedUrl.searchParams.set("status", status || "");
+                    finalUrl = parsedUrl.href;
+                }
+            }
+        } catch {
+            // Invalid URL - fallback to empty (fail closed)
+        }
 
-        if (redirectUrl && hasSafeUrlScheme(redirectUrl)) {
-            // Construct target URL with query parameters
-            var separator = redirectUrl.indexOf("?") !== -1 ? "&" : "?";
-            var finalUrl = redirectUrl + separator + "payment_id=" + encodeURIComponent(paymentId) + "&status=" + encodeURIComponent(status);
+        if (finalUrl !== "") {
 
             // Update all return/merchant links on the page for instant access
             var returnBtns = document.querySelectorAll('a[href="/"], .st-btn');

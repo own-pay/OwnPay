@@ -76,6 +76,12 @@
     if (typeof basePath !== "string" || !basePath.startsWith("/")) {
         basePath = "/checkout/" + (cfg.txnRef || "");
     }
+    try {
+        // Extract the pathname strictly (e.g. /checkout/123) to prevent scheme/protocol injection XSS.
+        basePath = new URL(basePath, window.location.origin).pathname;
+    } catch {
+        basePath = "/checkout/" + (cfg.txnRef || "");
+    }
 
     // ---------- TIMER ----------
     var TIMER_URGENCY_THRESHOLD_SEC = 60; // Show urgent style when less than 60 seconds remain

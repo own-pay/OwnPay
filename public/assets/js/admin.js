@@ -899,7 +899,12 @@
         var nameEl = document.getElementById("delete-item-name");
         var modal = document.getElementById("confirm-delete-modal");
         if (form && nameEl && modal && typeof action === "string" && action.startsWith("/") && !hasUnsafeUrlScheme(action)) {
-            form.action = action;
+            try {
+                // Enforce strict pathname formatting to prevent scheme/protocol injection XSS.
+                form.action = new URL(action, window.location.origin).pathname;
+            } catch {
+                return;
+            }
             nameEl.textContent = itemName;
             modal.hidden = false;
         }
