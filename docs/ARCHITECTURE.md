@@ -63,7 +63,7 @@ If the app isn't installed yet, all requests redirect to `/install`. Error and m
 
 ## 3. Directory map
 
-```
+```text
 ownpay/
 ├── public/            # Web root — index.php + static assets (only PHP file here)
 ├── src/               # All application code (PSR-4: OwnPay\ → src/)
