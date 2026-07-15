@@ -73,7 +73,7 @@
 
 ## <a id="what-is-ownpay"></a>💎 What is OwnPay?
 
-**OwnPay** is an enterprise-grade, self-hosted payment gateway automation platform. It is built for developers, entrepreneurs, and businesses who want absolute sovereignty over their payment infrastructure, customer data, and transaction flows without paying middleman fees or relying on third-party SaaS platforms.
+**OwnPay** is an enterprise-grade, open-source, self-hosted payment gateway automation platform. It is built for developers, entrepreneurs, and businesses who want absolute sovereignty over their payment infrastructure, customer data, and transaction flows without paying middleman fees or relying on third-party SaaS platforms.
 
 With native support for over 120+ payment gateways, a secure double-entry ledger database, white-labeled multi-brand management, and a sandboxed plugin engine, OwnPay gives you the power of a commercial payment gateway on your own private server.
 
