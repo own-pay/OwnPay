@@ -2,7 +2,9 @@
 # It automatically triggers the documentation sync in own-pay/ownpay-docs whenever
 # synced files change in the main codebase's main branch.
 name: Notify Docs Sync Reference Template
-
+permissions:
+  contents: read
+  pull-requests: write
 on:
   push:
     branches: [main]
