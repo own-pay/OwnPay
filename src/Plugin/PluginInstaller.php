@@ -239,12 +239,36 @@ final class PluginInstaller
                     'error'            => "Plugin '{$manifest->slug}' already installed."
                 ];
             }
+
+            // Bug #10 fix: Preserve plugin storage directory across updates
+            $storageBackup = null;
+            $storageDir = $targetDir . '/storage';
+            if (is_dir($storageDir)) {
+                $storageBackup = sys_get_temp_dir() . '/op_storage_backup_' . $manifest->slug . '_' . bin2hex(random_bytes(4));
+                $this->copyDir($storageDir, $storageBackup);
+            }
+
             $this->removeDir($targetDir);
+
+            // Restore storage after removal
+            if ($storageBackup !== null && is_dir($storageBackup)) {
+                // The new plugin dir will be created below by rename/copyDir
+                // We'll restore storage after deployment
+            }
+        } else {
+            $storageBackup = null;
         }
 
         $pluginDir = $manifest->path;
         if (!rename($pluginDir, $targetDir)) {
             $this->copyDir($pluginDir, $targetDir);
+        }
+
+        // Bug #10 fix: Restore preserved storage after deployment
+        if (isset($storageBackup) && $storageBackup !== null && is_dir($storageBackup)) {
+            $newStorageDir = $targetDir . '/storage';
+            $this->copyDir($storageBackup, $newStorageDir);
+            $this->removeDir($storageBackup);
         }
 
         return ['success' => true, 'slug' => $manifest->slug];

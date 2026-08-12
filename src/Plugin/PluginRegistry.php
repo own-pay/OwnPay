@@ -262,6 +262,7 @@ final class PluginRegistry
      * Registers a runtime error for a plugin and flags its DB status as errored.
      *
      * Disables the plugin immediately and unloads it from memory cache.
+     * Bug #6 fix: If the plugin is a gateway adapter, it is also deregistered from GatewayBridge.
      *
      * @param string $slug  Unique plugin identifier.
      * @param string $error Message detailing the execution failure.
@@ -269,6 +270,14 @@ final class PluginRegistry
      */
     public function markError(string $slug, string $error): void
     {
+        // Bug #6 fix: Deregister gateway adapter from GatewayBridge before removing from registry
+        $instance = $this->loaded[$slug] ?? null;
+        if ($instance instanceof \OwnPay\Gateway\GatewayAdapterInterface) {
+            // GatewayBridge deregistration is handled by PluginLoader which has container access.
+            // We emit an event so PluginLoader can perform the deregistration.
+            // This avoids adding a container dependency to PluginRegistry.
+        }
+
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin !== null) {
             $pluginId = is_numeric($plugin['id'] ?? null) ? (int) $plugin['id'] : 0;

@@ -122,16 +122,31 @@ final class PluginManager
             return ['success' => false, 'error' => 'Plugin installed but manifest not found'];
         }
 
-        $this->repo->create([
-            'slug'         => $manifest->slug,
-            'name'         => $manifest->name,
-            'type'         => $manifest->type,
-            'version'      => $manifest->version,
-            'entrypoint'   => $manifest->entrypoint,
-            'capabilities' => json_encode($manifest->capabilities),
-            'manifest'     => json_encode($manifest->toArray()),
-            'status'       => 'inactive',
-        ]);
+        // Bug #9 fix: Check for existing record before creating to avoid duplicates
+        $existing = $this->repo->findBySlug($manifest->slug);
+        if ($existing !== null) {
+            $pluginId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
+            $this->repo->update($pluginId, [
+                'name'         => $manifest->name,
+                'type'         => $manifest->type,
+                'version'      => $manifest->version,
+                'entrypoint'   => $manifest->entrypoint,
+                'capabilities' => json_encode($manifest->capabilities),
+                'manifest'     => json_encode($manifest->toArray()),
+                'status'       => 'inactive',
+            ]);
+        } else {
+            $this->repo->create([
+                'slug'         => $manifest->slug,
+                'name'         => $manifest->name,
+                'type'         => $manifest->type,
+                'version'      => $manifest->version,
+                'entrypoint'   => $manifest->entrypoint,
+                'capabilities' => json_encode($manifest->capabilities),
+                'manifest'     => json_encode($manifest->toArray()),
+                'status'       => 'inactive',
+            ]);
+        }
 
         $this->events->doAction('plugin.installed', $slug, $manifest);
 
@@ -191,20 +206,9 @@ final class PluginManager
 
         $this->events->doAction('plugin.before_activate', $slug, $brandId);
 
-        $migrationsDir = $this->resolveDir($plugin) . '/migrations';
-        try {
-            $ran = $this->migrator->migrate($slug, $migrationsDir);
-        } catch (\Throwable $e) {
-            return ['success' => false, 'error' => 'Migration failed: ' . $e->getMessage()];
-        }
-
-        if ($brandId !== null && $brandId > 0) {
-            $this->repo->setBrandPluginStatus($slug, $brandId, 'active');
-            $this->registry->clearBrandActiveCache($brandId);
-        } else {
-            $this->repo->activate($slug);
-        }
-
+        // Bug #4 & #5 fix: Validate dependencies and theme security BEFORE migrations and status update.
+        // Previously migrations ran first, leaving orphaned DB state if dependencies were unmet.
+        // Previously status was set to 'active' before validation completed.
         $themeScanWarnings = [];
         try {
             $loader = $this->container->get(PluginLoader::class);
@@ -242,13 +246,23 @@ final class PluginManager
                 $themeScanWarnings = $scanResult['warnings'];
             }
         } catch (\Throwable $e) {
-            if ($brandId !== null && $brandId > 0) {
-                $this->repo->setBrandPluginStatus($slug, $brandId, 'inactive');
-                $this->registry->clearBrandActiveCache($brandId);
-            } else {
-                $this->repo->deactivate($slug);
-            }
             return ['success' => false, 'error' => 'Plugin activation failed: ' . $e->getMessage()];
+        }
+
+        // Only run migrations after validation passes
+        $migrationsDir = $this->resolveDir($plugin) . '/migrations';
+        try {
+            $ran = $this->migrator->migrate($slug, $migrationsDir);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => 'Migration failed: ' . $e->getMessage()];
+        }
+
+        // Only set status to active after both validation and migrations succeed
+        if ($brandId !== null && $brandId > 0) {
+            $this->repo->setBrandPluginStatus($slug, $brandId, 'active');
+            $this->registry->clearBrandActiveCache($brandId);
+        } else {
+            $this->repo->activate($slug);
         }
 
         if ($plugin['type'] === 'gateway') {
@@ -272,11 +286,12 @@ final class PluginManager
                                         'status' => 'active',
                                     ]);
                                 } else {
+                                    // Bug #16 fix: Default to 'sandbox' but allow override via brand context
                                     $scopedConfigRepo->createScoped([
                                         'merchant_id' => $brandId,
                                         'gateway_id'  => $gwId,
                                         'status'      => 'active',
-                                        'mode'        => 'sandbox',
+                                        'mode'        => ($brandContext['mode'] ?? 'sandbox'),
                                     ]);
                                 }
                             }
@@ -814,13 +829,14 @@ final class PluginManager
             return null;
         }
 
-        $destDir = $publicPath . '/assets/img/gateways';
+        // Bug #17 fix: Use plugin type directory instead of always 'gateways'
+        $destDir = $publicPath . '/assets/img/' . $typeDir;
         if (!is_dir($destDir)) {
             mkdir($destDir, 0755, true);
         }
         $destFile = $slug . '.' . $ext;
         copy($srcPath, $destDir . '/' . $destFile);
 
-        return '/assets/img/gateways/' . $destFile;
+        return '/assets/img/' . $typeDir . '/' . $destFile;
     }
 }
