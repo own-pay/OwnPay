@@ -10,8 +10,8 @@ parameters:
         
     excludePaths:
         analyse:
-        - vendor
-        - node_modules (?)
+            - vendor
+            - node_modules (?)
     ignoreErrors:
         - '#Constant OWNPAY_INIT not found.#'
         

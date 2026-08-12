@@ -35,6 +35,13 @@ final class PluginLoader
     private array $pluginNamespaces = [];
 
     /**
+     * Bug #12 fix: Tracks which plugins have already been booted to prevent double-booting.
+     *
+     * @var array<string, bool>
+     */
+    private array $booted = [];
+
+    /**
      * Initialize the PluginLoader service.
      *
      * @param \OwnPay\Container $container The application's DI container.
@@ -114,17 +121,11 @@ final class PluginLoader
      */
     public function boot(): void
     {
-        try {
-            $db = $this->container->get(\OwnPay\Core\Database::class);
-            if ($db instanceof \OwnPay\Core\Database) {
-                $col = $db->fetchOne("SHOW COLUMNS FROM op_plugins LIKE 'status'");
-                if (is_array($col) && isset($col['Type']) && is_string($col['Type']) && !str_contains($col['Type'], 'trashed')) {
-                    $db->execute("ALTER TABLE op_plugins MODIFY COLUMN status ENUM('active','inactive','error','trashed') NOT NULL DEFAULT 'inactive'");
-                }
-            }
-        } catch (\Throwable $e) {
-            // Ignore if DB is not ready or setup yet (e.g. installer phase)
-        }
+        // Bug #7 fix: Removed ALTER TABLE on every request.
+        // Schema migrations (like adding 'trashed' to the status ENUM) should only run
+        // during application install/upgrade scripts, not on every HTTP request.
+        // The previous code ran SHOW COLUMNS + ALTER TABLE on every boot, causing
+        // unnecessary DDL operations and potential table lock contention.
 
         $this->loadActive();
     }
@@ -164,6 +165,7 @@ final class PluginLoader
             $this->loadPlugin($pluginData);
         } catch (\Throwable $e) {
             $this->registry->markError($slug, $e->getMessage());
+            $this->deregisterGatewayOnError($slug);
             $this->events->doAction('plugin.load_error', $slug, $e);
             return false;
         }
@@ -184,23 +186,33 @@ final class PluginLoader
 
         $activePlugins = $this->registry->getActive();
 
-        foreach ($activePlugins as $pluginData) {
+        // Bug #11 fix: Sort plugins by dependencies before loading (topological order)
+        $sortedPlugins = $this->sortByDependencies($activePlugins);
+
+        foreach ($sortedPlugins as $pluginData) {
             $slug = is_string($pluginData['slug'] ?? null) ? $pluginData['slug'] : '';
             try {
                 $this->loadPlugin($pluginData);
             } catch (\Throwable $e) {
                 // Mark plugin as errored, don't crash app
                 $this->registry->markError($slug, $e->getMessage());
+                $this->deregisterGatewayOnError($slug);
                 $this->events->doAction('plugin.load_error', $slug, $e);
             }
         }
 
         // Boot phase - all plugins registered, now boot
+        // Bug #12 fix: Skip plugins that have already been booted
         foreach ($this->registry->getLoaded() as $slug => $instance) {
+            if (isset($this->booted[$slug])) {
+                continue;
+            }
             try {
                 $instance->boot($this->container);
+                $this->booted[$slug] = true;
             } catch (\Throwable $e) {
                 $this->registry->markError($slug, 'Boot failed: ' . $e->getMessage());
+                $this->deregisterGatewayOnError($slug);
                 $this->events->doAction('plugin.boot_error', $slug, $e);
             }
         }
@@ -506,9 +518,101 @@ final class PluginLoader
             if ($realFile !== $realBase && !str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
                 continue;
             }
-            require $file;
+            require_once $file;
             return;
         }
+    }
+
+    /**
+     * Bug #6 fix: Deregister a gateway adapter from GatewayBridge when it errors.
+     *
+     * Called after markError() to ensure failed gateways don't receive payment routing.
+     *
+     * @param string $slug The plugin slug that errored.
+     * @return void
+     */
+    private function deregisterGatewayOnError(string $slug): void
+    {
+        if (!$this->container->has(\OwnPay\Gateway\GatewayBridge::class)) {
+            return;
+        }
+        $bridge = $this->container->get(\OwnPay\Gateway\GatewayBridge::class);
+        if (!$bridge instanceof \OwnPay\Gateway\GatewayBridge) {
+            return;
+        }
+        $instance = $this->registry->get($slug);
+        if ($instance instanceof \OwnPay\Gateway\GatewayAdapterInterface) {
+            $bridge->unregisterAdapter($instance);
+        }
+    }
+
+    /**
+     * Bug #11 fix: Sort plugins by their declared dependencies using topological sort.
+     *
+     * Plugins with no dependencies (or whose dependencies are not in the active set) load first.
+     * Then plugins whose dependencies are already satisfied. If a circular dependency is
+     * detected, the remaining plugins are loaded in their original order.
+     *
+     * @param array<int, array<string, mixed>> $plugins List of active plugin data records.
+     * @return array<int, array<string, mixed>> Sorted list in dependency-safe loading order.
+     */
+    private function sortByDependencies(array $plugins): array
+    {
+        if (count($plugins) <= 1) {
+            return $plugins;
+        }
+
+        // Build slug-indexed map
+        $bySlug = [];
+        foreach ($plugins as $p) {
+            $slug = is_string($p['slug'] ?? null) ? $p['slug'] : '';
+            if ($slug !== '') {
+                $bySlug[$slug] = $p;
+            }
+        }
+
+        // Topological sort (Kahn's algorithm)
+        $sorted = [];
+        $loadedSlugs = [];
+        $remaining = $bySlug;
+
+        while (!empty($remaining)) {
+            $progress = false;
+            foreach ($remaining as $slug => $p) {
+                // Extract dependencies from the manifest JSON stored in the DB record
+                $manifestData = json_decode(is_string($p['manifest'] ?? null) ? $p['manifest'] : '{}', true);
+                $deps = is_array($manifestData) ? ($manifestData['dependencies'] ?? []) : [];
+                if (!is_array($deps)) {
+                    $deps = [];
+                }
+
+                // Check if all dependencies (that are in the active set) are already loaded
+                $allDepsSatisfied = true;
+                foreach ($deps as $depSlug) {
+                    if (is_string($depSlug) && isset($bySlug[$depSlug]) && !isset($loadedSlugs[$depSlug])) {
+                        $allDepsSatisfied = false;
+                        break;
+                    }
+                }
+
+                if ($allDepsSatisfied) {
+                    $sorted[] = $p;
+                    $loadedSlugs[$slug] = true;
+                    unset($remaining[$slug]);
+                    $progress = true;
+                }
+            }
+
+            if (!$progress) {
+                // Circular dependency detected — load remaining in original order
+                foreach ($remaining as $p) {
+                    $sorted[] = $p;
+                }
+                break;
+            }
+        }
+
+        return $sorted;
     }
 
     /**
