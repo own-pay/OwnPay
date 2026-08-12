@@ -140,7 +140,7 @@ final class WebhookDispatcher
         $intent = null;
         if ($intentId !== null && $intentId > 0) {
             $intent = $this->db->fetchOne(
-                "SELECT amount, currency FROM op_payment_intents WHERE id = :id LIMIT 1",
+                "SELECT uuid, amount, currency FROM op_payment_intents WHERE id = :id LIMIT 1",
                 ['id' => $intentId]
             );
         }
@@ -166,8 +166,23 @@ final class WebhookDispatcher
             }
         }
 
+        // Resolve the payment intent UUID (issue #54/#59). Merchants receive the
+        // UUID when they create a payment intent via POST /api/v1/payments, so
+        // including it in the webhook payload lets them correlate the event back
+        // to the original intent without an extra API call. We prefer the
+        // explicitly-passed payment_id (set by callers that already have it),
+        // then fall back to the intent row's uuid column.
+        $paymentId = '';
+        $paymentIdVal = $data['payment_id'] ?? null;
+        if (is_string($paymentIdVal) && $paymentIdVal !== '') {
+            $paymentId = $paymentIdVal;
+        } elseif (is_array($intent) && isset($intent['uuid']) && is_string($intent['uuid'])) {
+            $paymentId = $intent['uuid'];
+        }
+
         return [
             'event'          => $event,
+            'payment_id'     => $paymentId,
             'transaction_id' => $data['transaction_id'] ?? '',
             'gateway_trx_id' => $gatewayTrxId,
             'amount'         => $amount,

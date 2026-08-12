@@ -27,8 +27,8 @@ final class TransactionRepository extends BaseRepository
     protected array $fillable = [
         'merchant_id', 'uuid', 'trx_id', 'payment_intent_id', 'customer_id',
         'gateway_slug', 'amount', 'fee', 'net_amount', 'currency',
-        'sender_account', 'reference', 'gateway_trx_id', 'ip_address', 'method',
-        'status', 'metadata', 'completed_at',
+        'sender_account', 'reference', 'gateway_trx_id', 'provider_trx_id',
+        'ip_address', 'method', 'status', 'metadata', 'completed_at',
     ];
 
     /**
@@ -902,11 +902,33 @@ final class TransactionRepository extends BaseRepository
             );
         }
 
+        // Ambiguity guard for the null-timestamp branch (issue #64).
+        // Previously this branch returned ORDER BY created_at DESC LIMIT 1, which
+        // silently auto-completed the most recent pending transaction when
+        // multiple candidates shared the same amount and gateway. That is money-
+        // unsafe: the wrong customer's payment could be marked complete. We now
+        // refuse to auto-match when more than one candidate exists, mirroring the
+        // timestamped branch's "exactly one candidate" rule. A single candidate
+        // still matches so the legitimate unambiguous case continues to work.
+        $sqlCount = "SELECT COUNT(*) FROM {$this->table}
+                     WHERE merchant_id = :mid AND status = 'pending'
+                       AND amount = :amt AND gateway_slug = :gw";
+        $countVal = $this->db->fetchColumn($sqlCount, [
+            'mid' => $merchantId,
+            'amt' => $amount,
+            'gw'  => $gatewaySlug,
+        ]);
+        $count = is_scalar($countVal) ? (int) $countVal : 0;
+
+        if ($count !== 1) {
+            return null;
+        }
+
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table}
              WHERE merchant_id = :mid AND status = 'pending'
                AND amount = :amt AND gateway_slug = :gw
-             ORDER BY created_at DESC LIMIT 1",
+             LIMIT 1",
             ['mid' => $merchantId, 'amt' => $amount, 'gw' => $gatewaySlug]
         );
     }
@@ -955,11 +977,27 @@ final class TransactionRepository extends BaseRepository
             );
         }
 
+        // Ambiguity guard for the null-timestamp branch (issue #64).
+        // Mirrors the scoped findPendingMatch fix: refuse to auto-match when
+        // more than one candidate exists. See findPendingMatch for rationale.
+        $sqlCount = "SELECT COUNT(*) FROM {$this->table}
+                     WHERE status = 'pending'
+                       AND amount = :amt AND gateway_slug = :gw";
+        $countVal = $this->db->fetchColumn($sqlCount, [
+            'amt' => $amount,
+            'gw'  => $gatewaySlug,
+        ]);
+        $count = is_scalar($countVal) ? (int) $countVal : 0;
+
+        if ($count !== 1) {
+            return null;
+        }
+
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table}
              WHERE status = 'pending'
                AND amount = :amt AND gateway_slug = :gw
-             ORDER BY created_at DESC LIMIT 1",
+             LIMIT 1",
             ['amt' => $amount, 'gw' => $gatewaySlug]
         );
     }

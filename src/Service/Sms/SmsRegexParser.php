@@ -163,7 +163,46 @@ final class SmsRegexParser
     }
 
     /**
+     * Tests a raw regex fragment against a sample SMS body using the same
+     * safety and normalization the production parser applies (issue #67).
+     *
+     * Administrators use this through the regex tester AJAX endpoint. Routing
+     * the test through this method guarantees the preview reflects what the
+     * real parser will do: the pattern is normalized via ensureDelimiters()
+     * (so undelimited fragments pick up the production `/i` modifier) and
+     * the match runs under the bounded backtracking budget so a pathological
+     * pattern cannot hang an admin worker.
+     *
+     * @param string $regex Raw regex fragment as authored by the admin.
+     * @param string $smsBody Sample SMS body to test against.
+     * @return array{matched: bool, match: string|null, full: array<int|string, string>} Test result.
+     */
+    public function testPattern(string $regex, string $smsBody): array
+    {
+        $pattern = $this->ensureDelimiters($regex);
+        if ($pattern === '' || @preg_match($pattern, '') === false) {
+            return ['matched' => false, 'match' => null, 'full' => []];
+        }
+
+        $matches = [];
+        $matched = $this->safeMatch($pattern, $smsBody, $matches);
+
+        $match = $matches[1] ?? $matches[0] ?? null;
+
+        return [
+            'matched' => $matched,
+            'match'   => is_string($match) ? $match : null,
+            'full'    => $matches,
+        ];
+    }
+
+    /**
      * Enforces valid pattern delimiters on raw regular expression inputs.
+     *
+     * When the admin supplies an already-delimited pattern (e.g. `/foo/u`), it
+     * is returned as-is so the original modifiers - including `/u` for Bengali
+     * text - are preserved. Undelimited fragments are wrapped with `/.../i` to
+     * mirror the historical case-insensitive behaviour the parser relied on.
      *
      * @param string $regex The regex under validation.
      * @return string The normalized regular expression with standard delimiters.

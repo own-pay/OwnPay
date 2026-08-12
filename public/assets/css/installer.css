@@ -107,6 +107,21 @@ body {
     letter-spacing: -0.3px;
 }
 
+/* --- Logo theme visibility (issue #40) ---
+   Two <img> elements are emitted (light + dark variants) so the right logo
+   for the active theme is shown without a flash of the wrong variant on
+   first paint. Only one is ever visible; the other is hidden via these
+   rules driven by the data-theme attribute on <html>. */
+.op-logo-dark {
+    display: none;
+}
+[data-theme="dark"] .op-logo-light {
+    display: none;
+}
+[data-theme="dark"] .op-logo-dark {
+    display: inline-block;
+}
+
 .ins-name span {
     color: var(--op-text-muted);
     font-weight: 400;
@@ -798,6 +813,44 @@ body {
 
     .ins-steps {
         gap: 4px;
+    }
+
+    /* Issue #40: shrink the connector lines on small screens so the four-step
+       indicator fits without horizontal scrolling. The number circles still
+       show, giving users a clear sense of progress without overflowing the
+       viewport or producing a horizontal scrollbar. */
+    .ins-step-line {
+        width: 12px;
+    }
+
+    .ins-step {
+        padding: 4px 6px;
+    }
+
+    .ins-step-num {
+        width: 20px;
+        height: 20px;
+        font-size: 11px;
+    }
+}
+
+/* Extra-small screens (<= 360px): collapse the step indicator to just the
+   active step number to guarantee no horizontal scroll on compact phones.
+   The active step's label is shown inline so the user still knows which
+   step they are on. */
+@media (max-width: 360px) {
+    .ins-steps {
+        /* Hide all steps except the active one. */
+        gap: 0;
+    }
+    .ins-step:not(.active) {
+        display: none;
+    }
+    .ins-step.active span:not(.ins-step-num) {
+        display: inline;
+    }
+    .ins-step-line {
+        display: none;
     }
 }
 

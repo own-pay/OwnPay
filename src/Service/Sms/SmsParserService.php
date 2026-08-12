@@ -186,7 +186,14 @@ final class SmsParserService
             return $this->makeResult($localId, 'rejected', null, 'MISSING_FIELDS');
         }
 
-        if ($this->dataRepo->isDuplicate($deviceUuid, $sender, $receivedAt)) {
+        // Use the encrypted payload hash as a content fingerprint so two distinct
+        // SMS arriving in the same second from the same sender are not deduped
+        // (issue #63). The encrypted envelope includes a random IV, so two
+        // different plaintexts produce different ciphertexts and therefore
+        // different fingerprints; a replay of the same payload still matches.
+        $contentFingerprint = md5($encrypted);
+
+        if ($this->dataRepo->isDuplicate($deviceUuid, $sender, $receivedAt, $contentFingerprint)) {
             return $this->makeResult($localId, 'duplicate');
         }
 

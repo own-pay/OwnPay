@@ -254,7 +254,13 @@ PROMPT;
     /**
      * Validates SMS sender against whitelist rules.
      *
-     * Performs strict, case-sensitive string matching against values.
+     * Matching is **case-insensitive**: carriers send the same alpha sender id
+     * with inconsistent casing ("bKash" / "bkash" / "BKASH"), and the rest of
+     * the pipeline already normalizes for this (see
+     * {@see \OwnPay\Repository\SmsTemplateRepository::findBySender()} which
+     * uses `LOWER(...) = LOWER(...)`). A case-sensitive check here would tell
+     * an admin building a template that a sender is not whitelisted when the
+     * real production pipeline would have matched it fine (issue #68).
      *
      * @param string $sender The sender identity under validation.
      * @return bool True if permitted or if whitelist configurations are empty.
@@ -264,17 +270,40 @@ PROMPT;
         if (empty($this->senderWhitelist)) {
             return true;
         }
-        return in_array($sender, $this->senderWhitelist, strict: true);
+        $senderLower = mb_strtolower($sender, 'UTF-8');
+        foreach ($this->senderWhitelist as $allowed) {
+            if (mb_strtolower((string) $allowed, 'UTF-8') === $senderLower) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * Sanitizes regex patterns for display suggestions.
      *
+     * Strips the outer delimiters and the case-insensitive `/i` modifier (which
+     * the production parser auto-applies to undelimited fragments via
+     * {@see \OwnPay\Service\Sms\SmsRegexParser::ensureDelimiters()}) so the
+     * suggested fragment does not carry redundant flags. The Unicode `/u`
+     * modifier is preserved (issue #69) because ensureDelimiters() does NOT
+     * re-add it, and several built-in patterns rely on it for Bengali text
+     * (the ৳ symbol and Bengali keywords). Dropping it here would silently
+     * downgrade Unicode-aware matching once the suggestion is saved.
+     *
      * @param string $pattern The raw regex string.
-     * @return string Sanitized regex representation without outer delimiters or modifiers.
+     * @return string Sanitized regex representation without outer delimiters, retaining /u when present.
      */
     private function patternToSuggestion(string $pattern): string
     {
-        return (string) preg_replace('/^\/(.*)\/[a-z]*$/u', '$1', $pattern);
+        // Capture the trailing modifier list (everything after the closing delimiter).
+        if (preg_match('/^\/.*\/([a-z]*)$/isu', $pattern, $m)) {
+            $modifiers = $m[1];
+            $keepU = str_contains($modifiers, 'u') ? 'u' : '';
+        } else {
+            $keepU = '';
+        }
+        $body = (string) preg_replace('/^\/(.*)\/[a-z]*$/u', '$1', $pattern);
+        return $keepU !== '' ? $body . $keepU : $body;
     }
 }

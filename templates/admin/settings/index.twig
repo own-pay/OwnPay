@@ -795,6 +795,20 @@
                         <small class="op-text-muted">Default: 600 (10 minutes). Range: 60–3600 seconds.</small>
                     </div>
                 </div>
+
+                {# Issue #71: Auto-redirect to merchant after successful payment.
+                   When enabled, the success/invoice screen is bypassed and the
+                   customer is redirected to the merchant return URL immediately
+                   after payment confirmation. Reduces missed callbacks when
+                   customers close the tab thinking the payment is complete. #}
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="auto_redirect_to_merchant" value="1" {{ (checkout_settings.auto_redirect_to_merchant ?? '0') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Auto-redirect to Merchant After Payment</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">When active, the success screen is bypassed and the customer is redirected to the merchant return URL immediately after payment confirmation. Disable to show the invoice/receipt screen with a manual return button.</small>
+                </div>
             </div>
         </div>
 

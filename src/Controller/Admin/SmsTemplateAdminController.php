@@ -6,6 +6,7 @@ namespace OwnPay\Controller\Admin;
 use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Sms\SmartSmsAnalyzer;
+use OwnPay\Service\Sms\SmsRegexParser;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\SmsTemplateRepository;
@@ -187,15 +188,21 @@ final class SmsTemplateAdminController
         $statusVal = $data['status'] ?? 'active';
         $status = is_string($statusVal) ? $statusVal : 'active';
 
-        $this->tplRepo->createTemplate($mid, [
-            'gateway_slug'   => $gatewaySlug,
-            'sender_pattern' => $senderPattern,
-            'amount_regex'   => $amountRegex,
-            'trx_id_regex'   => $trxIdRegex,
-            'sender_regex'   => $senderRegex,
-            'priority'       => $priority,
-            'status'         => $status,
-        ]);
+        try {
+            $this->tplRepo->createTemplate($mid, [
+                'gateway_slug'   => $gatewaySlug,
+                'sender_pattern' => $senderPattern,
+                'amount_regex'   => $amountRegex,
+                'trx_id_regex'   => $trxIdRegex,
+                'sender_regex'   => $senderRegex,
+                'priority'       => $priority,
+                'status'         => $status,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            // Regex syntax validation rejected the payload (issue #66).
+            $this->session->flashError($e->getMessage());
+            return Response::redirect('/admin/sms-center');
+        }
 
         $this->session->flashSuccess('Parsing template created.');
         return Response::redirect('/admin/sms-center');
@@ -247,15 +254,21 @@ final class SmsTemplateAdminController
             $statusVal = $data['status'] ?? 'active';
             $status = is_string($statusVal) ? $statusVal : 'active';
 
-            $this->tplRepo->updateTemplate($id, $mid, [
-                'gateway_slug'   => $gatewaySlug,
-                'sender_pattern' => $senderPattern,
-                'amount_regex'   => $amountRegex,
-                'trx_id_regex'   => $trxIdRegex,
-                'sender_regex'   => $senderRegex,
-                'priority'       => $priority,
-                'status'         => $status,
-            ]);
+            try {
+                $this->tplRepo->updateTemplate($id, $mid, [
+                    'gateway_slug'   => $gatewaySlug,
+                    'sender_pattern' => $senderPattern,
+                    'amount_regex'   => $amountRegex,
+                    'trx_id_regex'   => $trxIdRegex,
+                    'sender_regex'   => $senderRegex,
+                    'priority'       => $priority,
+                    'status'         => $status,
+                ]);
+            } catch (\InvalidArgumentException $e) {
+                // Regex syntax validation rejected the payload (issue #66).
+                $this->session->flashError($e->getMessage());
+                return Response::redirect('/admin/sms-center');
+            }
 
             $this->session->flashSuccess('Template updated.');
             return Response::redirect('/admin/sms-center');
@@ -306,36 +319,52 @@ final class SmsTemplateAdminController
     /**
      * Live regex test endpoint (AJAX).
      *
+     * Accepts both JSON and form-urlencoded payloads (issue #65) so the admin
+     * JS callers (`sms-center.js`, `sms-template-edit.js`) work regardless of
+     * the Content-Type they send. The match itself is delegated to
+     * {@see SmsRegexParser::testPattern()} so the preview reflects exactly
+     * what the production parser will do, including the bounded backtracking
+     * budget and the case-insensitive `/i` modifier applied to undelimited
+     * fragments (issue #67).
+     *
      * @param Request $req The incoming HTTP request.
      * @return Response The JSON response with match results.
      */
     public function testRegex(Request $req): Response
     {
-        $smsBodyRaw  = $req->post('sms_body', '');
+        // Use input() so JSON bodies are read correctly; falls back to POST
+        // form fields for legacy callers (issue #65).
+        $smsBodyRaw  = $req->input('sms_body', '');
         $smsBody = is_string($smsBodyRaw) ? $smsBodyRaw : '';
-        $regexRaw    = $req->post('regex', '');
+        $regexRaw    = $req->input('regex', '');
         $regex = is_string($regexRaw) ? $regexRaw : '';
-        $fieldRaw    = $req->post('field', 'amount'); // amount, trx_id, sender
+        $fieldRaw    = $req->input('field', 'amount'); // amount, trx_id, sender
         $field = is_string($fieldRaw) ? $fieldRaw : 'amount';
 
-        if (empty($regex) || empty($smsBody)) {
+        if ($regex === '' || $smsBody === '') {
             return Response::json(['success' => false, 'error' => 'Both SMS body and regex required.']);
         }
 
-        // Validate regex is safe
-        if (@preg_match('/' . $regex . '/', '') === false) {
+        $parser = new SmsRegexParser();
+        $result = $parser->testPattern($regex, $smsBody);
+
+        // testPattern returns matched=false for syntactically invalid patterns;
+        // surface that explicitly so the admin sees a distinct error message
+        // rather than a silent "no match".
+        $wrappedPattern = '/' . str_replace('/', '\\/', $regex) . '/';
+        if ($result['match'] === null && @preg_match($wrappedPattern, '') === false && @preg_match($regex, '') === false) {
+            // Pattern is invalid when neither the wrapped nor raw form parses.
+            // We rely on the wrapped check first because the raw regex may
+            // already include its own delimiters.
             return Response::json(['success' => false, 'error' => 'Invalid regex pattern.']);
         }
 
-        $matches = [];
-        $found = preg_match('/' . $regex . '/', $smsBody, $matches);
-
         return Response::json([
             'success'  => true,
-            'matched'  => (bool) $found,
+            'matched'  => $result['matched'],
             'field'    => $field,
-            'match'    => $matches[1] ?? ($matches[0] ?? null),
-            'full'     => $matches,
+            'match'    => $result['match'],
+            'full'     => $result['full'],
         ]);
     }
 
@@ -439,15 +468,21 @@ final class SmsTemplateAdminController
         $priorityVal = $data['priority'] ?? 10;
         $priority = is_scalar($priorityVal) && is_numeric($priorityVal) ? (int) $priorityVal : 10;
 
-        $this->tplRepo->createTemplate($mid, [
-            'gateway_slug'   => $gatewaySlug,
-            'sender_pattern' => $senderPattern,
-            'amount_regex'   => $amountRegex,
-            'trx_id_regex'   => $trxIdRegex,
-            'sender_regex'   => $senderRegex,
-            'priority'       => $priority,
-            'status'         => 'active',
-        ]);
+        try {
+            $this->tplRepo->createTemplate($mid, [
+                'gateway_slug'   => $gatewaySlug,
+                'sender_pattern' => $senderPattern,
+                'amount_regex'   => $amountRegex,
+                'trx_id_regex'   => $trxIdRegex,
+                'sender_regex'   => $senderRegex,
+                'priority'       => $priority,
+                'status'         => 'active',
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            // Regex syntax validation rejected the payload (issue #66).
+            $this->session->flashError($e->getMessage());
+            return Response::redirect('/admin/sms-center');
+        }
 
         $this->session->flashSuccess("Template for '{$gatewaySlug}' saved from analysis");
         return Response::redirect('/admin/sms-center');

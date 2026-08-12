@@ -127,6 +127,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/disputes', 'Admin\\DisputeController@index', 'admin');
     $router->get('/admin/disputes/{id}', 'Admin\\DisputeController@show', 'admin');
     $router->post('/admin/disputes/{id}/resolve', 'Admin\\DisputeController@resolve', 'admin');
+    // Open a new dispute against a transaction (issue #61 - reachable create path).
+    $router->post('/admin/disputes/create', 'Admin\\DisputeController@create', 'admin');
 
     // Payment Links
     $router->get('/admin/payment-links', 'Admin\\PaymentLinkController@index', 'admin');

@@ -363,6 +363,33 @@ final class CheckoutController
             }
         }
 
+        // Issue #71: auto-redirect to merchant after successful payment.
+        // When the brand setting is enabled, expose the merchant return URL
+        // so the checkout-status template can run the same countdown + redirect
+        // flow the PaymentIntent path already uses. The return URL is sourced
+        // from the transaction metadata (return_url/merchant_url/redirect_url)
+        // so per-payment merchant overrides win over a brand-wide default.
+        $merchantRedirectUrl = '';
+        $autoRedirect = false;
+        if (is_array($txn) && ($status === 'success' || $status === 'completed')) {
+            $autoRedirectVal = $this->settings->get('checkout', 'auto_redirect_to_merchant', '0');
+            $autoRedirect = is_string($autoRedirectVal) && $autoRedirectVal === '1';
+            if ($autoRedirect) {
+                $metaRaw = $txn['metadata'] ?? '{}';
+                $metaStr = is_string($metaRaw) ? $metaRaw : '{}';
+                $meta = json_decode($metaStr, true);
+                $meta = is_array($meta) ? $meta : [];
+                $candidateKeys = ['return_url', 'merchant_url', 'redirect_url', 'success_url'];
+                foreach ($candidateKeys as $key) {
+                    $val = $meta[$key] ?? null;
+                    if (is_string($val) && $val !== '') {
+                        $merchantRedirectUrl = $val;
+                        break;
+                    }
+                }
+            }
+        }
+
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         $brandId = $mid > 0 ? $mid : null;
@@ -376,6 +403,11 @@ final class CheckoutController
                 'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
                 'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
+            // Pass through the auto-redirect signals so the shared status
+            // template's countdown block runs for classic-checkout success
+            // when the merchant has enabled the toggle.
+            'auto_redirect'        => $autoRedirect,
+            'merchant_redirect_url' => $merchantRedirectUrl,
         ]);
     }
 
@@ -579,16 +611,27 @@ final class CheckoutController
             // otherwise an arbitrary client-supplied string gets stored as gateway_slug.
             $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
             $activeManualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
-            $isActiveManual = false;
+            $selectedGw = null;
             foreach ($activeManualGateways as $gw) {
                 if (($gw['slug'] ?? '') === $gateway) {
-                    $isActiveManual = true;
+                    $selectedGw = $gw;
                     break;
                 }
             }
-            if (!$isActiveManual) {
+            if ($selectedGw === null) {
                 if ($req->isAjax()) {
                     return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+                }
+                return $this->renderStatus($token, 'expired');
+            }
+
+            // Enforce configured min_amount / max_amount limits (issue #57).
+            // Limits are stored as bcmath strings; comparison must use bccomp,
+            // never float math, to preserve financial correctness.
+            $limitError = $this->validateManualGatewayAmount($selectedGw, $txnAmount);
+            if ($limitError !== null) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => $limitError], 422);
                 }
                 return $this->renderStatus($token, 'expired');
             }
@@ -890,8 +933,11 @@ final class CheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
+        $senderNumberRaw = $req->input('sender_number', '');
+        $senderNumber = is_string($senderNumberRaw) ? trim($senderNumberRaw) : '';
+
         $verifyData = [
-            'sender_number'  => $req->input('sender_number', ''),
+            'sender_number'  => $senderNumber,
             'transaction_id' => $req->input('transaction_id', ''),
             'submitted_at'   => DateHelper::now(),
         ];
@@ -910,6 +956,18 @@ final class CheckoutController
         $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
 
         $this->txnRepo->setStatusWithMeta($txnId, 'pending_review', $existingMeta, $merchantId);
+
+        // Persist the customer-supplied sender number into the dedicated
+        // op_transactions.sender_account column (issue #56). The metadata write
+        // above keeps the historical audit trail; this column write makes the
+        // value visible to the admin transaction detail UI, the notification
+        // bell, and downstream consumers that read sender_account directly
+        // instead of digging through metadata.verification.sender_number.
+        if ($senderNumber !== '') {
+            $this->txnRepo->forTenant($merchantId)->updateScoped($txnId, [
+                'sender_account' => $senderNumber,
+            ]);
+        }
 
         $this->events->doAction('checkout.manual_verify.submitted', $txn, $verifyData);
 
@@ -1092,5 +1150,48 @@ final class CheckoutController
             'success' => false,
             'error'   => 'Payment service is not configured.',
         ], 500);
+    }
+
+    /**
+     * Validates a transaction amount against a manual gateway's configured limits.
+     *
+     * Manual gateway min_amount/max_amount are persisted in admin but were never
+     * enforced at checkout (issue #57). Returns a human-readable error string
+     * when the amount is outside the configured range, or null when the amount
+     * is acceptable (or when the gateway has no limits configured).
+     *
+     * Comparisons use bccomp with 2-decimal precision to preserve financial
+     * correctness; float math is forbidden for money per the project conventions.
+     *
+     * @param array<string, mixed> $gateway The manual gateway row, including min_amount/max_amount.
+     * @param string $amount The transaction amount as a numeric string.
+     * @return string|null Error message when out of range, null when acceptable.
+     */
+    private function validateManualGatewayAmount(array $gateway, string $amount): ?string
+    {
+        if (!is_numeric($amount)) {
+            return 'Invalid amount.';
+        }
+
+        $minRaw = $gateway['min_amount'] ?? '0';
+        $minAmount = (is_string($minRaw) || is_int($minRaw) || is_float($minRaw)) ? (string) $minRaw : '0';
+        if (!is_numeric($minAmount)) {
+            $minAmount = '0';
+        }
+
+        $maxRaw = $gateway['max_amount'] ?? '0';
+        $maxAmount = (is_string($maxRaw) || is_int($maxRaw) || is_float($maxRaw)) ? (string) $maxRaw : '0';
+        if (!is_numeric($maxAmount)) {
+            $maxAmount = '0';
+        }
+
+        if (bccomp($minAmount, '0', 2) > 0 && bccomp($amount, $minAmount, 2) < 0) {
+            return "Amount must be at least {$minAmount}.";
+        }
+        if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amount, $maxAmount, 2) > 0) {
+            return "Amount must not exceed {$maxAmount}.";
+        }
+
+        return null;
     }
 }

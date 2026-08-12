@@ -241,6 +241,11 @@ final class GatewayApiService
                         $feeVal = $transaction['fee'] ?? '0.00';
                         $cur = $transaction['currency'] ?? 'BDT';
                         if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
+                            // Persist the gateway/provider transaction reference so SMS auto-verification
+                            // can use exact trx_id matching (issue #62). The verification payload from
+                            // the gateway adapter carries the canonical provider-side reference.
+                            $this->persistProviderTrxId((int) $txnId, $merchantId, $gwTrxId, $transaction);
+
                             $this->transactions->complete((int) $txnId, $merchantId);
 
                             // Record in ledger
@@ -331,6 +336,38 @@ final class GatewayApiService
             return true;
         }
         return ($transaction['gateway_slug'] ?? null) === $gatewaySlug;
+    }
+
+    /**
+     * Persists the gateway-supplied transaction reference into op_transactions.provider_trx_id
+     * when it is not already populated.
+     *
+     * The column is the canonical source for exact-trx_id matching in SmsVerificationJob.
+     * We avoid overwriting an existing non-empty value to preserve the first authoritative
+     * reference (replays from gateways occasionally send a different format) and skip the
+     * write entirely when the candidate is empty or already matches the stored value, so
+     * the common path incurs no extra query.
+     *
+     * @param int $transactionId The transaction primary key.
+     * @param int $merchantId The merchant/brand scope.
+     * @param mixed $gatewayTrxId The gateway-side transaction reference returned by verification.
+     * @param array<string, mixed> $transaction The locked transaction row, used to skip redundant writes.
+     */
+    private function persistProviderTrxId(int $transactionId, int $merchantId, mixed $gatewayTrxId, array $transaction): void
+    {
+        if (!is_string($gatewayTrxId) || $gatewayTrxId === '') {
+            return;
+        }
+        $existing = $transaction['provider_trx_id'] ?? null;
+        if (is_string($existing) && $existing !== '') {
+            return;
+        }
+        $db = \OwnPay\Core\Database::getInstance();
+        $db->execute(
+            'UPDATE op_transactions SET provider_trx_id = :ptid
+             WHERE id = :id AND merchant_id = :mid AND (provider_trx_id IS NULL OR provider_trx_id = \'\')',
+            ['ptid' => $gatewayTrxId, 'id' => $transactionId, 'mid' => $merchantId]
+        );
     }
 
     /**

@@ -72,6 +72,23 @@ final class DomainMiddleware
             $domain = $colonPos !== false ? substr($host, 0, $colonPos) : $host;
         }
 
+        // Normalize the domain for case-insensitive, IDN-safe matching
+        // (issues #74/#80). DNS is case-insensitive by spec, so we lowercase
+        // before lookup; otherwise a customer typing `Brand.com` would get a
+        // 404 even though `brand.com` is configured. When the intl extension
+        // is available we also convert IDN unicode (e.g. `bränd.com`) to its
+        // ASCII punycode form (`xn--brnd-5na.com`) so the same configured
+        // record matches both representations. intl is optional - when it is
+        // missing, only the case-normalization runs, which still closes the
+        // most common mismatch.
+        $domain = mb_strtolower($domain, 'UTF-8');
+        if (function_exists('idn_to_ascii')) {
+            $converted = @idn_to_ascii($domain, IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46);
+            if (is_string($converted) && $converted !== '') {
+                $domain = $converted;
+            }
+        }
+
         // Compare normalized hostname against the resolved system-wide master domain and localhost.
         // Standard admin panel routes are directly processed without mapping tenant scopes.
         $masterDomain = $this->resolveMasterDomain();
@@ -208,7 +225,7 @@ final class DomainMiddleware
         $appDomainVal = $_ENV['APP_DOMAIN'] ?? $_SERVER['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
         $appDomain = is_string($appDomainVal) ? $appDomainVal : '';
         if ($appDomain !== '') {
-            return $appDomain;
+            return mb_strtolower($appDomain, 'UTF-8');
         }
 
         // Step 2: Extract host section from the APP_URL environment variable.
@@ -217,7 +234,7 @@ final class DomainMiddleware
         if ($appUrl !== '') {
             $parsed = parse_url($appUrl, PHP_URL_HOST);
             if (is_string($parsed)) {
-                return $parsed;
+                return mb_strtolower($parsed, 'UTF-8');
             }
         }
 
