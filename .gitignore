@@ -4,6 +4,7 @@
 
 # --------------- Dependencies ---------------
 /node_modules/
+/vendor/php-parallel-lint/
 
 # --------------- Environment ---------------
 .env
