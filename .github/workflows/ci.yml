@@ -61,6 +61,19 @@ jobs:
   phpunit:
     name: PHPUnit Tests
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ownpay_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@v6
 
@@ -72,6 +85,11 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Initialize test database
+        run: |
+          mysql -h 127.0.0.1 -u root -proot ownpay_test < database/schema.sql
+        continue-on-error: true
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --colors=always

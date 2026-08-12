@@ -158,7 +158,40 @@ final class PluginInstaller
             $zip->close();
             return $this->fail('Failed to create temp directory');
         }
-        $zip->extractTo($tempDir);
+
+        // Extract files individually, normalizing Windows-style backslash
+        // separators to forward slashes so directories are created correctly
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $rawName = $zip->getNameIndex($i);
+            if ($rawName === false) continue;
+
+            $normalizedName = str_replace('\\', '/', $rawName);
+            $targetPath = $tempDir . '/' . $normalizedName;
+
+            // Skip directory entries — mkdir will create them below
+            if (str_ends_with($normalizedName, '/')) {
+                @mkdir($targetPath, 0755, true);
+                continue;
+            }
+
+            // Ensure parent directory exists
+            $parentDir = dirname($targetPath);
+            if (!is_dir($parentDir)) {
+                @mkdir($parentDir, 0755, true);
+            }
+
+            // Extract the file content and write to the normalized path
+            $stream = $zip->getStream($rawName);
+            if ($stream !== false) {
+                $dest = fopen($targetPath, 'wb');
+                if ($dest !== false) {
+                    stream_copy_to_stream($stream, $dest);
+                    fclose($dest);
+                }
+                fclose($stream);
+            }
+        }
+
         $zip->close();
         return $tempDir;
     }
