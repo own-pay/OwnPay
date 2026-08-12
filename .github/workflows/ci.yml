@@ -1,0 +1,161 @@
+# Continuous Integration — runs on every PR and push to dev/main.
+# Enforces PHP linting, static analysis, unit tests, and frontend checks.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────
+  # PHP Lint — parallel syntax check across all PHP files
+  # ──────────────────────────────────────────────
+  php-lint:
+    name: PHP Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Parallel Lint
+        run: vendor/bin/parallel-lint src config modules templates/install public/index.php
+
+  # ──────────────────────────────────────────────
+  # PHPStan — static analysis at level 9
+  # ──────────────────────────────────────────────
+  phpstan:
+    name: PHPStan Analyse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
+  # ──────────────────────────────────────────────
+  # PHPUnit — unit + integration + feature tests
+  # ──────────────────────────────────────────────
+  phpunit:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --colors=always
+
+  # ──────────────────────────────────────────────
+  # Twig CS Fixer — template lint
+  # ──────────────────────────────────────────────
+  twig-lint:
+    name: Twig Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Twig CS Fixer
+        run: vendor/bin/twig-cs-fixer lint templates
+
+  # ──────────────────────────────────────────────
+  # Frontend Lint — ESLint + Stylelint
+  # ──────────────────────────────────────────────
+  frontend-lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: ESLint + Stylelint
+        run: npm run lint
+
+  # ──────────────────────────────────────────────
+  # Frontend Tests — Vitest
+  # ──────────────────────────────────────────────
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Vitest
+        run: npm test
+
+  # ──────────────────────────────────────────────
+  # Composer Audit — dependency vulnerability check
+  # ──────────────────────────────────────────────
+  composer-audit:
+    name: Composer Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Composer audit
+        run: composer audit
