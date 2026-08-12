@@ -5,6 +5,8 @@
 # --------------- Dependencies ---------------
 /node_modules/
 /vendor/php-parallel-lint/
+/vendor/symfony/polyfill-intl-grapheme/
+/vendor/twig/twig/
 
 # --------------- Environment ---------------
 .env
