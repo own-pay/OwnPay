@@ -17,6 +17,7 @@
                 <dt>Net</dt><dd>{{ txn.currency }} {{ txn.net_amount ?? txn.amount }}</dd>
                 <dt>Gateway</dt><dd>{{ txn.gateway_name }}</dd>
                 <dt>Gateway TRX</dt><dd><code>{{ txn.gateway_trx_id ?? '-' }}</code></dd>
+                <dt>Sender Account</dt><dd><code>{{ txn.sender_account ?? '-' }}</code></dd>
                 <dt>Created</dt><dd>{{ txn.created_at }}</dd>
                 <dt>Updated</dt><dd>{{ txn.updated_at ?? '-' }}</dd>
             </dl>

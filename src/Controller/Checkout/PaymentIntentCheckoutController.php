@@ -369,6 +369,9 @@ final class PaymentIntentCheckoutController
             $gwColorsStr = is_string($gwColorsRaw) ? $gwColorsRaw : '{}';
             $gwColors = json_decode($gwColorsStr, true);
 
+            $logoPathVal = $gw['logo_path'] ?? null;
+            $qrCodePathVal = $gw['qr_code_path'] ?? null;
+
             $manualDetails[$slug] = [
                 'name'               => is_string($gw['name'] ?? null) ? $gw['name'] : '',
                 'input_fields'       => $inputFields,
@@ -377,6 +380,13 @@ final class PaymentIntentCheckoutController
                 'payment_number'     => $paymentNumber,
                 'converted_amount'   => $convAmount,
                 'converted_currency' => $convCurrency,
+                // Issue #58: classic checkout already includes these keys; the
+                // PaymentIntent flow omitted them, so the shared checkout.js
+                // renderer never found logo_path/qr_code_path and silently
+                // dropped both the logo and the QR code on API-initiated
+                // checkouts. Mirroring the classic payload shape fixes both.
+                'logo_path'          => is_string($logoPathVal) ? $logoPathVal : null,
+                'qr_code_path'       => is_string($qrCodePathVal) ? $qrCodePathVal : null,
             ];
         }
 
@@ -679,6 +689,38 @@ final class PaymentIntentCheckoutController
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
         if ($gatewayMode === 'manual') {
+            // Assert the submitted gateway is one of this merchant's actually-configured
+            // active manual gateways and enforce configured min_amount/max_amount limits
+            // (issue #57). Without this guard, an arbitrary client-supplied string would
+            // be stored as gateway_slug and configured amount limits would be silently
+            // ignored - matching the gap that existed in CheckoutController::pay().
+            $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
+            $activeManualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
+            $selectedGw = null;
+            foreach ($activeManualGateways as $gw) {
+                if (($gw['slug'] ?? '') === $gateway) {
+                    $selectedGw = $gw;
+                    break;
+                }
+            }
+            if ($selectedGw === null) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+                }
+                return $this->renderStatus($token, 'expired', $intent);
+            }
+
+            // Enforce configured min_amount / max_amount using the post-conversion
+            // amount the gateway will actually see (matches the currency the limits
+            // were configured in - admin sets limits in the gateway's home currency).
+            $limitError = $this->validateManualGatewayAmount($selectedGw, $amount);
+            if ($limitError !== null) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => $limitError], 422);
+                }
+                return $this->renderStatus($token, 'expired', $intent);
+            }
+
             $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'awaiting_verification', $mid);
             $details = $req->post('payment_details', []);
             if (!empty($details) && is_array($details)) {
@@ -1052,8 +1094,11 @@ final class PaymentIntentCheckoutController
         $txnIdVal = $txn['id'] ?? 0;
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
+        $senderNumberRaw = $req->input('sender_number', '');
+        $senderNumber = is_string($senderNumberRaw) ? trim($senderNumberRaw) : '';
+
         $verifyData = [
-            'sender_number'  => $req->input('sender_number', ''),
+            'sender_number'  => $senderNumber,
             'transaction_id' => $req->input('transaction_id', ''),
             'submitted_at'   => DateHelper::now(),
         ];
@@ -1065,6 +1110,17 @@ final class PaymentIntentCheckoutController
         $existingMeta['verification'] = $verifyData;
 
         $this->txnRepo->setStatusWithMeta($txnId, 'pending_review', $existingMeta, $mid);
+
+        // Persist the customer-supplied sender number into the dedicated
+        // op_transactions.sender_account column (issue #56). Mirrors the
+        // classic CheckoutController::manualVerify() behaviour so both flows
+        // expose the value to admin UI, notification bell, and downstream
+        // consumers that read sender_account directly.
+        if ($senderNumber !== '') {
+            $this->txnRepo->forTenant($mid)->updateScoped($txnId, [
+                'sender_account' => $senderNumber,
+            ]);
+        }
 
         // Elevate checkout intent status to reflect review processing.
         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
@@ -1417,5 +1473,45 @@ final class PaymentIntentCheckoutController
         }
 
         return Response::json(['success' => false, 'error' => 'Payment service is not configured.'], 500);
+    }
+
+    /**
+     * Validates a transaction amount against a manual gateway's configured limits.
+     *
+     * Mirrors {@see \OwnPay\Controller\Checkout\CheckoutController::validateManualGatewayAmount()}
+     * so both checkout flows enforce the same min_amount/max_amount rules (issue #57).
+     * Comparisons use bccomp with 2-decimal precision; float math is forbidden
+     * for money per the project conventions.
+     *
+     * @param array<string, mixed> $gateway The manual gateway row, including min_amount/max_amount.
+     * @param string $amount The transaction amount as a numeric string.
+     * @return string|null Error message when out of range, null when acceptable.
+     */
+    private function validateManualGatewayAmount(array $gateway, string $amount): ?string
+    {
+        if (!is_numeric($amount)) {
+            return 'Invalid amount.';
+        }
+
+        $minRaw = $gateway['min_amount'] ?? '0';
+        $minAmount = (is_string($minRaw) || is_int($minRaw) || is_float($minRaw)) ? (string) $minRaw : '0';
+        if (!is_numeric($minAmount)) {
+            $minAmount = '0';
+        }
+
+        $maxRaw = $gateway['max_amount'] ?? '0';
+        $maxAmount = (is_string($maxRaw) || is_int($maxRaw) || is_float($maxRaw)) ? (string) $maxRaw : '0';
+        if (!is_numeric($maxAmount)) {
+            $maxAmount = '0';
+        }
+
+        if (bccomp($minAmount, '0', 2) > 0 && bccomp($amount, $minAmount, 2) < 0) {
+            return "Amount must be at least {$minAmount}.";
+        }
+        if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amount, $maxAmount, 2) > 0) {
+            return "Amount must not exceed {$maxAmount}.";
+        }
+
+        return null;
     }
 }

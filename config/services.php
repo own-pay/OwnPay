@@ -700,6 +700,14 @@ return static function (\OwnPay\Container $c): void {
                 $emailNotifier = ensureType($c->get(\OwnPay\Service\Communication\EmailNotificationService::class), \OwnPay\Service\Communication\EmailNotificationService::class);
                 $events->addAction('payment.transaction.completed', [$emailNotifier, 'onTransactionCompleted'], 20);
                 $events->addAction('refund.created', [$emailNotifier, 'onRefundCreated'], 20);
+
+                // Auto-dispatch merchant webhooks on real payment completion (issue #59).
+                // Priority 30 so the listener runs after the payment-state listeners
+                // (PaymentCompletionListener at default priority, EmailNotifier at 20)
+                // have finalized invoice/link state; the webhook payload then reflects
+                // the post-completion view the merchant expects.
+                $webhookListener = ensureType($c->get(\OwnPay\Service\Payment\WebhookAutoDispatchListener::class), \OwnPay\Service\Payment\WebhookAutoDispatchListener::class);
+                $events->addAction('payment.transaction.completed', [$webhookListener, 'onTransactionCompleted'], 30);
             });
         } catch (\Throwable) {}
     }

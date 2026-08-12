@@ -43,14 +43,50 @@ final class SmsDataRepository extends BaseRepository
      * from the same device, matching sender, and matching received timestamp
      * within a strict ±1 second tolerance window.
      *
+     * When a content fingerprint is supplied (issue #63), two messages with the
+     * same device/sender/timestamp but distinct content are treated as distinct
+     * events. Without the fingerprint the legacy behaviour is preserved so
+     * existing callers and tests continue to work. The fingerprint is derived
+     * from the encrypted payload before decryption, so it is available at the
+     * point of the dedup check.
+     *
      * @param string $deviceId The pairing identifier of the originating device.
      * @param string $sender The raw sender address or number.
      * @param string $receivedAt The date-time string of when the SMS was received.
+     * @param string|null $contentFingerprint Optional normalized hash of the SMS body or encrypted payload.
      * @return bool True if a matching duplicate is found, false otherwise.
      * @throws \LogicException If the active tenant context cannot be resolved.
      */
-    public function isDuplicate(string $deviceId, string $sender, string $receivedAt): bool
+    public function isDuplicate(string $deviceId, string $sender, string $receivedAt, ?string $contentFingerprint = null): bool
     {
+        // When a content fingerprint is provided, a duplicate requires the same
+        // fingerprint too. We perform a single EXISTS query that is satisfied
+        // only when an identical (device, sender, timestamp, content) row exists.
+        if ($contentFingerprint !== null && $contentFingerprint !== '') {
+            $row = $this->db->fetchOne(
+                "SELECT 1 AS hit FROM {$this->table}
+                 WHERE device_id = :did AND sender = :sender
+                   AND ABS(TIMESTAMPDIFF(SECOND, received_at, :received_at)) <= 1
+                   AND merchant_id = :mid
+                   AND (
+                       MD5(encrypted_raw) = :fp
+                       OR MD5(body) = :fp2
+                       OR local_id = :lid
+                   )
+                 LIMIT 1",
+                [
+                    'did'         => $deviceId,
+                    'sender'      => $sender,
+                    'received_at' => $receivedAt,
+                    'mid'         => $this->requireTenant(),
+                    'fp'          => $contentFingerprint,
+                    'fp2'         => $contentFingerprint,
+                    'lid'         => $contentFingerprint,
+                ]
+            );
+            return $row !== null;
+        }
+
         $row = $this->db->fetchOne(
             "SELECT COUNT(*) as cnt FROM {$this->table}
              WHERE device_id = :did AND sender = :sender

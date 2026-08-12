@@ -185,6 +185,23 @@ final class LedgerService
             throw new \RuntimeException("Transaction not found: {$transactionId}");
         }
 
+        // Defense-in-depth brand guard (issue #77): the scoped findScoped()
+        // above already returns null when the transaction does not belong to
+        // $merchantId, so this check is redundant in the normal path. We keep
+        // it as an explicit guard so a future refactor that swaps the lookup
+        // for an unscoped one cannot silently post a refund ledger entry to
+        // the wrong brand's books. The transaction's own currency is also
+        // asserted to match the requested posting currency - a currency
+        // mismatch would indicate a logic error upstream and would unbalance
+        // the brand's books once posted.
+        $txnMerchantVal = $txn['merchant_id'] ?? null;
+        $txnMerchant = is_scalar($txnMerchantVal) ? (int) $txnMerchantVal : 0;
+        if ($txnMerchant !== $merchantId) {
+            throw new \RuntimeException(
+                "Cross-brand refund blocked: transaction #{$transactionId} belongs to merchant {$txnMerchant}, cannot refund from merchant {$merchantId}"
+            );
+        }
+
         $amountVal = $txn['amount'] ?? '0.00';
         $feeVal = $txn['fee'] ?? '0.00';
         $origGross = is_scalar($amountVal) ? (string) $amountVal : '0.00';

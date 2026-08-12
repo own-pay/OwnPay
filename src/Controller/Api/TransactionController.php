@@ -131,6 +131,11 @@ final class TransactionController
     /**
      * Map transaction data to a safe output schema matching database definitions.
      *
+     * Includes the `payment_intent_id` so API clients can correlate a trx_id
+     * back to the original payment intent UUID (issue #59). Without this field,
+     * merchants who only retained the UUID returned by POST /api/v1/payments
+     * had no API path from trx_id back to that UUID.
+     *
      * @param array<string, mixed> $t The database transaction record array.
      * @return array<string, mixed> The filtered, safe presentation array representation.
      */
@@ -139,6 +144,7 @@ final class TransactionController
         return [
             'id'          => $t['id'],
             'trx_id'      => $t['trx_id'],
+            'payment_intent_id' => $t['payment_intent_id'] ?? null,
             'gateway_trx_id' => $t['gateway_trx_id'] ?? null,
             'amount'      => $t['amount'],
             'currency'    => $t['currency'],

@@ -546,6 +546,13 @@
             return;
         }
 
+        // Issue #72: do not show "Changes saved" toast for forms that explicitly
+        // opt out (search, filter, pagination, brand-switch, tab-toggle, etc.).
+        // These forms use POST for CSRF reasons but do not modify any data, so
+        // the success toast is misleading. Forms that actually persist data do
+        // not set this attribute and continue to show the toast as before.
+        var suppressToast = form.hasAttribute("data-no-toast");
+
         var actionUrl = new URL(form.action || window.location.href, window.location.origin);
         if (actionUrl.origin !== window.location.origin) {
             return;
@@ -553,6 +560,15 @@
 
         // Exclude logout
         if (actionUrl.pathname === "/admin/logout") {
+            return;
+        }
+
+        // Issue #72: only intercept POST forms under /admin/. GET forms
+        // (search, filter, pagination) were previously intercepted and
+        // triggered the "Changes saved" toast on every interaction, which
+        // confused users. GET forms now fall through to the browser's
+        // default navigation.
+        if (form.method.toLowerCase() !== "post") {
             return;
         }
 
@@ -637,7 +653,13 @@
                         }
 
                         window.opInitPageUI();
-                        window.opShowToast("Changes saved successfully!", "success");
+                        // Issue #72: only show the success toast when the form
+                        // actually persisted data. Forms marked with data-no-toast
+                        // (search, filter, tab-toggle, etc.) skip the toast so
+                        // users are not confused into thinking a save occurred.
+                        if (!suppressToast) {
+                            window.opShowToast("Changes saved successfully!", "success");
+                        }
                     }
                 })
                 .catch(function () {

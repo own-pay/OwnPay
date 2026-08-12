@@ -136,12 +136,20 @@ final class SmsTemplateRepository extends BaseRepository
     /**
      * Creates a new parsing template for the specified merchant.
      *
+     * Regex fields are syntax-validated before persistence (issue #66). An
+     * invalid pattern is rejected with a {@see \InvalidArgumentException} so
+     * the controller can surface a clear error to the admin instead of
+     * silently saving a template that will never match anything in production.
+     *
      * @param int $merchantId The unique identifier of the merchant brand.
      * @param array<string, mixed> $data Field value pairs containing configuration patterns.
      * @return string The newly generated template's auto-increment or primary key.
+     * @throws \InvalidArgumentException When any supplied regex field is syntactically invalid.
      */
     public function createTemplate(int $merchantId, array $data): string
     {
+        $this->assertRegexFields($data);
+
         return $this->create([
             'merchant_id'    => $merchantId,
             'gateway_slug'   => $data['gateway_slug'] ?? '',
@@ -157,13 +165,19 @@ final class SmsTemplateRepository extends BaseRepository
     /**
      * Updates parsing template fields for a given merchant.
      *
+     * Regex fields are syntax-validated before persistence (issue #66). An
+     * invalid pattern is rejected with a {@see \InvalidArgumentException}.
+     *
      * @param int $id The internal primary key of the target template.
      * @param int $merchantId The unique identifier of the merchant brand.
      * @param array<string, mixed> $data Set of field key-value pairs to modify.
      * @return void
+     * @throws \InvalidArgumentException When any supplied regex field is syntactically invalid.
      */
     public function updateTemplate(int $id, int $merchantId, array $data): void
     {
+        $this->assertRegexFields($data);
+
         $fields = [];
         $params = ['id' => $id, 'mid' => $merchantId];
         $allowed = ['gateway_slug', 'sender_pattern', 'amount_regex', 'trx_id_regex', 'sender_regex', 'priority', 'status'];
@@ -181,6 +195,56 @@ final class SmsTemplateRepository extends BaseRepository
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = :id AND merchant_id = :mid";
         $this->db->execute($sql, $params);
+    }
+
+    /**
+     * Validates the syntax of every regex field present in the payload.
+     *
+     * A pattern is considered valid when it parses (preg_match against the
+     * empty string returns 0 or 1, not false) after delimiter normalization.
+     * Empty patterns are allowed - they simply mean "do not capture this field".
+     *
+     * @param array<string, mixed> $data Field value pairs to inspect.
+     * @throws \InvalidArgumentException When any regex field is syntactically invalid.
+     */
+    private function assertRegexFields(array $data): void
+    {
+        $regexFields = ['amount_regex', 'trx_id_regex', 'sender_regex'];
+        foreach ($regexFields as $field) {
+            $value = $data[$field] ?? '';
+            if (!is_string($value) || $value === '') {
+                continue;
+            }
+            $pattern = $this->normalizePatternForValidation($value);
+            if (@preg_match($pattern, '') === false) {
+                throw new \InvalidArgumentException(
+                    "Invalid regex syntax for field '{$field}': {$value}"
+                );
+            }
+        }
+    }
+
+    /**
+     * Wraps a raw regex fragment with delimiters for syntax validation only.
+     *
+     * Production matching uses {@see \OwnPay\Service\Sms\SmsRegexParser::ensureDelimiters()},
+     * but the repository cannot depend on that service without creating a
+     * circular dependency. This local mirror performs the same normalization
+     * for the sole purpose of validating syntax before persistence.
+     *
+     * @param string $regex Raw regex fragment.
+     * @return string Delimiter-wrapped pattern suitable for preg_match validation.
+     */
+    private function normalizePatternForValidation(string $regex): string
+    {
+        $regex = trim($regex);
+        if ($regex === '') {
+            return '//';
+        }
+        if (preg_match('/^([^\w\s\\\\\\\\]).*\1[a-z]*$/is', $regex)) {
+            return $regex;
+        }
+        return '/' . str_replace('/', '\\/', $regex) . '/i';
     }
 
     /**
