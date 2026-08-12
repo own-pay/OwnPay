@@ -63,6 +63,20 @@ final class GatewayBridge
     }
 
     /**
+     * Unregister a gateway adapter from the bridge registry.
+     *
+     * Used during plugin deactivation to cleanly remove the adapter
+     * so no further payments are routed through it.
+     *
+     * @param \OwnPay\Gateway\GatewayAdapterInterface $adapter The gateway adapter instance to unregister.
+     * @return void
+     */
+    public function unregisterAdapter(GatewayAdapterInterface $adapter): void
+    {
+        unset($this->adapters[$adapter->slug()]);
+    }
+
+    /**
      * Initiate a payment capture/charge process via the specified gateway adapter.
      *
      * Decrypts credentials for the brand (merchantId) and applies hook filters before initiating.

@@ -286,12 +286,12 @@ final class PluginManager
                                         'status' => 'active',
                                     ]);
                                 } else {
-                                    // Bug #16 fix: Default to 'sandbox' but allow override via brand context
+                                    // Bug #16 fix: Default to 'sandbox' mode for new gateway configs
                                     $scopedConfigRepo->createScoped([
                                         'merchant_id' => $brandId,
                                         'gateway_id'  => $gwId,
                                         'status'      => 'active',
-                                        'mode'        => ($brandContext['mode'] ?? 'sandbox'),
+                                        'mode'        => 'sandbox',
                                     ]);
                                 }
                             }
