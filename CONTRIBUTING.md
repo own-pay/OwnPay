@@ -88,7 +88,7 @@ Gateways and add-ons are plugins under `modules/`:
 4. Keep the plugin within the sandbox rules — no `exec`, `shell_exec`, `eval`, raw PDO, etc.
 5. Test the full flow (initiate → callback → verify → refund) locally.
 
-See the gateway developer guide on **[Gateway Developer Guide](https://learn.ownpay.org/docs/gateway-development-guide)** for the full contract and examples.
+See the gateway developer guide on **[Gateway Developer Guide](https://ownpay.org/docs/developer/plugin-types/gateway-development)** for the full contract and examples.
 
 ---
 
@@ -110,7 +110,7 @@ git commit -s -m "feat(gateway): add Acme Pay adapter"
 
 This appends:
 
-```
+```text
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
