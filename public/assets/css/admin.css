@@ -2535,6 +2535,7 @@ input[type="checkbox"]:focus-visible {
   border-radius: 12px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
   padding: 16px;
+
   /* Issue #72: raise above dropdowns (z-index 200), the notification panel
      (z-index 300), and modal dialogs (z-index 200) so the date picker is
      not clipped or hidden behind adjacent elements. Toasts (z-index 1000)

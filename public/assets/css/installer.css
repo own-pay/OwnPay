@@ -115,9 +115,11 @@ body {
 .op-logo-dark {
     display: none;
 }
+
 [data-theme="dark"] .op-logo-light {
     display: none;
 }
+
 [data-theme="dark"] .op-logo-dark {
     display: inline-block;
 }
@@ -843,12 +845,15 @@ body {
         /* Hide all steps except the active one. */
         gap: 0;
     }
+
     .ins-step:not(.active) {
         display: none;
     }
+
     .ins-step.active span:not(.ins-step-num) {
         display: inline;
     }
+
     .ins-step-line {
         display: none;
     }
