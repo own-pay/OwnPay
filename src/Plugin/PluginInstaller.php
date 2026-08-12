@@ -284,7 +284,7 @@ final class PluginInstaller
             $this->removeDir($targetDir);
 
             // Restore storage after removal
-            if (is_dir($storageBackup)) {
+            if ($storageBackup !== null) {
                 // The new plugin dir will be created below by rename/copyDir
                 // We'll restore storage after deployment
             }
@@ -298,7 +298,7 @@ final class PluginInstaller
         }
 
         // Bug #10 fix: Restore preserved storage after deployment
-        if (isset($storageBackup) && is_dir($storageBackup)) {
+        if ($storageBackup !== null && is_dir($storageBackup)) {
             $newStorageDir = $targetDir . '/storage';
             $this->copyDir($storageBackup, $newStorageDir);
             $this->removeDir($storageBackup);
