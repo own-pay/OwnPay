@@ -28,11 +28,23 @@ final class RouteHelper
         $host = 'localhost';
         $requestUri = '';
         if ($request !== null) {
-            $isHttps = $request->header('X-Forwarded-Proto') === 'https' || $request->isSecure();
+            // HTTP-1: rely solely on Request::isSecure() for scheme
+            // detection. It already performs the trusted-proxy check
+            // (Request::scheme() only honors X-Forwarded-Proto when
+            // REMOTE_ADDR is in TRUSTED_PROXIES). The previous direct
+            // read of the X-Forwarded-Proto header allowed any end user
+            // to spoof the scheme by sending the header themselves, which
+            // could cause password-reset emails and Secure-cookie flags
+            // to be computed against an attacker-chosen scheme.
+            $isHttps = $request->isSecure();
             $hostVal = $request->header('Host') ?: 'localhost';
             $host = (string) $hostVal;
             $requestUri = $request->uri();
         } else {
+            // No-Request fallback (CLI / pre-boot): use the raw $_SERVER
+            // values. The X-Forwarded-Proto header is deliberately NOT
+            // consulted here either, to keep behavior consistent with the
+            // Request branch.
             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
                 || ($_SERVER['SERVER_PORT'] ?? 0) == 443);
             $hostVal = $_SERVER['HTTP_HOST'] ?? 'localhost';
