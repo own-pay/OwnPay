@@ -613,7 +613,8 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\DisputeService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\DisputeService {
         return new \OwnPay\Service\Payment\DisputeService(
             ensureType($c->get(\OwnPay\Repository\DisputeRepository::class), \OwnPay\Repository\DisputeRepository::class),
-            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class)
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class)
         );
     });
 
@@ -791,7 +792,13 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class),
             ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
             ensureType($c->get(\OwnPay\Service\System\AuditLogger::class), \OwnPay\Service\System\AuditLogger::class),
-            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+            // Issue #340 (PAY-12): wire GatewayBridge + LedgerService + TransactionRepository
+            // so RefundReconciliationJob can probe the gateway for refund status at the
+            // 30-minute mark before falling back to the 24-hour stale-pending auto-fail.
+            ensureType($c->get(\OwnPay\Gateway\GatewayBridge::class), \OwnPay\Gateway\GatewayBridge::class),
+            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class),
+            ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class)
         );
     });
 
