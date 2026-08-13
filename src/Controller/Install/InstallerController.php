@@ -616,9 +616,24 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
 
-            $httpHostRaw = $req->server('HTTP_HOST') ?: 'localhost';
+            // SECURITY (audit INST-10): do NOT trust the client-controlled
+            // Host header or X-Forwarded-Proto for the APP_URL/APP_DOMAIN
+            // values written permanently to .env. A poisoned
+            // `Host: evil.com` + `X-Forwarded-Proto: https` would write
+            // APP_URL=https://evil.com — every subsequent password-reset
+            // email would leak its token to the attacker, and webhook
+            // callbacks would be poisoned.
+            //
+            // Use SERVER_NAME first (set by the web server config —
+            // nginx `server_name` / Apache `ServerName`, NOT client-
+            // controlled) and only fall back to HTTP_HOST if the server
+            // did not set SERVER_NAME. Use Request::scheme() (which only
+            // honours X-Forwarded-Proto when REMOTE_ADDR is in the
+            // TRUSTED_PROXIES env var — see Request::isTrustedProxy()).
+            $serverName = $req->server('SERVER_NAME');
+            $httpHostRaw = $serverName !== '' ? $serverName : ($req->server('HTTP_HOST') ?: 'localhost');
             $httpHost = preg_match('/^[A-Za-z0-9.\-]+(:[0-9]{1,5})?$/', $httpHostRaw) === 1 ? $httpHostRaw : 'localhost';
-            $scheme = ($req->server('HTTPS') === 'on' || $req->server('HTTP_X_FORWARDED_PROTO') === 'https') ? 'https' : 'http';
+            $scheme = $req->scheme();
             $appUrl = "{$scheme}://{$httpHost}";
             $appDomain = parse_url($appUrl, PHP_URL_HOST) ?: $httpHost;
 
