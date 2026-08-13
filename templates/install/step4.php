@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <title>Settings · OwnPay Setup</title>
     <link rel="stylesheet" href="/assets/css/installer.css?v=4">
-    <script nonce="<?php echo bin2hex(random_bytes(16)); ?>">
+    <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
         (function(){var t=localStorage.getItem('op-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
     </script>
 </head>

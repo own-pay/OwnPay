@@ -68,7 +68,10 @@ final class InstallerController
     public function show(Request $req): Response
     {
         if ($this->isInstalled($req)) {
-            return Response::html($this->renderPhpTemplate('install/locked.php', []));
+            $lockedNonce = $req->getAttribute('csp_nonce');
+            return Response::html($this->renderPhpTemplate('install/locked.php', [
+                'csp_nonce' => is_string($lockedNonce) ? $lockedNonce : '',
+            ]));
         }
         $stepQuery = $req->query('step', '1');
         $stepVal = (is_int($stepQuery) || is_string($stepQuery) || is_numeric($stepQuery)) ? (int) $stepQuery : 1;
