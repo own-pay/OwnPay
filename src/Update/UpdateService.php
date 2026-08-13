@@ -396,6 +396,21 @@ EOT;
                     $this->events->doAction('update.rollback', $version);
                     $this->history->markRolledBack((int) $updateId, $e->getMessage());
                     $this->log("Rollback completed");
+                } catch (RestoreDatabaseException $restoreError) {
+                    // Database restore aborted mid-statement and the restore
+                    // transaction has already been rolled back inside
+                    // BackupService::restoreDatabase(). Surface the restore
+                    // failure distinctly so operators can tell a corrupt
+                    // backup / SQL failure apart from a code-archive
+                    // extraction failure.
+                    $this->log(
+                        'CRITICAL: Database restore aborted: ' . $restoreError->getMessage(),
+                        'error'
+                    );
+                    $this->history->markFailed(
+                        (int) $updateId,
+                        'Database restore aborted: ' . $restoreError->getMessage()
+                    );
                 } catch (\Throwable $rollbackError) {
                     $this->log("CRITICAL: Rollback failed: " . $rollbackError->getMessage(), 'error');
                     $this->history->markFailed((int) $updateId, 'Rollback failed: ' . $rollbackError->getMessage());
