@@ -18,8 +18,6 @@
 
         <form method="POST" action="/admin/domains/{{ d.id }}/update" class="op-domain-inline-form" data-no-ajax data-domain-inline-update="{{ d.id }}">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="status" value="{{ d.status }}">
-            <input type="hidden" name="dns_verified" value="{{ d.dns_verified ? '1' : '0' }}">
             <input type="hidden" name="is_primary" value="{{ d.is_primary ? '1' : '0' }}">
             <div class="op-form-group">
                 <label>Domain Type</label>

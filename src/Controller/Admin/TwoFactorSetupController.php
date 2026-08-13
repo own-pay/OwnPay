@@ -69,7 +69,7 @@ final class TwoFactorSetupController
         // Use decrypted secret for QR code, not raw encrypted column.
         $secret  = $this->userRepo->getTotpSecret($userId);
         $enabled = (bool) ($user['two_factor_enabled'] ?? false);
-        $qrUri   = null;
+        $qrDataUri = null;
 
         if (!$enabled) {
             if (empty($secret)) {
@@ -82,15 +82,57 @@ final class TwoFactorSetupController
             $userEmail = is_string($user['email'] ?? null) ? $user['email'] : '';
             $email   = rawurlencode($userEmail);
             $qrUri   = "otpauth://totp/{$appName}:{$email}?secret={$secret}&issuer={$appName}&algorithm=SHA1&digits=6&period=30";
+
+            // Security (audit finding UI-3 / issue #274): render the QR code
+            // server-side via chillerlan/php-qrcode (already a composer dep)
+            // and pass ONLY the resulting data URI to the template. The raw
+            // otpauth:// URI — which contains the TOTP shared secret in
+            // cleartext — must NEVER be sent to a third-party service or
+            // exposed to the template layer, where a future template change
+            // could accidentally render it. The previous implementation loaded
+            // the QR image from https://api.qrserver.com/v1/create-qr-code/
+            // with the otpauth:// URI as a query parameter, leaking the secret
+            // to a third-party domain and giving anyone compromising that
+            // service persistent 2FA-code-generation capability.
+            $qrDataUri = $this->renderQrDataUri($qrUri);
         }
 
         return $this->renderAdminPage('admin/my-account-2fa.twig', [
-            'user'        => $user,
-            'totp_secret' => $secret,
-            'totp_enabled'=> $enabled,
-            'qr_uri'      => $qrUri,
-            'active_page' => 'profile',
+            'user'         => $user,
+            'totp_secret'  => $secret,
+            'totp_enabled' => $enabled,
+            'qr_data_uri'  => $qrDataUri,
+            'active_page'  => 'profile',
         ]);
+    }
+
+    /**
+     * Renders an otpauth:// URI as an inline SVG data URI using chillerlan/php-qrcode.
+     *
+     * The returned string is a `data:image/svg+xml;base64,...` URI that can be
+     * used directly as an <img src> attribute. No network request is made —
+     * the QR code is rendered entirely server-side, so the TOTP secret never
+     * leaves the OwnPay server.
+     *
+     * @param string $otpauthUri The otpauth:// URI to encode as a QR code.
+     * @return string|null The data URI, or null if rendering fails (the template
+     *                     gracefully falls back to displaying the manual-entry
+     *                     secret code).
+     */
+    private function renderQrDataUri(string $otpauthUri): ?string
+    {
+        try {
+            $options = new \chillerlan\QRCode\QROptions([
+                'outputType'  => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
+                'scale'       => 5,
+                'cssClass'    => 'op-qr-img',
+                'outputBase64' => true,
+            ]);
+            $rendered = (new \chillerlan\QRCode\QRCode($options))->render($otpauthUri);
+            return is_string($rendered) ? $rendered : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

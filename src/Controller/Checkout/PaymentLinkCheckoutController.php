@@ -221,6 +221,22 @@ final class PaymentLinkCheckoutController
             $brandCtx->setActiveBrandId($merchantId);
         }
 
+        // Security: fixed-amount links must never accept a customer-supplied
+        // amount via POST. The `show()` flow creates the transaction directly
+        // with the stored amount and never renders the amount-entry form, so a
+        // POST to /submit for a fixed-amount link is always an attempt to
+        // tamper with the charged amount (see audit finding PAY-2 / issue #174).
+        // Reject the request outright; do not fall through to amount validation
+        // (which would otherwise accept amount=1 for a $100 fixed link when no
+        // min_amount is configured). The schema column `is_amount_fixed` is a
+        // TINYINT(1) that defaults to 1, so a missing value is treated as fixed.
+        $isFixedRaw = $link['is_amount_fixed'] ?? 1;
+        $isFixed = (is_int($isFixedRaw) || is_string($isFixedRaw) || is_bool($isFixedRaw))
+            && (int) $isFixedRaw === 1;
+        if ($isFixed) {
+            return $this->renderExpired($brandId);
+        }
+
         $amountRaw = $req->post('amount', '0');
         $amountStr = is_string($amountRaw) ? $amountRaw : '0';
         if (!is_numeric($amountStr)) {
