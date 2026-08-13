@@ -123,7 +123,7 @@ final class TwoFactorSetupController
     {
         try {
             $options = new \chillerlan\QRCode\QROptions([
-                'outputType'  => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
+                'outputInterface' => \chillerlan\QRCode\Output\QRMarkupSVG::class,
                 'scale'       => 5,
                 'cssClass'    => 'op-qr-img',
                 'outputBase64' => true,
