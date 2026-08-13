@@ -55,6 +55,24 @@ final class RedisCache implements CacheInterface
         }
     }
 
+    public function add(string $key, mixed $value, int $ttl = 3600): bool
+    {
+        $serialized = serialize($value);
+        $prefixedKey = $this->prefix . $key;
+
+        // Atomic set-if-not-exists via SET ... NX [EX ttl]. This is a single
+        // Redis round-trip and is atomic server-side, so concurrent callers
+        // cannot both succeed - exactly the semantics required for a
+        // distributed lock primitive (e.g. TOTP replay protection).
+        // Returns true on success, false if NX condition was not met.
+        if ($ttl > 0) {
+            $result = $this->redis->set($prefixedKey, $serialized, ["nx", "ex" => $ttl]);
+        } else {
+            $result = $this->redis->set($prefixedKey, $serialized, ["nx"]);
+        }
+        return $result === true;
+    }
+
     public function has(string $key): bool
     {
         return (bool) $this->redis->exists($this->prefix . $key);

@@ -219,6 +219,33 @@ final class AuthController
         $cache = $this->c->has(\OwnPay\Cache\CacheInterface::class)
             ? $this->c->get(\OwnPay\Cache\CacheInterface::class)
             : null;
+
+        // SECURITY (audit SEC-7): close the TOTP replay race. The previous code
+        // did get -> verifyTotp -> set in three separate cache round-trips, so
+        // two concurrent requests with the same observed TOTP code could both
+        // read lastUsedWindow=0, both pass verifyTotp against the same time
+        // slice, and both proceed to startSession(). A single observed code
+        // could therefore be used twice.
+        //
+        // Fix: atomically claim a per-(user, submitted-code) lock via
+        // CacheInterface::add() BEFORE running verifyTotp. add() is implemented
+        // atomically in both FileCache (fopen "x") and RedisCache (SET NX).
+        // If the lock already exists, the same code has already been submitted
+        // (in-flight or recently consumed) and we reject as a replay.
+        //
+        // The lock TTL (120s) comfortably exceeds the ±1 step (30s) drift
+        // window so a code cannot be re-used even across slice boundaries. The
+        // pre-existing per-user lastUsedWindow mechanism is retained as
+        // defence-in-depth (it still prevents a slice consumed by code A from
+        // being accepted by a different code B submitted later in the same
+        // window).
+        $codeLockKey = 'totp_code_lock_' . $userIdFromDb . '_' . hash('sha256', $code);
+        if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+            if (!$cache->add($codeLockKey, 1, 120)) {
+                return $this->renderAdminPage('page/2fa.twig', ['error' => 'This 2FA code has already been used. Please wait for a new code and try again.']);
+            }
+        }
+
         $lastUsedWindow = 0;
         if ($cache instanceof \OwnPay\Cache\CacheInterface) {
             $storedWindow = $cache->get($replayKey);
@@ -226,6 +253,13 @@ final class AuthController
         }
 
         if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($decryptedSecret, $code, 1, $lastUsedWindow)) {
+            // Verification failed — release the per-code lock so the user can
+            // retry with a fresh code. A wrong code should not permanently
+            // consume the slot for the next 120 seconds. (If $cache was not
+            // available, no lock was acquired and there is nothing to release.)
+            if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+                $cache->delete($codeLockKey);
+            }
             return $this->renderAdminPage('page/2fa.twig', ['error' => 'Invalid or expired 2FA code. Please try again.']);
         }
 
