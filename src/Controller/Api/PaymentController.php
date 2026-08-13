@@ -118,11 +118,15 @@ final class PaymentController
             }
         }
 
-        // Verify callback schemes enforce safe transport standards.
+        // Verify callback schemes enforce safe transport standards AND block SSRF targets
+        // (private/loopback/link-local IPs — including cloud metadata endpoints).
+        // Previously this only checked scheme + filter_var(FILTER_VALIDATE_URL), which accepts
+        // http://127.0.0.1/, http://169.254.169.254/, http://10.x/ — all SSRF vectors if any
+        // downstream code dispatches an outbound request to the intent's stored webhook_url.
         $urlsToCheck = [
             'callback_url' => $callbackUrlStr,
             'redirect_url' => $redirectUrlStr,
-            'cancel_url' => $cancelUrlStr,
+            'cancel_url'   => $cancelUrlStr,
         ];
         foreach ($urlsToCheck as $urlField => $urlVal) {
             if ($urlVal !== null && $urlVal !== '') {
@@ -133,6 +137,11 @@ final class PaymentController
                     $scheme = parse_url($validatedUrl, PHP_URL_SCHEME);
                     if (!in_array($scheme, ['http', 'https'], true)) {
                         $errors[] = "{$urlField} must use http or https scheme";
+                    } elseif (!\OwnPay\Security\UrlValidator::isSafeOutbound($validatedUrl)) {
+                        // isSafeOutbound() rejects loopback, private, link-local, and reserved IPs,
+                        // userinfo-bearing URLs, and non-http(s) schemes. This blocks SSRF vectors
+                        // such as http://127.0.0.1/, http://10.0.0.5/, http://169.254.169.254/.
+                        $errors[] = "{$urlField} must not target a private, loopback, or link-local address";
                     }
                 }
             }
