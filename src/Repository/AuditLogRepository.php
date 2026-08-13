@@ -248,6 +248,21 @@ final class AuditLogRepository extends BaseRepository
         return $count;
     }
 
+    /**
+     * Counts audit log rows that do not yet have a cryptographic signature.
+     *
+     * Used by the integrity-scan UI to surface "legacy unsigned rows" as a
+     * separate category that the operator must explicitly review before
+     * signing, rather than silently blessing them via signExistingLogs()
+     * inside the scan() flow.
+     *
+     * @return int Number of rows where signature IS NULL.
+     */
+    public function countUnsigned(): int
+    {
+        return $this->db->count($this->table, 'signature IS NULL');
+    }
+
 
     /**
      * Lists audit log records with sorting and pagination, optionally scoped by merchant ID.
