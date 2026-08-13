@@ -163,6 +163,19 @@ final class DomainService
         $serverIp = gethostbyname($this->resolveServerHost());
         $aRecordOk = $this->dnsVerifier->verifyARecord($domainName, $serverIp);
 
+        if (!$aRecordOk) {
+            // A-record check is gating: the domain must actually route traffic
+            // to this OwnPay server before we mark it verified/active. Previously
+            // dns_verified was set to 1 unconditionally and only a non-blocking
+            // warning was returned, which let DomainMiddleware accept requests
+            // for domains whose DNS still pointed elsewhere (audit DOM-3).
+            return [
+                'success' => false,
+                'error'   => "TXT record verified, but the A record for {$domainName} does not point to {$serverIp}. "
+                    . 'Update your DNS A record to the OwnPay server IP and re-run verification.',
+            ];
+        }
+
         $this->domains->forTenant($merchantId)->updateScoped($domainId, [
             'dns_verified'    => 1,
             'status'          => 'active',
@@ -170,13 +183,6 @@ final class DomainService
         ]);
 
         $this->events->doAction('domain.verified', $domainName, $merchantId);
-
-        if (!$aRecordOk) {
-            return [
-                'success' => true,
-                'warning' => "TXT verified! But A record does not point to {$serverIp}. Checkout pages won't work until DNS propagates.",
-            ];
-        }
 
         return ['success' => true];
     }
