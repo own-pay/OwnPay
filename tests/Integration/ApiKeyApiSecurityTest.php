@@ -103,9 +103,10 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         return $this->db->fetchOne("SELECT * FROM op_api_keys WHERE key_prefix = :p", ['p' => $prefix]);
     }
 
-    public function testIndexRequiresWriteAdminScopesAndValidSuperAdminHeader(): void
+    public function testIndexRequiresWriteAdminScopes(): void
     {
-        $req1 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail]);
+        // A standard (read+write only) key must be rejected with 403.
+        $req1 = new Request([], [], []);
         $req1->setAttribute('merchant_id', 99996);
         $req1->setAttribute('api_key', $this->getCallerKeyRow($this->standardKey));
 
@@ -115,34 +116,10 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         $this->assertFalse($body1['success']);
         $this->assertSame('INSUFFICIENT_PRIVILEGE', $body1['errors'][0]['code']);
 
-        $req2 = new Request([], [], []);
-        $req2->setAttribute('merchant_id', 99996);
-        $req2->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
-
-        $res2 = $this->controller->index($req2);
-        $this->assertSame(400, $res2->getStatusCode());
-        $body2 = json_decode($res2->getBody(), true);
-        $this->assertSame('SUPER_ADMIN_EMAIL_REQUIRED', $body2['errors'][0]['code']);
-
-        $req3 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->nonAdminEmail]);
-        $req3->setAttribute('merchant_id', 99996);
-        $req3->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
-
-        $res3 = $this->controller->index($req3);
-        $this->assertSame(403, $res3->getStatusCode());
-        $body3 = json_decode($res3->getBody(), true);
-        $this->assertSame('INVALID_SUPER_ADMIN', $body3['errors'][0]['code']);
-
-        $req4 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->inactiveSuperAdminEmail]);
-        $req4->setAttribute('merchant_id', 99996);
-        $req4->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
-
-        $res4 = $this->controller->index($req4);
-        $this->assertSame(403, $res4->getStatusCode());
-        $body4 = json_decode($res4->getBody(), true);
-        $this->assertSame('INVALID_SUPER_ADMIN', $body4['errors'][0]['code']);
-
-        $req5 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail]);
+        // An admin-scoped key (without any spoofed header) must succeed — the
+        // X-Super-Admin-Email header was removed as part of the API-1 security
+        // fix (it was pure security theater, providing no real identity proof).
+        $req5 = new Request([], [], []);
         $req5->setAttribute('merchant_id', 99996);
         $req5->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
 
@@ -155,7 +132,7 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
 
     public function testGenerateParsesAndValidatesCustomScopes(): void
     {
-        $req1 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail], [], [], '{"scopes": "not-an-array"}');
+        $req1 = new Request([], [], [], [], [], '{"scopes": "not-an-array"}');
         $req1->setAttribute('merchant_id', 99996);
         $req1->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
 
@@ -165,21 +142,21 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         $this->assertFalse($body1['success']);
         $this->assertSame('INVALID_SCOPES', $body1['errors'][0]['code']);
 
-        $req2 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail], [], [], '{"scopes": ["read", "invalid_privilege"]}');
+        $req2 = new Request([], [], [], [], [], '{"scopes": ["read", "invalid_privilege"]}');
         $req2->setAttribute('merchant_id', 99996);
         $req2->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
 
         $res2 = $this->controller->generate($req2);
         $this->assertSame(422, $res2->getStatusCode());
 
-        $req3 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail], [], [], '{"scopes": []}');
+        $req3 = new Request([], [], [], [], [], '{"scopes": []}');
         $req3->setAttribute('merchant_id', 99996);
         $req3->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
 
         $res3 = $this->controller->generate($req3);
         $this->assertSame(422, $res3->getStatusCode());
 
-        $req4 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail], [], [], '{}');
+        $req4 = new Request([], [], [], [], [], '{}');
         $req4->setAttribute('merchant_id', 99996);
         $req4->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
 
@@ -192,7 +169,7 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         $this->assertNotNull($keyRecord4);
         $this->assertEquals(['read', 'write'], json_decode($keyRecord4['scopes'], true));
 
-        $req5 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail], [], [], '{"name": "Custom Scope Key", "scopes": ["read", "admin"]}');
+        $req5 = new Request([], [], [], [], [], '{"name": "Custom Scope Key", "scopes": ["read", "admin"]}');
         $req5->setAttribute('merchant_id', 99996);
         $req5->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
 
@@ -206,12 +183,13 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         $this->assertEquals(['read', 'admin'], json_decode($keyRecord5['scopes'], true));
     }
 
-    public function testRevokeRequiresWriteAdminScopesAndValidSuperAdminHeader(): void
+    public function testRevokeRequiresWriteAdminScopes(): void
     {
         $callerRow = $this->getCallerKeyRow($this->standardKey);
         $keyId = (int) $callerRow['id'];
 
-        $req1 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail]);
+        // Standard (read+write only) key cannot revoke.
+        $req1 = new Request([], [], []);
         $req1->setAttribute('merchant_id', 99996);
         $req1->setAttribute('api_key', $this->getCallerKeyRow($this->standardKey));
         $req1->setRouteParams(['id' => (string) $keyId]);
@@ -219,7 +197,8 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         $res1 = $this->controller->revoke($req1);
         $this->assertSame(403, $res1->getStatusCode());
 
-        $req2 = new Request([], [], ['HTTP_X_SUPER_ADMIN_EMAIL' => $this->superAdminEmail]);
+        // Admin-scoped key can revoke (no spoofed header needed).
+        $req2 = new Request([], [], []);
         $req2->setAttribute('merchant_id', 99996);
         $req2->setAttribute('api_key', $this->getCallerKeyRow($this->adminKey));
         $req2->setRouteParams(['id' => (string) $keyId]);
