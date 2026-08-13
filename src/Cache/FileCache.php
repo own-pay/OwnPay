@@ -112,8 +112,17 @@ final class FileCache implements CacheInterface
                 if (!str_starts_with($realPath, realpath($this->directory) . DIRECTORY_SEPARATOR)) {
                     continue;
                 }
-                if ($item->isFile() && str_ends_with($item->getFilename(), '.cache')) {
-                    @unlink($realPath);
+                if ($item->isFile()) {
+                    $name = $item->getFilename();
+                    // Final cache files end in `.cache`. Orphaned temp
+                    // files from interrupted writes (CACHE-3) are named
+                    // `<key>.cache.tmp.<hex>`; reclaim them here too so
+                    // they don't accumulate and exhaust the disk quota.
+                    if (str_ends_with($name, '.cache')
+                        || str_contains($name, '.tmp.')
+                    ) {
+                        @unlink($realPath);
+                    }
                 }
             }
         }
