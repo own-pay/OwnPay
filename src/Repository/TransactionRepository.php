@@ -520,14 +520,33 @@ final class TransactionRepository extends BaseRepository
      * ever undo an in-flight API-gateway redirect the customer abandoned, not a genuinely
      * finished or manually-verified transaction.
      *
+     * Issue #338 (PAY-10): the revert is now gated by a 10-minute cooldown from the last
+     * `updated_at` timestamp and additionally clears `gateway_slug`. The cooldown prevents
+     * a customer from reverting an in-flight payment that the gateway may still be processing
+     * (e.g. the customer hit "back" while the gateway was authorising) - in that window the
+     * gateway could still complete the original transaction and the customer would also pay
+     * via the second gateway they pick, doubling the charge. 10 minutes is long enough for
+     * any reasonable gateway round-trip to settle one way or the other; after it, an
+     * abandoned `processing` row is safe to reclaim.
+     *
+     * Clearing `gateway_slug` (to empty string, since the column is VARCHAR(60) NOT NULL)
+     * pairs with the tightened `isCompletionEligible()` check (issue #345, PAY-17): a stale
+     * callback from the abandoned gateway arrives with the old gateway slug, sees that the
+     * transaction's `gateway_slug` no longer matches, and is rejected - so the customer
+     * cannot be "completed" by a stale webhook from a gateway they explicitly abandoned.
+     *
      * @param string $trxId Unique transaction identifier.
-     * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     * @return bool True if a row was actually reverted, false if no matching `processing` row
+     *              existed (or it was too recent to safely revert per the cooldown).
      */
     public function reactivateForRetry(string $trxId): bool
     {
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
-             WHERE trx_id = :ref AND status = 'processing'",
+            "UPDATE {$this->table}
+             SET status = 'pending', gateway_slug = '', updated_at = NOW()
+             WHERE trx_id = :ref
+               AND status = 'processing'
+               AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
             ['ref' => $trxId]
         );
         return $stmt->rowCount() > 0;
@@ -538,14 +557,20 @@ final class TransactionRepository extends BaseRepository
      * intent ID instead of its own trx_id - used by the Payment Intent checkout flow, where the
      * customer-facing token belongs to the intent, not the transaction.
      *
+     * Inherits the 10-minute cooldown and `gateway_slug` clearing behaviour of
+     * {@see reactivateForRetry()} (issue #338, PAY-10).
+     *
      * @param int $intentId Linked `op_payment_intents.id`.
      * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
      */
     public function reactivateForRetryByIntentId(int $intentId): bool
     {
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
-             WHERE payment_intent_id = :pi AND status = 'processing'",
+            "UPDATE {$this->table}
+             SET status = 'pending', gateway_slug = '', updated_at = NOW()
+             WHERE payment_intent_id = :pi
+               AND status = 'processing'
+               AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
             ['pi' => $intentId]
         );
         return $stmt->rowCount() > 0;

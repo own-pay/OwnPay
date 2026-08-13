@@ -68,14 +68,32 @@ final class PaymentIntentRepository extends BaseRepository
      * different gateway from the checkout page. Scoped strictly to `processing` - never touches
      * `completed`/`failed`/`cancelled`/`expired`.
      *
+     * Issue #338 (PAY-10): the revert is now gated by a 10-minute cooldown from the last
+     * `updated_at` timestamp. The cooldown mirrors
+     * {@see TransactionRepository::reactivateForRetry()} and prevents a customer from
+     * reverting an in-flight payment that the gateway may still be processing - in that
+     * window the gateway could still complete the original transaction and the customer
+     * would also pay via the second gateway they pick, doubling the charge. 10 minutes
+     * is long enough for any reasonable gateway round-trip to settle one way or the other;
+     * after it, an abandoned `processing` intent is safe to reclaim.
+     *
+     * Payment intents do not carry a `gateway_slug` column - the slug lives on the linked
+     * `op_transactions` row, which is reverted separately by
+     * {@see TransactionRepository::reactivateForRetryByIntentId()} (and that method clears
+     * the slug). So this method only needs to apply the cooldown.
+     *
      * @param string $token Secure intent token.
-     * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     * @return bool True if a row was actually reverted, false if no matching `processing` row
+     *              existed (or it was too recent to safely revert per the cooldown).
      */
     public function reactivateForRetry(string $token): bool
     {
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
-             WHERE token = :t AND status = 'processing'",
+            "UPDATE {$this->table}
+             SET status = 'pending', updated_at = NOW()
+             WHERE token = :t
+               AND status = 'processing'
+               AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
             ['t' => $token]
         );
         return $stmt->rowCount() > 0;
