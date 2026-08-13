@@ -285,15 +285,29 @@ final class AuditLogRepository extends BaseRepository
     /**
      * Retrieves all audit log entries associated with a specific entity.
      *
+     * Scopes the query by merchant_id (REPO-7) so a future caller that
+     * passes a user-controlled entity_id cannot read another tenant's
+     * audit trail. Pass null for the superadmin "All Brands" view -
+     * consistent with the existing pattern in listPaginated().
+     *
      * @param string $entityType The entity's structural type name.
      * @param int $entityId The primary key identifier of the target entity.
+     * @param int|null $merchantId Scoping merchant ID, or null for all merchants (superadmin).
      * @return array<int, array<string, mixed>> List of matching audit log entries.
      */
-    public function listForEntity(string $entityType, int $entityId): array
+    public function listForEntity(string $entityType, int $entityId, ?int $merchantId = null): array
     {
+        $where = 'entity_type = :et AND entity_id = :eid';
+        $params = ['et' => $entityType, 'eid' => $entityId];
+
+        if ($merchantId !== null) {
+            $where .= ' AND merchant_id = :mid';
+            $params['mid'] = $merchantId;
+        }
+
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE entity_type = :et AND entity_id = :eid ORDER BY created_at DESC",
-            ['et' => $entityType, 'eid' => $entityId]
+            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY created_at DESC",
+            $params
         );
     }
 }

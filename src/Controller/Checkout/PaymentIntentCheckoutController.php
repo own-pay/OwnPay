@@ -790,20 +790,29 @@ final class PaymentIntentCheckoutController
                                     if ($currSvc instanceof \OwnPay\Service\Payment\CurrencyService) {
                                         $converted = $currSvc->convert($payAmount, $payCurrency, $targetCurrency);
                                         if ($converted !== '0') {
-                                            // Record pre-conversion amount and exchange rate variables for financial audit trails.
-                                            $txnMetaRaw = $txn['metadata'] ?? '{}';
-                                            $txnMetaStr = is_string($txnMetaRaw) ? $txnMetaRaw : '{}';
-                                            $existingMeta = json_decode($txnMetaStr, true);
-                                            $existingMeta = is_array($existingMeta) ? $existingMeta : [];
-                                            $existingMeta['original_amount'] = $payAmount;
-                                            $existingMeta['original_currency'] = $payCurrency;
-                                            $existingMeta['exchange_rate'] = $currSvc->getRate($targetCurrency);
-                                            $existingMeta['converted_amount'] = $converted;
-                                            $existingMeta['converted_currency'] = $targetCurrency;
-                                            $this->db->execute(
-                                                "UPDATE op_transactions SET metadata = :meta WHERE id = :id AND merchant_id = :mid",
-                                                ['meta' => json_encode($existingMeta), 'id' => $txnId, 'mid' => $mid]
-                                            );
+                                            // PAY-18: record pre-conversion amount, the effective cross
+                                            // rate (target-rate / source-rate, both relative to the system
+                                            // base) and the post-conversion amount/currency for audit. The
+                                            // previous code stored getRate($targetCurrency) which is the
+                                            // rate of the TARGET relative to the system BASE, not relative
+                                            // to the source currency — misleading for reconciliation when
+                                            // neither leg is the system base (e.g. EUR->BDT when the base
+                                            // is USD). The write is routed through
+                                            // TransactionRepository::updateMetadata() so it merges with
+                                            // concurrent metadata writers via the same array_merge contract
+                                            // used everywhere else, instead of a one-off direct SQL write.
+                                            $sourceRate = $currSvc->getRate($payCurrency);
+                                            $targetRate = $currSvc->getRate($targetCurrency);
+                                            $effectiveRate = $sourceRate !== '0'
+                                                ? bcdiv($targetRate, $sourceRate, 8)
+                                                : $targetRate;
+                                            $this->txnRepo->updateMetadata($txnId, [
+                                                'original_amount'    => $payAmount,
+                                                'original_currency'  => $payCurrency,
+                                                'exchange_rate'      => $effectiveRate,
+                                                'converted_amount'   => $converted,
+                                                'converted_currency' => $targetCurrency,
+                                            ], $mid);
                                             $payAmount = $converted;
                                             $payCurrency = $targetCurrency;
                                         }

@@ -221,7 +221,11 @@ final class TransactionController
         }
 
         $smsData  = $this->smsRepo->listForTransaction($id);
-        $auditLog = $this->auditRepo->listForEntity('transaction', $id);
+        // (REPO-7) Scope the audit log lookup by the record's own merchant_id
+        // so the repository method's merchant_id filter is always exercised
+        // from this call path. $recordMid was resolved above to the record's
+        // own brand (or falls back to the active merchant in normal view).
+        $auditLog = $this->auditRepo->listForEntity('transaction', $id, $recordMid);
 
         return $this->renderAdminPage('admin/transactions/edit.twig', [
             'txn'         => $txn,
