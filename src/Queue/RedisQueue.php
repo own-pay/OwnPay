@@ -289,6 +289,7 @@ final class RedisQueue implements QueueInterface
             }
             $job = json_decode($item, true);
             if (is_array($job)) {
+                /** @var array<string, mixed> $job */
                 $out[] = $job;
             }
         }

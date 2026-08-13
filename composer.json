@@ -38,7 +38,7 @@
     "php-parallel-lint/php-parallel-lint": "^1.4",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "12.5.29",
-    "vincentlanglet/twig-cs-fixer": "^3.14"
+    "vincentlanglet/twig-cs-fixer": "^4.0"
   },
   "scripts": {
     "security-check": "composer audit --format=json",
