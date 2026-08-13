@@ -199,8 +199,8 @@ final class DeviceController
 
             $options = new \chillerlan\QRCode\QROptions([
                 'version'    => 5,
-                'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
-                'eccLevel'   => \chillerlan\QRCode\QRCode::ECC_L,
+                'outputInterface' => \chillerlan\QRCode\Output\QRMarkupSVG::class,
+                'eccLevel'   => \chillerlan\QRCode\Common\EccLevel::L,
             ]);
             $qrcode = new \chillerlan\QRCode\QRCode($options);
             $qrSvg = $qrcode->render($qrPayload);

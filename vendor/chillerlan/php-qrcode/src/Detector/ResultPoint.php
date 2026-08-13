@@ -8,6 +8,7 @@
  * @copyright    2021 Smiley
  * @license      Apache-2.0
  */
+declare(strict_types=1);
 
 namespace chillerlan\QRCode\Detector;
 
@@ -25,9 +26,6 @@ abstract class ResultPoint{
 	protected float $y;
 	protected float $estimatedModuleSize;
 
-	/**
-	 *
-	 */
 	public function __construct(float $x, float $y, float $estimatedModuleSize){
 		$this->x                   = $x;
 		$this->y                   = $y;
@@ -35,21 +33,21 @@ abstract class ResultPoint{
 	}
 
 	/**
-	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "ResultPoint::$x" instead.
 	 */
 	public function getX():float{
 		return $this->x;
 	}
 
 	/**
-	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "ResultPoint::$y" instead.
 	 */
 	public function getY():float{
 		return $this->y;
 	}
 
 	/**
-	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "ResultPoint::$estimatedModuleSize" instead.
 	 */
 	public function getEstimatedModuleSize():float{
 		return $this->estimatedModuleSize;
