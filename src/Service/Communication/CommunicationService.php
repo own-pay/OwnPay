@@ -76,7 +76,15 @@ final class CommunicationService
         }
 
         /** @var SmsProviderInterface $provider */
-        $logId = $this->commLog->log($merchantId, 'sms', $to, 'sms.send', $message, $provider->slug(), 'queued');
+        // Redact any run of 4+ digits from the logged body. SMS bodies
+        // routinely carry OTPs, balance amounts, and reset codes; the raw
+        // value is still delivered to the recipient via $provider->send()
+        // below, but only the redacted form is persisted to op_comm_log.body
+        // so that anyone with admin read access cannot read live OTPs.
+        // Short numbers (e.g. "Tk 500") are preserved to keep logs useful
+        // for debugging.
+        $redactedBody = preg_replace('/\d{4,}/', '****', $message);
+        $logId = $this->commLog->log($merchantId, 'sms', $to, 'sms.send', $redactedBody, $provider->slug(), 'queued');
 
         try {
             $result = $provider->send($to, $message);
