@@ -7,6 +7,9 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Security\PiiMasker;
+use OwnPay\Service\Customer\CustomerPiiService;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Service\System\PaginationService;
 
 /**
@@ -38,17 +41,36 @@ final class CustomerController
     private \OwnPay\Repository\CustomerRepository $customerRepo;
 
     /**
+     * @var CustomerPiiService PII service handling encryption, hashing, and lifecycle events.
+     */
+    private CustomerPiiService $piiService;
+
+    /**
+     * @var AuditService Audit logging service for security-sensitive admin actions.
+     */
+    private AuditService $audit;
+
+    /**
      * CustomerController constructor.
      *
      * @param Container                             $c            The dependency injection container.
      * @param AdminSession                          $session      The administrative session service.
      * @param \OwnPay\Repository\CustomerRepository $customerRepo The customer records repository.
+     * @param CustomerPiiService                    $piiService   The PII service for create/lookup operations.
+     * @param AuditService                          $audit        The audit log service.
      */
-    public function __construct(Container $c, AdminSession $session, \OwnPay\Repository\CustomerRepository $customerRepo) 
-    { 
+    public function __construct(
+        Container $c,
+        AdminSession $session,
+        \OwnPay\Repository\CustomerRepository $customerRepo,
+        CustomerPiiService $piiService,
+        AuditService $audit
+    ) {
         $this->c = $c;
-        $this->session = $session; 
+        $this->session = $session;
         $this->customerRepo = $customerRepo;
+        $this->piiService = $piiService;
+        $this->audit = $audit;
     }
 
     /**
@@ -212,6 +234,8 @@ final class CustomerController
         if ($guard = $this->requireActiveBrand($mid, '/admin/customers')) {
             return $guard;
         }
+        // requireActiveBrand guarantees $mid is a positive int from here on.
+        \assert($mid !== null && $mid > 0);
 
         $nameVal = $req->post('name', '');
         $emailVal = $req->post('email', '');
@@ -226,30 +250,57 @@ final class CustomerController
             return Response::redirect('/admin/customers/create');
         }
 
-        $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
-        if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
-            throw new \RuntimeException('FieldEncryptor service unavailable');
+        // Email format validation. The previous raw INSERT accepted any string,
+        // producing garbage rows like "not-an-email" whose hash could never be
+        // looked up again. Reject early so the row is never persisted.
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $this->session->flashError('Please enter a valid email address.');
+            return Response::redirect('/admin/customers/create');
         }
-        $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
-        $now = \OwnPay\Support\DateHelper::nowMicro();
 
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        if (!$db instanceof \OwnPay\Core\Database) {
-            throw new \RuntimeException('Database service unavailable');
+        // Basic phone-format guard: only digits, +, -, spaces, parentheses,
+        // up to 30 chars. Rejects control chars, letters, and absurdly long
+        // inputs that would blow up the encrypted column.
+        if ($phone !== '' && !preg_match('/^[0-9+\-\s()]{1,30}$/', $phone)) {
+            $this->session->flashError('Phone number may only contain digits, +, -, spaces, and parentheses (max 30 chars).');
+            return Response::redirect('/admin/customers/create');
         }
-        $db->insert(
-            "INSERT INTO op_customers (merchant_id, uuid, name_enc, email_enc, email_hash, phone_enc, phone_hash, created_at, updated_at)
-             VALUES (:mid, :uuid, :name, :email, :ehash, :phone, :phash, :now, :now2)",
+
+        // Duplicate-email check. The previous raw INSERT blindly wrote a row
+        // even when an existing customer shared the same email_hash, leaving
+        // two customer records resolving to the same person.
+        $existing = $this->piiService->findByEmail($mid, $email);
+        if ($existing !== null) {
+            $this->session->flashError('A customer with this email already exists.');
+            return Response::redirect('/admin/customers/create');
+        }
+
+        // Delegate creation to CustomerPiiService::create() so we benefit from
+        // the canonical UUID generation, email_hash/phone_hash computation,
+        // AES-256-GCM encryption, and customer.created event dispatch. The
+        // previous raw INSERT bypassed all of these, leaving rows without a
+        // UUID and without triggering downstream integrations.
+        try {
+            $customer = $this->piiService->create($mid, [
+                'name'  => $name,
+                'email' => $email,
+                'phone' => $phone,
+            ]);
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to create customer: ' . $e->getMessage());
+            return Response::redirect('/admin/customers/create');
+        }
+
+        $customerId = isset($customer['id']) && is_scalar($customer['id']) ? (int) $customer['id'] : null;
+        $this->audit->log(
+            'customer.created',
+            'customers',
+            $customerId,
+            null,
             [
-                'mid'   => $mid,
-                'uuid'  => $uuid,
-                'name'  => $enc->encrypt($name),
-                'email' => $enc->encrypt($email),
-                'ehash' => $enc->hash($email),
-                'phone' => $phone !== '' ? $enc->encrypt($phone) : null,
-                'phash' => $phone !== '' ? $enc->hash($phone) : null,
-                'now'   => $now,
-                'now2'  => $now,
+                'admin_id'     => $this->session->userId(),
+                'merchant_id'  => $mid,
+                'email_masked' => PiiMasker::maskEmail($email),
             ]
         );
 
