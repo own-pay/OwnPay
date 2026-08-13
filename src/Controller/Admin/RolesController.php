@@ -256,6 +256,30 @@ final class RolesController
             return Response::redirect('/admin/roles');
         }
 
+        // Audit fix ROL-1: refuse to delete a role that still has users
+        // assigned. Without this guard the role row would be deleted and the
+        // affected users' role_id would dangle (the FK is ON DELETE RESTRICT,
+        // so MySQL would actually reject the DELETE — but the resulting
+        // unhandled PDOException surfaces as an HTTP 500 with no friendly
+        // explanation). Count the assignments up-front and flash a clear
+        // error telling the admin how many users need to be reassigned first.
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        if ($db instanceof \OwnPay\Core\Database) {
+            $countRow = $db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM op_merchant_users WHERE role_id = :rid AND merchant_id = :mid",
+                ['rid' => $id, 'mid' => $mid]
+            );
+            $cntVal = is_array($countRow) ? ($countRow['cnt'] ?? 0) : 0;
+            $assignedCount = is_scalar($cntVal) ? (int) $cntVal : 0;
+            if ($assignedCount > 0) {
+                $this->session->flashError(
+                    "Cannot delete role: {$assignedCount} user" . ($assignedCount === 1 ? ' is' : 's are')
+                    . " still assigned. Reassign them first."
+                );
+                return Response::redirect('/admin/roles');
+            }
+        }
+
         $roleName = is_string($role['name'] ?? null) ? $role['name'] : 'Unknown';
         $this->roles->forTenant($mid)->deleteScoped($id);
         $this->session->flashSuccess("Role '{$roleName}' deleted");
