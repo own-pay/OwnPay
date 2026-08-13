@@ -211,9 +211,47 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
-        // Fire db.query.before filter - plugins can modify SQL/params
-        // Guard prevents infinite recursion when hook listeners query DB
-        if ($this->events !== null && !$this->firingHooks) {
+        // DB-1: The db.query.before filter previously fired on EVERY query,
+        // including core-originated queries against sensitive tables
+        // (op_api_keys, op_users, op_merchant_users, op_password_resets,
+        // op_audit_log, op_sessions). A malicious plugin could register a
+        // filter that rewrote `SELECT api_key FROM op_api_keys WHERE id=:id`
+        // into `SELECT api_key FROM op_api_keys WHERE 1=1` and exfiltrate
+        // every API key, or rewrite `UPDATE op_transactions SET status=
+        // 'completed' WHERE id=:id AND merchant_id=:mid` to drop the tenant
+        // guard. The sandbox check on line 238-247 only ran when the active
+        // owner was a plugin — for core-originated queries, no sandbox
+        // validation happened at all, and the rewritten SQL was executed
+        // verbatim.
+        //
+        // We now refuse to fire the db.query.before filter for queries that
+        // touch any table in a hardcoded PROTECTED_TABLES list, regardless
+        // of the active owner. Plugins can still observe/profiling queries
+        // against non-protected tables, but cannot rewrite queries that
+        // touch credentials, sessions, audit logs, or user accounts.
+        $protectedTables = [
+            'op_api_keys',
+            'op_users',
+            'op_merchant_users',
+            'op_password_resets',
+            'op_audit_log',
+            'op_sessions',
+            'op_password_resets',
+            'op_totp_secrets',
+        ];
+        $sqlLower = strtolower($sql);
+        $isProtected = false;
+        foreach ($protectedTables as $table) {
+            if (str_contains($sqlLower, $table)) {
+                $isProtected = true;
+                break;
+            }
+        }
+
+        // Fire db.query.before filter - plugins can modify SQL/params.
+        // Guard prevents infinite recursion when hook listeners query DB.
+        // DB-1: skip the filter entirely for queries against protected tables.
+        if (!$isProtected && $this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
             try {
                 /** @var array<string, mixed> $queryData */
