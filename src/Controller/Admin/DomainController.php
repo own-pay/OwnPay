@@ -87,13 +87,15 @@ final class DomainController
             $d['status_pill'] = self::computeStatusPill($d);
         }
 
-        // Use the configured APP_DOMAIN for the server-IP hint, not the
-        // attacker-controlled Host header (which would let a merchant-user drive
-        // gethostbyname() lookups against arbitrary domains).
+        // Use the configured APP_DOMAIN for the server-IP hint. The request
+        // Host header is attacker-controlled and must never drive
+        // gethostbyname() lookups (audit DOM-4). On misconfigured installs
+        // (APP_DOMAIN unset) we degrade to '127.0.0.1' rather than leaking
+        // through client input.
         $appDomainVal = $_ENV['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
         $serverHost = is_string($appDomainVal) && $appDomainVal !== ''
             ? $appDomainVal
-            : ($req->header('Host') ?: '127.0.0.1');
+            : '127.0.0.1';
         $serverHost = (string) (parse_url('https://' . $serverHost, PHP_URL_HOST) ?: '127.0.0.1');
 
         return $this->renderAdminPage('admin/domains/index.twig', [
