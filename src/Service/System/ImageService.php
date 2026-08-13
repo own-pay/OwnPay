@@ -15,7 +15,10 @@ final class ImageService
      * Resizes an image file while preserving its original aspect ratio.
      *
      * If the target dimensions are larger than or equal to the source image,
-     * the file is copied to the destination without resampling to prevent quality degradation.
+     * the source is re-encoded through GD WITHOUT resampling (no upscaling),
+     * which strips EXIF metadata (GPS, camera, PII) that would otherwise be
+     * preserved by a byte-for-byte copy. The downscale path resamples through
+     * GD as before, which also strips metadata.
      *
      * @param string $inputPath Absolute path to the source image.
      * @param int $maxWidth Max width constraint in pixels.
@@ -35,10 +38,17 @@ final class ImageService
         [$origW, $origH] = $info;
         $ratio = min($maxWidth / $origW, $maxHeight / $origH);
 
+        $src = $this->createFromFile($inputPath, $info[2]);
+
         if ($ratio >= 1.0) {
-            // Target is larger or equal; clone source image directly
-            if ($outputPath !== $inputPath) {
-                copy($inputPath, $outputPath);
+            // Target is larger or equal — do not upsample, but still
+            // re-encode through GD so EXIF metadata (GPS, camera, PII) is
+            // stripped from the output. Previously this branch used copy()
+            // which preserved the source bytes verbatim, including EXIF.
+            try {
+                $this->saveImage($src, $outputPath, $info[2]);
+            } finally {
+                imagedestroy($src);
             }
             return $outputPath;
         }
@@ -46,7 +56,6 @@ final class ImageService
         $newW = max(1, (int) ($origW * $ratio));
         $newH = max(1, (int) ($origH * $ratio));
 
-        $src = $this->createFromFile($inputPath, $info[2]);
         $dst = imagecreatetruecolor($newW, $newH);
 
         // Preserve alpha transparency layers for PNG files
@@ -56,10 +65,13 @@ final class ImageService
         }
 
         imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-        $this->saveImage($dst, $outputPath, $info[2]);
 
-        imagedestroy($src);
-        imagedestroy($dst);
+        try {
+            $this->saveImage($dst, $outputPath, $info[2]);
+        } finally {
+            imagedestroy($src);
+            imagedestroy($dst);
+        }
 
         return $outputPath;
     }
