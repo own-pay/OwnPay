@@ -148,10 +148,29 @@ return static function (\OwnPay\Container $c): void {
         $driver = $appCfg['cache_driver'] ?? 'file';
         if ($driver === 'redis' && class_exists(\Redis::class)) {
             try {
+                // CACHE-2: pass REDIS_PASSWORD / REDIS_USERNAME / REDIS_DB so
+                // operators can use authenticated Redis instances (requirepass
+                // or ACL). Without these, every command returned NOAUTH and
+                // the driver was unusable, pushing operators to disable Redis
+                // auth entirely (exposing the cache to the network).
+                $redisPasswordRaw = getenv('REDIS_PASSWORD');
+                $redisPassword = (is_string($redisPasswordRaw) && $redisPasswordRaw !== '')
+                    ? $redisPasswordRaw
+                    : null;
+                $redisUsernameRaw = getenv('REDIS_USERNAME');
+                $redisUsername = (is_string($redisUsernameRaw) && $redisUsernameRaw !== '')
+                    ? $redisUsernameRaw
+                    : null;
+                $redisDbRaw = getenv('REDIS_DB');
+                $redisDb = is_string($redisDbRaw) ? (int) $redisDbRaw : 0;
+
                 return new \OwnPay\Cache\RedisCache(
                     getenv('REDIS_HOST') ?: '127.0.0.1',
                     (int) (getenv('REDIS_PORT') ?: 6379),
-                    getenv('REDIS_PREFIX') ?: 'op:'
+                    getenv('REDIS_PREFIX') ?: 'op:',
+                    $redisPassword,
+                    $redisUsername,
+                    $redisDb
                 );
             } catch (\Throwable) {
                 // Graceful fallback to file cache
