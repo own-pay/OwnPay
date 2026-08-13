@@ -6,7 +6,9 @@ namespace OwnPay\View;
 use OwnPay\Container;
 use OwnPay\Support\Version;
 use Twig\Environment;
+use Twig\Extension\SandboxExtension;
 use Twig\Loader\FilesystemLoader;
+use Twig\Sandbox\SecurityPolicy;
 
 /**
  * Class TwigFactory
@@ -100,6 +102,40 @@ final class TwigFactory
         ]);
 
         $twig->addExtension(new TwigExtensions($container));
+
+        // VW-3: Enable a Twig sandbox with a strict SecurityPolicy. The
+        // sandbox is registered in NON-global mode so it can be toggled
+        // per-render via $twig->getExtension(SandboxExtension::class)
+        // ->enableSandbox(). Trusted core/plugin-shipped templates are
+        // rendered without the sandbox (full Twig features available);
+        // untrusted user-editable templates (email templates, invoice
+        // notes, brand-uploaded theme templates) are rendered with the
+        // sandbox enabled so a malicious template author cannot exfiltrate
+        // secrets via {{ env('DB_PASSWORD') }}, invoke arbitrary hooks via
+        // {{ hook('db.query.before') }}, or escape the autoescape policy
+        // via {{ _self }} introspection.
+        //
+        // The SecurityPolicy allow-lists only safe tags, filters, and the
+        // functions/methods explicitly registered by the platform. Any
+        // template that attempts to call a non-allowlisted function (e.g.
+        // env(), setting(), hook()) throws a SecurityError when the
+        // sandbox is enabled.
+        $sandboxPolicy = new SecurityPolicy(
+            // Allowed tags: only structural/display tags.
+            ['if', 'for', 'set', 'block', 'extends', 'include', 'macro', 'import', 'from'],
+            // Allowed filters: common formatting filters only.
+            ['abs', 'capitalize', 'date', 'default', 'escape', 'first', 'format', 'join', 'json_encode', 'keys', 'last', 'length', 'lower', 'merge', 'nl2br', 'number_format', 'replace', 'reverse', 'round', 'slice', 'sort', 'split', 'striptags', 'title', 'trim', 'upper', 'url_encode'],
+            // Allowed methods: none — templates cannot call object methods.
+            [],
+            // Allowed properties: none — templates cannot access object
+            // properties via dot notation beyond what __get exposes.
+            [],
+            // Allowed functions: only safe built-ins. env(), setting(),
+            // hook(), and hookFilter() are NOT in the allow-list.
+            ['attribute', 'cycle', 'date', 'max', 'min', 'random', 'range', 'template_from_string']
+        );
+        $sandbox = new SandboxExtension($sandboxPolicy, /* globally */ false);
+        $twig->addExtension($sandbox);
 
         $appName = isset($config['name']) && is_string($config['name']) ? $config['name'] : 'OwnPay';
         $appVersion = isset($config['version']) && is_string($config['version']) ? $config['version'] : Version::CURRENT;
