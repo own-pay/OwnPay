@@ -13,6 +13,8 @@ use OwnPay\Service\Device\DevicePairingService;
  */
 final class DeviceController
 {
+    use AdminScopeAwareTrait;
+
     /**
      * The dependency injection container.
      *
@@ -61,6 +63,11 @@ final class DeviceController
      */
     public function revoke(Request $req): Response
     {
+        $scopeErr = $this->requireAdminScope($req);
+        if ($scopeErr !== null) {
+            return $scopeErr;
+        }
+
         // Params were swapped - revoke(string $deviceUuid, int $merchantId)
         $deviceUuid = (string) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
