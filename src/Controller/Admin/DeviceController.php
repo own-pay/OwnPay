@@ -243,7 +243,7 @@ final class DeviceController
             throw new \RuntimeException('No active brand found.');
         }
 
-        $svc->revoke($uuid, $mid);
+        $svc->revoke($uuid, $mid, $this->session->userId());
         $this->session->flashSuccess('Device revoked');
         return Response::redirect('/admin/devices');
     }
@@ -279,7 +279,7 @@ final class DeviceController
             $count = 0;
             foreach ($ids as $uuid) {
                 if (is_string($uuid)) {
-                    $svc->revoke($uuid, $mid);
+                    $svc->revoke($uuid, $mid, $this->session->userId());
                     $count++;
                 }
             }
