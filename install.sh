@@ -1005,7 +1005,18 @@ server {
     }
 
     # Logging
-    access_log /var/log/nginx/ownpay-access.log;
+    # SECURITY (audit INST-3): suppress access logging for /install/* URIs.
+    # Their POST bodies carry DB credentials and the admin password during
+    # initial setup. The default combined format does not include
+    # $request_body, but a future log_format change — or a global `mirror`
+    # directive — would otherwise expose these credentials in plaintext in
+    # /var/log/nginx/ownpay-access.log. The `if=` parameter on access_log
+    # gates logging on a per-request variable.
+    set \$loggable 1;
+    if (\$request_uri ~* ^/install/) {
+        set \$loggable 0;
+    }
+    access_log /var/log/nginx/ownpay-access.log combined if=\$loggable;
     error_log  /var/log/nginx/ownpay-error.log;
 }
 NGINX
@@ -1057,8 +1068,13 @@ _install_apache() {
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
+    # SECURITY (audit INST-3): suppress access logging for /install/* URIs.
+    # Their POST bodies carry DB credentials and the admin password during
+    # initial setup. Combined format does not include the body, but future
+    # CustomLog format changes or mod_security audit logs could.
+    SetEnvIf Request_URI "^/install/" dontlog
     ErrorLog \${APACHE_LOG_DIR}/ownpay-error.log
-    CustomLog \${APACHE_LOG_DIR}/ownpay-access.log combined
+    CustomLog \${APACHE_LOG_DIR}/ownpay-access.log combined env=!dontlog
 </VirtualHost>
 APACHE
 
@@ -1679,13 +1695,28 @@ phase_web_installer() {
   # Give web server a moment to start
   sleep 2
 
+  # SECURITY (audit INST-3): write JSON payloads (DB password, admin
+  # password) to a chmod-600 temp file and pass via curl --data-binary
+  # @file. Using curl -d '<json>' on the command line would expose the
+  # credentials via `ps aux` / /proc/PID/cmdline to other local users
+  # during the install window. The web server is also configured to
+  # suppress access logging for /install/* (see _install_nginx/_apache)
+  # so the request body never lands in plaintext logs either.
+  local payload_file
+  payload_file="$(mktemp)"
+  chmod 600 "$payload_file"
+  trap 'rm -f "$payload_file"' RETURN
+
   # ── Step 1: Test database connection ────────────────────────────────────
   spinner_start "Step 1/4 — Testing database connection..."
+  cat > "$payload_file" <<JSON
+{"host":"${DB_HOST}","port":${DB_PORT},"name":"${DB_NAME}","user":"${DB_USER}","pass":"${DB_PASS}","prefix":"op_"}
+JSON
   local resp
   resp="$(curl -fsSL --max-time 30 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"host\":\"${DB_HOST}\",\"port\":${DB_PORT},\"name\":\"${DB_NAME}\",\"user\":\"${DB_USER}\",\"pass\":\"${DB_PASS}\",\"prefix\":\"op_\"}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/test-db" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1698,12 +1729,15 @@ phase_web_installer() {
     log_warn "Proceeding — the web installer at ${base_url}/install can complete this manually."
   fi
 
-  # ── Step 2: Import schema ────────────────────────────────────────────────
+  # ── Step 2: Import schema ──────────────────────────────────────────────────────────────────────
   spinner_start "Step 2/4 — Importing database schema..."
+  cat > "$payload_file" <<JSON
+{"host":"${DB_HOST}","port":${DB_PORT},"name":"${DB_NAME}","user":"${DB_USER}","pass":"${DB_PASS}","prefix":"op_","confirm_overwrite":true}
+JSON
   resp="$(curl -fsSL --max-time 60 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"host\":\"${DB_HOST}\",\"port\":${DB_PORT},\"name\":\"${DB_NAME}\",\"user\":\"${DB_USER}\",\"pass\":\"${DB_PASS}\",\"prefix\":\"op_\",\"confirm_overwrite\":true}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/import-schema" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1718,12 +1752,15 @@ phase_web_installer() {
     return
   fi
 
-  # ── Step 3: Create admin account ────────────────────────────────────────
+  # ── Step 3: Create admin account ────────────────────────────────────────────────────────────────────
   spinner_start "Step 3/4 — Creating admin account..."
+  cat > "$payload_file" <<JSON
+{"name":"${ADMIN_NAME}","email":"${ADMIN_EMAIL}","username":"${ADMIN_USERNAME}","password":"${ADMIN_PASSWORD}"}
+JSON
   resp="$(curl -fsSL --max-time 30 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"name\":\"${ADMIN_NAME}\",\"email\":\"${ADMIN_EMAIL}\",\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/create-admin" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1738,12 +1775,15 @@ phase_web_installer() {
     return
   fi
 
-  # ── Step 4: Finalize ─────────────────────────────────────────────────────
+  # ── Step 4: Finalize ──────────────────────────────────────────────────────────────────────────
   spinner_start "Step 4/4 — Finalizing installation..."
+  cat > "$payload_file" <<JSON
+{"app_name":"${APP_NAME}","currency":"USD","timezone":"${TIMEZONE}"}
+JSON
   resp="$(curl -fsSL --max-time 30 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"app_name\":\"${APP_NAME}\",\"currency\":\"USD\",\"timezone\":\"${TIMEZONE}\"}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/finalize" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
