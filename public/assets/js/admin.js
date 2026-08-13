@@ -546,6 +546,18 @@
             return;
         }
 
+        // SECURITY (UI-8): check data-confirm BEFORE calling e.preventDefault()
+        // and queueing the fetch(). Previously this lived in a separate submit
+        // listener registered AFTER the AJAX handler, so when the user clicked
+        // Cancel the fetch had already been queued and the request was still
+        // sent. Doing the check here at the top means a Cancel click fully
+        // aborts submission before any side-effect is scheduled.
+        var confirmMsg = form.getAttribute("data-confirm") || form.dataset.confirm;
+        if (confirmMsg && !confirm(confirmMsg)) {
+            e.preventDefault();
+            return;
+        }
+
         // Issue #72: do not show "Changes saved" toast for forms that explicitly
         // opt out (search, filter, pagination, brand-switch, tab-toggle, etc.).
         // These forms use POST for CSRF reasons but do not modify any data, so
@@ -782,16 +794,12 @@
     }
 
 
-
-    // --- Confirm dangerous forms (Delegated to support dynamic forms & CSP safety) ------------------------------
-    document.addEventListener("submit", function (e) {
-        if (e.target && e.target.tagName === "FORM") {
-            var msg = e.target.getAttribute("data-confirm") || e.target.dataset.confirm;
-            if (msg && !confirm(msg)) {
-                e.preventDefault();
-            }
-        }
-    });
+    // data-confirm handling was previously done in a separate submit
+    // listener registered here. It has been merged into the AJAX submit
+    // handler above (see SECURITY UI-8 comment) so that Cancel actually
+    // prevents the queued fetch from firing. The standalone listener is
+    // intentionally removed; do not re-add it without also short-circuiting
+    // the AJAX handler.
 
     // --- Copy to clipboard ------------------------------------
     window.opCopyText = function (text, button, successCallback) {
