@@ -229,12 +229,22 @@ final class CustomerPiiService
     public function delete(int $merchantId, int $customerId): void
     {
         $repo = $this->customers->forTenant($merchantId);
+        // Audit finding CUS-4: the previous implementation only cleared
+        // email_enc, phone_enc, name_enc, and email_hash. The
+        // phone_hash/address_enc/metadata columns were left intact on the
+        // soft-deleted row, meaning the customer's phone could still be
+        // resolved via findByPhoneHash() (defeating GDPR "right to be
+        // forgotten") and the encrypted address + JSON metadata blob
+        // lingered indefinitely. Clear every PII-bearing column instead.
         $repo->updateScoped($customerId, [
-            'email_enc'  => null,
-            'phone_enc'  => null,
-            'name_enc'   => null,
-            'email_hash' => null,
-            'status'     => 'deleted',
+            'email_enc'   => null,
+            'phone_enc'   => null,
+            'name_enc'    => null,
+            'address_enc' => null,
+            'email_hash'  => null,
+            'phone_hash'  => null,
+            'metadata'    => null,
+            'status'      => 'deleted',
         ]);
 
         $this->events->doAction('customer.deleted', $merchantId, $customerId);

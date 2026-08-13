@@ -18,7 +18,7 @@ final class CustomerRepository extends BaseRepository
     protected string $table = 'op_customers';
     protected array $fillable = [
         'merchant_id', 'uuid', 'name_enc', 'email_enc', 'email_hash',
-        'phone_enc', 'phone_hash', 'metadata',
+        'phone_enc', 'phone_hash', 'address_enc', 'metadata', 'status',
     ];
 
     /**
@@ -31,8 +31,12 @@ final class CustomerRepository extends BaseRepository
      */
     public function findByEmailHash(string $hash): ?array
     {
+        // Audit fix CUS-4: exclude soft-deleted rows. CustomerPiiService::delete()
+        // now nulls email_hash/phone_hash when soft-deleting, but defending in
+        // depth here means even a legacy delete (or a future regression) cannot
+        // resurrect a forgotten customer via the lookup path.
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE email_hash = :h AND merchant_id = :mid LIMIT 1",
+            "SELECT * FROM {$this->table} WHERE email_hash = :h AND merchant_id = :mid AND status != 'deleted' LIMIT 1",
             ['h' => $hash, 'mid' => $this->requireTenant()]
         );
     }
@@ -47,8 +51,10 @@ final class CustomerRepository extends BaseRepository
      */
     public function findByPhoneHash(string $hash): ?array
     {
+        // Audit fix CUS-4: exclude soft-deleted rows so a forgotten
+        // customer's phone cannot be resolved via this lookup path.
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE phone_hash = :h AND merchant_id = :mid LIMIT 1",
+            "SELECT * FROM {$this->table} WHERE phone_hash = :h AND merchant_id = :mid AND status != 'deleted' LIMIT 1",
             ['h' => $hash, 'mid' => $this->requireTenant()]
         );
     }
