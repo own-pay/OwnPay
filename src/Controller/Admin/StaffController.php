@@ -376,6 +376,16 @@ final class StaffController
         $mid = $this->brand->getActiveBrandId();
         $id  = (int) $req->param('id');
 
+        // Audit fix STF-4: prevent an admin from deleting their own account.
+        // Without this guard an admin could delete themselves, immediately
+        // losing their session and any in-flight work, with no recovery path
+        // short of a DB restore.
+        $currentUserId = $this->session->userId();
+        if ($currentUserId !== null && $id === $currentUserId) {
+            $this->session->flashError('You cannot delete your own account.');
+            return Response::redirect('/admin/staff');
+        }
+
         $merchantScope = $this->brand->isGlobalView() ? null : $mid;
         $this->userRepo->deleteStaff($id, $merchantScope);
 
