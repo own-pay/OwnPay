@@ -26,7 +26,7 @@ jobs:
     steps:
       # Checkout the repository to the GitHub Actions runner
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis.
       #
@@ -48,7 +48,7 @@ jobs:
       #
       # NOTE: Codacy CLI v7.9.x changed --tool-timeout to require a duration
       # string (e.g. "3minutes", "180seconds") instead of a bare integer.
-      # The codacy-analysis-cli-action@v4.4.7 wrapper passes the value
+      # The codacy-analysis-cli-action@v4 wrapper passes the value
       # through verbatim, so we use "3minutes" here.
       #
       # timeout-minutes is a GitHub Actions step-level safeguard that kills
@@ -57,7 +57,7 @@ jobs:
       # hangs, network stall while pulling a Docker image, etc.). 25 minutes
       # is comfortably above the observed ~17-minute full run on OwnPay.
       - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@v4.4.7
+        uses: codacy/codacy-analysis-cli-action@v4
         with:
           # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
           # You can also omit the token and run the tools that support default configurations

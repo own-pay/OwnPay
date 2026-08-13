@@ -20,6 +20,16 @@ final class JwtService
     public const ISSUER = 'OwnPay';
 
     /**
+     * Token type claim values. The `typ` claim distinguishes short-lived access
+     * tokens (accepted by JwtAuthMiddleware for API authorization) from
+     * long-lived refresh tokens (only accepted by the /auth/refresh endpoint to
+     * mint a new access token). Without this distinction a stolen refresh token
+     * would grant 30 days of direct API access — see audit finding SEC-1.
+     */
+    public const TYPE_ACCESS  = 'access';
+    public const TYPE_REFRESH = 'refresh';
+
+    /**
      * Default audience claim for OwnPay mobile/companion-app tokens.
      */
     public const AUDIENCE = 'ownpay-mobile';

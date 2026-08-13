@@ -104,8 +104,14 @@ final class RedisQueue implements QueueInterface
      * Maximum attempts before a stale job is moved to the failed list instead
      * of being re-enqueued. Prevents an eternally crashing job from being
      * retried forever.
+     *
+     * NOTE: This is distinct from {@see self::MAX_ATTEMPTS} (which caps
+     * retry() attempts at 3 to match QueueWorkerJob::MAX_ATTEMPTS).
+     * recoverStale() re-enqueues jobs whose worker died mid-flight — a
+     * softer failure mode than a handler that explicitly throws — so it
+     * gets a slightly higher budget (5) before giving up.
      */
-    private const int MAX_ATTEMPTS = 5;
+    private const int STALE_MAX_ATTEMPTS = 5;
 
     /**
      * Extracts and retrieves the next available job message from the specified queue.
@@ -360,7 +366,7 @@ final class RedisQueue implements QueueInterface
      * This method scans every entry in `op:queue:processing`, parses the
      * stored JSON to recover `started_at` and the originating `queue`, and
      * for any entry whose `started_at` is older than `$timeout` seconds:
-     *   - If the job has been attempted fewer than MAX_ATTEMPTS times, it is
+     *   - If the job has been attempted fewer than STALE_MAX_ATTEMPTS times, it is
      *     LPUSHed back onto the ready list so the next worker can retry it.
      *   - Otherwise it is moved to the `failed` list to prevent an
      *     eternally crashing job from being retried forever.
@@ -422,7 +428,7 @@ final class RedisQueue implements QueueInterface
                 // cannot race us back into re-enqueueing the same job twice.
                 $this->redis->hDel($processingKey, $jobIdStr);
 
-                if ($attempts >= self::MAX_ATTEMPTS) {
+                if ($attempts >= self::STALE_MAX_ATTEMPTS) {
                     // Exceeded retry budget — move to failed list with a
                     // descriptive error so an operator can investigate.
                     $job['error'] = 'Visibility timeout exceeded after '
