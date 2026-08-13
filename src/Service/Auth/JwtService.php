@@ -37,13 +37,22 @@ final class JwtService
     /**
      * JwtService constructor.
      *
-     * Resolves the token verification secret from runtime configurations. Fallbacks
-     * to a test-suite safe mock key if the application is running within unit tests.
+     * Resolves the token verification secret from runtime configurations.
+     *
+     * SECURITY: there is NO default-secret fallback. A previously-committed
+     * fallback string ('default-secret-placeholder-for-test-suite-...') was
+     * publicly known and would have allowed JWT forgery against any
+     * misconfigured production instance that happened to set APP_ENV=testing
+     * without setting JWT_SECRET. The test suite now explicitly provides
+     * JWT_SECRET via phpunit.xml (<env name="JWT_SECRET" .../>), so the
+     * fallback is unnecessary and has been removed. If JWT_SECRET is missing
+     * or empty in ANY environment (including testing), a RuntimeException
+     * is thrown with a clear message.
      *
      * @param string|null $secret Optional override secret key.
      * @param string|null $issuer Optional override issuer parameter.
      * @param int $ttl Default expiry lifetime of tokens.
-     * @throws \RuntimeException If the configured JWT_SECRET is empty/invalid in production.
+     * @throws \RuntimeException If the configured JWT_SECRET is empty/invalid.
      */
     public function __construct(?string $secret = null, ?string $issuer = null, int $ttl = 86400)
     {
@@ -52,12 +61,7 @@ final class JwtService
             $resolvedSecret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: null;
         }
         if (!is_string($resolvedSecret) || trim($resolvedSecret) === '') {
-            $isTestEnv = (($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: '') === 'testing');
-            if ($isTestEnv) {
-                $resolvedSecret = 'default-secret-placeholder-for-test-suite-32-chars-long';
-            } else {
-                throw new \RuntimeException('JWT_SECRET must be configured and non-empty.');
-            }
+            throw new \RuntimeException('JWT_SECRET must be set; got empty value.');
         }
 
         $this->secret = $resolvedSecret;
