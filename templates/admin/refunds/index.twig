@@ -18,12 +18,13 @@
         {key: '', label: 'All'},
         {key: 'completed', label: 'Completed'},
         {key: 'pending', label: 'Pending'},
+        {key: 'pending_verification', label: 'Requires Verification'},
         {key: 'failed', label: 'Failed'},
     ] %}
     {% for s in statuses %}
     <a href="?status={{ s.key }}&q={{ filters.q|default('') }}"
        class="op-chip {{ (filters.status|default('')) == s.key ? 'op-chip-active' : '' }}
-              {% if s.key == 'completed' %}op-chip-success{% elseif s.key == 'pending' %}op-chip-warning{% elseif s.key == 'failed' %}op-chip-danger{% endif %}">
+              {% if s.key == 'completed' %}op-chip-success{% elseif s.key == 'pending' %}op-chip-warning{% elseif s.key == 'pending_verification' %}op-chip-danger{% elseif s.key == 'failed' %}op-chip-danger{% endif %}">
         {{ s.label }}
     </a>
     {% endfor %}
@@ -87,9 +88,16 @@
                             <span class="op-text-sm op-text-muted">{{ ref.reason|default('-') }}</span>
                         </td>
                         <td data-label="Status">
-                            <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : 'danger') }}">
-                                {{ ref.status|capitalize }}
+                            <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : (ref.status == 'pending_verification' ? 'danger' : 'danger')) }}">
+                                {% if ref.status == 'pending_verification' %}
+                                    Requires Verification
+                                {% else %}
+                                    {{ ref.status|capitalize }}
+                                {% endif %}
                             </span>
+                            {% if ref.status == 'pending_verification' %}
+                                <div class="op-text-xs op-text-muted op-mt-1">Verify against gateway dashboard before completing or failing.</div>
+                            {% endif %}
                         </td>
                         <td data-label="Processed" class="op-text-muted op-text-sm">
                             {{ ref.processed_at ? ref.processed_at|date("M d, Y H:i") : '-' }}

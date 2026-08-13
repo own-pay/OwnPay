@@ -333,7 +333,7 @@ CREATE TABLE `op_refunds` (
   `uuid` CHAR(36) NOT NULL,
   `amount` DECIMAL(15,2) NOT NULL,
   `reason` VARCHAR(500) DEFAULT NULL,
-  `status` ENUM('pending','completed','failed') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','completed','failed','pending_verification') NOT NULL DEFAULT 'pending',
   `processed_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
