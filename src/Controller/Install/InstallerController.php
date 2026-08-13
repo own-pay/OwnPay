@@ -35,6 +35,22 @@ final class InstallerController
     private ?bool $dbProbeResult = null;
 
     /**
+     * Default allowlist of DB hosts the installer will connect to.
+     *
+     * The installer runs on the OwnPay server and connects to the DB using
+     * user-supplied credentials. Without an allowlist, a CSRF attacker can
+     * make the OwnPay server initiate an outbound MySQL connection to an
+     * attacker-controlled rogue MySQL server, which can capture the
+     * supplied credentials AND trigger LOAD DATA LOCAL INFILE to read
+     * arbitrary files from the OwnPay server (CVE-2017-15945-class).
+     *
+     * Operators who need to point the installer at a remote DB (e.g. a
+     * managed RDS instance) can set the OWNPAY_INSTALLER_ALLOWED_DB_HOSTS
+     * env var to a comma-separated list of additional allowed hostnames.
+     */
+    private const DEFAULT_ALLOWED_DB_HOSTS = ['127.0.0.1', 'localhost', '::1'];
+
+    /**
      * InstallerController constructor.
      */
     public function __construct()
@@ -117,11 +133,25 @@ final class InstallerController
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
+        // SECURITY (audit INST-7): allowlist the DB host so a CSRF attacker
+        // cannot make the OwnPay server initiate an outbound MySQL connection
+        // to a rogue server that captures credentials and triggers
+        // LOAD DATA LOCAL INFILE file disclosure.
+        if (!$this->isDbHostAllowed($host)) {
+            return Response::json([
+                'success' => false,
+                'error' => 'DB host is not in the installer allowlist. Set OWNPAY_INSTALLER_ALLOWED_DB_HOSTS to permit a remote DB.',
+            ], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 5,
+                // Disable LOCAL INFILE: a rogue MySQL server can otherwise
+                // request LOAD DATA LOCAL INFILE '/etc/passwd' and read
+                // arbitrary files from the OwnPay server.
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             
             $mysqlVersion = $pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
@@ -206,10 +236,22 @@ final class InstallerController
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
+        // SECURITY (audit INST-7): allowlist the DB host (same guard as
+        // testDatabase — see that method for rationale).
+        if (!$this->isDbHostAllowed($host)) {
+            return Response::json([
+                'success' => false,
+                'error' => 'DB host is not in the installer allowlist. Set OWNPAY_INSTALLER_ALLOWED_DB_HOSTS to permit a remote DB.',
+            ], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                // Disable LOCAL INFILE: a rogue MySQL server can otherwise
+                // request LOAD DATA LOCAL INFILE '/etc/passwd' and read
+                // arbitrary files from the OwnPay server.
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             
             $dbCheck = $pdo->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
@@ -360,7 +402,15 @@ final class InstallerController
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-                $dbUser, $dbPass
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth —
+                    // the host was allowlisted at importSchema time, but a
+                    // rogue MySQL server could still request file reads).
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             $now = DateHelper::now();
@@ -589,7 +639,13 @@ final class InstallerController
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-                $dbUser, $dbPass
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth).
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
@@ -779,12 +835,46 @@ final class InstallerController
             $pdo = new \PDO("mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 2,
+                // Disable LOCAL INFILE (audit INST-7, defense-in-depth —
+                // host comes from the live .env, but a rogue upstream
+                // MySQL server could still request file reads).
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             $stmt = $pdo->query("SELECT 1 FROM `{$prefix}merchant_users` WHERE is_superadmin = 1 LIMIT 1");
             return $this->dbProbeResult = ($stmt !== false && $stmt->fetch() !== false);
         } catch (\Throwable) {
             return $this->dbProbeResult = false;
         }
+    }
+
+    /**
+     * Returns true if the given DB host is on the installer allowlist.
+     *
+     * The default allowlist permits only loopback hosts (127.0.0.1,
+     * localhost, ::1). Operators who need to point the installer at a
+     * remote DB (e.g. a managed RDS instance) can set the
+     * OWNPAY_INSTALLER_ALLOWED_DB_HOSTS env var to a comma-separated
+     * list of additional allowed hostnames/IPs.
+     *
+     * @param string $host The candidate DB host (already trimmed).
+     * @return bool True if the host is allowed.
+     */
+    private function isDbHostAllowed(string $host): bool
+    {
+        if ($host === '') {
+            return false;
+        }
+        $allowed = self::DEFAULT_ALLOWED_DB_HOSTS;
+        $extra = $_ENV['OWNPAY_INSTALLER_ALLOWED_DB_HOSTS'] ?? (getenv('OWNPAY_INSTALLER_ALLOWED_DB_HOSTS') ?: '');
+        if (is_string($extra) && $extra !== '') {
+            foreach (explode(',', $extra) as $h) {
+                $h = trim($h);
+                if ($h !== '') {
+                    $allowed[] = strtolower($h);
+                }
+            }
+        }
+        return in_array(strtolower($host), $allowed, true);
     }
 
     /**
