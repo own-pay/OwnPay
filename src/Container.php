@@ -45,7 +45,110 @@ final class Container
      */
     private array $resolving = [];
 
+    /**
+     * @var bool Whether the container has been frozen (made immutable) after boot.
+     */
+    private bool $frozen = false;
+
+    /**
+     * @var array<string, bool> Per-abstract immutability lock. Once an abstract
+     *                             is locked, bind/singleton/instance/forget for it
+     *                             throw RuntimeException even before freeze().
+     */
+    private array $locked = [];
+
     // Service Binding Operations
+
+    /**
+     * Freeze the container: once frozen, no further bind()/singleton()/
+     * instance()/forget() calls are permitted. The Kernel calls this after
+     * the bootstrap container is built and plugins have booted, so that
+     * route handlers, middleware, and any code holding a container reference
+     * cannot swap out security-critical services (CORE-2).
+     *
+     * @return void
+     */
+    public function freeze(): void
+    {
+        $this->frozen = true;
+    }
+
+    /**
+     * Unfreeze the container (test helper).
+     *
+     * Production code MUST NOT call this. It exists so unit tests can reset
+     * the container between cases without rebuilding it from scratch.
+     *
+     * @return void
+     */
+    public function unfreeze(): void
+    {
+        $this->frozen = false;
+    }
+
+    /**
+     * @return bool True if the container has been frozen (made immutable).
+     */
+    public function isFrozen(): bool
+    {
+        return $this->frozen;
+    }
+
+    /**
+     * Lock a specific abstract against future mutations (CORE-2).
+     *
+     * After lock() is called for an abstract, any subsequent bind()/
+     * singleton()/instance()/forget() targeting that abstract throws
+     * RuntimeException, regardless of whether the container has been
+     * globally frozen. The Kernel locks the security-critical services
+     * (Database, EventManager, AdminSession, FieldEncryptor,
+     * SettingsRepository, PluginRegistry) immediately after they are
+     * registered in config/services.php, so even a plugin that runs
+     * during PluginLoader::boot() cannot replace them with a wrapper.
+     *
+     * @param string $abstract Service identifier to lock.
+     * @return void
+     */
+    public function lock(string $abstract): void
+    {
+        $abstract = $this->resolveAlias($abstract);
+        $this->locked[$abstract] = true;
+    }
+
+    /**
+     * @param string $abstract Service identifier to check.
+     * @return bool True if the abstract has been individually locked.
+     */
+    public function isLocked(string $abstract): bool
+    {
+        $abstract = $this->resolveAlias($abstract);
+        return isset($this->locked[$abstract]);
+    }
+
+    /**
+     * Defense-in-depth guard invoked by every binding mutator.
+     *
+     * Throws RuntimeException if the container has been frozen OR if the
+     * target abstract has been individually locked. The check happens BEFORE
+     * the underlying mutation so a half-applied override cannot land.
+     *
+     * @param string $abstract Service identifier being mutated.
+     * @return void
+     * @throws \RuntimeException When the container is frozen or the abstract is locked.
+     */
+    private function guardMutation(string $abstract): void
+    {
+        if ($this->frozen) {
+            throw new RuntimeException(
+                "Container is frozen; cannot modify bindings after boot."
+            );
+        }
+        if (isset($this->locked[$abstract])) {
+            throw new RuntimeException(
+                "Service [{$abstract}] is locked; cannot be overridden."
+            );
+        }
+    }
 
     /**
      * Register a transient service factory closure.
@@ -56,6 +159,8 @@ final class Container
      */
     public function bind(string $abstract, Closure $factory): void
     {
+        $abstract = $this->resolveAlias($abstract);
+        $this->guardMutation($abstract);
         $this->bindings[$abstract] = $factory;
         unset($this->instances[$abstract], $this->singletons[$abstract]);
     }
@@ -69,6 +174,8 @@ final class Container
      */
     public function singleton(string $abstract, Closure $factory): void
     {
+        $abstract = $this->resolveAlias($abstract);
+        $this->guardMutation($abstract);
         $this->bindings[$abstract] = $factory;
         $this->singletons[$abstract] = true;
         unset($this->instances[$abstract]);
@@ -83,6 +190,8 @@ final class Container
      */
     public function instance(string $abstract, mixed $instance): void
     {
+        $abstract = $this->resolveAlias($abstract);
+        $this->guardMutation($abstract);
         $this->instances[$abstract] = $instance;
         $this->singletons[$abstract] = true;
         unset($this->bindings[$abstract]);
@@ -313,6 +422,7 @@ final class Container
     public function forget(string $abstract): void
     {
         $abstract = $this->resolveAlias($abstract);
+        $this->guardMutation($abstract);
         unset(
             $this->bindings[$abstract],
             $this->instances[$abstract],
@@ -335,5 +445,7 @@ final class Container
         $this->aliases = [];
         $this->parameters = [];
         $this->resolving = [];
+        $this->locked = [];
+        $this->frozen = false;
     }
 }
