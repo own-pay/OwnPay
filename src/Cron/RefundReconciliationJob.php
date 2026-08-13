@@ -39,15 +39,21 @@ use OwnPay\Support\DateHelper;
  *                         balance hold on a refund that is still in flight).
  *
  *   Phase 2 (24-hour stale-pending backstop):
- *     Refunds still 'pending' after 24 hours are auto-failed. Funds-
- *     conservative: failing releases the withheld balance and the merchant
- *     can retry, while the audit trail and the fired event surface the case
- *     for manual verification against the gateway's dashboard. This catches
- *     refunds that Phase 1 could not resolve (e.g. adapters without refund-
- *     status support, gateway API outages, or genuine stuck states).
+ *     Refunds still 'pending' after 24 hours are marked 'pending_verification'
+ *     (a new status introduced by audit fix CRON-7). Funds-conservative:
+ *     unlike the previous 'failed' transition, 'pending_verification'
+ *     PRESERVES the withheld balance so the merchant cannot accidentally
+ *     double-refund by retrying. The refund is surfaced for explicit admin
+ *     review against the gateway's dashboard before any balance release.
+ *     The previous auto-fail behaviour risked double-refunding: if the
+ *     gateway had actually processed the refund but the local process died
+ *     before the reconcile phase, the customer got their money back AND the
+ *     merchant's withheld balance was released — so a merchant retry would
+ *     send a second refund.
  *
  * Fires system hooks:
- * - payment.refund.reconciliation_failed: Dispatched per refund auto-failed by Phase 2.
+ * - payment.refund.requires_verification: Dispatched per refund marked 'pending_verification' by Phase 2.
+ * - payment.refund.reconciliation_failed: Dispatched per refund that Phase 1 explicitly fails after the gateway reports 'failed' or 'not_found'.
  * - payment.refund.reconciliation_completed: Dispatched per refund reconciled to 'completed' by Phase 1.
  *
  * @package OwnPay\Cron
@@ -153,21 +159,24 @@ final class RefundReconciliationJob
     }
 
     /**
-     * Reconciles pending refunds in two phases (gateway probe then stale auto-fail).
+     * Reconciles pending refunds in two phases (gateway probe then stale-pending mark-for-verification).
      *
-     * @return array{failed: int, completed: int, total: int} Reconciliation execution results.
+     * @return array{requires_verification: int, completed: int, total: int} Reconciliation execution results.
      */
     public function run(): array
     {
         $completedCount = $this->runGatewayProbePhase();
-        $failedCount = $this->runStaleAutoFailPhase();
+        $requiresVerificationCount = $this->runStalePendingVerificationPhase();
 
         // total reflects the sum of refunds the job actually transitioned;
         // refunds left pending (gateway 'pending' or unknown) are not counted.
+        // Audit fix CRON-7: the 'failed' key was renamed to 'requires_verification'
+        // because Phase 2 no longer auto-fails — it marks the refund for
+        // explicit admin review instead.
         return [
-            'failed'    => $failedCount,
-            'completed' => $completedCount,
-            'total'     => $failedCount + $completedCount,
+            'requires_verification' => $requiresVerificationCount,
+            'completed'             => $completedCount,
+            'total'                 => $requiresVerificationCount + $completedCount,
         ];
     }
 
@@ -423,14 +432,20 @@ final class RefundReconciliationJob
     }
 
     /**
-     * Phase 2: auto-fails refunds that have been pending longer than the 24-hour
-     * stale window. This is the original safety-net behaviour, preserved for
-     * refunds that Phase 1 could not resolve (adapters without refund-status
-     * support, gateway API outages, or genuine stuck states).
+     * Phase 2: marks refunds that have been pending longer than the 24-hour
+     * stale window as 'pending_verification' (audit fix CRON-7, issue #377). The
+     * previous behaviour auto-failed these refunds, which released the withheld
+     * balance — risking a double refund if the gateway had actually processed
+     * the refund but the local process died before reconcile.
      *
-     * @return int Number of refunds auto-failed by this phase.
+     * 'pending_verification' preserves the balance hold and surfaces the
+     * refund for explicit admin review against the gateway's dashboard. The
+     * admin can then either mark the refund 'completed' (if the gateway
+     * confirms it) or 'failed' (if the gateway confirms it never happened).
+     *
+     * @return int Number of refunds marked 'pending_verification' by this phase.
      */
-    private function runStaleAutoFailPhase(): int
+    private function runStalePendingVerificationPhase(): int
     {
         $stale = $this->db->fetchAll(
             "SELECT id, merchant_id, transaction_id, amount, created_at
@@ -441,7 +456,7 @@ final class RefundReconciliationJob
              LIMIT " . self::BATCH_LIMIT
         );
 
-        $failedCount = 0;
+        $markedCount = 0;
 
         foreach ($stale as $refund) {
             if (!isset($refund['id'], $refund['merchant_id']) || !is_scalar($refund['id']) || !is_scalar($refund['merchant_id'])) {
@@ -459,8 +474,11 @@ final class RefundReconciliationJob
                     if ($locked === null || ($locked['status'] ?? '') !== 'pending') {
                         return false;
                     }
+                    // Audit fix CRON-7: mark as 'pending_verification' rather
+                    // than 'failed' so the withheld balance is preserved and
+                    // the refund is surfaced for explicit admin review.
                     $this->db->execute(
-                        "UPDATE op_refunds SET status = 'failed' WHERE id = :id",
+                        "UPDATE op_refunds SET status = 'pending_verification' WHERE id = :id",
                         ['id' => $refundId]
                     );
                     return true;
@@ -470,26 +488,26 @@ final class RefundReconciliationJob
                     continue;
                 }
 
-                $failedCount++;
+                $markedCount++;
                 $this->audit->log(
                     $merchantId,
                     null,
-                    'refund.reconciliation_failed',
+                    'refund.requires_verification',
                     'refund',
                     $refundId,
                     ['status' => 'pending'],
-                    ['status' => 'failed', 'reason' => 'stale_pending_timeout']
+                    ['status' => 'pending_verification', 'reason' => 'stale_pending_requires_verification']
                 );
-                $this->events->doAction('payment.refund.reconciliation_failed', $refund);
+                $this->events->doAction('payment.refund.requires_verification', $refund);
                 $this->logger->warning(
                     "Refund #{$refundId} (merchant {$merchantId}) was pending for over " . self::STALE_AFTER_HOURS
-                    . "h and has been auto-failed. Verify against the gateway dashboard before retrying."
+                    . "h and has been marked 'pending_verification'. Admin must verify against the gateway dashboard before completing or failing the refund."
                 );
             } catch (\Throwable $e) {
                 $this->logger->error("Refund reconciliation failed for refund #{$refundId}: " . $e->getMessage());
             }
         }
 
-        return $failedCount;
+        return $markedCount;
     }
 }
