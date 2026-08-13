@@ -151,15 +151,28 @@ final class CommunicationService
      *
      * Triggers the 'communication.template.render' filter to let plugins post-process templates.
      *
+     * When $contentType is 'html' (the default), each scalar variable is HTML-escaped
+     * via htmlspecialchars(ENT_QUOTES|ENT_HTML5, UTF-8) before interpolation so that
+     * caller-controlled values (refund reasons, transaction ids, customer names) cannot
+     * inject <script>, <img>, or other active markup into the rendered HTML body.
+     * When $contentType is 'text' (plain-text SMS body), values are interpolated raw
+     * because SMS clients render body text literally — escaping would just add visible
+     * '&lt;' noise.
+     *
      * @param string $template Plain text or HTML template content.
      * @param array<string, mixed> $vars Variables to replace.
+     * @param string $contentType One of 'html' (escape values) or 'text' (no escaping).
      * @return string Fully compiled message payload.
      */
-    public function renderTemplate(string $template, array $vars): string
+    public function renderTemplate(string $template, array $vars, string $contentType = 'html'): string
     {
+        $escapeHtml = $contentType === 'html';
         $rendered = $template;
         foreach ($vars as $key => $value) {
             $valStr = is_scalar($value) ? (string) $value : '';
+            if ($escapeHtml) {
+                $valStr = htmlspecialchars($valStr, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
             $rendered = str_replace('{{' . $key . '}}', $valStr, $rendered);
         }
         $res = $this->events->applyFilter('communication.template.render', $rendered, $vars);
