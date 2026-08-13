@@ -106,36 +106,77 @@ final class CustomerController
         // completely broken.
         $emailHash = '';
         if (trim($q) !== '') {
-            $piiSvc = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
-            if ($piiSvc instanceof \OwnPay\Service\Customer\CustomerPiiService) {
-                $emailHash = $piiSvc->hashEmailForSearch($q);
-            }
+            $emailHash = $this->piiService->hashEmailForSearch($q);
         }
 
         $paginated = $this->customerRepo->paginateWithStats($isGlobal ? null : $mid, $emailHash, $page, 20);
 
-        // Decrypt PII fields for display
+        // Determine whether the current viewer is permitted to reveal unmasked
+        // customer PII. The previous implementation unconditionally decrypted
+        // full PII (name, email, phone) for every row in the paginated list and
+        // passed the plaintext values straight to Twig — a staff member with
+        // only the customers.view (read-only) permission saw every customer's
+        // email and phone in cleartext. Now we mask by default and only attach
+        // the unmasked plaintext when the viewer has customers.manage (or is a
+        // superadmin, which bypasses all permission checks upstream).
+        $permsVal = $req->getAttribute('user_permissions', []);
+        $perms = is_array($permsVal) ? $permsVal : [];
+        $canRevealPii = $this->session->isSuperadmin()
+            || in_array('customers.manage', $perms, true);
+
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
         if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
             throw new \RuntimeException('FieldEncryptor service unavailable');
         }
-        $customers = array_map(function (array $c) use ($enc) {
+        $customers = array_map(function (array $c) use ($enc, $canRevealPii) {
+            // Decrypt only what's needed for display. The plaintext is never
+            // exposed to the template unless the viewer can manage customers.
+            $namePlain  = '-';
+            $emailPlain = '-';
+            $phonePlain = '-';
             try {
-                $c['name']  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '-');
-                $c['email'] = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '-');
-                $c['phone'] = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '-');
-            } catch (\Throwable $e) {
-                $c['name']  = is_string($c['name'] ?? null) ? $c['name'] : '[encrypted]';
-                $c['email'] = is_string($c['email'] ?? null) ? $c['email'] : '[encrypted]';
-                $c['phone'] = is_string($c['phone'] ?? null) ? $c['phone'] : '-';
+                $namePlain  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '-');
+                $emailPlain = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '-');
+                $phonePlain = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '-');
+            } catch (\Throwable) {
+                $namePlain  = is_string($c['name'] ?? null) ? $c['name'] : '[encrypted]';
+                $emailPlain = is_string($c['email'] ?? null) ? $c['email'] : '[encrypted]';
+                $phonePlain = is_string($c['phone'] ?? null) ? $c['phone'] : '-';
             }
+
+            // Name is left decrypted because the avatar/identifier column
+            // needs to remain useful for locating customers in the list.
+            $c['name'] = $namePlain;
+
+            // Masked values are the default rendered in the list table. The
+            // Twig template reads `email_masked`/`phone_masked` instead of the
+            // plaintext `email`/`phone` columns.
+            $c['email_masked'] = PiiMasker::maskEmail($emailPlain);
+            $c['phone_masked'] = PiiMasker::maskPhone($phonePlain);
+            // Default the legacy email/phone columns to the masked values so
+            // any third-party template partial that still reads `c.email` is
+            // safe by default.
+            $c['email'] = $c['email_masked'];
+            $c['phone'] = $c['phone_masked'];
+
+            // The plaintext is only attached when the viewer is permitted to
+            // reveal it; the template renders a per-row "Reveal" affordance
+            // gated on `can_reveal_pii` AND the presence of `email_revealed`.
+            if ($canRevealPii) {
+                $c['email_revealed'] = $emailPlain;
+                $c['phone_revealed'] = $phonePlain;
+            }
+
+            // Strip the encrypted columns so the ciphertext never reaches Twig.
+            unset($c['email_enc'], $c['phone_enc'], $c['name_enc'], $c['address_enc']);
             return $c;
         }, $paginated['items']);
 
         return $this->renderAdminPage('admin/customers.twig', [
-            'customers'   => $customers,
-            'filters'     => ['q' => $q],
-            'pagination'  => [
+            'customers'       => $customers,
+            'can_reveal_pii'  => $canRevealPii,
+            'filters'         => ['q' => $q],
+            'pagination'      => [
                 'page'         => $paginated['page'],
                 'current_page' => $paginated['page'],
                 'per_page'     => $paginated['per_page'],
