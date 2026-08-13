@@ -42,6 +42,19 @@ abstract class BaseRepository
     protected array $fillable = [];
 
     /**
+     * Hard upper bound on the number of rows a single paginate()/
+     * cursorPaginate() call may return (REPO-3).
+     *
+     * Without this clamp, a caller passing $perPage = 1_000_000 causes the
+     * DB to materialise up to 1M rows and PDO::FETCH_ASSOC to hydrate them
+     * all into one array, easily exhausting the FPM worker's memory limit
+     * (default 128M ~ 1.3k wide transaction rows before OOM). The OFFSET
+     * math explodes the same way and forces MySQL to scan-and-discard a
+     * million rows - a slow-query DoS on top of the memory pressure.
+     */
+    public const int MAX_PER_PAGE = 100;
+
+    /**
      * Initializes the repository with the database connector.
      *
      * @param Database $db Database adapter instance.
@@ -141,7 +154,9 @@ abstract class BaseRepository
 
         $safeOrder = $this->sanitizeOrderBy($orderBy);
         $page = max(1, (int) $page);
-        $perPage = (int) $perPage;
+        // (REPO-3) Clamp $perPage to a sane maximum so a caller cannot force
+        // a million-row result set and OOM the FPM worker / DoS the DB.
+        $perPage = $this->clampPerPage($perPage);
         $offset = ($page - 1) * $perPage;
 
         $totalVal = $this->db->fetchColumn(
@@ -181,6 +196,10 @@ abstract class BaseRepository
         // paginate() so a caller that interpolates user input into $where
         // cannot bypass the guard by routing through cursorPaginate().
         $this->validateWhereClause($where);
+
+        // (REPO-3) Same $perPage clamp as paginate(); the +1 lookahead below
+        // would otherwise inflate a 1M cap to a 1,000,001-row fetch.
+        $perPage = $this->clampPerPage($perPage);
 
         $sql = "SELECT * FROM {$this->table} WHERE {$where}";
         if ($afterId !== null) {
@@ -368,6 +387,32 @@ abstract class BaseRepository
         ) {
             throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
         }
+    }
+
+    /**
+     * Clamps the supplied page size to a positive integer no greater than
+     * MAX_PER_PAGE (REPO-3).
+     *
+     * Logs a warning via error_log() when a caller exceeds the cap so abusive
+     * callers (or buggy controllers forwarding user-supplied per_page) are
+     * visible to operators without breaking the request.
+     *
+     * @param int $perPage Requested page size.
+     * @return int Clamped page size (1..MAX_PER_PAGE).
+     */
+    protected function clampPerPage(int $perPage): int
+    {
+        $clamped = min(max(1, $perPage), self::MAX_PER_PAGE);
+        if ($clamped !== $perPage) {
+            error_log(sprintf(
+                'BaseRepository::clampPerPage: %s requested per_page=%d, clamped to %d (table=%s)',
+                static::class,
+                $perPage,
+                $clamped,
+                $this->table
+            ));
+        }
+        return $clamped;
     }
 
     /**
