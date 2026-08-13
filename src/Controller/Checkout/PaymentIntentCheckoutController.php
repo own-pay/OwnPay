@@ -1077,6 +1077,31 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
+        // Issue #344 (PAY-16): enforce the same HMAC handshake that pay(),
+        // expressPay(), and cancel() require, so that anyone with only the
+        // intent token (from a shared screenshot, referrer leak, or log file)
+        // cannot POST arbitrary sender_number / transaction_id values to
+        // overwrite the metadata.verification block on a transaction they do
+        // not own. Mirrors the check added to CheckoutController::manualVerify().
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
+        $expectedHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+            }
+            return $this->renderStatus($token, 'expired');
+        }
+
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $intentIdVal = $intent['id'] ?? 0;

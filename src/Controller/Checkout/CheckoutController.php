@@ -933,6 +933,26 @@ final class CheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
+        // Issue #344 (PAY-16): enforce the same HMAC handshake that pay() and
+        // expressPay() require, so that anyone with only the trx token (from a
+        // shared screenshot, referrer leak, or log file) cannot POST arbitrary
+        // sender_number / transaction_id values to overwrite the
+        // metadata.verification block on a transaction they do not own.
+        $txnAmountVal = $txn['amount'] ?? '0';
+        $txnAmount = (is_string($txnAmountVal) || is_int($txnAmountVal) || is_float($txnAmountVal)) ? (string) $txnAmountVal : '0';
+        $txnCurrencyVal = $txn['currency'] ?? 'BDT';
+        $txnCurrency = is_string($txnCurrencyVal) ? $txnCurrencyVal : 'BDT';
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
+        $hmacKey = $this->resolveHmacKey();
+        $expectedHash = hash_hmac('sha256', $txnAmount . '|' . $txnCurrency . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+            }
+            return $this->renderStatus($token, 'expired');
+        }
+
         $senderNumberRaw = $req->input('sender_number', '');
         $senderNumber = is_string($senderNumberRaw) ? trim($senderNumberRaw) : '';
 
