@@ -19,7 +19,14 @@ final class FileCache implements CacheInterface
         $this->directory = rtrim($directory, '/\\');
 
         if (!is_dir($this->directory)) {
-            mkdir($this->directory, 0755, true);
+            mkdir($this->directory, 0700, true);
+        } else {
+            // Defence-in-depth (CACHE-1): if the directory was created
+            // by a previous version with broader perms (e.g. 0755 on a
+            // shared host where PHP-FPM runs as www-data / nobody for all
+            // tenants), tighten it now so neighbouring users cannot
+            // readfile() the cached serialised settings/PII.
+            @chmod($this->directory, 0700);
         }
     }
 
@@ -57,7 +64,10 @@ final class FileCache implements CacheInterface
         $dir = dirname($file);
 
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            mkdir($dir, 0700, true);
+        } else {
+            // (CACHE-1) tighten existing per-key subdirectories too.
+            @chmod($dir, 0700);
         }
 
         $expires = $ttl > 0 ? time() + $ttl : 0;
@@ -67,6 +77,10 @@ final class FileCache implements CacheInterface
         $tmp = $file . '.tmp.' . bin2hex(random_bytes(4));
         if (file_put_contents($tmp, $content, LOCK_EX) !== false) {
             rename($tmp, $file);
+            // (CACHE-1) file_put_contents respects the process umask,
+            // typically producing 0644 - readable by other tenants on
+            // shared hosting. Force 0600 so only the owner can read.
+            @chmod($file, 0600);
         }
     }
 
