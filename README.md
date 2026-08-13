@@ -19,6 +19,8 @@
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](CONTRIBUTING.md)
 
+[![Codacy Security Scan](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml/badge.svg?branch=main)](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml) [![CI](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml) [![CodeQL](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql) [![ESLint](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml) [![Semgrep](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml)
+
 [![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
 [![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=flat-square&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;
 [![Issues](https://img.shields.io/github/issues/own-pay/OwnPay?style=flat-square&label=Issues&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/issues)&nbsp;
