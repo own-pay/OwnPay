@@ -13,9 +13,16 @@
 # ==============================================================================
 #
 #  USAGE:
-#    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh | sudo bash
+#    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh -o install.sh
+#    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh.sha256 -o install.sh.sha256
+#    sha256sum -c install.sh.sha256 && sudo bash install.sh
 #    — or —
 #    sudo bash install.sh [--unattended] [--resume] [--help]
+#
+#  SECURITY: Always verify the SHA-256 checksum (install.sh.sha256, published
+#  alongside install.sh) BEFORE running the installer as root. Piping
+#  curl | sudo bash skips all integrity verification — a compromised CDN or
+#  hijacked repo would give an attacker root on every new VPS.
 #
 #  OPTIONS:
 #    --unattended   Skip prompts; read values from environment variables
@@ -821,12 +828,53 @@ phase_mariadb() {
     spinner_start "Adding MariaDB repository..."
     local arch
     arch="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
-    # --max-time guards against stalled mirror downloads
-    curl -fsSL --max-time 120 \
-      "https://downloads.mariadb.com/MariaDB/mariadb_repo_setup" | \
-      bash -s -- --mariadb-server-version="mariadb-10.11" >> "$LOG_FILE" 2>&1
+
+    # SECURITY (audit INST-2): do NOT pipe curl → bash. Download the MariaDB
+    # repo setup script to a temp file, fetch its detached GPG signature
+    # (mariadb_repo_setup.asc, published alongside the script), import the
+    # MariaDB signing key from a keyserver if needed, and only execute the
+    # script if `gpg --verify` succeeds. A compromised downloads.mariadb.com
+    # CDN would otherwise let an attacker inject arbitrary apt repository
+    # configuration (and packages) as root.
+    local mariadb_setup_script mariadb_setup_sig
+    mariadb_setup_script="$(mktemp)"
+    mariadb_setup_sig="$(mktemp)"
+
+    if ! curl -fsSL --max-time 120 \
+          "https://downloads.mariadb.com/MariaDB/mariadb_repo_setup" \
+          -o "$mariadb_setup_script" >>"$LOG_FILE" 2>&1; then
+      rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
+      spinner_stop
+      log_error "Failed to download MariaDB repo setup script"
+      exit 1
+    fi
+
+    if ! curl -fsSL --max-time 60 \
+          "https://downloads.mariadb.com/MariaDB/mariadb_repo_setup.asc" \
+          -o "$mariadb_setup_sig" >>"$LOG_FILE" 2>&1; then
+      rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
+      spinner_stop
+      log_error "Failed to download MariaDB repo setup GPG signature"
+      exit 1
+    fi
+
+    # Auto-retrieve the signing key from the keyserver using the keyid
+    # embedded in the .asc file. Fail closed if verification fails — we
+    # would rather abort the install than run an unverified script as root.
+    if ! gpg --keyserver hkp://keyserver.ubuntu.com:80 \
+            --keyserver-options auto-key-retrieve \
+            --verify "$mariadb_setup_sig" "$mariadb_setup_script" \
+            >>"$LOG_FILE" 2>&1; then
+      rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
+      spinner_stop
+      log_error "MariaDB repo setup GPG signature verification FAILED — aborting"
+      exit 1
+    fi
+
+    bash "$mariadb_setup_script" --mariadb-server-version="mariadb-10.11" >> "$LOG_FILE" 2>&1
+    rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
     spinner_stop
-    log_success "MariaDB repository added"
+    log_success "MariaDB repository added (GPG verified)"
 
     run_quiet "Updating package index" apt-get update -qq
 
