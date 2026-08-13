@@ -943,13 +943,131 @@
         var titleEl = document.getElementById("detail-modal-title");
         var modal = document.getElementById("detail-modal");
         var content = document.getElementById("detail-modal-content");
-        if (titleEl && modal && content) {
-            titleEl.textContent = title;
-            modal.hidden = false;
-            content.innerHTML = '<div class="op-loading">Loading...</div>';
-            fetch(url).then(function (r) { return r.text(); }).then(function (html) { content.innerHTML = html; });
+        if (!titleEl || !modal || !content) {
+            return;
         }
+        titleEl.textContent = title;
+        modal.hidden = false;
+        content.innerHTML = '<div class="op-loading">Loading...</div>';
+        fetch(url)
+            .then(function (r) {
+                if (!r.ok) {
+                    throw new Error("HTTP " + r.status);
+                }
+                return r.text();
+            })
+            .then(function (html) {
+                // UI-9: Sanitize the fetched HTML before injecting. The fetch
+                // URL is taken from a data-attribute on the clicked button and
+                // could eventually point at any admin endpoint; any future
+                // endpoint that returns non-escaped user-controlled HTML
+                // (e.g. an activity log whose user_agent field contains
+                // `<img src=x onerror=alert(1)>`) would otherwise become a
+                // DOM-XSS sink in the admin context. <script> tags injected
+                // via innerHTML do not execute in modern browsers, but event
+                // handler attributes (onerror/onload/onmouseover) DO fire —
+                // so we parse with DOMParser, strip dangerous elements + on*
+                // attributes + javascript:/vbscript:/data:text/html URLs +
+                // inline style attributes, then inject the sanitized DOM.
+                content.innerHTML = "";
+                content.appendChild(sanitizeHtmlFragment(html));
+            })
+            .catch(function (err) {
+                // Build the error shell via innerHTML (static, no interpolation)
+                // then write the dynamic message via textContent — never
+                // interpolate err.message into innerHTML (it could originate
+                // from a redirected fetch body in some browser/Fetch impls).
+                content.innerHTML = '<div class="op-error op-p-4"><p>Failed to load details.</p><pre class="op-text-sm op-text-muted op-mt-2"></pre></div>';
+                var pre = content.querySelector("pre");
+                if (pre) {
+                    pre.textContent = String((err && err.message) ? err.message : err);
+                }
+            });
     };
+
+    /**
+     * Sanitizes an HTML string into a DocumentFragment safe for injection
+     * via appendChild / innerHTML.
+     *
+     * Defence-in-depth sink hardening for window.openDetailModal (UI-9).
+     * Today the only caller is /admin/activities/{id}/details, whose Twig
+     * template auto-escapes every field — so today this is a no-op
+     * security-wise. But the data-open-detail-modal attribute is generic;
+     * any future admin endpoint that returns non-escaped user-controlled
+     * HTML and is invoked via that attribute would otherwise become a
+     * DOM-XSS vector in the admin context.
+     *
+     * Approach: parse with DOMParser (does NOT execute scripts or load
+     * subresources), then walk the parsed body and:
+     *   1. Remove <script>, <style>, <iframe>, <object>, <embed>, <link>,
+     *      <meta>, <base>, <noscript> elements entirely.
+     *   2. Strip every on* attribute (onclick, onerror, onload, ...).
+     *   3. Strip javascript:/vbscript:/data:text/html URLs in href/src/
+     *      action/formaction/background/poster/xlink:href.
+     *   4. Strip inline style attributes (CSS-based UI redress attacks —
+     *      defence-in-depth; not strictly XSS but cheap to drop).
+     *
+     * No external dependency (no DOMPurify). Conservative: legitimate
+     * rendered Twig admin templates do not rely on inline scripts/styles
+     * or iframes.
+     *
+     * @param {string} html Raw HTML string from a fetch response.
+     * @return {DocumentFragment} Sanitized fragment ready for appendChild.
+     */
+    function sanitizeHtmlFragment(html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var DANGEROUS_SELECTOR = "script,style,iframe,object,embed,link,meta,base,noscript";
+        var URL_ATTRS = {
+            href: 1, src: 1, "xlink:href": 1, action: 1,
+            formaction: 1, background: 1, poster: 1
+        };
+
+        // 1. Remove dangerous elements entirely (reverse iteration so
+        //    removal doesn't disturb the live NodeList during iteration).
+        var dangerous = doc.body.querySelectorAll(DANGEROUS_SELECTOR);
+        for (var i = dangerous.length - 1; i >= 0; i--) {
+            var parent = dangerous[i].parentNode;
+            if (parent) {
+                parent.removeChild(dangerous[i]);
+            }
+        }
+
+        // 2-4. Walk every remaining element, stripping on* / style
+        //      attributes and dangerous URL schemes.
+        var allEls = doc.body.querySelectorAll("*");
+        for (var j = 0; j < allEls.length; j++) {
+            var el = allEls[j];
+            // Clone the NamedNodeMap snapshot so we can safely remove
+            // attributes while iterating (attributes is live).
+            var attrNames = [];
+            for (var k = 0; k < el.attributes.length; k++) {
+                attrNames.push(el.attributes[k].name);
+            }
+            for (var m = 0; m < attrNames.length; m++) {
+                var name = attrNames[m];
+                var lowerName = name.toLowerCase();
+                var raw = el.getAttribute(name);
+                var val = (raw === null) ? "" : String(raw).trim().toLowerCase();
+                if (lowerName.indexOf("on") === 0) {
+                    el.removeAttribute(name);
+                } else if (lowerName === "style") {
+                    el.removeAttribute(name);
+                } else if (URL_ATTRS[lowerName] && (
+                    val.indexOf("javascript:") === 0 ||
+                    val.indexOf("vbscript:") === 0 ||
+                    val.indexOf("data:text/html") === 0
+                )) {
+                    el.removeAttribute(name);
+                }
+            }
+        }
+
+        var fragment = document.createDocumentFragment();
+        while (doc.body.firstChild) {
+            fragment.appendChild(doc.body.firstChild);
+        }
+        return fragment;
+    }
 
     // Global click listener for CSP-compliant delegated handlers
     document.addEventListener("click", function (e) {
