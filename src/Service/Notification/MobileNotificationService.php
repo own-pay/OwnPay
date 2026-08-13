@@ -118,7 +118,12 @@ final class MobileNotificationService
 
         $this->queueNotification([
             'device_uuid' => $deviceUuid,
-            'type'        => 'payment_' . $type,
+            // Use the mapped type (e.g. 'payment_received') so the fallback-queued
+            // notification carries the same type label as the repo-queued path.
+            // Previously this used 'payment_' . $type (e.g. 'payment_credit'),
+            // producing inconsistent type labels for the same logical event and
+            // breaking any downstream consumer that filters by mapped type.
+            'type'        => $mappedType,
             'title'       => $title,
             'body'        => $body,
             'data'        => [
