@@ -152,7 +152,20 @@ final class ApiKeyController
     }
 
     /**
-     * Enforce write and admin scopes and active super admin email header validation.
+     * Enforce that the caller's API key carries both `write` and `admin` scopes.
+     *
+     * The caller's identity is cryptographically bound to the API key (verified
+     * by BearerAuthMiddleware via SHA-256 + hash_equals). Scope enforcement here
+     * is sufficient to gate super-admin-gated operations: a key with `admin`
+     * scope can only have been issued by the merchant's own superadmin via the
+     * web admin UI (or another `admin`-scoped key they already control).
+     *
+     * Prior versions of this method also accepted an `X-Super-Admin-Email`
+     * request header. That header was pure security theater — it only verified
+     * that the supplied email belonged to *some* superadmin record (public
+     * information), without any proof that the caller was that superadmin. Any
+     * merchant holding an `admin`-scoped key could spoof any known superadmin
+     * email to pass the check. The header has been removed.
      *
      * @param Request $req The incoming HTTP request.
      * @return Response|null Response error if unauthorized, otherwise null.
@@ -178,21 +191,6 @@ final class ApiKeyController
 
         if (!in_array('write', $scopes, true) || !in_array('admin', $scopes, true)) {
             return Response::apiError('INSUFFICIENT_PRIVILEGE', 'Insufficient API key privilege. Key must have both write and admin scopes.', null, 403);
-        }
-
-        $email = trim($req->header('X-Super-Admin-Email'));
-        if ($email === '') {
-            return Response::apiError('SUPER_ADMIN_EMAIL_REQUIRED', 'Super admin email is required in the X-Super-Admin-Email header.', 'X-Super-Admin-Email', 400);
-        }
-
-        $db = \OwnPay\Core\Database::getInstance();
-        $user = $db->fetchOne(
-            "SELECT 1 FROM op_merchant_users WHERE email = :email AND is_superadmin = 1 AND status = 'active' LIMIT 1",
-            ['email' => $email]
-        );
-
-        if (!$user) {
-            return Response::apiError('INVALID_SUPER_ADMIN', 'Invalid or inactive super admin email in header.', 'X-Super-Admin-Email', 403);
         }
 
         return null;
