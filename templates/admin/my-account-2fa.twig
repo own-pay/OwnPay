@@ -20,12 +20,18 @@
     <div class="op-card-body">
         <p class="op-text-muted">Your account is protected with TOTP-based two-factor authentication.</p>
         <hr class="op-divider">
-        <p><strong>To disable 2FA,</strong> enter your current password below:</p>
+        <p><strong>To disable 2FA,</strong> enter your current password AND a fresh 6-digit TOTP code from your authenticator. Both are required as step-up authentication (PCI-DSS 8.4.2).</p>
         <form method="POST" action="/admin/my-account/2fa/disable" class="op-form op-form-2fa" data-confirm="Disable 2FA? Your account will be less secure.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <div class="op-form-group">
                 <label>Current Password</label>
                 <input type="password" name="password" class="op-input" required autocomplete="current-password">
+            </div>
+            <div class="op-form-group">
+                <label>TOTP Code</label>
+                <input type="text" name="totp_code" class="op-input op-verify-input" placeholder="000000"
+                       maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"
+                       inputmode="numeric" required>
             </div>
             <button type="submit" class="op-btn op-btn-danger">Disable 2FA</button>
         </form>

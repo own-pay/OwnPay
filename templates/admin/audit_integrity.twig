@@ -18,10 +18,7 @@
     {% if is_secure %}
         <div class="op-alert op-alert-success op-mt-4">
             <h4>🛡️ System Integrity: SECURE</h4>
-            <p>Cryptographic scan executed successfully across all recorded administrative activity logs. Every log entry signature matches perfectly. No unauthorized data modifications, additions, or deletions were detected in the database.</p>
-            {% if signed_count > 0 %}
-                <p><strong>Note:</strong> Backported cryptographic signatures to {{ signed_count }} old pre-existing log entries successfully.</p>
-            {% endif %}
+            <p>Cryptographic scan executed successfully across all recorded administrative activity logs. Every signed log entry signature matches perfectly. No unauthorized data modifications, additions, or deletions were detected in the database.</p>
         </div>
     {% else %}
         <div class="op-alert op-alert-danger op-mt-4">
@@ -60,6 +57,26 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if unsigned_count is defined and unsigned_count > 0 %}
+        <div class="op-card op-mt-4">
+            <div class="op-card-header">
+                <h3>⚠️ Legacy Unsigned Rows: {{ unsigned_count }}</h3>
+            </div>
+            <div class="op-card-body">
+                <p>{{ unsigned_count }} audit log entr{{ unsigned_count == 1 ? 'y has' : 'ies have' }} no cryptographic signature. These rows predate the HMAC signing feature or were inserted by code paths that bypassed the signing step.</p>
+                <p><strong>Review before signing:</strong> the scan does NOT automatically sign these rows. If an attacker tampered with an unsigned row, signing it as-is would bless the tampered data with a valid signature and hide the tampering from future scans. Inspect the rows manually (via the Activities log) and only sign once you are confident they are authentic.</p>
+                <form method="POST" action="/admin/audit-integrity/sign-legacy" class="op-filter-bar op-mt-4">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <label class="op-inline-flex op-items-center op-gap-2">
+                        <input type="checkbox" name="confirm" value="1" required>
+                        I have reviewed the {{ unsigned_count }} unsigned row{{ unsigned_count == 1 ? '' : 's' }} and confirm they should be signed.
+                    </label>
+                    <button type="submit" class="op-btn op-btn-sm op-btn-warning op-ml-4">Sign Legacy Logs</button>
+                </form>
             </div>
         </div>
     {% endif %}

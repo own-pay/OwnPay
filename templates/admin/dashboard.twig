@@ -167,7 +167,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script nonce="{{ csp_nonce }}" src="/assets/js/vendor/chart.umd.min.js?v=4.4.1"></script>
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--op-primary').trim() || '#0F97ED';

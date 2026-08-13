@@ -172,7 +172,14 @@
         newKeyReveal.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    // Webhook form modal pre-population
+    // Webhook form modal pre-population.
+    // The webhook payload is passed via a `data-wh` attribute (HTML-attr-escaped
+    // JSON with JSON_HEX_TAG|AMP|APOS|QUOT) rather than an inline onclick that
+    // interpolated raw JSON into a single-quoted JS string — the latter allowed
+    // a webhook URL/secret containing `'` to break out of the attribute and
+    // inject arbitrary HTML (attribute-injection XSS). The delegated listener
+    // below runs alongside admin.js's modal opener; both fire on the same
+    // click, the modal opens and the form is pre-populated synchronously.
     window.prepareWebhookForm = function (webhook) {
         var idField = document.getElementById("webhook-id-field");
         var urlField = document.getElementById("webhook-url-field");
@@ -201,5 +208,26 @@
             if (secretField) { secretField.value = ""; }
         }
     };
+
+    // Delegated pre-population: any element opening the webhook modal via
+    // data-open-modal="webhook-modal" may also carry a data-wh attribute with
+    // the webhook's JSON. Empty/absent => Add Endpoint mode.
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-open-modal=\"webhook-modal\"]");
+        if (!btn) { return; }
+        var raw = btn.getAttribute("data-wh");
+        if (!raw) {
+            window.prepareWebhookForm(null);
+            return;
+        }
+        try {
+            window.prepareWebhookForm(JSON.parse(raw));
+        } catch (err) {
+            // Malformed JSON should never happen (server-controlled), but
+            // fail closed to Add mode instead of leaking raw text into the
+            // form fields.
+            window.prepareWebhookForm(null);
+        }
+    });
 
 }());

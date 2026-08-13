@@ -449,13 +449,31 @@ final class SmsParserService
     /**
      * Normalizes dynamic date representations to MySQL compatible string timestamps.
      *
+     * Companion devices in different timezones may emit naive timestamps
+     * (e.g. "2024-01-15 14:30:00") without an explicit offset. PHP's
+     * DateTimeImmutable constructor interprets such naive strings in the
+     * server's date.timezone, which makes the 35-minute auto-match window
+     * silently miss cross-timezone transactions. We treat any naive input as
+     * UTC explicitly (the safest universal assumption), then convert to the
+     * server timezone for storage. Inputs that already carry an explicit
+     * offset (ISO-8601 like "2024-01-15T14:30:00+06:00" or "...Z") are
+     * forwarded to DateTimeImmutable untouched — it handles them natively.
+     *
      * @param string $ts Raw client date representation string.
      * @return string Normalized MySQL DATETIME representation string.
      */
     private function normalizeTimestamp(string $ts): string
     {
         try {
-            return (new \DateTimeImmutable($ts))->format('Y-m-d H:i:s');
+            $hasOffset = preg_match('/[+-]\d{2}:?\d{2}$|Z$|T\d{2}:\d{2}/i', $ts) === 1;
+            if ($hasOffset) {
+                $dt = new \DateTimeImmutable($ts);
+            } else {
+                $dt = (new \DateTimeImmutable($ts, new \DateTimeZone('UTC')))
+                    ->setTimezone(new \DateTimeZone(date_default_timezone_get()));
+            }
+
+            return $dt->format('Y-m-d H:i:s');
         } catch (\Throwable) {
             return DateHelper::now();
         }

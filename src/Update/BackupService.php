@@ -243,27 +243,60 @@ class BackupService
     /**
      * Restores database schema and records from an SQL file.
      *
-     * Parses the dump file into single queries and executes them sequentially.
+     * Parses the dump file into single queries and executes them sequentially
+     * inside a database transaction. If any statement fails, the transaction is
+     * rolled back and a RestoreDatabaseException is thrown so the caller
+     * (UpdateService::execute() rollback path) can mark the update as failed
+     * instead of leaving the database in a half-restored, inconsistent state.
+     *
+     * Note: MySQL DDL statements (CREATE/ALTER/DROP TABLE, etc.) implicitly
+     * commit and therefore CANNOT be rolled back — this is a MySQL engine
+     * limitation, not a code limitation. DML statements (INSERT/UPDATE/DELETE)
+     * WILL roll back. A DDL failure mid-restore still aborts the loop so the
+     * caller is informed; subsequent DML statements are not applied.
      *
      * @param string $sqlFile Absolute path to the SQL dump file.
      * @return void
+     * @throws \RuntimeException When the SQL file cannot be read or is empty.
+     * @throws RestoreDatabaseException When any statement fails; the transaction
+     *                                  has been rolled back before throwing.
      */
     private function restoreDatabase(string $sqlFile): void
     {
         $sql = file_get_contents($sqlFile);
         if ($sql === false || trim($sql) === '') {
-            return;
+            throw new \RuntimeException("Cannot restore database: SQL file is empty or unreadable: {$sqlFile}");
         }
 
         $db = $this->db;
         $statements = $this->splitSqlStatements($sql);
 
-        foreach ($statements as $stmt) {
-            try {
-                $db->execute($stmt);
-            } catch (\Throwable $e) {
-                $this->logger?->warning('SQL restore failed: ' . $e->getMessage());
+        $db->execute('START TRANSACTION');
+
+        $executed = 0;
+        try {
+            foreach ($statements as $stmt) {
+                try {
+                    $db->execute($stmt);
+                    $executed++;
+                } catch (\Throwable $e) {
+                    $this->logger?->error('SQL restore failed; rolling back transaction: ' . $e->getMessage());
+                    throw new RestoreDatabaseException(
+                        'SQL restore failed at statement #' . ($executed + 1) . ': ' . $e->getMessage(),
+                        0,
+                        $e
+                    );
+                }
             }
+            $db->execute('COMMIT');
+            $this->logger?->info("SQL restore completed: {$executed} statements executed");
+        } catch (\Throwable $e) {
+            try {
+                $db->execute('ROLLBACK');
+            } catch (\Throwable $rollbackError) {
+                $this->logger?->error('Failed to roll back restore transaction: ' . $rollbackError->getMessage());
+            }
+            throw $e;
         }
     }
 

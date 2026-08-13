@@ -315,12 +315,24 @@ final class GatewayApiService
     /**
      * Determines whether a webhook/callback is allowed to complete the given transaction.
      *
-     * `pending` transactions are always eligible (pre-existing behavior, unrelated to the guard
-     * below). Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
-     * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this prevents
-     * a late/stale webhook from a gateway the customer has since abandoned (e.g. went back to
-     * checkout and picked a different gateway) from completing the transaction under the wrong
-     * gateway's identity.
+     * `pending` transactions are eligible ONLY when their `gateway_slug` is empty/null
+     * (i.e. truly unclaimed - never had a gateway attempt recorded against them, OR
+     * was reverted back to `pending` by {@see TransactionRepository::reactivateForRetry()}
+     * which clears `gateway_slug` as part of the revert).
+     *
+     * A `pending` transaction with a NON-empty `gateway_slug` represents a row that
+     * was reverted from `processing` to `pending` WITHOUT clearing the slug (e.g. via
+     * a future code path that does not call reactivateForRetry, or via direct DB
+     * manipulation). In that case the callback's gateway must match the stored slug -
+     * a stale webhook from an abandoned gateway must not be allowed to hijack the
+     * completion. This closes the race window between SELECT and INSERT in the
+     * pre-PAY-10 reactivateForRetry path.
+     *
+     * Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
+     * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this
+     * prevents a late/stale webhook from a gateway the customer has since abandoned
+     * (e.g. went back to checkout and picked a different gateway) from completing the
+     * transaction under the wrong gateway's identity.
      *
      * @param array<string, mixed> $transaction The locked transaction row.
      * @param string $gatewaySlug The gateway that sent this callback (route-determined, not attacker-controlled).
@@ -332,10 +344,16 @@ final class GatewayApiService
         if (!in_array($status, ['pending', 'processing', 'callback_processing'], true)) {
             return false;
         }
+        $storedSlugVal = $transaction['gateway_slug'] ?? null;
+        $storedSlug = is_scalar($storedSlugVal) ? (string) $storedSlugVal : '';
         if ($status === 'pending') {
-            return true;
+            // Truly unclaimed (empty/null gateway_slug): accept any gateway's callback.
+            // Non-empty gateway_slug on a pending row: the callback must match the slug,
+            // because the row was likely reverted from processing without clearing the
+            // slug and a stale callback from the abandoned gateway must not hijack it.
+            return $storedSlug === '' || $storedSlug === $gatewaySlug;
         }
-        return ($transaction['gateway_slug'] ?? null) === $gatewaySlug;
+        return $storedSlug === $gatewaySlug;
     }
 
     /**

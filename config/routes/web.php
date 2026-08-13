@@ -281,6 +281,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/activities/{id}/details', 'Admin\\ActivitiesController@details', 'admin');
     $router->get('/admin/audit-integrity', 'Admin\\AuditIntegrityController@scan', 'admin');
     $router->post('/admin/audit-integrity/scan', 'Admin\\AuditIntegrityController@scan', 'admin');
+    $router->post('/admin/audit-integrity/sign-legacy', 'Admin\\AuditIntegrityController@signLegacy', 'admin');
     $router->get('/admin/login-attempts', 'Admin\\LoginAttemptController@index', 'admin');
     $router->post('/admin/login-attempts/unlock', 'Admin\\LoginAttemptController@unlock', 'admin');
 

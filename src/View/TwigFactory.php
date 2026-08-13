@@ -52,7 +52,12 @@ final class TwigFactory
         $activeTheme = self::resolveActiveTheme($container);
         if ($activeTheme !== null && $modulesPath !== '') {
             $themeDir = $modulesPath . '/themes/' . $activeTheme . '/templates';
-            if (is_dir($themeDir)) {
+            // VW-4: defense-in-depth. resolveActiveTheme() already
+            // validates the theme name against ^[a-zA-Z0-9_-]+$, but we
+            // also verify the resolved real path is still inside the
+            // themes/ directory in case any traversal slipped past the
+            // regex (symlinks, encoding tricks, future code changes).
+            if (is_dir($themeDir) && self::isWithinThemesDir($themeDir, $modulesPath)) {
                 $loader->prependPath($themeDir);
                 $loader->addPath($themeDir, 'theme');
             }
@@ -167,7 +172,13 @@ final class TwigFactory
                 $settings = $container->get(\OwnPay\Repository\SettingsRepository::class);
                 if ($settings instanceof \OwnPay\Repository\SettingsRepository) {
                     $dbTheme = $settings->get('appearance', 'active_theme', '');
-                    if (is_string($dbTheme) && $dbTheme !== '') {
+                    // VW-4: validate the DB-stored theme name against a strict
+                    // safe-character pattern before using it. Without this,
+                    // an admin who sets appearance.active_theme to
+                    // '../../../tmp/evil' can point the Twig loader at an
+                    // arbitrary directory (local file read / RCE via
+                    // {% include %} of attacker-crafted .twig files).
+                    if (is_string($dbTheme) && self::isSafeThemeName($dbTheme)) {
                         $theme = $dbTheme;
                     }
                 }
@@ -178,7 +189,8 @@ final class TwigFactory
 
         if ($theme === null) {
             $envTheme = getenv('ACTIVE_THEME');
-            $theme = is_string($envTheme) && $envTheme !== '' ? $envTheme : 'own-pay';
+            // VW-4: same validation for the env-var source.
+            $theme = (is_string($envTheme) && self::isSafeThemeName($envTheme)) ? $envTheme : 'own-pay';
         }
 
         $config = $container->get('config.app');
@@ -187,17 +199,82 @@ final class TwigFactory
 
         if ($modulesPath !== '') {
             $themeDir = $modulesPath . '/themes/' . $theme;
-            if (is_dir($themeDir)) {
+            // VW-4: realpath containment check - rejects any traversal that
+            // slipped past the regex (symlinks, encoded '.', etc.).
+            if (is_dir($themeDir) && self::isWithinThemesBase($themeDir, $modulesPath)) {
                 return $theme;
             }
 
             $defaultDir = $modulesPath . '/themes/own-pay';
-            if (is_dir($defaultDir)) {
+            if (is_dir($defaultDir) && self::isWithinThemesBase($defaultDir, $modulesPath)) {
                 return 'own-pay';
             }
         }
 
         return null;
+    }
+
+    /**
+     * Validates a theme slug against the safe-character pattern (VW-4).
+     *
+     * Accepts only [a-zA-Z0-9_-], 1-64 chars. Rejects anything containing
+     * path separators (/ \), dots (which would enable .. traversal),
+     * NUL bytes, whitespace, or URL-encoded sequences.
+     *
+     * @param string $name The candidate theme slug.
+     * @return bool True if the slug is structurally safe to use in a path.
+     */
+    private static function isSafeThemeName(string $name): bool
+    {
+        if ($name === '' || strlen($name) > 64) {
+            return false;
+        }
+        return preg_match('/^[a-zA-Z0-9_-]+$/', $name) === 1;
+    }
+
+    /**
+     * Verifies a theme directory resolves to a path inside the themes/
+     * base directory (VW-4).
+     *
+     * Used by resolveActiveTheme() (path without /templates suffix) and by
+     * create() (path WITH /templates suffix). The check normalizes via
+     * realpath() and ensures the resolved path starts with the themes/
+     * base directory followed by a separator, so symlink-based escapes and
+     // encoded traversal sequences are rejected.
+     *
+     * @param string $themeDir The candidate theme directory (with or without /templates suffix).
+     * @param string $modulesPath The configured modules path.
+     * @return bool True if $themeDir resolves inside $modulesPath/themes/.
+     */
+    private static function isWithinThemesBase(string $themeDir, string $modulesPath): bool
+    {
+        if ($modulesPath === '') {
+            return false;
+        }
+        $themesBase = realpath($modulesPath . '/themes');
+        if ($themesBase === false) {
+            return false;
+        }
+        $realTheme = realpath($themeDir);
+        if ($realTheme === false) {
+            return false;
+        }
+        $themesBaseWithSep = $themesBase . DIRECTORY_SEPARATOR;
+        return $realTheme === $themesBase || str_starts_with($realTheme, $themesBaseWithSep);
+    }
+
+    /**
+     * Verifies a /templates-qualified theme directory is inside the themes/
+     * base directory (VW-4). Used by create() which prepends a /templates
+     * suffix to the theme slug before calling the loader.
+     *
+     * @param string $themeDir The candidate theme templates directory (with /templates suffix).
+     * @param string $modulesPath The configured modules path.
+     * @return bool True if $themeDir resolves inside $modulesPath/themes/.
+     */
+    private static function isWithinThemesDir(string $themeDir, string $modulesPath): bool
+    {
+        return self::isWithinThemesBase($themeDir, $modulesPath);
     }
 }
 

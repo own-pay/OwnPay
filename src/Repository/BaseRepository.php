@@ -136,15 +136,44 @@ abstract class BaseRepository
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
+        // REPO-1: defense-in-depth against conditional-comment SQL injection.
+        //
+        // MySQL treats `/*!50000 ... */` as a conditional comment that executes
+        // the enclosed SQL only if the server version >= 5.00.00 (essentially
+        // always). The previous safety check ran against $cleanedWhere (which
+        // had comments stripped) but the actual SQL execution used the
+        // ORIGINAL $where — so
+        //   WHERE id=1/*!50000 UNION*//*!50000 SELECT * FROM op_users*/
+        // became `WHERE id=1` after cleaning (passed the keyword check) but
+        // executed as `WHERE id=1 UNION SELECT * FROM op_users` in MySQL.
+        //
+        // Fix: (1) run the keyword check against BOTH the original $where and
+        // the cleaned version, so conditional-comment-embedded keywords are
+        // caught before stripping. (2) execute the SQL with the cleaned
+        // $where (comments stripped) instead of the original — non-conditional
+        // comments are stripped semantically (MySQL ignores them anyway), and
+        // conditional comments are neutralized because their delimiters are
+        // removed before execution.
+
         // Security checks: Strip SQL comments to prevent bypass via inline sequences.
         $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
         $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
-        
+
         // Collapse all whitespace and lowercase for consistent safety verification.
         $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
-        
+
         // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
-        if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere) || str_contains($lowerWhere, ';') || str_contains($lowerWhere, '--')) {
+        // Check against BOTH the cleaned $where AND the original $where so that
+        // conditional-comment-embedded keywords (/*!50000 UNION*/) are caught
+        // before stripping.
+        $lowerOriginalWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($where)));
+        if (
+            preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere)
+            || preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $where)
+            || str_contains($lowerWhere, ';')
+            || str_contains($lowerWhere, '--')
+            || str_contains($lowerOriginalWhere, ';')
+        ) {
             throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
         }
 
@@ -153,14 +182,16 @@ abstract class BaseRepository
         $perPage = (int) $perPage;
         $offset = ($page - 1) * $perPage;
 
+        // REPO-1: execute against $cleanedWhere (comments stripped), not the
+        // original $where. This neutralizes conditional comments.
         $totalVal = $this->db->fetchColumn(
-            "SELECT COUNT(*) FROM {$this->table} WHERE {$where}",
+            "SELECT COUNT(*) FROM {$this->table} WHERE {$cleanedWhere}",
             $params
         );
         $total = is_scalar($totalVal) ? (int) $totalVal : 0;
 
         $items = $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY {$safeOrder} LIMIT :lim OFFSET :off",
+            "SELECT * FROM {$this->table} WHERE {$cleanedWhere} ORDER BY {$safeOrder} LIMIT :lim OFFSET :off",
             array_merge($params, ['lim' => $perPage, 'off' => $offset])
         );
 

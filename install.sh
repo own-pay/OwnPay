@@ -13,9 +13,16 @@
 # ==============================================================================
 #
 #  USAGE:
-#    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh | sudo bash
+#    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh -o install.sh
+#    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh.sha256 -o install.sh.sha256
+#    sha256sum -c install.sh.sha256 && sudo bash install.sh
 #    — or —
 #    sudo bash install.sh [--unattended] [--resume] [--help]
+#
+#  SECURITY: Always verify the SHA-256 checksum (install.sh.sha256, published
+#  alongside install.sh) BEFORE running the installer as root. Piping
+#  curl | sudo bash skips all integrity verification — a compromised CDN or
+#  hijacked repo would give an attacker root on every new VPS.
 #
 #  OPTIONS:
 #    --unattended   Skip prompts; read values from environment variables
@@ -858,12 +865,53 @@ phase_mariadb() {
     spinner_start "Adding MariaDB repository..."
     local arch
     arch="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
-    # --max-time guards against stalled mirror downloads
-    curl -fsSL --max-time 120 \
-      "https://downloads.mariadb.com/MariaDB/mariadb_repo_setup" | \
-      bash -s -- --mariadb-server-version="mariadb-10.11" >> "$LOG_FILE" 2>&1
+
+    # SECURITY (audit INST-2): do NOT pipe curl → bash. Download the MariaDB
+    # repo setup script to a temp file, fetch its detached GPG signature
+    # (mariadb_repo_setup.asc, published alongside the script), import the
+    # MariaDB signing key from a keyserver if needed, and only execute the
+    # script if `gpg --verify` succeeds. A compromised downloads.mariadb.com
+    # CDN would otherwise let an attacker inject arbitrary apt repository
+    # configuration (and packages) as root.
+    local mariadb_setup_script mariadb_setup_sig
+    mariadb_setup_script="$(mktemp)"
+    mariadb_setup_sig="$(mktemp)"
+
+    if ! curl -fsSL --max-time 120 \
+          "https://downloads.mariadb.com/MariaDB/mariadb_repo_setup" \
+          -o "$mariadb_setup_script" >>"$LOG_FILE" 2>&1; then
+      rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
+      spinner_stop
+      log_error "Failed to download MariaDB repo setup script"
+      exit 1
+    fi
+
+    if ! curl -fsSL --max-time 60 \
+          "https://downloads.mariadb.com/MariaDB/mariadb_repo_setup.asc" \
+          -o "$mariadb_setup_sig" >>"$LOG_FILE" 2>&1; then
+      rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
+      spinner_stop
+      log_error "Failed to download MariaDB repo setup GPG signature"
+      exit 1
+    fi
+
+    # Auto-retrieve the signing key from the keyserver using the keyid
+    # embedded in the .asc file. Fail closed if verification fails — we
+    # would rather abort the install than run an unverified script as root.
+    if ! gpg --keyserver hkp://keyserver.ubuntu.com:80 \
+            --keyserver-options auto-key-retrieve \
+            --verify "$mariadb_setup_sig" "$mariadb_setup_script" \
+            >>"$LOG_FILE" 2>&1; then
+      rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
+      spinner_stop
+      log_error "MariaDB repo setup GPG signature verification FAILED — aborting"
+      exit 1
+    fi
+
+    bash "$mariadb_setup_script" --mariadb-server-version="mariadb-10.11" >> "$LOG_FILE" 2>&1
+    rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
     spinner_stop
-    log_success "MariaDB repository added"
+    log_success "MariaDB repository added (GPG verified)"
 
     run_quiet "Updating package index" apt-get update -qq
 
@@ -1005,7 +1053,18 @@ server {
     }
 
     # Logging
-    access_log /var/log/nginx/ownpay-access.log;
+    # SECURITY (audit INST-3): suppress access logging for /install/* URIs.
+    # Their POST bodies carry DB credentials and the admin password during
+    # initial setup. The default combined format does not include
+    # $request_body, but a future log_format change — or a global `mirror`
+    # directive — would otherwise expose these credentials in plaintext in
+    # /var/log/nginx/ownpay-access.log. The `if=` parameter on access_log
+    # gates logging on a per-request variable.
+    set \$loggable 1;
+    if (\$request_uri ~* ^/install/) {
+        set \$loggable 0;
+    }
+    access_log /var/log/nginx/ownpay-access.log combined if=\$loggable;
     error_log  /var/log/nginx/ownpay-error.log;
 }
 NGINX
@@ -1057,8 +1116,13 @@ _install_apache() {
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
+    # SECURITY (audit INST-3): suppress access logging for /install/* URIs.
+    # Their POST bodies carry DB credentials and the admin password during
+    # initial setup. Combined format does not include the body, but future
+    # CustomLog format changes or mod_security audit logs could.
+    SetEnvIf Request_URI "^/install/" dontlog
     ErrorLog \${APACHE_LOG_DIR}/ownpay-error.log
-    CustomLog \${APACHE_LOG_DIR}/ownpay-access.log combined
+    CustomLog \${APACHE_LOG_DIR}/ownpay-access.log combined env=!dontlog
 </VirtualHost>
 APACHE
 
@@ -1600,14 +1664,25 @@ phase_env() {
   _env_set() {
     local key="$1"
     local val="$2"
-    # Escape special characters for sed
-    local safe_val
-    safe_val="$(printf '%s' "$val" | sed 's/[\/&]/\\&/g')"
-    sed -i "s|^${key}=.*|${key}=${safe_val}|" "$env_file" || true
-    # If key doesn't exist, append it
-    if ! grep -q "^${key}=" "$env_file"; then
-      echo "${key}=${val}" >> "$env_file"
-    fi
+    # SECURITY/ROBUSTNESS (audit INST-5): the previous implementation
+    # used `sed -i "s|^${key}=.*|${key}=${safe_val}|"` with safe_val
+    # only escaping `/` and `&`. Because `|` was the sed separator,
+    # any value containing `|` broke the substitution; `\` and `$` in
+    # the replacement text were also interpreted by sed, corrupting
+    # the .env line. Strong passwords like `Secur3|P@ss\\$word` would
+    # silently produce a malformed DB_PASS= line.
+    #
+    # Fix: avoid sed entirely. Strip embedded newlines (.env is
+    # line-oriented), drop any existing `key=` line via grep -v, then
+    # append the new value verbatim via printf '%s=%s\n'. The cat >
+    # preserves the original file's inode/ownership/permissions.
+    val="${val//$'\n'/ }"
+    local tmp
+    tmp="$(mktemp)"
+    grep -v "^${key}=" "$env_file" > "$tmp" 2>/dev/null || true
+    printf '%s=%s\n' "$key" "$val" >> "$tmp"
+    cat "$tmp" > "$env_file"
+    rm -f "$tmp"
   }
 
   _env_set "APP_NAME"        "\"${APP_NAME}\""
@@ -1679,13 +1754,28 @@ phase_web_installer() {
   # Give web server a moment to start
   sleep 2
 
+  # SECURITY (audit INST-3): write JSON payloads (DB password, admin
+  # password) to a chmod-600 temp file and pass via curl --data-binary
+  # @file. Using curl -d '<json>' on the command line would expose the
+  # credentials via `ps aux` / /proc/PID/cmdline to other local users
+  # during the install window. The web server is also configured to
+  # suppress access logging for /install/* (see _install_nginx/_apache)
+  # so the request body never lands in plaintext logs either.
+  local payload_file
+  payload_file="$(mktemp)"
+  chmod 600 "$payload_file"
+  trap 'rm -f "$payload_file"' RETURN
+
   # ── Step 1: Test database connection ────────────────────────────────────
   spinner_start "Step 1/4 — Testing database connection..."
+  cat > "$payload_file" <<JSON
+{"host":"${DB_HOST}","port":${DB_PORT},"name":"${DB_NAME}","user":"${DB_USER}","pass":"${DB_PASS}","prefix":"op_"}
+JSON
   local resp
   resp="$(curl -fsSL --max-time 30 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"host\":\"${DB_HOST}\",\"port\":${DB_PORT},\"name\":\"${DB_NAME}\",\"user\":\"${DB_USER}\",\"pass\":\"${DB_PASS}\",\"prefix\":\"op_\"}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/test-db" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1698,12 +1788,15 @@ phase_web_installer() {
     log_warn "Proceeding — the web installer at ${base_url}/install can complete this manually."
   fi
 
-  # ── Step 2: Import schema ────────────────────────────────────────────────
+  # ── Step 2: Import schema ──────────────────────────────────────────────────────────────────────
   spinner_start "Step 2/4 — Importing database schema..."
+  cat > "$payload_file" <<JSON
+{"host":"${DB_HOST}","port":${DB_PORT},"name":"${DB_NAME}","user":"${DB_USER}","pass":"${DB_PASS}","prefix":"op_","confirm_overwrite":true}
+JSON
   resp="$(curl -fsSL --max-time 60 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"host\":\"${DB_HOST}\",\"port\":${DB_PORT},\"name\":\"${DB_NAME}\",\"user\":\"${DB_USER}\",\"pass\":\"${DB_PASS}\",\"prefix\":\"op_\",\"confirm_overwrite\":true}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/import-schema" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1718,12 +1811,15 @@ phase_web_installer() {
     return
   fi
 
-  # ── Step 3: Create admin account ────────────────────────────────────────
+  # ── Step 3: Create admin account ────────────────────────────────────────────────────────────────────
   spinner_start "Step 3/4 — Creating admin account..."
+  cat > "$payload_file" <<JSON
+{"name":"${ADMIN_NAME}","email":"${ADMIN_EMAIL}","username":"${ADMIN_USERNAME}","password":"${ADMIN_PASSWORD}"}
+JSON
   resp="$(curl -fsSL --max-time 30 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"name\":\"${ADMIN_NAME}\",\"email\":\"${ADMIN_EMAIL}\",\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/create-admin" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1738,12 +1834,15 @@ phase_web_installer() {
     return
   fi
 
-  # ── Step 4: Finalize ─────────────────────────────────────────────────────
+  # ── Step 4: Finalize ──────────────────────────────────────────────────────────────────────────
   spinner_start "Step 4/4 — Finalizing installation..."
+  cat > "$payload_file" <<JSON
+{"app_name":"${APP_NAME}","currency":"USD","timezone":"${TIMEZONE}"}
+JSON
   resp="$(curl -fsSL --max-time 30 \
     -H "$host_header" \
     -H 'Content-Type: application/json' \
-    -d "{\"app_name\":\"${APP_NAME}\",\"currency\":\"USD\",\"timezone\":\"${TIMEZONE}\"}" \
+    --data-binary @"$payload_file" \
     "${base_url}/install/finalize" 2>&1 || echo '{"success":false,"error":"curl failed"}')"
   spinner_stop
 
@@ -1838,6 +1937,11 @@ LOGROTATE
 # OwnPay Installation Credentials
 # Generated: $(date)
 # KEEP THIS FILE SECURE - DELETE AFTER NOTING CREDENTIALS
+#
+# AUTO-DELETE: This file is automatically deleted 24 hours after the
+# install completed. See /etc/tmpfiles.d/ownpay-credentials.conf and
+# /etc/cron.d/ownpay-creds-cleanup. Save the credentials elsewhere
+# (password manager) before then.
 
 Admin URL:      https://${DOMAIN}/admin
 Admin Username: ${ADMIN_USERNAME}
@@ -1853,6 +1957,36 @@ Log File:       ${LOG_FILE}
 CREDS
   chmod 600 "$creds_file"
   log_success "Credentials saved to ${creds_file} (chmod 600 — root only)"
+
+  # SECURITY (audit INST-4): auto-delete the credentials file after 24h.
+  # Without this, /root/.ownpay-credentials persists indefinitely with
+  # both the admin password and DB password in cleartext — any future
+  # root compromise (sudo misconfig, kernel exploit, backup tape
+  # exfiltration) yields both credentials with no rotation.
+  #
+  # Two complementary mechanisms:
+  #  1. systemd-tmpfiles: /etc/tmpfiles.d/ownpay-credentials.conf
+  #     r <path> - - 24h
+  #     Runs via systemd-tmpfiles-clean.timer (daily + at boot). Removes
+  #     the file only if it is older than 24h.
+  #  2. cron: /etc/cron.d/ownpay-creds-cleanup
+  #     0 3 * * * root find /root/.ownpay-credentials -mtime +1 -delete
+  #     Belt-and-suspenders for systems without systemd-tmpfiles or
+  #     where the clean timer is disabled.
+  cat > /etc/tmpfiles.d/ownpay-credentials.conf << TMPFILES
+# OwnPay install credentials — auto-delete after 24h (audit INST-4)
+r ${creds_file} - - 24h
+TMPFILES
+  chmod 644 /etc/tmpfiles.d/ownpay-credentials.conf
+
+  cat > /etc/cron.d/ownpay-creds-cleanup << CRONCONF
+# OwnPay install credentials — auto-delete after 24h (audit INST-4)
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 3 * * * root find ${creds_file} -mtime +1 -delete 2>/dev/null
+CRONCONF
+  chmod 644 /etc/cron.d/ownpay-creds-cleanup
+  log_success "Scheduled auto-delete of ${creds_file} after 24h (systemd-tmpfiles + cron)"
 
   checkpoint_clear
 
@@ -1910,7 +2044,7 @@ EOF
   _box_row "  ${C_BRAND}${C_BOLD}2.${C_RESET}  ${C_WHITE}Configure payment gateways under Gateways${C_RESET}" $w
   _box_row "  ${C_BRAND}${C_BOLD}3.${C_RESET}  ${C_WHITE}Add your brands under People → Brands${C_RESET}" $w
   _box_row "  ${C_BRAND}${C_BOLD}4.${C_RESET}  ${C_WHITE}Invite staff members via People → Staff${C_RESET}" $w
-  _box_row "  ${C_BRAND}${C_BOLD}5.${C_RESET}  ${C_WHITE}Delete /root/.ownpay-credentials after noting them${C_RESET}" $w
+  _box_row "  ${C_BRAND}${C_BOLD}5.${C_RESET}  ${C_WHITE}Note credentials — /root/.ownpay-credentials auto-deletes in 24h${C_RESET}" $w
   _box_empty $w
   _box_bot $w
 

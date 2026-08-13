@@ -16,6 +16,8 @@ use OwnPay\Repository\SmsTemplateRepository;
  */
 final class SmsTemplateController
 {
+    use AdminScopeAwareTrait;
+
     /**
      * @var SmsTemplateRepository The SMS template repository.
      */
@@ -53,6 +55,11 @@ final class SmsTemplateController
      */
     public function update(Request $req): Response
     {
+        $scopeErr = $this->requireAdminScope($req);
+        if ($scopeErr !== null) {
+            return $scopeErr;
+        }
+
         $id  = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;

@@ -334,7 +334,7 @@ CREATE TABLE `op_refunds` (
   `uuid` CHAR(36) NOT NULL,
   `amount` DECIMAL(15,2) NOT NULL,
   `reason` VARCHAR(500) DEFAULT NULL,
-  `status` ENUM('pending','completed','failed') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','completed','failed','pending_verification') NOT NULL DEFAULT 'pending',
   `processed_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -521,6 +521,7 @@ CREATE TABLE `op_ledger_transactions` (
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_uuid` (`uuid`),
+  UNIQUE KEY `uk_merchant_ref` (`merchant_id`, `reference_type`, `reference_id`, `description`(255)),
   KEY `idx_merchant` (`merchant_id`),
   KEY `idx_ref` (`reference_type`, `reference_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

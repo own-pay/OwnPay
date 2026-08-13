@@ -33,12 +33,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout project source
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Scan code using project's configuration on https://semgrep.dev/manage
-      # Pinned to v1 (the latest stable tag) — previously pinned to a commit
-      # SHA which made it impossible to receive security patches.
-      - uses: returntocorp/semgrep-action@v1
+      #
+      # Migrated from the deprecated returntocorp/semgrep-action to the
+      # Semgrep Native GitHub Action (semgrep/semgrep-action) — see
+      # https://github.com/marketplace/actions/semgrep-action. The
+      # returntocorp repository was officially deprecated and is no
+      # longer receiving updates. Both actions wrap the same Docker
+      # image (returntocorp/semgrep-agent:v1), so the publishToken /
+      # publishDeployment / generateSarif inputs continue to work
+      # unchanged.
+      - uses: semgrep/semgrep-action@v1
         with:
           publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
           publishDeployment: ${{ secrets.SEMGREP_DEPLOYMENT_ID }}

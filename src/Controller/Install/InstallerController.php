@@ -35,6 +35,22 @@ final class InstallerController
     private ?bool $dbProbeResult = null;
 
     /**
+     * Default allowlist of DB hosts the installer will connect to.
+     *
+     * The installer runs on the OwnPay server and connects to the DB using
+     * user-supplied credentials. Without an allowlist, a CSRF attacker can
+     * make the OwnPay server initiate an outbound MySQL connection to an
+     * attacker-controlled rogue MySQL server, which can capture the
+     * supplied credentials AND trigger LOAD DATA LOCAL INFILE to read
+     * arbitrary files from the OwnPay server (CVE-2017-15945-class).
+     *
+     * Operators who need to point the installer at a remote DB (e.g. a
+     * managed RDS instance) can set the OWNPAY_INSTALLER_ALLOWED_DB_HOSTS
+     * env var to a comma-separated list of additional allowed hostnames.
+     */
+    private const DEFAULT_ALLOWED_DB_HOSTS = ['127.0.0.1', 'localhost', '::1'];
+
+    /**
      * InstallerController constructor.
      */
     public function __construct()
@@ -52,7 +68,10 @@ final class InstallerController
     public function show(Request $req): Response
     {
         if ($this->isInstalled($req)) {
-            return Response::html($this->renderPhpTemplate('install/locked.php', []));
+            $lockedNonce = $req->getAttribute('csp_nonce');
+            return Response::html($this->renderPhpTemplate('install/locked.php', [
+                'csp_nonce' => is_string($lockedNonce) ? $lockedNonce : '',
+            ]));
         }
         $stepQuery = $req->query('step', '1');
         $stepVal = (is_int($stepQuery) || is_string($stepQuery) || is_numeric($stepQuery)) ? (int) $stepQuery : 1;
@@ -129,11 +148,25 @@ final class InstallerController
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
+        // SECURITY (audit INST-7): allowlist the DB host so a CSRF attacker
+        // cannot make the OwnPay server initiate an outbound MySQL connection
+        // to a rogue server that captures credentials and triggers
+        // LOAD DATA LOCAL INFILE file disclosure.
+        if (!$this->isDbHostAllowed($host)) {
+            return Response::json([
+                'success' => false,
+                'error' => 'DB host is not in the installer allowlist. Set OWNPAY_INSTALLER_ALLOWED_DB_HOSTS to permit a remote DB.',
+            ], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 5,
+                // Disable LOCAL INFILE: a rogue MySQL server can otherwise
+                // request LOAD DATA LOCAL INFILE '/etc/passwd' and read
+                // arbitrary files from the OwnPay server.
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             
             $mysqlVersion = $pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
@@ -218,10 +251,22 @@ final class InstallerController
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
+        // SECURITY (audit INST-7): allowlist the DB host (same guard as
+        // testDatabase — see that method for rationale).
+        if (!$this->isDbHostAllowed($host)) {
+            return Response::json([
+                'success' => false,
+                'error' => 'DB host is not in the installer allowlist. Set OWNPAY_INSTALLER_ALLOWED_DB_HOSTS to permit a remote DB.',
+            ], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                // Disable LOCAL INFILE: a rogue MySQL server can otherwise
+                // request LOAD DATA LOCAL INFILE '/etc/passwd' and read
+                // arbitrary files from the OwnPay server.
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             
             $dbCheck = $pdo->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
@@ -362,8 +407,61 @@ final class InstallerController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return Response::json(['success' => false, 'error' => 'Invalid email'], 422);
         }
-        if (strlen($password) < 8) {
-            return Response::json(['success' => false, 'error' => 'Password min 8 chars'], 422);
+        // Audit fix INST-8: the previous check only enforced strlen >= 8,
+        // so passwords like 'password' or '12345678' were accepted for
+        // the superadmin account — the highest-privilege credential in
+        // the system (unrestricted access to ALL merchant data, ALL
+        // brands, ALL financial operations). Mirrors the
+        // StaffController::create() policy (audit STF-2):
+        //   - minimum length 12 characters
+        //   - at least 3 of 4 character classes (uppercase, lowercase,
+        //     digit, symbol)
+        //   - reject passwords that embed the admin's own identity
+        //     fields or the product name
+        // HIBP k-anonymity check is intentionally omitted: the installer
+        // may run in air-gapped deployments where outbound HTTPS to
+        // api.pwnedpasswords.com is unavailable. The complexity + length
+        // + context checks above are the deterministic, side-effect-free
+        // baseline.
+        if (strlen($password) < 12) {
+            return Response::json(['success' => false, 'error' => 'Password must be at least 12 characters.'], 422);
+        }
+        $classesMet = 0;
+        if (preg_match('/[A-Z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[a-z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[0-9]/', $password)) {
+            $classesMet++;
+        }
+        // Symbols: anything that is not a letter or digit.
+        if (preg_match('/[^A-Za-z0-9]/', $password)) {
+            $classesMet++;
+        }
+        if ($classesMet < 3) {
+            return Response::json(['success' => false, 'error' => 'Password must use at least 3 of the 4 character classes: uppercase, lowercase, digits, symbols.'], 422);
+        }
+        // Context-aware blocklist: reject passwords that embed the admin's
+        // own identity fields or the product name. These are the first
+        // guesses an attacker would try once they know the admin's email.
+        $pwLower = strtolower($password);
+        $forbiddenSubstrings = ['ownpay'];
+        $forbiddenSubstrings[] = strtolower($name);
+        $forbiddenSubstrings[] = strtolower($username);
+        if (str_contains($email, '@')) {
+            $emailUser = strtolower(explode('@', $email, 2)[0]);
+            if ($emailUser !== '') {
+                $forbiddenSubstrings[] = $emailUser;
+            }
+        }
+        foreach ($forbiddenSubstrings as $needle) {
+            // Skip short needles — they would cause false positives
+            // (e.g. name "Jo" rejecting any password containing "jo").
+            if (strlen($needle) >= 4 && str_contains($pwLower, $needle)) {
+                return Response::json(['success' => false, 'error' => 'Password must not contain your name, username, email, or "ownpay".'], 422);
+            }
         }
 
         $envFile = $this->rootDir . '/storage/.env.temp';
@@ -385,7 +483,15 @@ final class InstallerController
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-                $dbUser, $dbPass
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth —
+                    // the host was allowlisted at importSchema time, but a
+                    // rogue MySQL server could still request file reads).
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             $now = DateHelper::now();
@@ -538,9 +644,24 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
 
-            $httpHostRaw = $req->server('HTTP_HOST') ?: 'localhost';
+            // SECURITY (audit INST-10): do NOT trust the client-controlled
+            // Host header or X-Forwarded-Proto for the APP_URL/APP_DOMAIN
+            // values written permanently to .env. A poisoned
+            // `Host: evil.com` + `X-Forwarded-Proto: https` would write
+            // APP_URL=https://evil.com — every subsequent password-reset
+            // email would leak its token to the attacker, and webhook
+            // callbacks would be poisoned.
+            //
+            // Use SERVER_NAME first (set by the web server config —
+            // nginx `server_name` / Apache `ServerName`, NOT client-
+            // controlled) and only fall back to HTTP_HOST if the server
+            // did not set SERVER_NAME. Use Request::scheme() (which only
+            // honours X-Forwarded-Proto when REMOTE_ADDR is in the
+            // TRUSTED_PROXIES env var — see Request::isTrustedProxy()).
+            $serverName = $req->server('SERVER_NAME');
+            $httpHostRaw = $serverName !== '' ? $serverName : ($req->server('HTTP_HOST') ?: 'localhost');
             $httpHost = preg_match('/^[A-Za-z0-9.\-]+(:[0-9]{1,5})?$/', $httpHostRaw) === 1 ? $httpHostRaw : 'localhost';
-            $scheme = ($req->server('HTTPS') === 'on' || $req->server('HTTP_X_FORWARDED_PROTO') === 'https') ? 'https' : 'http';
+            $scheme = $req->scheme();
             $appUrl = "{$scheme}://{$httpHost}";
             $appDomain = parse_url($appUrl, PHP_URL_HOST) ?: $httpHost;
 
@@ -601,7 +722,24 @@ final class InstallerController
                 }
             }
             $finalContent = implode("\n", $lines);
-            
+
+            // SECURITY (audit INST-12): back up any existing .env before
+            // overwriting. Without this, a re-run of finalize() (e.g.
+            // after the marker file was accidentally deleted and the DB
+            // was briefly unreachable, so isInstalled() returned false)
+            // would silently clobber the existing .env with freshly-
+            // generated crypto keys — making all field-encrypted PII
+            // permanently unreadable and breaking the audit chain HMAC
+            // verification (SYS-1).
+            $envBackup = null;
+            if (file_exists($finalEnv)) {
+                $envBackup = $finalEnv . '.bak.' . time();
+                if (!@rename($finalEnv, $envBackup)) {
+                    return Response::json(['success' => false, 'error' => 'A .env file already exists and could not be backed up. Manually rename or delete .env before re-running the installer.'], 409);
+                }
+                error_log('[OwnPay] SECURITY (audit INST-12): backed up existing .env to ' . $envBackup . ' before finalize() overwrite.');
+            }
+
             file_put_contents($finalEnv, $finalContent, LOCK_EX);
             @chmod($finalEnv, 0640);
 
@@ -614,7 +752,13 @@ final class InstallerController
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-                $dbUser, $dbPass
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth).
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
@@ -658,7 +802,11 @@ final class InstallerController
             @chmod($this->markerFile, 0640);
             @unlink($tempEnv);
 
-            return Response::json(['success' => true, 'message' => 'Installation complete']);
+            $response = ['success' => true, 'message' => 'Installation complete'];
+            if ($envBackup !== null) {
+                $response['env_backup'] = $envBackup;
+            }
+            return Response::json($response);
         } catch (\Throwable $e) {
             $msg = $e->getMessage();
             if (str_contains($msg, 'Access denied')) {
@@ -804,12 +952,46 @@ final class InstallerController
             $pdo = new \PDO("mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 2,
+                // Disable LOCAL INFILE (audit INST-7, defense-in-depth —
+                // host comes from the live .env, but a rogue upstream
+                // MySQL server could still request file reads).
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             $stmt = $pdo->query("SELECT 1 FROM `{$prefix}merchant_users` WHERE is_superadmin = 1 LIMIT 1");
             return $this->dbProbeResult = ($stmt !== false && $stmt->fetch() !== false);
         } catch (\Throwable) {
             return $this->dbProbeResult = false;
         }
+    }
+
+    /**
+     * Returns true if the given DB host is on the installer allowlist.
+     *
+     * The default allowlist permits only loopback hosts (127.0.0.1,
+     * localhost, ::1). Operators who need to point the installer at a
+     * remote DB (e.g. a managed RDS instance) can set the
+     * OWNPAY_INSTALLER_ALLOWED_DB_HOSTS env var to a comma-separated
+     * list of additional allowed hostnames/IPs.
+     *
+     * @param string $host The candidate DB host (already trimmed).
+     * @return bool True if the host is allowed.
+     */
+    private function isDbHostAllowed(string $host): bool
+    {
+        if ($host === '') {
+            return false;
+        }
+        $allowed = self::DEFAULT_ALLOWED_DB_HOSTS;
+        $extra = $_ENV['OWNPAY_INSTALLER_ALLOWED_DB_HOSTS'] ?? (getenv('OWNPAY_INSTALLER_ALLOWED_DB_HOSTS') ?: '');
+        if (is_string($extra) && $extra !== '') {
+            foreach (explode(',', $extra) as $h) {
+                $h = trim($h);
+                if ($h !== '') {
+                    $allowed[] = strtolower($h);
+                }
+            }
+        }
+        return in_array(strtolower($host), $allowed, true);
     }
 
     /**

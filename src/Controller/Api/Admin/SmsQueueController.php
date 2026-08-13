@@ -6,6 +6,7 @@ namespace OwnPay\Controller\Api\Admin;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\CommLogRepository;
+use OwnPay\Service\System\Logger;
 
 /**
  * Class SmsQueueController
@@ -16,19 +17,28 @@ use OwnPay\Repository\CommLogRepository;
  */
 final class SmsQueueController
 {
+    use AdminScopeAwareTrait;
+
     /**
      * @var CommLogRepository The communication log repository.
      */
     private CommLogRepository $commRepo;
 
     /**
+     * @var Logger System logger for recording unexpected exceptions.
+     */
+    private Logger $logger;
+
+    /**
      * SmsQueueController constructor.
      *
      * @param CommLogRepository $commRepo The communication log repository.
+     * @param Logger            $logger   The system logger.
      */
-    public function __construct(CommLogRepository $commRepo)
+    public function __construct(CommLogRepository $commRepo, Logger $logger)
     {
         $this->commRepo = $commRepo;
+        $this->logger = $logger;
     }
 
     /**
@@ -53,6 +63,11 @@ final class SmsQueueController
      */
     public function retry(Request $req): Response
     {
+        $scopeErr = $this->requireAdminScope($req);
+        if ($scopeErr !== null) {
+            return $scopeErr;
+        }
+
         $id  = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
@@ -72,7 +87,11 @@ final class SmsQueueController
             }
             return Response::apiSuccess(['message' => 'Queued for retry']);
         } catch (\Throwable $e) {
-            return Response::apiError('SMS_RETRY_FAILED', $e->getMessage(), 'id', 400);
+            // Don't leak raw exception messages (PDO errors, file paths, etc.) to
+            // the API client — log the full exception internally and return a
+            // generic, safe message.
+            $this->logger->error('SMS retry failed', ['exception' => $e, 'sms_id' => $id, 'merchant_id' => $mid]);
+            return Response::apiError('SMS_RETRY_FAILED', 'SMS retry failed. Please try again.', 'id', 400);
         }
     }
 }
