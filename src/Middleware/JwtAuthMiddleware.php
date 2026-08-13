@@ -86,6 +86,18 @@ final class JwtAuthMiddleware
             ], 401);
         }
 
+        // Reject refresh tokens used for direct API access (SEC-1).
+        // Refresh tokens carry typ=refresh and are only accepted by /auth/refresh
+        // to mint a new short-lived access token. Without this check a stolen
+        // refresh token would grant 30 days of API access.
+        $typ = isset($payload->typ) && is_string($payload->typ) ? $payload->typ : null;
+        if ($typ !== \OwnPay\Service\Auth\JwtService::TYPE_ACCESS) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid token type',
+            ], 401);
+        }
+
         $mid = (int) $payload->mid;
         $did = (string) $payload->did;
 

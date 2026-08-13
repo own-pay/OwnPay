@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Auth;
 
+use OwnPay\Repository\ApiKeyRepository;
 use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Repository\PasswordResetRepository;
 use OwnPay\Service\Communication\CommunicationService;
@@ -38,6 +39,7 @@ final class PasswordResetService
      * @param FragmentRenderer $renderer Twig renderer for the reset email body.
      * @param DomainUrlService $urls Brand-aware base URL resolver for the reset link.
      * @param Logger $logger System logger for non-fatal failures.
+     * @param ApiKeyRepository $apiKeys API-key revocation on credential change (SEC-4).
      */
     public function __construct(
         private readonly MerchantUserRepository $users,
@@ -45,7 +47,8 @@ final class PasswordResetService
         private readonly CommunicationService $comm,
         private readonly FragmentRenderer $renderer,
         private readonly DomainUrlService $urls,
-        private readonly Logger $logger
+        private readonly Logger $logger,
+        private readonly ApiKeyRepository $apiKeys
     ) {
     }
 
@@ -141,9 +144,33 @@ final class PasswordResetService
             return ['success' => false, 'error' => 'Invalid or expired reset link.'];
         }
 
+        // Resolve the user's merchant context so we can revoke their API keys
+        // after the password change (SEC-4).
+        $user = $this->users->find($userId);
+        $merchantId = is_array($user) && is_scalar($user['merchant_id'] ?? null)
+            ? (int) $user['merchant_id']
+            : 0;
+
         $this->users->updatePassword($userId, Authenticator::hashPassword($newPassword));
         $this->tokens->markUsed($tokenId);
         $this->tokens->invalidateForUser($userId); // burn any other outstanding links
+
+        // SEC-4: Invalidate every active API key for the user's merchant so a
+        // compromised password does not leave long-lived API credentials in
+        // the attacker's hands after the reset. The merchantId here is the
+        // brand the user belongs to (users.email is globally unique, so the
+        // merchant context is determined by the password-reset record's user).
+        if ($merchantId > 0) {
+            try {
+                $this->apiKeys->revokeAllForMerchant($merchantId);
+            } catch (\Throwable $e) {
+                // Do not fail the reset flow if API-key revocation hits a
+                // transient DB error — the password itself was already
+                // changed, which is the primary remediation. Log so SOC can
+                // audit the partial-failure case.
+                $this->logger->error('API-key revocation on password reset failed: ' . $e->getMessage());
+            }
+        }
 
         return ['success' => true, 'error' => ''];
     }

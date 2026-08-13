@@ -289,16 +289,24 @@ final class PermissionMiddleware
             return 'brands.view';
         }
 
+        // SEC-5: Treat every non-safe HTTP method as state-changing. The
+        // previous implementation only upgraded .view -> .manage for POST,
+        // which left PUT/PATCH/DELETE authorized at .view level — a user
+        // granted only read-only access to a resource could DELETE or PUT it.
+        // RFC 9110 §9.2.1 defines GET/HEAD/OPTIONS as "safe" (no state
+        // change); every other method is treated as state-changing here.
+        $stateChanging = !in_array($method, ['GET', 'HEAD', 'OPTIONS'], true);
+
         // Check exact match first
         if (isset($map[$path])) {
             $perm = $map[$path];
-            if ($method === 'POST') {
+            if ($stateChanging) {
                 $perm = str_replace('.view', '.manage', $perm);
             }
             return $perm;
         }
 
-        // Check prefix match - POST uses .manage
+        // Check prefix match - state-changing methods use .manage
         foreach ($map as $prefix => $perm) {
             // Do not match the base '/admin' as a dynamic prefix.
             // This prevents unmapped paths under /admin/ from falling back to dashboard.view/manage
@@ -306,7 +314,7 @@ final class PermissionMiddleware
                 continue;
             }
             if (str_starts_with($path, $prefix . '/')) {
-                if ($method === 'POST') {
+                if ($stateChanging) {
                     return str_replace('.view', '.manage', $perm);
                 }
                 return $perm;

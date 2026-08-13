@@ -85,16 +85,41 @@ final class RedisQueue implements QueueInterface
     }
 
     /**
+     * Default visibility timeout (seconds) for in-flight jobs.
+     *
+     * A job that has been popped but not completed/failed within this window
+     * is considered "stale" — the worker is presumed dead (OOM, deploy, crash)
+     * and the job is eligible for re-enqueueing by recoverStale().
+     */
+    private const int VISIBILITY_TIMEOUT = 300;
+
+    /**
+     * Maximum attempts before a stale job is moved to the failed list instead
+     * of being re-enqueued. Prevents an eternally crashing job from being
+     * retried forever.
+     */
+    private const int MAX_ATTEMPTS = 5;
+
+    /**
      * Extracts and retrieves the next available job message from the specified queue.
      *
      * Migrates available delayed jobs to the ready list, pops the first ready job,
      * and maps it to the processing registry hash to ensure worker concurrency safety.
+     *
+     * SECURITY (QUEUE-2): recoverStale() is invoked before popping so that jobs
+     * abandoned by a crashed worker are re-enqueued automatically rather than
+     * being permanently lost in the processing hash.
      *
      * @param string $queue The queue name. Defaults to 'default'.
      * @return array<string, mixed>|null The job data array, or null if no jobs are available.
      */
     public function pop(string $queue = 'default'): ?array
     {
+        // SECURITY (QUEUE-2): re-enqueue jobs abandoned by a previous worker
+        // before attempting to pop a new one. The cost is one HSCAN per pop
+        // call; if there are no stale jobs this is effectively free.
+        $this->recoverStale(self::VISIBILITY_TIMEOUT);
+
         $this->migrateDelayed($queue);
 
         $raw = $this->redis->rPop($this->prefix . $queue);
@@ -110,6 +135,11 @@ final class RedisQueue implements QueueInterface
 
         $attempts = $job['attempts'] ?? 0;
         $job['attempts'] = (is_numeric($attempts) ? (int) $attempts : 0) + 1;
+        // SECURITY (QUEUE-2): record the timestamp at which the job entered
+        // the processing state. recoverStale() uses this to decide whether
+        // the job has exceeded the visibility timeout and should be
+        // re-enqueued.
+        $job['started_at'] = time();
 
         $jobId = is_string($job['id'] ?? null) ? $job['id'] : '';
 
@@ -261,5 +291,107 @@ final class RedisQueue implements QueueInterface
     public function redis(): \Redis
     {
         return $this->redis;
+    }
+
+    /**
+     * Re-enqueues in-flight jobs whose visibility timeout has expired.
+     *
+     * SECURITY (QUEUE-2): previously, if a worker was killed (OOM, deploy,
+     * crash) between pop() returning and complete()/fail() being called, the
+     * job existed only in the `processing` hash — there was no background
+     * reaper, no TTL on the hash entry, and no visibility-timeout mechanism
+     * to re-queue stale jobs. The job was permanently stuck.
+     *
+     * This method scans every entry in `op:queue:processing`, parses the
+     * stored JSON to recover `started_at` and the originating `queue`, and
+     * for any entry whose `started_at` is older than `$timeout` seconds:
+     *   - If the job has been attempted fewer than MAX_ATTEMPTS times, it is
+     *     LPUSHed back onto the ready list so the next worker can retry it.
+     *   - Otherwise it is moved to the `failed` list to prevent an
+     *     eternally crashing job from being retried forever.
+     * In both cases the entry is removed from the processing hash.
+     *
+     * This method is invoked automatically at the start of every pop() call,
+     * but it is also safe to call directly from a dedicated cron job for
+     * queues that are not actively being polled.
+     *
+     * @param int $timeout Visibility timeout in seconds. Defaults to 300 (5 minutes).
+     * @return int Number of stale jobs that were re-enqueued or moved to failed.
+     */
+    public function recoverStale(int $timeout = self::VISIBILITY_TIMEOUT): int
+    {
+        $processingKey = $this->prefix . 'processing';
+        $failedKey = $this->prefix . 'failed';
+        $now = time();
+        $recovered = 0;
+
+        // HSCAN avoids blocking the Redis server when the processing hash is
+        // large; the iterator is consumed in a single pass for simplicity
+        // (workers call this on every pop, so the hash should stay small).
+        $iterator = null;
+        // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition
+        while (is_array($entries = $this->redis->hScan($processingKey, $iterator, '*', 100))) {
+            if ($entries === []) {
+                // Empty batch but iterator is not yet exhausted — continue.
+                if ($iterator === 0) {
+                    break;
+                }
+                continue;
+            }
+            foreach ($entries as $jobId => $raw) {
+                /** @var string $jobId */
+                /** @var string $raw */
+                $jobIdStr = (string) $jobId;
+                $rawStr = (string) $raw;
+                if ($jobIdStr === '' || $rawStr === '') {
+                    continue;
+                }
+                $job = json_decode($rawStr, true);
+                if (!is_array($job)) {
+                    // Corrupt entry — remove it so it doesn't block future scans.
+                    $this->redis->hDel($processingKey, $jobIdStr);
+                    continue;
+                }
+                $startedAtVal = $job['started_at'] ?? 0;
+                $startedAt = is_numeric($startedAtVal) ? (int) $startedAtVal : 0;
+                if ($startedAt === 0 || ($now - $startedAt) < $timeout) {
+                    continue;
+                }
+
+                $attemptsVal = $job['attempts'] ?? 0;
+                $attempts = is_numeric($attemptsVal) ? (int) $attemptsVal : 0;
+
+                $queueName = is_string($job['queue'] ?? null) ? $job['queue'] : 'default';
+
+                // Remove from the processing hash FIRST so a concurrent pop()
+                // cannot race us back into re-enqueueing the same job twice.
+                $this->redis->hDel($processingKey, $jobIdStr);
+
+                if ($attempts >= self::MAX_ATTEMPTS) {
+                    // Exceeded retry budget — move to failed list with a
+                    // descriptive error so an operator can investigate.
+                    $job['error'] = 'Visibility timeout exceeded after '
+                        . $attempts . ' attempts; moved to failed by recoverStale()';
+                    $job['failed_at'] = $now;
+                    $this->redis->lPush(
+                        $failedKey,
+                        (string) json_encode($job, JSON_UNESCAPED_UNICODE)
+                    );
+                } else {
+                    // Reset started_at so the next pop() can re-time it.
+                    unset($job['started_at']);
+                    $this->redis->lPush(
+                        $this->prefix . $queueName,
+                        (string) json_encode($job, JSON_UNESCAPED_UNICODE)
+                    );
+                }
+                $recovered++;
+            }
+            if ($iterator === 0) {
+                break;
+            }
+        }
+
+        return $recovered;
     }
 }

@@ -1039,6 +1039,44 @@ final class PaymentIntentCheckoutController
 
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+
+        // PAY-3: Guard the cancel against non-cancellable intent states. The
+        // previous implementation unconditionally set status='cancelled'
+        // whether the intent was pending, processing (gateway in-flight),
+        // completed, paid, or expired. A customer holding the intent token
+        // (exposed in the checkout URL /checkout/intent/{token}) could POST
+        // to /cancel after a successful payment and mark the intent
+        // cancelled, producing state inconsistency: txn completed but intent
+        // cancelled. For `processing` intents we additionally gate on the
+        // absence of an in-flight transaction — if a txn has already moved
+        // past `pending` (e.g. `processing` / `awaiting_verification` /
+        // `completed`) the gateway callback is in flight and we must not
+        // flip the intent to cancelled.
+        $currentStatusVal = $intent['status'] ?? '';
+        $currentStatus = is_string($currentStatusVal) ? $currentStatusVal : '';
+        $cancellable = ['pending', 'processing'];
+        if (!in_array($currentStatus, $cancellable, true)) {
+            // Render the actual current status so the customer sees the real
+            // state (paid / expired / etc.) instead of a misleading cancelled.
+            return $this->renderStatus($token, $currentStatus !== '' ? $currentStatus : 'expired', $intent);
+        }
+
+        if ($currentStatus === 'processing') {
+            // Refuse to cancel if any child transaction has progressed past
+            // `pending` — the gateway is in flight and the cancel would race
+            // the success callback.
+            $inFlightTxn = $this->db->fetchOne(
+                "SELECT id FROM op_transactions
+                 WHERE payment_intent_id = :pi AND merchant_id = :mid
+                   AND status NOT IN ('pending','cancelled')
+                 LIMIT 1",
+                ['pi' => $intentId, 'mid' => $mid]
+            );
+            if (is_array($inFlightTxn) && isset($inFlightTxn['id'])) {
+                return $this->renderStatus($token, 'processing', $intent);
+            }
+        }
+
         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'cancelled']);
 
         // Terminate active child transactions mapped to the cancelled checkout intent.

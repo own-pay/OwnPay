@@ -62,17 +62,28 @@ final class SmsDataRepository extends BaseRepository
         // When a content fingerprint is provided, a duplicate requires the same
         // fingerprint too. We perform a single EXISTS query that is satisfied
         // only when an identical (device, sender, timestamp, content) row exists.
+        //
+        // SMS-1: Removed the `OR local_id = :lid` clause. The fingerprint is
+        // a 32-char MD5 hex string, but `local_id` is an INT column. MySQL
+        // coerces the hex string to an integer when comparing to an INT —
+        // because MD5 hex chars are 0-9a-f, any string starting with a-f
+        // (~87.5% of hashes) coerces to 0, turning the condition into
+        // `local_id = 0`. Any previously-stored row from the same device+
+        // sender within ±1s whose `local_id` was 0 (e.g. a buggy companion
+        // app that sends local_id: 0) would match — even when the SMS content
+        // was entirely different. The MD5(body) = :fp2 clause was also dead
+        // code: it compared the MD5 of a stored plaintext body to the MD5 of
+        // a new *encrypted* payload, which can never match. Both clauses are
+        // removed; dedup now relies solely on MD5(encrypted_raw) = :fp,
+        // which is the correct comparison (encrypted payload vs encrypted
+        // payload, both via MD5).
         if ($contentFingerprint !== null && $contentFingerprint !== '') {
             $row = $this->db->fetchOne(
                 "SELECT 1 AS hit FROM {$this->table}
                  WHERE device_id = :did AND sender = :sender
                    AND ABS(TIMESTAMPDIFF(SECOND, received_at, :received_at)) <= 1
                    AND merchant_id = :mid
-                   AND (
-                       MD5(encrypted_raw) = :fp
-                       OR MD5(body) = :fp2
-                       OR local_id = :lid
-                   )
+                   AND MD5(encrypted_raw) = :fp
                  LIMIT 1",
                 [
                     'did'         => $deviceId,
@@ -80,8 +91,6 @@ final class SmsDataRepository extends BaseRepository
                     'received_at' => $receivedAt,
                     'mid'         => $this->requireTenant(),
                     'fp'          => $contentFingerprint,
-                    'fp2'         => $contentFingerprint,
-                    'lid'         => $contentFingerprint,
                 ]
             );
             return $row !== null;

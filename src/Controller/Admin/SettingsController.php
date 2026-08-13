@@ -566,11 +566,18 @@ final class SettingsController
                         // only superadmins can set this field, defense-in-depth
                         // removes the well-known CSS-borne XSS vectors so a
                         // compromised superadmin session cannot weaponize the
-                        // checkout page against customers. JS is gated by a
-                        // CSP nonce at render time (see checkout.js), so we do
-                        // not strip content here - but we keep the audit trail
-                        // via the surrounding audit log write so every change
-                        // to custom_js is attributable.
+                        // checkout page against customers.
+                        //
+                        // SECURITY (TMPL-4): brand-controlled custom_js is now
+                        // injected by checkout.js WITHOUT the page's CSP nonce,
+                        // so it is blocked by the browser's CSP
+                        // `script-src 'self' 'nonce-{$nonce}'` directive unless
+                        // the operator has explicitly opted in by adding
+                        // 'unsafe-inline' to script-src via the
+                        // 'checkout.csp.sources' filter hook. Saving custom_js
+                        // here is always allowed (and audit-logged below) so
+                        // the value is preserved for deployments that have
+                        // opted in, but it will not execute by default.
                         $customCss = $this->sanitizeBrandCss($customCss);
 
                         $brandSettings['custom_css'] = $customCss;
@@ -1165,6 +1172,17 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
+                // UI-2: Treat an empty smtp_password as "no change" so the
+                // password field can be left blank in the form (the template
+                // no longer echoes the current password into the page source).
+                // Only overwrite the stored password when a non-empty value
+                // is submitted.
+                if ($key === 'smtp_password') {
+                    $smtpVal = is_scalar($data[$key]) ? (string) $data[$key] : '';
+                    if ($smtpVal === '') {
+                        continue;
+                    }
+                }
                 $filtered[$key] = is_array($data[$key]) ? (json_encode($data[$key]) ?: '') : (is_scalar($data[$key]) ? (string) $data[$key] : '');
             }
         }

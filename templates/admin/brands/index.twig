@@ -24,7 +24,7 @@
                     <td data-label="Actions" class="op-nowrap">
                         <a href="/admin/brands/{{ m.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
                         {% if brand_list|length > 1 %}
-                        <form method="POST" action="/admin/brands/{{ m.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete brand \'{{ m.name|e('js') }}\'? Deletion is blocked if this brand has any financial history (transactions, refunds, disputes, customers, invoices, etc.). Brands with no financial activity can be deleted permanently.')">
+                        <form method="POST" action="/admin/brands/{{ m.id }}/delete" class="op-inline-form" data-confirm="⚠️ DELETE brand '{{ m.name|e('html') }}'? This removes ALL associated data (transactions, customers, gateways). This action is IRREVERSIBLE.">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
                         </form>

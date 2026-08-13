@@ -678,7 +678,8 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Service\Communication\CommunicationService::class), \OwnPay\Service\Communication\CommunicationService::class),
             ensureType($c->get(\OwnPay\View\FragmentRenderer::class), \OwnPay\View\FragmentRenderer::class),
             ensureType($c->get(\OwnPay\Service\Domain\DomainUrlService::class), \OwnPay\Service\Domain\DomainUrlService::class),
-            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+            ensureType($c->get(\OwnPay\Repository\ApiKeyRepository::class), \OwnPay\Repository\ApiKeyRepository::class)
         );
     });
 

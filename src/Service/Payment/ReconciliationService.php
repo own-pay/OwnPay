@@ -25,11 +25,28 @@ final class ReconciliationService
      */
     public function reconcile(int $merchantId, string $currency): array
     {
-        // Sum completed transaction net amounts
-        $txnRow = $this->db->fetchOne( 
+        // Sum completed transaction net amounts.
+        // PAY-6: Include 'refunded' transactions in the captured total. The
+        // previous implementation filtered to status = 'completed' only, which
+        // excluded fully-refunded transactions. When a transaction's last
+        // refund landed, RefundService (or WebhookInboundProcessor) flipped it
+        // from 'completed' to 'refunded' — so its net_amount was removed from
+        // txnTotal. But the refund amount was still included in refundTotal
+        // (the refund query has no status filter on the parent txn). Result:
+        // expected_balance = 0 - fullRefundNet = -fullRefundNet, while the
+        // actual ledger_balance was 0 (original credit and refund debit
+        // cancel out on MERCHANT_PAYABLE). Every merchant who had ever issued
+        // a full refund saw a permanently failing balance verification.
+        //
+        // Treating 'refunded' as a terminal state of a captured payment (not
+        // "never captured") means its net_amount should remain in the
+        // captured total. The schema already reflects this — a 'refunded'
+        // txn has a non-null captured_at and a non-zero net_amount — so
+        // including it in the SUM is the correct model.
+        $txnRow = $this->db->fetchOne(
             "SELECT COALESCE(SUM(net_amount), 0) as total
              FROM op_transactions
-             WHERE merchant_id = :mid AND currency = :cur AND status = 'completed'",
+             WHERE merchant_id = :mid AND currency = :cur AND status IN ('completed', 'refunded')",
             ['mid' => $merchantId, 'cur' => $currency]
         );
         $totalVal = $txnRow['total'] ?? '0.00';

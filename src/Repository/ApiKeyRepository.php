@@ -94,4 +94,24 @@ final class ApiKeyRepository extends BaseRepository
             ['mid' => $this->requireTenant()]
         );
     }
+
+    /**
+     * Revokes every active API key for a merchant, regardless of tenant scope.
+     *
+     * Used by the SEC-4 password-reset flow to invalidate all of a user's API
+     * keys when their password is changed. Bypasses the TenantScope guard
+     * because password reset is cross-tenant — the user's email is globally
+     * unique and a compromised password must revoke keys across every brand
+     * the user belongs to.
+     *
+     * @param int $merchantId The merchant ID whose API keys should be revoked.
+     * @return int The number of affected rows.
+     */
+    public function revokeAllForMerchant(int $merchantId): int
+    {
+        return $this->db->update(
+            "UPDATE {$this->table} SET status = 'revoked' WHERE merchant_id = :mid AND status = 'active'",
+            ['mid' => $merchantId]
+        );
+    }
 }
