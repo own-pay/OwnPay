@@ -811,6 +811,43 @@ OPCACHE
 # PHASE 4: MARIADB
 # ─────────────────────────────────────────────────────────────────────────────
 
+# SECURITY (INST-1): Safely escape a value for use as a MySQL string literal.
+# Doubles single quotes (') -> ('') and escapes backslashes (\) -> (\\) so that
+# values containing quotes, semicolons, or SQL keywords cannot break out of the
+# string context. Without this, an OWNPAY_DB_PASS env var containing
+# "x'; DROP DATABASE ownpay; --" would be expanded into the heredoc and
+# executed as multiple statements by the mysql CLI.
+#
+# Echoes the escaped value wrapped in single quotes, ready for direct
+# interpolation into a SQL statement.
+_sql_str() {
+  local s="$1"
+  s="${s//\\/\\\\}"   # backslash -> \\
+  s="${s//\'/\'\'}"   # single quote -> ''
+  printf "'%s'" "$s"
+}
+
+# SECURITY (INST-1): Safely escape a value for use as a MySQL identifier
+# (e.g. database name). Doubles backticks so that values cannot break out of
+# the identifier context. Echoes the escaped value wrapped in backticks.
+_sql_id() {
+  local s="$1"
+  s="${s//\`/\`\`}"   # backtick -> ``
+  printf "\`%s\`" "$s"
+}
+
+# SECURITY (INST-1): Reject DB credentials that contain control characters
+# (including newlines), which have no legitimate use in a DB identifier or
+# password and would be impossible to safely render into SQL text.
+_validate_db_credential() {
+  local label="$1"
+  local value="$2"
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    log_error "${label} contains control characters (newline/tab/etc). Aborting to avoid SQL injection."
+    exit 1
+  fi
+}
+
 phase_mariadb() {
   show_phase_header "4" "🗄️" "MariaDB" "Installing and configuring the database server"
 
@@ -869,12 +906,23 @@ phase_mariadb() {
 
   # Create OwnPay database and application user
   spinner_start "Creating OwnPay database and user..."
+  # SECURITY (INST-1): Validate credentials and pre-escape them so that the
+  # heredoc below cannot be subverted by quote/semicolon/backslash injection.
+  # See _sql_str() and _sql_id() for the escape rules.
+  _validate_db_credential "DB_NAME" "$DB_NAME"
+  _validate_db_credential "DB_USER" "$DB_USER"
+  _validate_db_credential "DB_HOST" "$DB_HOST"
+  _validate_db_credential "DB_PASS" "$DB_PASS"
+  sql_db_name="$(_sql_id "$DB_NAME")"
+  sql_db_user="$(_sql_str "$DB_USER")"
+  sql_db_host="$(_sql_str "$DB_HOST")"
+  sql_db_pass="$(_sql_str "$DB_PASS")"
   mysql << SQL >> "$LOG_FILE" 2>&1
-CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '${DB_USER}'@'${DB_HOST}' IDENTIFIED BY '${DB_PASS}';
-GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'${DB_HOST}';
-CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
-GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
+CREATE DATABASE IF NOT EXISTS ${sql_db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS ${sql_db_user}@${sql_db_host} IDENTIFIED BY ${sql_db_pass};
+GRANT ALL PRIVILEGES ON ${sql_db_name}.* TO ${sql_db_user}@${sql_db_host};
+CREATE USER IF NOT EXISTS ${sql_db_user}@$(_sql_str 'localhost') IDENTIFIED BY ${sql_db_pass};
+GRANT ALL PRIVILEGES ON ${sql_db_name}.* TO ${sql_db_user}@$(_sql_str 'localhost');
 FLUSH PRIVILEGES;
 SQL
   spinner_stop
