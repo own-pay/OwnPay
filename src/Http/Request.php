@@ -386,15 +386,28 @@ final class Request
     /**
      * Extracts the Bearer token from the Authorization header.
      *
+     * Returns null when the Authorization header is absent, does not use the
+     * Bearer scheme, or carries an empty token (e.g. "Bearer " with no value).
+     * This prevents auth middleware that gates on `bearerToken() !== null`
+     * from proceeding with an empty-string token and reaching the DB lookup
+     * with `WHERE api_key = ''`.
+     *
      * @return string|null The Bearer token value, or null if not present/invalid format.
      */
     public function bearerToken(): ?string
     {
         $auth = $this->header('Authorization');
-        if (str_starts_with($auth, 'Bearer ')) {
-            return substr($auth, 7);
+        // The "Bearer " prefix (with trailing space) is required by RFC 6750;
+        // a bare "Bearer" with no token is invalid and returns null.
+        if (!str_starts_with($auth, 'Bearer ')) {
+            return null;
         }
-        return null;
+        $token = trim(substr($auth, 7));
+        // Bearer tokens are opaque alphanumeric strings and never contain
+        // surrounding whitespace; trim rejects the empty-token case
+        // ("Bearer " with no value) and any stray whitespace, so callers
+        // that gate on bearerToken() !== null never proceed with "".
+        return $token !== '' ? $token : null;
     }
 
     /**
