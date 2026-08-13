@@ -414,11 +414,16 @@ final class WebhookDispatcher
      */
     public function listDeliveries(?int $merchantId, int $limit = 50): array
     {
+        // Clamp limit to a reasonable maximum (API-13): without this a caller could
+        // pass PHP_INT_MAX and force MySQL to materialise an unbounded result set,
+        // exhausting process memory. Bound as a parameter instead of interpolating.
+        $limit = max(1, min($limit, 500));
         $where = $merchantId !== null ? 'WHERE merchant_id = :mid' : '';
         $params = $merchantId !== null ? ['mid' => $merchantId] : [];
+        $params['lim'] = $limit;
         return $this->db->fetchAll(
             "SELECT id, event, url, direction, status_code, response_time_ms, attempt, status, created_at
-             FROM op_webhook_deliveries {$where} ORDER BY created_at DESC LIMIT {$limit}",
+             FROM op_webhook_deliveries {$where} ORDER BY created_at DESC LIMIT :lim",
             $params
         );
     }
