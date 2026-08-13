@@ -838,7 +838,7 @@
                 <div class="op-form-group op-mt-3">
                     <label>Custom JavaScript</label>
                     <textarea name="custom_js" class="op-input op-input-monospace" rows="6" placeholder="// Custom analytics or interface script hooks" style="font-family: monospace; font-size: 13px;">{{ checkout_settings.custom_js ?? '' }}</textarea>
-                    <small class="op-text-muted">Injected at the bottom of the checkout page. Do not include <code>&lt;script&gt;</code> tags.</small>
+                    <small class="op-text-muted">Saved as-is but blocked by the checkout page CSP (`script-src 'self' 'nonce-…'`) by default. To execute, the operator must explicitly add <code>'unsafe-inline'</code> to <code>script-src</code> on checkout pages via the <code>checkout.csp.sources</code> filter hook. Do not include <code>&lt;script&gt;</code> tags.</small>
                 </div>
             </div>
         </div>
