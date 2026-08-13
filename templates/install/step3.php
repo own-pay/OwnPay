@@ -64,6 +64,15 @@
 <div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v<?php echo \OwnPay\Support\Version::CURRENT; ?></div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+window.OP_CSRF_TOKEN = <?php echo json_encode($csrf_token ?? '', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+function opFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.OP_CSRF_TOKEN
+    });
+    return fetch(url, opts);
+}
 // Password strength meter
 document.getElementById('admin_password').addEventListener('input', function() {
     var meter = document.getElementById('pwMeter');
@@ -95,9 +104,8 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
     fd.forEach(function(v, k) { body[k] = v; });
 
     try {
-        var r = await fetch('/install/create-admin', {
+        var r = await opFetch('/install/create-admin', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         

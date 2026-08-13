@@ -136,6 +136,15 @@
 <div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v<?php echo \OwnPay\Support\Version::CURRENT; ?></div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+window.OP_CSRF_TOKEN = <?php echo json_encode($csrf_token ?? '', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+function opFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.OP_CSRF_TOKEN
+    });
+    return fetch(url, opts);
+}
 var dbConfigPayload = null;
 
 // Handle connection testing
@@ -154,9 +163,8 @@ document.getElementById('dbForm').addEventListener('submit', async function(e) {
     fd.forEach(function(v, k) { body[k] = v; });
 
     try {
-        var r = await fetch('/install/test-db', {
+        var r = await opFetch('/install/test-db', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         
@@ -265,9 +273,8 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
             confirm_overwrite: chk.checked ? 1 : 0
         });
 
-        var r = await fetch('/install/import-schema', {
+        var r = await opFetch('/install/import-schema', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         

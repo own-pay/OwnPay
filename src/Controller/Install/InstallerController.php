@@ -71,6 +71,18 @@ final class InstallerController
         $data['step'] = $step;
         $nonceVal = $req->getAttribute('csp_nonce');
         $data['csp_nonce'] = is_string($nonceVal) ? $nonceVal : '';
+        // CSRF protection is enforced by CsrfMiddleware on every install POST.
+        // The token must be rendered into the page so the AJAX wizard can echo
+        // it back via the X-CSRF-Token header. The session is started by
+        // SessionMiddleware which now runs in the 'install' middleware group.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (!isset($_SESSION['_csrf_token']) || !is_string($_SESSION['_csrf_token']) || $_SESSION['_csrf_token'] === '') {
+                $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+            }
+            $data['csrf_token'] = $_SESSION['_csrf_token'];
+        } else {
+            $data['csrf_token'] = '';
+        }
         return Response::html($this->renderPhpTemplate("install/step{$step}.php", $data));
     }
 
