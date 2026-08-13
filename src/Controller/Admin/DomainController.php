@@ -326,11 +326,23 @@ final class DomainController
             $redirectUrl = null;
         }
 
-        $statusVal = $req->post('status', 'pending');
-        $status = is_string($statusVal) && in_array($statusVal, ['active', 'pending', 'inactive'], true) ? $statusVal : 'pending';
-
-        $dnsVerifiedVal = $req->post('dns_verified', '0');
-        $dnsVerified = (is_scalar($dnsVerifiedVal) && (int) $dnsVerifiedVal === 1) ? 1 : 0;
+        // Security (audit finding DOM-1 / issue #239): `dns_verified` and
+        // `status` are intentionally NOT read from the POST body. The previous
+        // implementation accepted both fields from the form and persisted them
+        // directly, allowing a brand admin (or an attacker via BRD-2) to mark
+        // any domain — including an unverified, attacker-controlled domain — as
+        // fully verified and active with a single POST. This completely
+        // defeated the domain-ownership security model that DomainService::verify()
+        // enforces via actual TXT/A DNS lookups.
+        //
+        // DNS verification status now ONLY changes via DomainService::verify()
+        // (invoked through the /admin/domains/{id}/verify endpoint). Domain
+        // status ('active'/'pending'/'inactive') is managed internally by the
+        // verification flow and cannot be set directly by the caller. The
+        // update endpoint only modifies `type` and `redirect_url`.
+        //
+        // Existing `dns_verified` and `status` values are preserved because
+        // updateScoped() only writes the keys present in $updateData.
 
         $isPrimaryVal = $req->post('is_primary', '0');
         $isPrimary = (is_scalar($isPrimaryVal) && (int) $isPrimaryVal === 1) ? 1 : 0;
@@ -338,8 +350,6 @@ final class DomainController
         $updateData = [
             'type'         => $type,
             'redirect_url' => $redirectUrl,
-            'status'       => $status,
-            'dns_verified' => $dnsVerified,
         ];
 
         // Handles toggling primary status
