@@ -166,40 +166,6 @@ final class DevicePairingService
     }
 
     /**
-     * Registers and pairs a new device directly without OTP checking.
-     *
-     * @param int $userId Identifer of the user pairing the device.
-     * @param int $merchantId Unique identifier of the merchant/brand.
-     * @param string $deviceName Client-provided identifier label of the device.
-     * @param string $pushToken Optional device push notification token.
-     * @return array{device_uuid: string, access_token: string, refresh_token: string} Generated device credentials.
-     */
-    public function pair(int $userId, int $merchantId, string $deviceName, string $pushToken = ''): array
-    {
-        $deviceUuid = bin2hex(random_bytes(16));
-        $accessToken  = $this->jwt->issue($userId, $merchantId, $deviceUuid);
-        $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
-        $jwtFingerprint = hash('sha256', $deviceUuid . $merchantId);
-
-        $this->devices->forTenant($merchantId)->createScoped([
-            'device_id'       => $deviceUuid,
-            'device_name'     => $deviceName,
-            'platform'        => '',
-            'jwt_fingerprint' => $jwtFingerprint,
-            'status'          => 'active',
-            'last_heartbeat'  => DateHelper::nowMicro(),
-        ]);
-
-        $this->events->doAction('mobile.device.paired', $deviceUuid, $merchantId, $userId);
-
-        return [
-            'device_uuid'   => $deviceUuid,
-            'access_token'  => $accessToken,
-            'refresh_token' => $refreshToken,
-        ];
-    }
-
-    /**
      * Executes client pairing workflow with prior OTP validation.
      *
      * Verifies the OTP, resolves the authenticating administrative user context,
