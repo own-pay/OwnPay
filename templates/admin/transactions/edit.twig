@@ -71,7 +71,7 @@
                 <label>Reason for Refund</label>
                 <input type="text" name="reason" class="op-input" placeholder="e.g. Customer request, duplicate payment" required>
             </div>
-            <button type="submit" class="op-btn op-btn-danger" onclick="return confirm('Are you sure you want to process this refund? This action will interact with the payment gateway and post ledger entries.');">
+            <button type="submit" class="op-btn op-btn-danger" data-confirm="Are you sure you want to process this refund? This action will interact with the payment gateway and post ledger entries.">
                 Process Refund
             </button>
         </form>

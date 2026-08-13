@@ -546,13 +546,21 @@
             return;
         }
 
-        // SECURITY (UI-8): check data-confirm BEFORE calling e.preventDefault()
+        // SECURITY (UI-8/UI-1): check data-confirm BEFORE calling e.preventDefault()
         // and queueing the fetch(). Previously this lived in a separate submit
         // listener registered AFTER the AJAX handler, so when the user clicked
         // Cancel the fetch had already been queued and the request was still
         // sent. Doing the check here at the top means a Cancel click fully
         // aborts submission before any side-effect is scheduled.
+        //
+        // data-confirm is checked on the form OR on the submitter button
+        // (e.submitter) so that a form with multiple submit buttons can have
+        // different confirmation messages per action.
+        var submitterEl = e.submitter || null;
         var confirmMsg = form.getAttribute("data-confirm") || form.dataset.confirm;
+        if (!confirmMsg && submitterEl && submitterEl.getAttribute) {
+            confirmMsg = submitterEl.getAttribute("data-confirm") || submitterEl.dataset.confirm;
+        }
         if (confirmMsg && !confirm(confirmMsg)) {
             e.preventDefault();
             return;
