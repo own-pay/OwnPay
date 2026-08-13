@@ -220,6 +220,8 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
         }
+        // Issue #198: only superadmins may mint admin-scoped API keys.
+        $_SESSION['is_superadmin'] = true;
         $res = $adminController->generate($req);
 
         $this->assertSame(302, $res->getStatusCode());
@@ -244,12 +246,43 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
             session_start();
         }
         unset($_SESSION['_generated_api_key'], $_SESSION['flash_error']);
+        // Issue #198: only superadmins may mint admin-scoped API keys.
+        $_SESSION['is_superadmin'] = true;
         $res = $adminController->generate($req);
 
         $this->assertSame(302, $res->getStatusCode());
         $this->assertSame('/admin/developer', $res->getHeaders()['Location'] ?? null);
         $this->assertNotEmpty($_SESSION['_generated_api_key'] ?? null, 'A platform-owned key should be generated');
         $this->assertNull($_SESSION['flash_error'] ?? null, 'No "select a brand" error in All Brands view');
+    }
+
+    /**
+     * Regression test for issue #198: a non-superadmin staff member with
+     * api_keys.manage permission must NOT be able to mint an admin-scoped key.
+     * Verifies the privilege-escalation guard added in the fix for #198.
+     */
+    public function testNonSuperadminCannotGenerateAdminScopedKey(): void
+    {
+        $adminController = $this->container->get(\OwnPay\Controller\Admin\ApiKeyController::class);
+
+        $req = new Request([], ['label' => 'Escalation Attempt', 'scopes' => ['read', 'write', 'admin']]);
+        $req->setAttribute('merchant_id', 99996);
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+        unset($_SESSION['_generated_api_key'], $_SESSION['_generated_api_key_label'], $_SESSION['flash_error']);
+        // Non-superadmin: the very scenario the guard must reject.
+        $_SESSION['is_superadmin'] = false;
+        $res = $adminController->generate($req);
+
+        $this->assertSame(302, $res->getStatusCode());
+        $this->assertSame('/admin/developer', $res->getHeaders()['Location'] ?? null);
+        $this->assertNull($_SESSION['_generated_api_key'] ?? null, 'No key must be issued to a non-superadmin requesting admin scope');
+        $this->assertNotEmpty($_SESSION['flash_error'] ?? null, 'A flash error must surface explaining the denial');
+
+        $keyRecord = $this->db->fetchOne("SELECT * FROM op_api_keys WHERE name = 'Escalation Attempt' ORDER BY id DESC LIMIT 1");
+        $this->assertNull($keyRecord, 'No DB row must be created for a denied admin-scope request');
     }
 
     public function testAdminRevokeInGlobalViewTargetsPlatformKeys(): void
