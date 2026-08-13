@@ -76,7 +76,21 @@ final class CustomerController
         $qVal = $req->query('q', '');
         $q = is_string($qVal) ? $qVal : '';
 
-        $paginated = $this->customerRepo->paginateWithStats($isGlobal ? null : $mid, $q, $page, 20);
+        // Compute the email blind-index hash via the canonical service helper so
+        // the algorithm matches the one used at customer-write time (HMAC-SHA256
+        // with the server's field-encryption key). Prior to audit fix API-12 the
+        // repository recomputed the hash with plain hash('sha256', ...) which
+        // never matched the stored HMAC hashes, so admin search by email was
+        // completely broken.
+        $emailHash = '';
+        if (trim($q) !== '') {
+            $piiSvc = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
+            if ($piiSvc instanceof \OwnPay\Service\Customer\CustomerPiiService) {
+                $emailHash = $piiSvc->hashEmailForSearch($q);
+            }
+        }
+
+        $paginated = $this->customerRepo->paginateWithStats($isGlobal ? null : $mid, $emailHash, $page, 20);
 
         // Decrypt PII fields for display
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);

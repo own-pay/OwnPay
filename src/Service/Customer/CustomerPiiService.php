@@ -101,13 +101,37 @@ final class CustomerPiiService
      */
     public function findByEmail(int $merchantId, string $email): ?array
     {
-        $hash = $this->encryptor->deterministicHash($email);
+        $hash = $this->hashEmailForSearch($email);
         $customer = $this->customers->forTenant($merchantId)->findByEmailHash($hash);
 
         if ($customer !== null) {
             return $this->decryptPii($customer);
         }
         return null;
+    }
+
+    /**
+     * Computes the deterministic blind-index hash used to search customers by email.
+     *
+     * Centralises the email-hash computation so that write paths (create / update)
+     * and read paths (findByEmail, admin dashboard search) can never drift apart
+     * again. The hash is HMAC-SHA256 with the server's field-encryption key over
+     * the lowercased, trimmed email - the exact same algorithm used by
+     * FieldEncryptor::hash() / deterministicHash() and persisted in the
+     * op_customers.email_hash column at customer-create time.
+     *
+     * Callers that need to search the repository by email should pass the result
+     * of this method rather than re-deriving the hash with a different algorithm
+     * (see audit finding API-12: prior code used plain hash('sha256', ...) in the
+     * repository search path, which never matched the HMAC hashes stored at
+     * write time).
+     *
+     * @param string $email The target customer email address (raw, unnormalised).
+     * @return string The deterministic HMAC-SHA256 blind-index hash.
+     */
+    public function hashEmailForSearch(string $email): string
+    {
+        return $this->encryptor->deterministicHash($email);
     }
 
     /**
