@@ -620,7 +620,7 @@ final class InstallerController
             // Bootstrap languages folder and copy master en.json
             $languagesDir = $this->rootDir . '/storage/languages';
             if (!is_dir($languagesDir)) {
-                @mkdir($languagesDir, 0755, true);
+                @mkdir($languagesDir, 0750, true);
             }
             $masterEn = $this->rootDir . '/config/languages/en.json';
             $destEn = $languagesDir . '/en.json';
