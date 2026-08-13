@@ -136,17 +136,8 @@ abstract class BaseRepository
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
-        // Security checks: Strip SQL comments to prevent bypass via inline sequences.
-        $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
-        $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
-        
-        // Collapse all whitespace and lowercase for consistent safety verification.
-        $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
-        
-        // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
-        if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere) || str_contains($lowerWhere, ';') || str_contains($lowerWhere, '--')) {
-            throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
-        }
+        // (REPO-2) Shared safety check: reject forbidden SQL structures in $where.
+        $this->validateWhereClause($where);
 
         $safeOrder = $this->sanitizeOrderBy($orderBy);
         $page = max(1, (int) $page);
@@ -186,6 +177,11 @@ abstract class BaseRepository
      */
     public function cursorPaginate(int $perPage = 20, ?string $afterId = null, string $where = '1=1', array $params = []): array
     {
+        // (REPO-2) Apply the same forbidden-keyword / comment-strip check as
+        // paginate() so a caller that interpolates user input into $where
+        // cannot bypass the guard by routing through cursorPaginate().
+        $this->validateWhereClause($where);
+
         $sql = "SELECT * FROM {$this->table} WHERE {$where}";
         if ($afterId !== null) {
             $sql .= " AND {$this->primaryKey} < :cursor";
@@ -337,6 +333,41 @@ abstract class BaseRepository
             throw new \InvalidArgumentException("Invalid column: {$column}");
         }
         return $column;
+    }
+
+    /**
+     * Validates a raw SQL WHERE clause fragment before it is concatenated
+     * into a query.
+     *
+     * Defence-in-depth (REPO-2): every public method that interpolates a
+     * caller-supplied $where string (paginate(), cursorPaginate()) routes
+     * through this helper so the safety check cannot be bypassed by picking
+     * a different pagination method. The check is NOT a substitute for
+     * parameterized binds - callers must always pass user input via $params.
+     *
+     * Strips SQL comments (block `/* ... *\/` and line `-- ...`) which could
+     * be used to break keyword matching, then rejects dangerous command
+     * keywords, statement terminators, and inline comment markers.
+     *
+     * @param string $where Raw SQL WHERE clause fragment.
+     * @throws \InvalidArgumentException If the WHERE clause contains forbidden SQL structures or injection patterns.
+     */
+    protected function validateWhereClause(string $where): void
+    {
+        // Strip SQL comments to prevent bypass via inline sequences.
+        $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
+        $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
+
+        // Collapse all whitespace and lowercase for consistent safety verification.
+        $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
+
+        // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
+        if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere)
+            || str_contains($lowerWhere, ';')
+            || str_contains($lowerWhere, '--')
+        ) {
+            throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
+        }
     }
 
     /**
