@@ -71,6 +71,7 @@ CREATE TABLE `op_merchant_users` (
   `username` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(255) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
+  `password_changed_at` DATETIME(6) NULL DEFAULT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
   `avatar_path` VARCHAR(500) DEFAULT NULL,
   `totp_secret_enc` VARCHAR(500) DEFAULT NULL,
