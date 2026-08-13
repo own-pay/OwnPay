@@ -120,22 +120,8 @@ final class Response
         if ($field !== null) {
             $error['field'] = $field;
         }
-        
-        $requestId = null;
-        if (function_exists('apache_request_headers')) {
-            $apacheHeaders = apache_request_headers();
-            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
-        }
-        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
-            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
-        }
-        if (!$requestId) {
-            try {
-                $requestId = bin2hex(random_bytes(16));
-            } catch (\Throwable) {
-                $requestId = uniqid('req_', true);
-            }
-        }
+
+        $requestId = self::resolveRequestId();
 
         $payload = [
             'success'    => false,
@@ -156,21 +142,7 @@ final class Response
      */
     public static function apiErrors(array $errors, int $status = 422, array $headers = []): self
     {
-        $requestId = null;
-        if (function_exists('apache_request_headers')) {
-            $apacheHeaders = apache_request_headers();
-            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
-        }
-        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
-            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
-        }
-        if (!$requestId) {
-            try {
-                $requestId = bin2hex(random_bytes(16));
-            } catch (\Throwable) {
-                $requestId = uniqid('req_', true);
-            }
-        }
+        $requestId = self::resolveRequestId();
 
         $formatted = [];
         foreach ($errors as $err) {
@@ -205,6 +177,53 @@ final class Response
             'request_id' => $requestId,
         ];
         return self::json($payload, $status, $headers);
+    }
+
+    /**
+     * Resolves a sanitized request_id for inclusion in JSON error payloads.
+     *
+     * Reads the client-supplied X-Request-ID header (apache_request_headers()
+     * when available, falling back to $_SERVER['HTTP_X_REQUEST_ID']) and
+     * reflects it in the JSON response so a customer reporting an error can
+     * quote the same ID that the operator sees in logs. Because the header is
+     * fully user-controlled, it is:
+     *
+     *   1. Filtered to a strict allow-list charset [a-zA-Z0-9-_] so control
+     *      bytes, header-injection attempts, and Unicode glyphs that
+     *      downstream JSON parsers / log viewers might mishandle are stripped
+     *      before reflection.
+     *   2. Truncated to 64 characters so an attacker cannot amplify error
+     *      response size by sending a 1MB X-Request-ID.
+     *   3. Replaced with a fresh random ID when the sanitized result is empty
+     *      (so every error response carries a non-empty correlation handle).
+     *
+     * @return string The sanitized or freshly-generated request ID.
+     */
+    private static function resolveRequestId(): string
+    {
+        $requestId = null;
+        if (function_exists('apache_request_headers')) {
+            $apacheHeaders = apache_request_headers();
+            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
+        }
+        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
+            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
+        }
+
+        if (is_string($requestId) && $requestId !== '') {
+            // Strip everything outside the safe charset and cap at 64 chars
+            // so a huge X-Request-ID cannot amplify the response body.
+            $sanitized = substr(preg_replace('/[^a-zA-Z0-9\-_]/', '', $requestId) ?? '', 0, 64);
+            if ($sanitized !== '') {
+                return $sanitized;
+            }
+        }
+
+        try {
+            return bin2hex(random_bytes(16));
+        } catch (\Throwable) {
+            return uniqid('req_', true);
+        }
     }
 
     /**
