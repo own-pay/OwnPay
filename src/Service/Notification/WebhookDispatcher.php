@@ -253,6 +253,22 @@ final class WebhookDispatcher
 
         $urlVal = $webhook['url'];
         $url = is_string($urlVal) ? $urlVal : '';
+
+        // SSRF pre-check (API-17): mirror the sendWithRetry() pattern and validate
+        // the webhook URL before doSend(). doSend() internally calls
+        // UrlValidator::resolveSafeWebhookIp() which already provides SSRF
+        // protection, but the defence-in-depth principle of double-checking
+        // (scheme/host validation + IP resolution) was lost on the test path.
+        // If a future change to resolveSafeWebhookIp() introduces a gap, the
+        // test endpoint would have been the first exposed path.
+        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
+            $this->logger->error("Webhook test blocked by SSRF protection: merchant={$merchantId} url={$url}");
+            return [
+                'success' => false,
+                'error'   => 'Webhook URL failed SSRF validation. Ensure it uses https and targets a public host.',
+            ];
+        }
+
         return $this->doSend($url, $json, $signature, time());
     }
 
