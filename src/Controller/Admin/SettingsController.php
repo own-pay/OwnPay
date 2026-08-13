@@ -1165,6 +1165,17 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
+                // UI-2: Treat an empty smtp_password as "no change" so the
+                // password field can be left blank in the form (the template
+                // no longer echoes the current password into the page source).
+                // Only overwrite the stored password when a non-empty value
+                // is submitted.
+                if ($key === 'smtp_password') {
+                    $smtpVal = is_scalar($data[$key]) ? (string) $data[$key] : '';
+                    if ($smtpVal === '') {
+                        continue;
+                    }
+                }
                 $filtered[$key] = is_array($data[$key]) ? (json_encode($data[$key]) ?: '') : (is_scalar($data[$key]) ? (string) $data[$key] : '');
             }
         }
