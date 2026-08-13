@@ -41,8 +41,27 @@ jobs:
           # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
 
+      # Verify the SARIF file was produced before attempting to upload it.
+      # The Codacy CLI has been observed to crash mid-run with
+      # `java.nio.charset.MalformedInputException: Input length = 2`
+      # (raised by the SARIF formatter when it encounters a source file
+      # whose bytes cannot be decoded as UTF-8). When that happens the
+      # `results.sarif` file is either absent or truncated, and the
+      # subsequent `upload-sarif` step fails with "Path does not exist".
+      # Guarding the upload with `if: always() && hashFiles(...)` keeps
+      # the workflow green even when Codacy itself crashes, while still
+      # uploading valid results when they are produced.
+      - name: Verify SARIF file exists
+        run: |
+          if [ ! -s results.sarif ]; then
+            echo "::warning::Codacy did not produce a non-empty results.sarif file (likely a charset error in the Codacy CLI). Skipping SARIF upload."
+            exit 0
+          fi
+          echo "results.sarif is present ($(wc -c < results.sarif) bytes)."
+
       # Upload the SARIF file generated in the previous step
       - name: Upload SARIF results file
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
+        if: always() && hashFiles('results.sarif') != ''

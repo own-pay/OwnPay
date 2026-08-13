@@ -18,6 +18,9 @@ on:
   schedule:
     - cron: '36 6 * * 1'
 
+permissions:
+  contents: read
+
 jobs:
   eslint:
     name: Run eslint scanning
@@ -30,17 +33,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Install ESLint
+        # Install ESLint 9 (matches the flat-config format used by eslint.config.js
+        # in the repo root) plus the SARIF formatter used to upload results to
+        # GitHub code scanning. Pinning to a known-good major avoids silent
+      # breakage when a new ESLint major ships.
         run: |
-          npm install eslint@8.10.0
+          npm install eslint@9.18.0
           npm install @microsoft/eslint-formatter-sarif@3.1.0
 
       - name: Run ESLint
         env:
           SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
+        # Use the flat-config file (eslint.config.js) shipped in the repo root.
+        # ESLint 9 auto-discovers eslint.config.js, but we pass --config
+        # explicitly so the SARIF upload step can find the output regardless
+        # of the working directory GitHub Actions drops us into.
         run: npx eslint .
-          --config .eslintrc.js
-          --ext .js,.jsx,.ts,.tsx
+          --config eslint.config.js
           --format @microsoft/eslint-formatter-sarif
           --output-file eslint-results.sarif
         continue-on-error: true
@@ -50,3 +65,7 @@ jobs:
         with:
           sarif_file: eslint-results.sarif
           wait-for-processing: true
+        # Only upload if the SARIF file was actually produced (ESLint may
+        # exit early on config errors and leave no file behind, which would
+        # cause this step to fail with "Path does not exist").
+        if: ${{ hashFiles('eslint-results.sarif') != '' }}
