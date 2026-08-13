@@ -1878,6 +1878,11 @@ LOGROTATE
 # OwnPay Installation Credentials
 # Generated: $(date)
 # KEEP THIS FILE SECURE - DELETE AFTER NOTING CREDENTIALS
+#
+# AUTO-DELETE: This file is automatically deleted 24 hours after the
+# install completed. See /etc/tmpfiles.d/ownpay-credentials.conf and
+# /etc/cron.d/ownpay-creds-cleanup. Save the credentials elsewhere
+# (password manager) before then.
 
 Admin URL:      https://${DOMAIN}/admin
 Admin Username: ${ADMIN_USERNAME}
@@ -1893,6 +1898,36 @@ Log File:       ${LOG_FILE}
 CREDS
   chmod 600 "$creds_file"
   log_success "Credentials saved to ${creds_file} (chmod 600 — root only)"
+
+  # SECURITY (audit INST-4): auto-delete the credentials file after 24h.
+  # Without this, /root/.ownpay-credentials persists indefinitely with
+  # both the admin password and DB password in cleartext — any future
+  # root compromise (sudo misconfig, kernel exploit, backup tape
+  # exfiltration) yields both credentials with no rotation.
+  #
+  # Two complementary mechanisms:
+  #  1. systemd-tmpfiles: /etc/tmpfiles.d/ownpay-credentials.conf
+  #     r <path> - - 24h
+  #     Runs via systemd-tmpfiles-clean.timer (daily + at boot). Removes
+  #     the file only if it is older than 24h.
+  #  2. cron: /etc/cron.d/ownpay-creds-cleanup
+  #     0 3 * * * root find /root/.ownpay-credentials -mtime +1 -delete
+  #     Belt-and-suspenders for systems without systemd-tmpfiles or
+  #     where the clean timer is disabled.
+  cat > /etc/tmpfiles.d/ownpay-credentials.conf << TMPFILES
+# OwnPay install credentials — auto-delete after 24h (audit INST-4)
+r ${creds_file} - - 24h
+TMPFILES
+  chmod 644 /etc/tmpfiles.d/ownpay-credentials.conf
+
+  cat > /etc/cron.d/ownpay-creds-cleanup << CRONCONF
+# OwnPay install credentials — auto-delete after 24h (audit INST-4)
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 3 * * * root find ${creds_file} -mtime +1 -delete 2>/dev/null
+CRONCONF
+  chmod 644 /etc/cron.d/ownpay-creds-cleanup
+  log_success "Scheduled auto-delete of ${creds_file} after 24h (systemd-tmpfiles + cron)"
 
   checkpoint_clear
 
@@ -1950,7 +1985,7 @@ EOF
   _box_row "  ${C_BRAND}${C_BOLD}2.${C_RESET}  ${C_WHITE}Configure payment gateways under Gateways${C_RESET}" $w
   _box_row "  ${C_BRAND}${C_BOLD}3.${C_RESET}  ${C_WHITE}Add your brands under People → Brands${C_RESET}" $w
   _box_row "  ${C_BRAND}${C_BOLD}4.${C_RESET}  ${C_WHITE}Invite staff members via People → Staff${C_RESET}" $w
-  _box_row "  ${C_BRAND}${C_BOLD}5.${C_RESET}  ${C_WHITE}Delete /root/.ownpay-credentials after noting them${C_RESET}" $w
+  _box_row "  ${C_BRAND}${C_BOLD}5.${C_RESET}  ${C_WHITE}Note credentials — /root/.ownpay-credentials auto-deletes in 24h${C_RESET}" $w
   _box_empty $w
   _box_bot $w
 
