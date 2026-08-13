@@ -46,8 +46,17 @@ final class AuditLogRepository extends BaseRepository
         ?string $ip = null,
         ?string $userAgent = null
     ): string {
-        $oldJson = $oldValues !== null ? (string)json_encode($oldValues) : null;
-        $newJson = $newValues !== null ? (string)json_encode($newValues) : null;
+        // Defense-in-depth: redact sensitive keys (password_hash, totp_secret,
+        // api_key, webhook_secret, etc.) BEFORE serializing to JSON. Without
+        // this, the audit log itself becomes a repository of secrets. See
+        // LogSanitizer::REDACT_KEYS for the full list. The signature is also
+        // computed against the sanitized JSON so verifyIntegrity() stays
+        // consistent with what was stored.
+        $sanitizedOld = $oldValues !== null ? \OwnPay\Security\LogSanitizer::sanitize($oldValues) : null;
+        $sanitizedNew = $newValues !== null ? \OwnPay\Security\LogSanitizer::sanitize($newValues) : null;
+
+        $oldJson = $sanitizedOld !== null ? (string)json_encode($sanitizedOld) : null;
+        $newJson = $sanitizedNew !== null ? (string)json_encode($sanitizedNew) : null;
         $ua = $userAgent ? mb_substr($userAgent, 0, 500) : null;
 
         $signature = $this->calculateSignature(
@@ -68,8 +77,8 @@ final class AuditLogRepository extends BaseRepository
             'action'      => $action,
             'entity_type' => $entityType,
             'entity_id'   => $entityId,
-            'old_values'  => $oldValues !== null ? json_encode($oldValues) : null,
-            'new_values'  => $newValues !== null ? json_encode($newValues) : null,
+            'old_values'  => $oldJson,
+            'new_values'  => $newJson,
             'ip_address'  => $ip,
             'user_agent'  => $ua,
             'signature'   => $signature,
