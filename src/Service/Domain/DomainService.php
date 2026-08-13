@@ -40,10 +40,12 @@ final class DomainService
     /**
      * Resolves the platform's own host from configuration for DNS A-record hints.
      *
-     * The request Host header is attacker-controlled, so it must not drive
-     * gethostbyname() lookups (DNS exfiltration / probing). The configured
-     * APP_DOMAIN / APP_URL is authoritative; the request host is used only as a
-     * last resort when neither is set (misconfigured install).
+     * The configured APP_DOMAIN / APP_URL is authoritative. The request Host
+     * header is intentionally NOT consulted: it is attacker-controlled and must
+     * never drive gethostbyname() lookups (DNS exfiltration / probing SSRF,
+     * audit DOM-4). On misconfigured installs (neither env var set) we fall
+     * back to the loopback address so the IP hint degrades to '127.0.0.1'
+     * rather than leaking through client-controlled input.
      *
      * @return string The hostname to resolve to the server IP.
      */
@@ -62,8 +64,10 @@ final class DomainService
         }
 
         if ($host === '') {
-            $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-            $host = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
+            // No configured host: degrade to a placeholder rather than trusting
+            // the attacker-controlled Host header. gethostbyname('127.0.0.1')
+            // returns '127.0.0.1' verbatim, which is a safe hint value.
+            return '127.0.0.1';
         }
 
         $parsed = parse_url("https://{$host}", PHP_URL_HOST);
@@ -163,6 +167,19 @@ final class DomainService
         $serverIp = gethostbyname($this->resolveServerHost());
         $aRecordOk = $this->dnsVerifier->verifyARecord($domainName, $serverIp);
 
+        if (!$aRecordOk) {
+            // A-record check is gating: the domain must actually route traffic
+            // to this OwnPay server before we mark it verified/active. Previously
+            // dns_verified was set to 1 unconditionally and only a non-blocking
+            // warning was returned, which let DomainMiddleware accept requests
+            // for domains whose DNS still pointed elsewhere (audit DOM-3).
+            return [
+                'success' => false,
+                'error'   => "TXT record verified, but the A record for {$domainName} does not point to {$serverIp}. "
+                    . 'Update your DNS A record to the OwnPay server IP and re-run verification.',
+            ];
+        }
+
         $this->domains->forTenant($merchantId)->updateScoped($domainId, [
             'dns_verified'    => 1,
             'status'          => 'active',
@@ -170,13 +187,6 @@ final class DomainService
         ]);
 
         $this->events->doAction('domain.verified', $domainName, $merchantId);
-
-        if (!$aRecordOk) {
-            return [
-                'success' => true,
-                'warning' => "TXT verified! But A record does not point to {$serverIp}. Checkout pages won't work until DNS propagates.",
-            ];
-        }
 
         return ['success' => true];
     }

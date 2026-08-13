@@ -64,15 +64,36 @@ final class ActiveThemeResolver
 
     private function build(string $slug, bool $fellBack): ActiveTheme
     {
+        // Defense-in-depth (audit THM-2): the slug is sourced from
+        // SettingsRepository and is normally validated upstream by
+        // ThemeController::activate()/saveBrandTheme() against the plugins
+        // table. However, a compromised plugin row with a traversal slug
+        // (e.g. '../attacker-theme') — inserted via zip-slip during plugin
+        // install, a corrupted manifest, or direct DB access — would flow
+        // straight into filesystem path interpolation here, enabling LFI
+        // via PlainPhpThemeRenderer::include. Reject any slug that is not a
+        // strict identifier; also verify realpath() containment of $basePath
+        // inside $themesBaseDir so symlinks cannot escape the themes dir.
+        if (!preg_match('/^[a-z0-9][a-z0-9_-]*$/i', $slug)) {
+            throw new \InvalidArgumentException("Invalid theme slug: {$slug}");
+        }
+
+        $themesBase = rtrim($this->themesBaseDir, '/\\');
         $engine = '';
-        $manifestPath = rtrim($this->themesBaseDir, '/\\') . '/' . $slug . '/manifest.json';
+        $manifestPath = $themesBase . '/' . $slug . '/manifest.json';
         if (is_file($manifestPath)) {
             $raw = json_decode((string) file_get_contents($manifestPath), true);
             if (is_array($raw) && isset($raw['engine']) && is_string($raw['engine'])) {
                 $engine = $raw['engine'];
             }
         }
-        $basePath = rtrim($this->themesBaseDir, '/\\') . '/' . $slug;
+        $basePath = $themesBase . '/' . $slug;
+        $realBase = realpath($basePath);
+        $realThemesBase = realpath($themesBase);
+        if ($realBase === false || $realThemesBase === false
+            || !str_starts_with($realBase . DIRECTORY_SEPARATOR, $realThemesBase . DIRECTORY_SEPARATOR)) {
+            throw new \InvalidArgumentException("Theme base path escapes themes directory: {$basePath}");
+        }
         return new ActiveTheme($slug, $engine, $basePath, $fellBack);
     }
 }

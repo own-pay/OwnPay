@@ -69,7 +69,7 @@ final class TwoFactorSetupController
         // Use decrypted secret for QR code, not raw encrypted column.
         $secret  = $this->userRepo->getTotpSecret($userId);
         $enabled = (bool) ($user['two_factor_enabled'] ?? false);
-        $qrUri   = null;
+        $qrDataUri = null;
 
         if (!$enabled) {
             if (empty($secret)) {
@@ -82,15 +82,57 @@ final class TwoFactorSetupController
             $userEmail = is_string($user['email'] ?? null) ? $user['email'] : '';
             $email   = rawurlencode($userEmail);
             $qrUri   = "otpauth://totp/{$appName}:{$email}?secret={$secret}&issuer={$appName}&algorithm=SHA1&digits=6&period=30";
+
+            // Security (audit finding UI-3 / issue #274): render the QR code
+            // server-side via chillerlan/php-qrcode (already a composer dep)
+            // and pass ONLY the resulting data URI to the template. The raw
+            // otpauth:// URI — which contains the TOTP shared secret in
+            // cleartext — must NEVER be sent to a third-party service or
+            // exposed to the template layer, where a future template change
+            // could accidentally render it. The previous implementation loaded
+            // the QR image from https://api.qrserver.com/v1/create-qr-code/
+            // with the otpauth:// URI as a query parameter, leaking the secret
+            // to a third-party domain and giving anyone compromising that
+            // service persistent 2FA-code-generation capability.
+            $qrDataUri = $this->renderQrDataUri($qrUri);
         }
 
         return $this->renderAdminPage('admin/my-account-2fa.twig', [
-            'user'        => $user,
-            'totp_secret' => $secret,
-            'totp_enabled'=> $enabled,
-            'qr_uri'      => $qrUri,
-            'active_page' => 'profile',
+            'user'         => $user,
+            'totp_secret'  => $secret,
+            'totp_enabled' => $enabled,
+            'qr_data_uri'  => $qrDataUri,
+            'active_page'  => 'profile',
         ]);
+    }
+
+    /**
+     * Renders an otpauth:// URI as an inline SVG data URI using chillerlan/php-qrcode.
+     *
+     * The returned string is a `data:image/svg+xml;base64,...` URI that can be
+     * used directly as an <img src> attribute. No network request is made —
+     * the QR code is rendered entirely server-side, so the TOTP secret never
+     * leaves the OwnPay server.
+     *
+     * @param string $otpauthUri The otpauth:// URI to encode as a QR code.
+     * @return string|null The data URI, or null if rendering fails (the template
+     *                     gracefully falls back to displaying the manual-entry
+     *                     secret code).
+     */
+    private function renderQrDataUri(string $otpauthUri): ?string
+    {
+        try {
+            $options = new \chillerlan\QRCode\QROptions([
+                'outputType'  => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
+                'scale'       => 5,
+                'cssClass'    => 'op-qr-img',
+                'outputBase64' => true,
+            ]);
+            $rendered = (new \chillerlan\QRCode\QRCode($options))->render($otpauthUri);
+            return is_string($rendered) ? $rendered : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
@@ -127,7 +169,17 @@ final class TwoFactorSetupController
     }
 
     /**
-     * Disable 2FA on user account after verifying their current password.
+     * Disable 2FA on user account after step-up authentication.
+     *
+     * PCI-DSS 8.4.2 requires step-up authentication for security-critical
+     * setting changes. We therefore require BOTH:
+     *   1. The user's current password (knowledge factor).
+     *   2. A fresh TOTP code from their authenticator (possession factor).
+     * Disabling 2FA is a high-impact security setting change, so even though
+     * the user is already authenticated by session, they must re-prove both
+     * factors at the moment of the change. After successful disable we also
+     * rotate the current session ID to limit any window in which a stolen
+     * session cookie could be replayed against the now-2FA-less account.
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP redirect response.
@@ -141,6 +193,8 @@ final class TwoFactorSetupController
         }
         $passwordRaw = $req->post('password', '');
         $password = is_string($passwordRaw) ? $passwordRaw : '';
+        $codeRaw  = $req->post('totp_code', '');
+        $code     = (string) preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
 
         $hash = $this->userRepo->getPasswordHash($userId);
         if (!is_string($hash) || !password_verify($password, $hash)) {
@@ -148,8 +202,22 @@ final class TwoFactorSetupController
             return Response::redirect('/admin/my-account/2fa');
         }
 
+        // Step-up: require a fresh TOTP code in addition to the password.
+        $secret = $this->userRepo->getTotpSecret($userId);
+        if (!$secret || !$this->verifyTotp($secret, $code)) {
+            $this->session->flashError('Invalid TOTP code. Step-up authentication is required to disable 2FA.');
+            return Response::redirect('/admin/my-account/2fa');
+        }
+
         $this->userRepo->disableTotp($userId);
         $this->session->set('two_fa_enabled', false);
+
+        // Rotate the current session ID to invalidate any session-fixation
+        // replay window now that the account no longer has 2FA protection.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+
         $this->session->flashSuccess('2FA has been disabled.');
         return Response::redirect('/admin/my-account');
     }
@@ -189,7 +257,13 @@ final class TwoFactorSetupController
     {
         $time = (int) floor(time() / 30);
         for ($i = -$window; $i <= $window; $i++) {
-            if ($this->generateTotp($secret, $time + $i) === $code) {
+            // Use hash_equals() for constant-time comparison (SEC-18).
+            // The sibling Authenticator::verifyCodeWithReplayGuard() already
+            // uses hash_equals; this local copy was inconsistent and used ===,
+            // a non-constant-time comparison. TOTP codes are only 6 digits so
+            // the timing signal is limited, but the inconsistency is the
+            // sort of latent regression that audit-flagged.
+            if (hash_equals($this->generateTotp($secret, $time + $i), $code)) {
                 return true;
             }
         }

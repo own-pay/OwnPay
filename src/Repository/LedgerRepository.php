@@ -68,13 +68,32 @@ final class LedgerRepository extends BaseRepository
             return $account;
         }
 
-        $id = $this->insert([
-            'name' => $name,
-            'type' => $type,
-            'currency' => $currency,
-            'merchant_id' => $mid,
-            'balance' => '0.00',
-        ]);
+        try {
+            $id = $this->insert([
+                'name' => $name,
+                'type' => $type,
+                'currency' => $currency,
+                'merchant_id' => $mid,
+                'balance' => '0.00',
+            ]);
+        } catch (\PDOException $e) {
+            // PAY-15: TOCTOU race on findOrCreateAccount. Two concurrent first-time posts
+            // to a brand-new (merchant, currency) combination can both observe "no row"
+            // and both attempt INSERT against the UNIQUE KEY uk_merchant_name_currency
+            // (database/schema.sql). The losing INSERT raises a duplicate-key PDOException
+            // (SQLSTATE 23000 / MySQL errno 1062) — re-SELECT the now-existing row and
+            // return it instead of letting the failure roll back the entire ledger post.
+            $errno = isset($e->errorInfo[1]) ? (int) $e->errorInfo[1] : 0;
+            $sqlstate = isset($e->errorInfo[0]) ? (string) $e->errorInfo[0] : '';
+            if ($errno !== 1062 && $sqlstate !== '23000') {
+                throw $e;
+            }
+            $account = $this->db->fetchOne("SELECT * FROM {$this->table} WHERE {$where} LIMIT 1", $params);
+            if ($account === null) {
+                throw new \RuntimeException("Race on findOrCreateAccount('{$name}', '{$currency}'): account vanished after duplicate-key.", 0, $e);
+            }
+            return $account;
+        }
 
         $account = $this->find($id);
         if ($account === null) {
@@ -86,24 +105,39 @@ final class LedgerRepository extends BaseRepository
 
     /**
      * Retrieves the current balance of a given ledger account.
-     * 
+     *
+     * REPO-4: uses findScoped() instead of the inherited find() so the
+     * SELECT is restricted by merchant_id when the repository has been
+     * scoped via forTenant(). The previous call to find() bypassed the
+     * TenantScope filter entirely — a caller that supplied another
+     * merchant's $accountId could read that merchant's balance (and
+     * the 'type' column via adjustBalance()) even on a forTenant()'d
+     * repository instance.
+     *
      * @param int $accountId The unique ledger account ID.
      * @return string The decimal string balance, defaulting to '0.00' if not found.
      */
     public function getBalance(int $accountId): string
     {
-        $row = $this->find($accountId);
+        $row = $this->findScoped($accountId);
         $balance = $row['balance'] ?? '0.00';
         return is_scalar($balance) ? (string) $balance : '0.00';
     }
 
     /**
      * Atomically adjusts the balance of a ledger account.
-     * 
+     *
      * Follows standard double-entry bookkeeping rules:
      * - Asset / Expense: debit increases (+), credit decreases (-)
      * - Liability / Equity / Revenue: credit increases (+), debit decreases (-)
-     * 
+     *
+     * REPO-4: uses findScoped() instead of find() to fetch the account
+     * row, so the 'type' column read is restricted by merchant_id when
+     * the repository has been scoped via forTenant(). The subsequent
+     * UPDATE was already correctly scoped (AND merchant_id = :mid) but
+     * the type-leak via the unscoped find() was a real cross-tenant
+     * info disclosure.
+     *
      * @param int $accountId The unique ledger account ID.
      * @param string $amount The positive decimal string amount to adjust.
      * @param string $entryType The type of adjustment ('debit' or 'credit').
@@ -111,7 +145,7 @@ final class LedgerRepository extends BaseRepository
      */
     public function adjustBalance(int $accountId, string $amount, string $entryType): void
     {
-        $account = $this->find($accountId);
+        $account = $this->findScoped($accountId);
         if ($account === null) {
             return;
         }

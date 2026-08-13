@@ -61,6 +61,25 @@ final class PaymentController
      */
     public function initiate(Request $req): Response
     {
+        // API-5: Require an Idempotency-Key header on every payment-initiation
+        // request. Without this, a merchant's HTTP client that retries due to
+        // a network timeout (response lost but server processed the request)
+        // would create a duplicate payment intent, potentially leading to
+        // double-charges or duplicate checkout sessions. Stripe, Square, and
+        // all major processors require/recommend idempotency keys on payment
+        // creation. The IdempotencyMiddleware handles the actual duplicate
+        // detection; this guard ensures the header is always present so the
+        // middleware's protection actually applies.
+        $idempotencyKey = $req->header('Idempotency-Key');
+        if ($idempotencyKey === '') {
+            return Response::json([
+                'success' => false,
+                'error'   => 'Idempotency-Key header is required for payment initiation. '
+                    . 'Generate a unique key per logical request and retry with the same key '
+                    . 'if you do not receive a response.',
+            ], 400);
+        }
+
         $midVal = $req->getAttribute('merchant_id');
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $body = $req->json();
@@ -118,11 +137,15 @@ final class PaymentController
             }
         }
 
-        // Verify callback schemes enforce safe transport standards.
+        // Verify callback schemes enforce safe transport standards AND block SSRF targets
+        // (private/loopback/link-local IPs — including cloud metadata endpoints).
+        // Previously this only checked scheme + filter_var(FILTER_VALIDATE_URL), which accepts
+        // http://127.0.0.1/, http://169.254.169.254/, http://10.x/ — all SSRF vectors if any
+        // downstream code dispatches an outbound request to the intent's stored webhook_url.
         $urlsToCheck = [
             'callback_url' => $callbackUrlStr,
             'redirect_url' => $redirectUrlStr,
-            'cancel_url' => $cancelUrlStr,
+            'cancel_url'   => $cancelUrlStr,
         ];
         foreach ($urlsToCheck as $urlField => $urlVal) {
             if ($urlVal !== null && $urlVal !== '') {
@@ -133,6 +156,11 @@ final class PaymentController
                     $scheme = parse_url($validatedUrl, PHP_URL_SCHEME);
                     if (!in_array($scheme, ['http', 'https'], true)) {
                         $errors[] = "{$urlField} must use http or https scheme";
+                    } elseif (!\OwnPay\Security\UrlValidator::isSafeOutbound($validatedUrl)) {
+                        // isSafeOutbound() rejects loopback, private, link-local, and reserved IPs,
+                        // userinfo-bearing URLs, and non-http(s) schemes. This blocks SSRF vectors
+                        // such as http://127.0.0.1/, http://10.0.0.5/, http://169.254.169.254/.
+                        $errors[] = "{$urlField} must not target a private, loopback, or link-local address";
                     }
                 }
             }

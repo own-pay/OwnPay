@@ -86,17 +86,24 @@ final class PermissionService
     /**
      * Evaluates if a specific system role possesses capability on a given resource action.
      *
-     * Superadmin ('admin') role bypasses all checks dynamically.
+     * Superuser bypass is gated on an explicit $isSystemRole flag rather than on
+     * the bare role name 'admin' - a merchant can create a custom role named 'admin'
+     * (slug 'administrator' is free), and the old bypass would have granted that
+     * custom role every permission. The caller is responsible for resolving
+     * whether the role is the platform system 'admin' (e.g. via a RoleRepository
+     * lookup that checks is_system = 1) before passing true here.
      *
      * @param array{resources?: array<string, array<string, bool>>} $perms Loaded permission map.
      * @param string $resource Target resource key.
      * @param string $action Target resource action.
      * @param string $role User's system role name.
+     * @param bool $isSystemRole True only when the role is the platform system 'admin'
+     *                            role (is_system = 1), not a custom role with the same name.
      * @return bool True if authorized; false otherwise.
      */
-    public static function hasPermission(array $perms, string $resource, string $action, string $role): bool
+    public static function hasPermission(array $perms, string $resource, string $action, string $role, bool $isSystemRole = false): bool
     {
-        if ($role === 'admin') {
+        if ($role === 'admin' && $isSystemRole) {
             return true;
         }
         return (bool) ($perms['resources'][$resource][$action] ?? false);
@@ -105,14 +112,21 @@ final class PermissionService
     /**
      * Evaluates if a role has structural navigation access to a specific dashboard page.
      *
+     * Same superuser-bypass contract as hasPermission(): the caller must confirm
+     * via a RoleRepository lookup that the role is the platform system 'admin'
+     * (is_system = 1) before passing true. A custom role named 'admin' does NOT
+     * bypass the check.
+     *
      * @param array{pages?: array<string, bool>} $perms Loaded permission map.
      * @param string $page Target page route slug.
      * @param string $role User's system role name.
+     * @param bool $isSystemRole True only when the role is the platform system 'admin'
+     *                            role (is_system = 1), not a custom role with the same name.
      * @return bool True if authorized; false otherwise.
      */
-    public static function canAccessPage(array $perms, string $page, string $role): bool
+    public static function canAccessPage(array $perms, string $page, string $role, bool $isSystemRole = false): bool
     {
-        if ($role === 'admin') {
+        if ($role === 'admin' && $isSystemRole) {
             return true;
         }
         return (bool) ($perms['pages'][$page] ?? false);

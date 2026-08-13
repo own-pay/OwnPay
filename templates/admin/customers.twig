@@ -68,8 +68,24 @@
                                 </div>
                             </a>
                         </td>
-                        <td data-label="Email">{{ c.email|default('-') }}</td>
-                        <td data-label="Phone">{{ c.phone|default('-') }}</td>
+                        <td data-label="Email">
+                            <span class="op-pii-masked">{{ c.email_masked|default(c.email|default('-')) }}</span>
+                            {% if can_reveal_pii is defined and can_reveal_pii and c.email_revealed is defined and c.email_revealed %}
+                            <details class="op-pii-reveal">
+                                <summary>Reveal</summary>
+                                <code class="op-pii-revealed">{{ c.email_revealed }}</code>
+                            </details>
+                            {% endif %}
+                        </td>
+                        <td data-label="Phone">
+                            <span class="op-pii-masked">{{ c.phone_masked|default(c.phone|default('-')) }}</span>
+                            {% if can_reveal_pii is defined and can_reveal_pii and c.phone_revealed is defined and c.phone_revealed %}
+                            <details class="op-pii-reveal">
+                                <summary>Reveal</summary>
+                                <code class="op-pii-revealed">{{ c.phone_revealed }}</code>
+                            </details>
+                            {% endif %}
+                        </td>
                         <td data-label="Txns">
                             <span class="op-badge op-badge-outline">{{ c.txn_count|default(0) }}</span>
                         </td>
@@ -78,7 +94,7 @@
                         <td data-label="Actions" class="op-nowrap">
                             <a href="/admin/customers/{{ c.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
                             <form method="POST" action="/admin/customers/{{ c.id }}/delete" class="op-inline-form"
-                                  onsubmit="return confirm('Delete customer {{ c.name|e('js') }}? This cannot be undone.')">
+                                  data-confirm="Delete customer {{ c.name|e('html') }}? This cannot be undone.">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                 <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
                             </form>

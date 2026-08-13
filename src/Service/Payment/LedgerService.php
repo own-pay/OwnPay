@@ -105,48 +105,86 @@ final class LedgerService
 
         $scopedLedger = $this->ledger->forTenant($merchantId);
         $db = $scopedLedger->getDatabase();
-        $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $resolvedEntries, $currency, $referenceType, $referenceId, $description, $totalDebit) {
-            // Check for pre-existing transaction to prevent double ledger posting
-            $exists = $scopedLedger->getDatabase()->fetchOne(
-                "SELECT `id` FROM `op_ledger_transactions` 
-                 WHERE `merchant_id` = :mid 
-                   AND `reference_type` = :rt 
-                   AND `reference_id` = :ri 
-                   AND `description` = :desc 
+        try {
+            $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $resolvedEntries, $currency, $referenceType, $referenceId, $description, $totalDebit) {
+                // Check for pre-existing transaction to prevent double ledger posting
+                $exists = $scopedLedger->getDatabase()->fetchOne(
+                    "SELECT `id` FROM `op_ledger_transactions`
+                 WHERE `merchant_id` = :mid
+                   AND `reference_type` = :rt
+                   AND `reference_id` = :ri
+                   AND `description` = :desc
                  FOR UPDATE",
-                [
-                    'mid' => $merchantId,
-                    'rt' => $referenceType,
-                    'ri' => (int) $referenceId,
-                    'desc' => $description ?? $eventType
-                ]
-            );
+                    [
+                        'mid' => $merchantId,
+                        'rt' => $referenceType,
+                        'ri' => (int) $referenceId,
+                        'desc' => $description ?? $eventType
+                    ]
+                );
 
-            if ($exists !== null) {
+                if ($exists !== null) {
+                    return;
+                }
+
+                // 2. Create Journal Header (uses tenantId from scoped clone)
+                $txnId = $scopedLedger->createTransaction(
+                    $referenceType,
+                    (int) $referenceId,
+                    $description ?? $eventType
+                );
+
+                // 3. Create Entries and Update Balances
+                foreach ($resolvedEntries as $entry) {
+                    $scopedLedger->createEntry($txnId, $entry['account_id'], $entry['type'], $entry['amount']);
+                    $scopedLedger->adjustBalance($entry['account_id'], $entry['amount'], $entry['type']);
+                }
+
+                // Fire event
+                $this->events->doAction('ledger.entry.created', [
+                    'transaction_id' => $txnId,
+                    'merchant_id'    => $merchantId,
+                    'amount'         => $totalDebit,
+                    'currency'       => $currency
+                ]);
+            });
+        } catch (\PDOException $e) {
+            // Issue #335 (PAY-7): despite the SELECT ... FOR UPDATE pre-check, two
+            // concurrent postEntries() calls can both observe "no row" and both
+            // attempt to INSERT the same (merchant_id, reference_type, reference_id,
+            // description) tuple. The database-level UNIQUE KEY uk_merchant_ref
+            // (added in migration 003) is the authoritative guard. When the second
+            // INSERT loses the race it raises MySQL errno 1062 / SQLSTATE 23000 -
+            // treat that as "already posted" and bail gracefully instead of
+            // propagating the exception to the caller (which would surface as a
+            // 500 to the customer and might trigger a harmful retry).
+            if ($this->isDuplicateKeyError($e)) {
                 return;
             }
+            throw $e;
+        }
+    }
 
-            // 2. Create Journal Header (uses tenantId from scoped clone)
-            $txnId = $scopedLedger->createTransaction(
-                $referenceType,
-                (int) $referenceId,
-                $description ?? $eventType
-            );
-
-            // 3. Create Entries and Update Balances
-            foreach ($resolvedEntries as $entry) {
-                $scopedLedger->createEntry($txnId, $entry['account_id'], $entry['type'], $entry['amount']);
-                $scopedLedger->adjustBalance($entry['account_id'], $entry['amount'], $entry['type']);
-            }
-
-            // Fire event
-            $this->events->doAction('ledger.entry.created', [
-                'transaction_id' => $txnId,
-                'merchant_id'    => $merchantId,
-                'amount'         => $totalDebit,
-                'currency'       => $currency
-            ]);
-        });
+    /**
+     * Determines whether a PDO exception represents a MySQL duplicate-key
+     * violation (errno 1062) against the uk_merchant_ref unique constraint.
+     *
+     * SQLSTATE 23000 alone is insufficient - it also covers foreign-key
+     * violations, which must propagate as real errors. We additionally match
+     * the constraint name so that an unrelated unique-key violation on a
+     * different index is not silently swallowed.
+     *
+     * @param \PDOException $e The caught PDO exception.
+     * @return bool True when the failure is a uk_merchant_ref conflict.
+     */
+    private function isDuplicateKeyError(\PDOException $e): bool
+    {
+        if (!isset($e->errorInfo[1]) || (int) $e->errorInfo[1] !== 1062) {
+            return false;
+        }
+        $message = $e->getMessage();
+        return str_contains($message, 'uk_merchant_ref')
+            || str_contains($message, "key 'merchant_id'");
     }
 
     /**

@@ -215,6 +215,24 @@ final class Request
     }
 
     /**
+     * Determines whether the request body uses a form-encoded content type.
+     *
+     * Returns true when the Content-Type is application/x-www-form-urlencoded
+     * or multipart/*. These are the content types for which PHP populates
+     * $_POST; parsing the body as JSON anyway would let a request with a
+     * form-urlencoded Content-Type but a JSON-shaped body smuggle
+     * JSON-structured data past CSRF middleware that only inspects $_POST.
+     *
+     * @return bool True if the Content-Type indicates a form-encoded body.
+     */
+    private function isFormContent(): bool
+    {
+        $contentType = strtolower($this->header('Content-Type', ''));
+        return str_contains($contentType, 'application/x-www-form-urlencoded')
+            || str_starts_with($contentType, 'multipart/');
+    }
+
+    /**
      * Evaluates if the client expects a JSON response.
      *
      * Matches request path prefixes, content headers, or AJAX flags.
@@ -261,6 +279,18 @@ final class Request
     /**
      * Decodes and retrieves JSON request payload data.
      *
+     * The body is only parsed as JSON when the Content-Type is NOT a form
+     * content type (application/x-www-form-urlencoded or multipart/*). PHP
+     * populates $_POST for those content types, and parsing the body as JSON
+     * anyway would let a request with a form-urlencoded Content-Type but a
+     * JSON-shaped body smuggle JSON-structured data past CSRF middleware that
+     * only inspects $_POST (because PHP's $_POST parser leaves $_POST empty
+     * when the body is not actually form-urlencoded). Empty Content-Type,
+     * application/json, application/csp-report, application/reports+json, and
+     * any other non-form content type still parse as before — preserving
+     * legitimate JSON API requests, CSP violation reports, and existing test
+     * fixtures that send a JSON body without setting CONTENT_TYPE.
+     *
      * @param string|null $key The parameter name to fetch.
      * @param mixed $default The fallback value if key is not found.
      * @return mixed The parameter value, the decoded JSON array, or the default fallback.
@@ -268,11 +298,10 @@ final class Request
     public function json(?string $key = null, mixed $default = null): mixed
     {
         if ($this->jsonCache === null) {
-            if ($this->rawBody !== null && $this->rawBody !== '') {
+            $this->jsonCache = [];
+            if ($this->rawBody !== null && $this->rawBody !== '' && !$this->isFormContent()) {
                 $parsed = json_decode($this->rawBody, true);
                 $this->jsonCache = is_array($parsed) ? $parsed : [];
-            } else {
-                $this->jsonCache = [];
             }
         }
         if ($key === null) {
@@ -386,15 +415,28 @@ final class Request
     /**
      * Extracts the Bearer token from the Authorization header.
      *
+     * Returns null when the Authorization header is absent, does not use the
+     * Bearer scheme, or carries an empty token (e.g. "Bearer " with no value).
+     * This prevents auth middleware that gates on `bearerToken() !== null`
+     * from proceeding with an empty-string token and reaching the DB lookup
+     * with `WHERE api_key = ''`.
+     *
      * @return string|null The Bearer token value, or null if not present/invalid format.
      */
     public function bearerToken(): ?string
     {
         $auth = $this->header('Authorization');
-        if (str_starts_with($auth, 'Bearer ')) {
-            return substr($auth, 7);
+        // The "Bearer " prefix (with trailing space) is required by RFC 6750;
+        // a bare "Bearer" with no token is invalid and returns null.
+        if (!str_starts_with($auth, 'Bearer ')) {
+            return null;
         }
-        return null;
+        $token = trim(substr($auth, 7));
+        // Bearer tokens are opaque alphanumeric strings and never contain
+        // surrounding whitespace; trim rejects the empty-token case
+        // ("Bearer " with no value) and any stray whitespace, so callers
+        // that gate on bearerToken() !== null never proceed with "".
+        return $token !== '' ? $token : null;
     }
 
     /**
@@ -423,18 +465,48 @@ final class Request
         $remoteAddr = $this->server('REMOTE_ADDR', '0.0.0.0');
 
         if ($this->isTrustedProxy($remoteAddr)) {
-            // X-Forwarded-For: client, proxy1, proxy2 - leftmost is original client.
+            // SEC-3: Walk the X-Forwarded-For chain right-to-left and return
+            // the rightmost IP that is NOT a trusted proxy — that is the IP
+            // set by the last trusted proxy in the chain, i.e. the real
+            // client as seen by our trusted edge.
+            //
+            // The previous implementation returned $ips[0] (the leftmost
+            // entry), which is fully client-controlled: an attacker behind
+            // the trusted proxy could set X-Forwarded-For: <arbitrary-ip>
+            // on every request and ip() would return that attacker-chosen
+            // value, defeating rate limiting and IP allowlists entirely.
+            //
+            // The trusted proxy *appends* the real client IP to the right of
+            // any client-supplied value, so the rightmost non-trusted entry
+            // is the secure choice.
             $xff = $this->server('HTTP_X_FORWARDED_FOR');
             if ($xff !== '') {
                 $ips = array_map('trim', explode(',', $xff));
-                $clientIp = $ips[0];
-                // Validate IP format.
-                if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
-                    return $clientIp;
+                // Remove empty entries left by malformed headers.
+                $ips = array_values(array_filter($ips, static fn ($v) => $v !== ''));
+                for ($i = count($ips) - 1; $i >= 0; $i--) {
+                    $candidate = $ips[$i];
+                    if (filter_var($candidate, FILTER_VALIDATE_IP) === false) {
+                        // Skip malformed entries — they cannot be the real
+                        // client IP and may be injection attempts.
+                        continue;
+                    }
+                    // Skip trusted-proxy entries in the chain — the real
+                    // client is the first non-trusted IP we encounter
+                    // walking right-to-left.
+                    if ($this->isTrustedProxy($candidate)) {
+                        continue;
+                    }
+                    return $candidate;
                 }
+                // Every entry in the chain was a trusted proxy (e.g. internal
+                // hop chain with no client IP appended). Fall through to
+                // X-Real-IP / REMOTE_ADDR below.
             }
 
-            // Fallback: X-Real-IP (single IP, set by Nginx).
+            // Fallback: X-Real-IP (single IP, set by Nginx to the immediate
+            // upstream peer — also trustworthy when REMOTE_ADDR is a trusted
+            // proxy).
             $realIp = $this->server('HTTP_X_REAL_IP');
             if ($realIp !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
                 return $realIp;

@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\DomainRepository;
+use OwnPay\Security\UrlValidator;
 
 /**
  * Working on custom domain routing for white-label please write well comment and details.
@@ -134,9 +135,19 @@ final class DomainMiddleware
         }
 
         // Root path redirection
+        //
+        // SECURITY (DOM-2): the stored `redirect_url` is validated again here
+        // before it is emitted as a `Location:` header. Storage-time validation
+        // in DomainController::store()/update() should already have rejected
+        // dangerous values (external hosts, javascript:/data: URIs), but rows
+        // written before that fix landed — or a SQL-level tamper — could still
+        // contain an open-redirect target. Defense-in-depth: if the stored
+        // value is not a safe relative path or a same-origin absolute URL, the
+        // redirect is suppressed and the request falls through to the standard
+        // 404 response rather than issuing a 302 to an attacker-controlled host.
         if ($path === '/' || $path === '') {
             $redirectUrl = $domainRecord['redirect_url'] ?? '';
-            if (is_string($redirectUrl) && $redirectUrl !== '') {
+            if (is_string($redirectUrl) && $redirectUrl !== '' && $this->isSafeRedirectTarget($redirectUrl, $domain)) {
                 return Response::redirect($redirectUrl);
             }
             return Response::html('<h1>404 Not Found</h1>', 404);
@@ -209,6 +220,43 @@ final class DomainMiddleware
         $request->setAttribute('custom_domain', $domain);
 
         return $next($request);
+    }
+
+    /**
+     * Defense-in-depth validator for the stored `redirect_url` value.
+     *
+     * Accepts:
+     *   - Relative paths starting with `/` that are NOT protocol-relative
+     *     (`//attacker.com`) or backslash-protocol-relative (`/\attacker.com`),
+     *     which the browser would otherwise treat as scheme-less absolute URLs.
+     *   - Absolute http/https URLs whose host equals the configured custom
+     *     domain or is a subdomain of it (delegated to UrlValidator, which
+     *     rejects external hosts, javascript:, data:, etc.).
+     *
+     * Returns false for anything else (external hosts, dangerous schemes,
+     * protocol-relative URLs, empty allowedDomain). The caller then suppresses
+     * the redirect and serves the fallback 404 — no 302 is ever issued to an
+     * untrusted target.
+     *
+     * @param string $url The stored redirect_url value.
+     * @param string $allowedDomain The hostname of the custom domain being visited.
+     * @return bool True if the URL is safe to emit as a Location header.
+     */
+    private function isSafeRedirectTarget(string $url, string $allowedDomain): bool
+    {
+        if ($allowedDomain === '') {
+            return false;
+        }
+
+        // Relative path: must start with `/` but not `//` (protocol-relative)
+        // or `/\` (backslash variant — some browsers normalize this to `//`).
+        if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_starts_with($url, '/\\')) {
+            return true;
+        }
+
+        // Absolute URL: must be http/https and same-origin (host matches or
+        // is a subdomain of the configured custom domain).
+        return UrlValidator::isValidRedirect($url, $allowedDomain);
     }
 
     /**

@@ -28,11 +28,23 @@ final class RouteHelper
         $host = 'localhost';
         $requestUri = '';
         if ($request !== null) {
-            $isHttps = $request->header('X-Forwarded-Proto') === 'https' || $request->isSecure();
+            // HTTP-1: rely solely on Request::isSecure() for scheme
+            // detection. It already performs the trusted-proxy check
+            // (Request::scheme() only honors X-Forwarded-Proto when
+            // REMOTE_ADDR is in TRUSTED_PROXIES). The previous direct
+            // read of the X-Forwarded-Proto header allowed any end user
+            // to spoof the scheme by sending the header themselves, which
+            // could cause password-reset emails and Secure-cookie flags
+            // to be computed against an attacker-chosen scheme.
+            $isHttps = $request->isSecure();
             $hostVal = $request->header('Host') ?: 'localhost';
             $host = (string) $hostVal;
             $requestUri = $request->uri();
         } else {
+            // No-Request fallback (CLI / pre-boot): use the raw $_SERVER
+            // values. The X-Forwarded-Proto header is deliberately NOT
+            // consulted here either, to keep behavior consistent with the
+            // Request branch.
             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
                 || ($_SERVER['SERVER_PORT'] ?? 0) == 443);
             $hostVal = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -40,6 +52,33 @@ final class RouteHelper
             $requestUriVal = $_SERVER['REQUEST_URI'] ?? '';
             $requestUri = is_string($requestUriVal) ? $requestUriVal : '';
         }
+
+        // HTTP-2: Validate the Host header against an allow-list of
+        // permitted hosts. The Host header is fully client-controlled in
+        // HTTP/1.1, so without validation any caller of siteUrl() that
+        // places the result in an outbound email, redirect, or JSON
+        // response is vulnerable to host-header injection — most
+        // critically the password-reset flow, where a spoofed
+        // Host: attacker.com causes the victim to receive a reset-email
+        // link pointing at the attacker's host, leaking the reset token
+        // when clicked.
+        //
+        // We check against (in order of preference):
+        //   1. ALLOWED_HOSTS env var (comma-separated)
+        //   2. APP_URL env var (parse its host)
+        //   3. $_SERVER['SERVER_NAME'] (set by web server config, not
+        //      the client)
+        // If the Host header does not match any allowed host, we fall
+        // back to the configured APP_URL or SERVER_NAME rather than
+        // echoing the attacker-controlled value back into the response.
+        // When no validation is configured, we return null and the
+        // caller uses the raw Host (legacy behavior for backward
+        // compatibility).
+        $validatedHost = self::validateHost($host);
+        if ($validatedHost !== null) {
+            $host = $validatedHost;
+        }
+
         $protocol = $isHttps ? 'https://' : 'http://';
 
         $hostWithoutPort = preg_replace('/:\d+$/', '', $host);
@@ -138,5 +177,70 @@ final class RouteHelper
             ($parsedUrl['path'] ?? '');
 
         return $baseUrl . '?' . $queryString;
+    }
+
+    /**
+     * Validate the supplied Host header against the configured allow-list.
+     *
+     * Returns the validated host (which may be the supplied value, or a
+     * fallback when the supplied value is not allowed) or null when no
+     * validation is configured (legacy behavior — caller uses the raw Host).
+     *
+     * @param string $host The Host header value to validate.
+     * @return string|null The validated host, or null when no allow-list is configured.
+     */
+    private static function validateHost(string $host): ?string
+    {
+        // Strip port for comparison.
+        $hostWithoutPort = preg_replace('/:\d+$/', '', $host);
+        $hostForComparison = is_string($hostWithoutPort) ? strtolower($hostWithoutPort) : strtolower($host);
+
+        // 1. ALLOWED_HOSTS env var (comma-separated).
+        $allowedEnv = $_ENV['ALLOWED_HOSTS'] ?? $_SERVER['ALLOWED_HOSTS'] ?? getenv('ALLOWED_HOSTS') ?: '';
+        if (is_string($allowedEnv) && $allowedEnv !== '') {
+            $allowed = array_map(
+                static fn (string $h) => strtolower(trim($h)),
+                explode(',', $allowedEnv)
+            );
+            $allowed = array_filter($allowed, static fn (string $h) => $h !== '');
+            if (!empty($allowed)) {
+                if (in_array($hostForComparison, $allowed, true)) {
+                    return $host;
+                }
+                // Host not in allow-list — fall back to the first allowed host.
+                return $allowed[0];
+            }
+        }
+
+        // 2. APP_URL env var.
+        $appUrl = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
+        if (is_string($appUrl) && $appUrl !== '') {
+            $parsed = parse_url($appUrl);
+            $appHost = is_array($parsed) && isset($parsed['host']) ? strtolower((string) $parsed['host']) : '';
+            if ($appHost !== '') {
+                if ($hostForComparison === $appHost) {
+                    return $host;
+                }
+                // Preserve port from APP_URL if present.
+                $port = is_array($parsed) && isset($parsed['port']) ? ':' . (int) $parsed['port'] : '';
+                return $appHost . $port;
+            }
+        }
+
+        // 3. $_SERVER['SERVER_NAME'] (web-server-config-set, not client-controlled).
+        $serverName = $_SERVER['SERVER_NAME'] ?? '';
+        if (is_string($serverName) && $serverName !== '') {
+            $serverNameLower = strtolower($serverName);
+            if ($hostForComparison === $serverNameLower) {
+                return $host;
+            }
+            return $serverName;
+        }
+
+        // No validation configured — return null to signal "use the raw Host".
+        // This preserves backward compatibility for installations that have
+        // not yet set ALLOWED_HOSTS or APP_URL. Operators should set one of
+        // these to enable host-header validation.
+        return null;
     }
 }

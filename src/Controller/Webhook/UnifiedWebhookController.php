@@ -82,19 +82,34 @@ final class UnifiedWebhookController
             return Response::json(['error' => 'Could not resolve merchant'], 400);
         }
 
-        if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
-            $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
-            if ($bridge instanceof \OwnPay\Gateway\GatewayBridge) {
-                try {
-                    if (!$bridge->verifyWebhookSignature($gateway, $merchantId, $rawBody, $req->allHeaders())) {
-                        $this->logAttempt($gateway, 'signature_verification_failed', $req);
-                        return Response::json(['error' => 'Webhook signature verification failed'], 403);
-                    }
-                } catch (\Throwable $e) {
-                    $this->logAttempt($gateway, 'signature_verification_error', $req, ['error' => $e->getMessage()]);
-                    return Response::json(['error' => 'Webhook signature verification error'], 403);
-                }
+        // SEC-6 / API-6: Fail closed on signature verification. The previous
+        // implementation wrapped the signature check in
+        //   if ($this->c->has(GatewayBridge::class)) { ... if ($bridge instanceof ...) { ... } }
+        // which silently skipped verification when the bridge was missing or
+        // misregistered — a single configuration error disabled webhook
+        // authentication entirely. We now require the bridge to be resolvable
+        // and to actually be a GatewayBridge instance; anything else is a
+        // deployment/configuration failure that must not be allowed to fail
+        // open.
+        if (!$this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
+            $this->logAttempt($gateway, 'signature_bridge_missing', $req);
+            $this->logConfigError("GatewayBridge not registered in container; rejecting webhook for gateway={$gateway}");
+            return Response::json(['error' => 'Webhook signature verification unavailable'], 500);
+        }
+        $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
+        if (!$bridge instanceof \OwnPay\Gateway\GatewayBridge) {
+            $this->logAttempt($gateway, 'signature_bridge_invalid_type', $req);
+            $this->logConfigError("GatewayBridge resolved to a non-GatewayBridge instance; rejecting webhook for gateway={$gateway}");
+            return Response::json(['error' => 'Webhook signature verification unavailable'], 500);
+        }
+        try {
+            if (!$bridge->verifyWebhookSignature($gateway, $merchantId, $rawBody, $req->allHeaders())) {
+                $this->logAttempt($gateway, 'signature_verification_failed', $req);
+                return Response::json(['error' => 'Webhook signature verification failed'], 403);
             }
+        } catch (\Throwable $e) {
+            $this->logAttempt($gateway, 'signature_verification_error', $req, ['error' => $e->getMessage()]);
+            return Response::json(['error' => 'Webhook signature verification error'], 403);
         }
 
         $hookName = "webhook.incoming.{$gateway}";
@@ -269,6 +284,26 @@ final class UnifiedWebhookController
                 "Webhook rejected: gateway={$gateway} reason={$sanitizedReasonStr} ip={$req->ip()}",
                 $context
             );
+        }
+    }
+
+    /**
+     * Logs a configuration-level error that prevented webhook signature verification.
+     *
+     * Unlike {@see logAttempt}, this is for deployment/config faults (e.g. the
+     * GatewayBridge service is missing from the container) rather than
+     * per-request rejections. The message is sanitized for log forging.
+     *
+     * @param string $message The configuration error description.
+     * @return void
+     */
+    private function logConfigError(string $message): void
+    {
+        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+        if ($logger instanceof \OwnPay\Service\System\Logger) {
+            $sanitized = preg_replace('/[\r\n\t]+/', ' ', $message);
+            $sanitizedStr = is_string($sanitized) ? $sanitized : $message;
+            $logger->error('Webhook signature config error: ' . $sanitizedStr);
         }
     }
 

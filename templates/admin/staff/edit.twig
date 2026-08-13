@@ -25,8 +25,15 @@
             <div class="op-form-row">
                 <div class="op-form-group op-col-6">
                     <label>{{ user is not null and user.id is defined and user.id ? 'New Password (leave blank to keep)' : 'Password *' }}</label>
-                    <input type="password" name="password" class="op-input" {{ user is not null and user.id is defined and user.id ? '' : 'required' }} minlength="8">
+                    <input type="password" name="password" class="op-input" {{ user is not null and user.id is defined and user.id ? '' : 'required' }} minlength="12" autocomplete="new-password">
+                    <small class="op-text-xs op-text-muted">Min 12 chars, at least 3 of: uppercase, lowercase, digits, symbols.</small>
                 </div>
+                <div class="op-form-group op-col-6">
+                    <label>Confirm Password {{ user is not null and user.id is defined and user.id ? '(required when setting a new password)' : '*' }}</label>
+                    <input type="password" name="password_confirm" class="op-input" {{ user is not null and user.id is defined and user.id ? '' : 'required' }} minlength="12" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="op-form-row">
                 <div class="op-form-group op-col-6">
                     <label>Role *</label>
                     <select name="role_id" class="op-input" required>

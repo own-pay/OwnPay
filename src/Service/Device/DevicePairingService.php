@@ -7,6 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Security\FieldEncryptor;
 use OwnPay\Service\Auth\JwtService;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Support\DateHelper;
 
 /**
@@ -17,6 +18,28 @@ use OwnPay\Support\DateHelper;
  */
 final class DevicePairingService
 {
+    /**
+     * Maximum number of failed OTP validation attempts allowed before the
+     * source IP is locked out of further pairing attempts.
+     *
+     * Audit fix DEV-6: a 6-digit OTP has 1,000,000 possible values and a
+     * 5-minute validity window — without rate limiting an attacker could
+     * brute-force the OTP by submitting hundreds of guesses per second.
+     * Locking after 5 failures reduces the brute-force surface to 5 guesses
+     * per 5-minute window per source IP, which is computationally infeasible
+     * to exploit (5/1,000,000 = 0.0005% hit rate per window).
+     */
+    private const int MAX_OTP_ATTEMPTS = 5;
+
+    /**
+     * Lockout window for failed OTP attempts, in seconds.
+     *
+     * Matches the OTP validity window (5 minutes) so a locked-out attacker
+     * must wait for the OTP itself to expire before they can retry — at which
+     * point the admin would have generated a fresh OTP anyway.
+     */
+    private const int OTP_LOCKOUT_TTL = 300;
+
     /**
      * @var PairedDeviceRepository Repository interface for managing device persistence.
      */
@@ -38,23 +61,33 @@ final class DevicePairingService
     private EventManager $events;
 
     /**
+     * @var AuditService|null Application audit logging service. Nullable so
+     *                          the service remains constructable in contexts
+     *                          where the audit pipeline is unavailable.
+     */
+    private ?AuditService $audit;
+
+    /**
      * Constructs a new DevicePairingService instance.
      *
      * @param PairedDeviceRepository $devices Repository for device database records.
      * @param FieldEncryptor|null $encryptor Cryptographic helper for PII and credentials.
      * @param JwtService $jwt JSON Web Token service provider.
      * @param EventManager|null $events Optional custom event dispatcher instance.
+     * @param AuditService|null $audit Optional audit logger for device lifecycle events.
      */
     public function __construct(
         PairedDeviceRepository $devices,
         ?FieldEncryptor $encryptor,
         JwtService $jwt,
-        ?EventManager $events = null
+        ?EventManager $events = null,
+        ?AuditService $audit = null
     ) {
         $this->devices   = $devices;
         $this->encryptor = $encryptor;
         $this->jwt       = $jwt;
         $this->events    = $events ?? EventManager::getInstance();
+        $this->audit     = $audit;
     }
 
     /**
@@ -124,13 +157,37 @@ final class DevicePairingService
      * Uses a row-locking transactional pattern (SELECT ... FOR UPDATE) to prevent
      * concurrent token reuse or replay attacks.
      *
+     * Audit fix DEV-6: enforces a per-source-IP failed-attempt counter via the
+     * op_cache table. After MAX_OTP_ATTEMPTS (5) failed guesses within the OTP
+     * validity window, further attempts return 'OTP_LOCKED' until the cache
+     * entry expires. This prevents brute-forcing the 6-digit OTP within its
+     * 5-minute validity window. A wrong guess increments the counter; a correct
+     * guess clears it. Successful locks also force the matching OTP row to
+     * is_used=1 so the admin must generate a new one (the OTP is effectively
+     * burned once an attacker has hammered the validation endpoint from the
+     * same IP).
+     *
      * @param string $otp The plain pairing OTP code.
      * @return array{valid: true, merchant_id: int, created_by?: int|null}|array{valid: false, error: string} Validation outcome payload.
      */
     public function validatePairingOtp(string $otp): array
     {
-        $otpHash = hash('sha256', $otp);
         $db = $this->devices->getDatabase();
+        $ip = $this->resolveClientIp();
+        $cacheKey = 'otp_failed_ip_' . $ip;
+
+        // Pre-check: if this source IP is already past the failure threshold,
+        // refuse without even hashing the submitted OTP. The counter expires
+        // automatically when op_cache.expires_at < NOW().
+        if ($this->readFailedAttempts($db, $cacheKey) >= self::MAX_OTP_ATTEMPTS) {
+            // Burn any matching OTP row so the admin is forced to generate a
+            // new one — defence in depth, in case the attacker happens to
+            // submit the right OTP just as the lock kicks in.
+            $this->burnMatchingOtp($db, $otp);
+            return ['valid' => false, 'error' => 'OTP_LOCKED'];
+        }
+
+        $otpHash = hash('sha256', $otp);
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s.u');
 
         $matchedRow = null;
@@ -153,8 +210,23 @@ final class DevicePairingService
         });
 
         if ($matchedRow === null) {
+            // Wrong guess. Increment the failure counter for this source IP.
+            // If the new count crosses the threshold, also burn any matching
+            // OTP row (defence in depth) and return OTP_LOCKED so the client
+            // can surface a clear "regenerate the OTP" message rather than
+            // sending the admin into a retry loop that will keep failing.
+            $newCount = $this->incrementFailedAttempts($db, $cacheKey);
+            if ($newCount >= self::MAX_OTP_ATTEMPTS) {
+                $this->burnMatchingOtp($db, $otp);
+                return ['valid' => false, 'error' => 'OTP_LOCKED'];
+            }
             return ['valid' => false, 'error' => 'Invalid or expired OTP'];
         }
+
+        // Success — clear the failure counter so a legitimate user who fat-
+        // fingered the OTP once doesn't accumulate a partial lockout across
+        // successful pairings.
+        $this->clearFailedAttempts($db, $cacheKey);
 
         $midVal = $matchedRow['merchant_id'] ?? 0;
         $createdByVal = $matchedRow['created_by'] ?? null;
@@ -163,6 +235,125 @@ final class DevicePairingService
             'merchant_id' => is_scalar($midVal) ? (int) $midVal : 0,
             'created_by' => is_scalar($createdByVal) ? (int) $createdByVal : null,
         ];
+    }
+
+    /**
+     * Resolves the requesting client's IP address for rate-limit keying.
+     *
+     * Falls back to '0.0.0.0' when REMOTE_ADDR is absent (e.g. CLI test harness),
+     * which keeps the cache key deterministic without leaking rate-limit state
+     * across unrelated requests.
+     *
+     * @return string The client IP address.
+     */
+    private function resolveClientIp(): string
+    {
+        $ipVal = $_SERVER['REMOTE_ADDR'] ?? null;
+        if (is_string($ipVal) && $ipVal !== '') {
+            return $ipVal;
+        }
+        return '0.0.0.0';
+    }
+
+    /**
+     * Reads the current failed-OTP-attempt count for a cache key.
+     *
+     * @param \OwnPay\Core\Database $db The database connection.
+     * @param string $cacheKey The op_cache key_name to read.
+     * @return int The failure count (0 if the key is absent or expired).
+     */
+    private function readFailedAttempts(\OwnPay\Core\Database $db, string $cacheKey): int
+    {
+        $row = $db->fetchOne(
+            "SELECT value FROM op_cache WHERE key_name = :key AND expires_at > NOW()",
+            ['key' => $cacheKey]
+        );
+        if (!is_array($row)) {
+            return 0;
+        }
+        $val = $row['value'] ?? '0';
+        return is_scalar($val) ? (int) $val : 0;
+    }
+
+    /**
+     * Increments the failed-OTP-attempt counter for a cache key.
+     *
+     * Uses INSERT ... ON DUPLICATE KEY UPDATE so the counter is created on the
+     * first failure and updated atomically on subsequent ones.
+     *
+     * @param \OwnPay\Core\Database $db The database connection.
+     * @param string $cacheKey The op_cache key_name to increment.
+     * @return int The new failure count after incrementing.
+     */
+    private function incrementFailedAttempts(\OwnPay\Core\Database $db, string $cacheKey): int
+    {
+        $current = $this->readFailedAttempts($db, $cacheKey);
+        $next = $current + 1;
+        $expiresAt = time() + self::OTP_LOCKOUT_TTL;
+        $db->insert(
+            "INSERT INTO op_cache (key_name, value, expires_at) VALUES (:key, :val, :exp) ON DUPLICATE KEY UPDATE value = :val_update, expires_at = :exp_update",
+            [
+                'key'         => $cacheKey,
+                'val'         => (string) $next,
+                'exp'         => $expiresAt,
+                'val_update'  => (string) $next,
+                'exp_update'  => $expiresAt,
+            ]
+        );
+        return $next;
+    }
+
+    /**
+     * Clears the failed-OTP-attempt counter for a cache key.
+     *
+     * Called after a successful OTP validation so a legitimate user who fat-
+     * fingered the OTP once doesn't accumulate a partial lockout across
+     * successful pairings. Best-effort — a cache-cleanup failure must not
+     * block the successful pairing path.
+     *
+     * @param \OwnPay\Core\Database $db The database connection.
+     * @param string $cacheKey The op_cache key_name to clear.
+     * @return void
+     */
+    private function clearFailedAttempts(\OwnPay\Core\Database $db, string $cacheKey): void
+    {
+        try {
+            $db->execute(
+                "DELETE FROM op_cache WHERE key_name = :key",
+                ['key' => $cacheKey]
+            );
+        } catch (\Throwable) {
+            // best-effort; do not block successful OTP validation.
+        }
+    }
+
+    /**
+     * Marks the OTP row matching the supplied plain OTP code as consumed.
+     *
+     * Defence-in-depth: when the per-IP rate limit fires, we also burn the
+     * matching OTP row (if any) so the admin is forced to generate a fresh
+     * one. This prevents an attacker who has the right OTP but is locked out
+     * from completing the pairing once the lock expires — they would need to
+     * obtain a brand new OTP from the admin.
+     *
+     * Silently does nothing if the supplied OTP does not hash to a valid row
+     * (the common case — the attacker is brute-forcing random 6-digit codes).
+     *
+     * @param \OwnPay\Core\Database $db The database connection.
+     * @param string $otp The plain OTP code to match against stored hashes.
+     * @return void
+     */
+    private function burnMatchingOtp(\OwnPay\Core\Database $db, string $otp): void
+    {
+        try {
+            $otpHash = hash('sha256', $otp);
+            $db->execute(
+                "UPDATE op_device_pairing_tokens SET is_used = 1, used_at = NOW(6) WHERE otp_hash = :hash AND is_used = 0",
+                ['hash' => $otpHash]
+            );
+        } catch (\Throwable) {
+            // best-effort; do not block the OTP_LOCKED response.
+        }
     }
 
     /**
@@ -436,9 +627,12 @@ final class DevicePairingService
      *
      * @param string $deviceUuid Cryptographic identifier of the device.
      * @param int|null $merchantId Unique identifier of the merchant/brand.
+     * @param int|null $actorId Identifier of the admin/user initiating the
+     *                          revocation (recorded in the audit log); null
+     *                          when the actor is not known (e.g. JWT-only path).
      * @return bool True if device was successfully revoked; false otherwise.
      */
-    public function revoke(string $deviceUuid, ?int $merchantId): bool
+    public function revoke(string $deviceUuid, ?int $merchantId, ?int $actorId = null): bool
     {
         $repo = ($merchantId === null || $merchantId === 0)
             ? $this->devices->forAllTenants()
@@ -466,18 +660,50 @@ final class DevicePairingService
         $updateRepo->updateScoped((int) $deviceIdVal, ['status' => 'revoked']);
 
         $this->events->doAction('mobile.device.revoked', $deviceUuid, $deviceMerchantId ?? 0);
+
+        // Write an audit-log entry so device revocations leave a forensic trail
+        // (DEV-7). The event listener is not guaranteed to materialize the row,
+        // so we record it explicitly here. AuditService resolves user_id from
+        // the admin session when available; actorId is passed as metadata for
+        // JWT-only paths (mobile/admin API) where no session exists.
+        $this->audit?->log(
+            'mobile.device.revoked',
+            'devices',
+            is_numeric($deviceIdVal) ? (int) $deviceIdVal : null,
+            null,
+            [
+                'device_uuid' => $deviceUuid,
+                'merchant_id' => $deviceMerchantId ?? 0,
+                'revoked_by'  => $actorId,
+            ]
+        );
         return true;
     }
 
     /**
      * Records a client activity heartbeat timestamp.
      *
+     * The repository is scoped to the device's own merchant before the UPDATE
+     * fires so the tenant-scoped SQL path in PairedDeviceRepository::updateHeartbeat()
+     * applies (defense-in-depth: prevents cross-tenant heartbeat updates if a
+     * device_id collision ever occurs). Falls back to the global scope for
+     * All-Brands / platform devices paired under merchant_id IS NULL.
+     *
      * @param string $deviceUuid Cryptographic identifier of the device.
      * @return void
      */
     public function heartbeat(string $deviceUuid): void
     {
-        $this->devices->updateHeartbeat($deviceUuid);
+        $device = $this->devices->findByUuid($deviceUuid);
+        if ($device === null) {
+            return;
+        }
+        $midVal = $device['merchant_id'] ?? null;
+        $mid = is_scalar($midVal) ? (int) $midVal : null;
+        $repo = $mid === null
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($mid);
+        $repo->updateHeartbeat($deviceUuid);
     }
 
     /**

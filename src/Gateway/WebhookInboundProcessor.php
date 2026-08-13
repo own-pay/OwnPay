@@ -438,7 +438,15 @@ final class WebhookInboundProcessor
             $txnCurrency = (string) $txn['currency'];
 
             $txnAmountStr = isset($txn['amount']) && is_scalar($txn['amount']) ? (string) $txn['amount'] : '';
-            $refundAmountVal = $data['refund_amount'] ?? $data['amount'] ?? $txn['amount'] ?? null;
+            // PAY-19: Do NOT fall back to $txn['amount'] when the webhook omits the refund amount.
+            // A gateway bug or partial-payload retry that drops the amount field would otherwise
+            // trigger a full refund even if the gateway only intended a partial refund.
+            // Require the gateway to explicitly state the refund amount.
+            $refundAmountVal = $data['refund_amount'] ?? $data['amount'] ?? null;
+            if ($refundAmountVal === null) {
+                $this->logger->warning("refund.completed rejected: missing amount for transaction {$txnId}");
+                return;
+            }
             $amount = is_scalar($refundAmountVal) ? (string) $refundAmountVal : '';
             if (!is_numeric($amount) || !is_numeric($txnAmountStr)
                 || bccomp($amount, '0', 2) <= 0
@@ -448,7 +456,47 @@ final class WebhookInboundProcessor
                 return;
             }
 
-            $this->transactionRepo->forTenant($merchantId)->updateScoped($txnId, ['status' => 'refunded']);
+            // PAY-4: Enforce the same total-refunded cap that
+            // RefundService::create() enforces. The previous implementation
+            // only validated amount <= txnAmount, ignoring prior refunds. A
+            // compromised or buggy gateway webhook could drain a merchant's
+            // payable balance beyond the original capture: a $100 txn already
+            // refunded $30 would accept a second webhook with amount=100,
+            // recording $130 total refunds on a $100 capture. We compute the
+            // sum of pending+completed refunds under the FOR UPDATE lock so a
+            // concurrent RefundService::create() cannot race us.
+            $priorRefundedVal = $this->db->fetchColumn(
+                "SELECT COALESCE(SUM(amount), 0) FROM op_refunds
+                 WHERE transaction_id = :txid AND merchant_id = :mid
+                   AND status IN ('pending','completed')",
+                ['txid' => $txnId, 'mid' => $merchantId]
+            );
+            $priorRefunded = is_numeric($priorRefundedVal) ? (string) $priorRefundedVal : '0';
+            $newTotal = bcadd($priorRefunded, $amount, 2);
+            if (bccomp($newTotal, $txnAmountStr, 2) > 0) {
+                $this->logger->warning(
+                    "refund.completed rejected: total {$newTotal} exceeds transaction amount {$txnAmountStr} for txn {$txnId}"
+                );
+                return;
+            }
+
+            // PAY-5: Only flip the transaction to 'refunded' when the total
+            // refunded equals the original amount — mirroring
+            // RefundService::create() line 251-255. The previous
+            // implementation unconditionally set status='refunded' on any
+            // refund webhook (partial or full), which permanently froze the
+            // transaction: subsequent legitimate gateway callbacks (delayed
+            // second partial refund, chargeback notification) were silently
+            // dropped because isCompletionEligible() rejects 'refunded' as
+            // terminal, and the merchant's customer service team saw
+            // "refunded" in admin while the customer had only received a
+            // partial refund.
+            $shouldMarkRefunded = bccomp($newTotal, $txnAmountStr, 2) === 0;
+            if ($shouldMarkRefunded) {
+                $this->transactionRepo->forTenant($merchantId)->updateScoped($txnId, ['status' => 'refunded']);
+            }
+            // For partial refunds, the transaction remains 'completed' so
+            // further refund webhooks / admin refunds are accepted.
 
             // Find or create a refund record in op_refunds to get a unique refund ID for the ledger
             $refundRepo = $this->db->fetchOne(

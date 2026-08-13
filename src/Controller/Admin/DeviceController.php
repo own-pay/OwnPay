@@ -169,6 +169,18 @@ final class DeviceController
                 return Response::json(['success' => false, 'error' => $result['error']]);
             }
 
+            // Audit-trail the pairing-OTP generation. The previous implementation
+            // silently minted OTPs with no record of who initiated the pairing
+            // flow — a revoked admin could keep generating fresh OTPs and there
+            // was no breadcrumb in op_audit_logs to correlate against.
+            $this->audit->log(
+                'mobile.pairing_otp.generated',
+                'devices',
+                $mid,
+                null,
+                ['admin_id' => $adminId]
+            );
+
             // Generate QR Code SVG base64 URI
             $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
             if (!$urlService instanceof \OwnPay\Service\Domain\DomainUrlService) {
@@ -243,7 +255,7 @@ final class DeviceController
             throw new \RuntimeException('No active brand found.');
         }
 
-        $svc->revoke($uuid, $mid);
+        $svc->revoke($uuid, $mid, $this->session->userId());
         $this->session->flashSuccess('Device revoked');
         return Response::redirect('/admin/devices');
     }
@@ -277,9 +289,10 @@ final class DeviceController
         $ids = is_array($idsVal) ? $idsVal : [];
         if (!empty($ids)) {
             $count = 0;
+            $adminId = $this->session->userId();
             foreach ($ids as $uuid) {
                 if (is_string($uuid)) {
-                    $svc->revoke($uuid, $mid);
+                    $svc->revoke($uuid, $mid, $adminId);
                     $count++;
                 }
             }

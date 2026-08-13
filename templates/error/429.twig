@@ -42,7 +42,7 @@
 
     <script nonce="{{ csp_nonce }}">
         (function() {
-            var retryAfter = parseInt("{{ retry_after }}", 10) || 60;
+            var retryAfter = {{ retry_after|default(60)|int }};
             var countdownEl = document.getElementById("countdown");
             var retryBtn = document.getElementById("retry-btn");
             var timerBox = document.getElementById("timer-box");
