@@ -162,8 +162,11 @@ final class PaymentIntentCheckoutController
         if ($intentStatus === 'processing') {
             $intentIdVal = $intent['id'] ?? 0;
             $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
-            if ($this->intents->reactivateForRetry($token)) {
-                $this->txnRepo->reactivateForRetryByIntentId($intentId);
+            // REPO-6 (issue #461): reactivateForRetry now requires merchant_id for tenant scoping.
+            $reactivateMidVal = $intent['merchant_id'] ?? 0;
+            $reactivateMid = (is_int($reactivateMidVal) || is_string($reactivateMidVal)) ? (int) $reactivateMidVal : 0;
+            if ($reactivateMid > 0 && $this->intents->reactivateForRetry($token, $reactivateMid)) {
+                $this->txnRepo->reactivateForRetryByIntentId($intentId, $reactivateMid);
                 $intent = $this->paymentService->findByToken($token);
                 if (!$intent) {
                     return $this->renderStatus($token, 'expired');
@@ -1048,6 +1051,44 @@ final class PaymentIntentCheckoutController
 
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+
+        // PAY-3: Guard the cancel against non-cancellable intent states. The
+        // previous implementation unconditionally set status='cancelled'
+        // whether the intent was pending, processing (gateway in-flight),
+        // completed, paid, or expired. A customer holding the intent token
+        // (exposed in the checkout URL /checkout/intent/{token}) could POST
+        // to /cancel after a successful payment and mark the intent
+        // cancelled, producing state inconsistency: txn completed but intent
+        // cancelled. For `processing` intents we additionally gate on the
+        // absence of an in-flight transaction — if a txn has already moved
+        // past `pending` (e.g. `processing` / `awaiting_verification` /
+        // `completed`) the gateway callback is in flight and we must not
+        // flip the intent to cancelled.
+        $currentStatusVal = $intent['status'] ?? '';
+        $currentStatus = is_string($currentStatusVal) ? $currentStatusVal : '';
+        $cancellable = ['pending', 'processing'];
+        if (!in_array($currentStatus, $cancellable, true)) {
+            // Render the actual current status so the customer sees the real
+            // state (paid / expired / etc.) instead of a misleading cancelled.
+            return $this->renderStatus($token, $currentStatus !== '' ? $currentStatus : 'expired', $intent);
+        }
+
+        if ($currentStatus === 'processing') {
+            // Refuse to cancel if any child transaction has progressed past
+            // `pending` — the gateway is in flight and the cancel would race
+            // the success callback.
+            $inFlightTxn = $this->db->fetchOne(
+                "SELECT id FROM op_transactions
+                 WHERE payment_intent_id = :pi AND merchant_id = :mid
+                   AND status NOT IN ('pending','cancelled')
+                 LIMIT 1",
+                ['pi' => $intentId, 'mid' => $mid]
+            );
+            if (is_array($inFlightTxn) && isset($inFlightTxn['id'])) {
+                return $this->renderStatus($token, 'processing', $intent);
+            }
+        }
+
         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'cancelled']);
 
         // Terminate active child transactions mapped to the cancelled checkout intent.
@@ -1083,6 +1124,31 @@ final class PaymentIntentCheckoutController
         $intent = $this->paymentService->findByToken($token);
 
         if (!$intent) {
+            return $this->renderStatus($token, 'expired');
+        }
+
+        // Issue #344 (PAY-16): enforce the same HMAC handshake that pay(),
+        // expressPay(), and cancel() require, so that anyone with only the
+        // intent token (from a shared screenshot, referrer leak, or log file)
+        // cannot POST arbitrary sender_number / transaction_id values to
+        // overwrite the metadata.verification block on a transaction they do
+        // not own. Mirrors the check added to CheckoutController::manualVerify().
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
+        $expectedHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+            }
             return $this->renderStatus($token, 'expired');
         }
 

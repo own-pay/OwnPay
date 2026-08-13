@@ -693,7 +693,7 @@ final class GatewayController
             'payment_number'   => InputSanitizer::string(is_string($paymentNumberVal) ? $paymentNumberVal : ''),
             'min_amount'       => InputSanitizer::decimal(is_string($minVal) ? $minVal : '0'),
             'max_amount'       => InputSanitizer::decimal(is_string($maxVal) ? $maxVal : '0'),
-            'sms_verification' => 1,
+            'sms_verification' => (int) !empty($data['sms_verification']),
             'sms_sender_pattern' => InputSanitizer::string(is_string($smsSenderPatternVal) ? $smsSenderPatternVal : ''),
             'sms_regex_template' => InputSanitizer::string(is_string($smsRegexTemplateVal) ? $smsRegexTemplateVal : ''),
         ];
@@ -772,6 +772,16 @@ final class GatewayController
         $slugVal = $data['slug'] ?? '';
         if (!$isEdit && !empty($slugVal) && is_string($slugVal) && !preg_match('/^[a-z0-9\-]+$/', $slugVal)) {
             $errors[] = 'Slug must be lowercase alphanumeric with hyphens only';
+        }
+        $smsVerificationVal = $data['sms_verification'] ?? null;
+        if ($smsVerificationVal !== null
+            && $smsVerificationVal !== ''
+            && $smsVerificationVal !== 0
+            && $smsVerificationVal !== 1
+            && $smsVerificationVal !== '0'
+            && $smsVerificationVal !== '1'
+        ) {
+            $errors[] = 'SMS verification must be 0 or 1';
         }
         return $errors;
     }

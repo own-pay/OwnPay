@@ -29,6 +29,18 @@ final class WebhookDispatcher
     private const RETRY_DELAYS = [60, 300, 1800];
 
     /**
+     * Maximum synchronous sleep applied between retry attempts, in seconds.
+     *
+     * The dispatcher runs inside an HTTP request thread, so sleeping for the
+     * full configured backoff (up to 1800s) would exceed PHP's
+     * max_execution_time on most installs. We cap the synchronous sleep at
+     * 10s to provide meaningful backoff without exhausting the request
+     * thread. Operators who need the full 60/300/1800s schedule should wire
+     * the dispatcher to a background queue (see API-2 audit finding).
+     */
+    private const SYNC_RETRY_CAP = 10;
+
+    /**
      * The core database manager.
      */
     private Database $db;
@@ -310,8 +322,29 @@ final class WebhookDispatcher
 
             if ($attempt < self::MAX_RETRIES) {
                 /** @phpstan-ignore nullCoalesce.offset */
-                $delay = self::RETRY_DELAYS[$attempt - 1] ?? 60;
-                $this->logger->warning("Webhook retry #{$attempt} for merchant={$merchantId} event={$event} delay={$delay}s");
+                $configuredDelay = self::RETRY_DELAYS[$attempt - 1] ?? 60;
+                // API-2: Actually honor the backoff. The previous implementation
+                // logged "delay=60s" but never slept — all 3 attempts fired in
+                // rapid succession, defeating the entire purpose of exponential
+                // backoff and giving operators a false sense that backoff was
+                // working.
+                //
+                // We sleep synchronously here because the dispatcher runs in an
+                // HTTP request thread and a proper async retry queue (cron
+                // worker draining op_webhook_events.next_retry_at) is the
+                // long-term fix. To avoid tying up the request thread for the
+                // full configured 60/300/1800s — which would exceed PHP's
+                // max_execution_time on most installs — we cap the synchronous
+                // sleep at self::SYNC_RETRY_CAP seconds. Operators who need the
+                // full backoff schedule should wire the dispatcher to a
+                // background queue (the existing WebhookEventController DLQ
+                // surface is the natural home for that).
+                $delay = min($configuredDelay, self::SYNC_RETRY_CAP);
+                $this->logger->warning(
+                    "Webhook retry #{$attempt} for merchant={$merchantId} event={$event} "
+                    . "delay={$delay}s (configured={$configuredDelay}s, capped for sync dispatch)"
+                );
+                sleep($delay);
             }
         }
 

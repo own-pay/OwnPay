@@ -109,8 +109,6 @@ final class CheckoutController
         // picking a gateway or from the external gateway's own page) rather than the gateway's
         // own return URL (which always targets /status). Nothing was confirmed at the gateway,
         // so let them pick again instead of getting stuck on a permanent "processing" screen.
-        $this->txnRepo->reactivateForRetry($ref);
-
         $txn = $this->txnRepo->findActiveForCheckout($ref);
 
         if ($txn === null) {
@@ -118,6 +116,10 @@ final class CheckoutController
         }
 
         $midVal = $txn['merchant_id'] ?? 0;
+        $midForReactivate = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        if ($midForReactivate > 0) {
+            $this->txnRepo->reactivateForRetry($ref, $midForReactivate);
+        }
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
         // Verify that the transaction merchant matches the resolved host domain merchant (prevent Cross-Brand Leakage)
@@ -176,11 +178,11 @@ final class CheckoutController
                     $linkExpiresAt = is_string($linkExpiresAtVal) ? $linkExpiresAtVal : '';
                     if ($linkStatus !== 'active'
                         || ($linkExpiresAt !== '' && DateHelper::isPast($linkExpiresAt))) {
-                        $this->txnRepo->cancelByTrxId($txnTrxId);
+                        $this->txnRepo->cancelByTrxId($txnTrxId, $mid);
                         return $this->renderStatus($ref, 'expired');
                     }
                 } else {
-                    $this->txnRepo->cancelByTrxId($txnTrxId);
+                    $this->txnRepo->cancelByTrxId($txnTrxId, $mid);
                     return $this->renderStatus($ref, 'expired');
                 }
             }
@@ -563,14 +565,14 @@ final class CheckoutController
                     $linkExpiresAt = is_string($linkExpiresAtVal) ? $linkExpiresAtVal : '';
                     if ($linkStatus !== 'active'
                         || ($linkExpiresAt !== '' && DateHelper::isPast($linkExpiresAt))) {
-                        $this->txnRepo->cancelByTrxId($txnTrxId);
+                        $this->txnRepo->cancelByTrxId($txnTrxId, $mid);
                         if ($req->isAjax()) {
                             return Response::json(['success' => false, 'error' => 'Payment link has expired.'], 410);
                         }
                         return $this->renderStatus($token, 'expired');
                     }
                 } else {
-                    $this->txnRepo->cancelByTrxId($txnTrxId);
+                    $this->txnRepo->cancelByTrxId($txnTrxId, $mid);
                     if ($req->isAjax()) {
                         return Response::json(['success' => false, 'error' => 'Payment link has expired.'], 410);
                     }
@@ -802,7 +804,7 @@ final class CheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        $this->txnRepo->cancelByTrxId($token);
+        $this->txnRepo->cancelByTrxId($token, $mid);
         $this->events->doAction('checkout.cancelled', $token);
         return $this->renderStatus($token, 'cancelled');
     }
@@ -933,6 +935,26 @@ final class CheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
+        // Issue #344 (PAY-16): enforce the same HMAC handshake that pay() and
+        // expressPay() require, so that anyone with only the trx token (from a
+        // shared screenshot, referrer leak, or log file) cannot POST arbitrary
+        // sender_number / transaction_id values to overwrite the
+        // metadata.verification block on a transaction they do not own.
+        $txnAmountVal = $txn['amount'] ?? '0';
+        $txnAmount = (is_string($txnAmountVal) || is_int($txnAmountVal) || is_float($txnAmountVal)) ? (string) $txnAmountVal : '0';
+        $txnCurrencyVal = $txn['currency'] ?? 'BDT';
+        $txnCurrency = is_string($txnCurrencyVal) ? $txnCurrencyVal : 'BDT';
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
+        $hmacKey = $this->resolveHmacKey();
+        $expectedHash = hash_hmac('sha256', $txnAmount . '|' . $txnCurrency . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+            }
+            return $this->renderStatus($token, 'expired');
+        }
+
         $senderNumberRaw = $req->input('sender_number', '');
         $senderNumber = is_string($senderNumberRaw) ? trim($senderNumberRaw) : '';
 
@@ -1030,11 +1052,11 @@ final class CheckoutController
                     $linkExpiresAt = is_string($linkExpiresAtVal) ? $linkExpiresAtVal : '';
                     if ($linkStatus !== 'active'
                         || ($linkExpiresAt !== '' && DateHelper::isPast($linkExpiresAt))) {
-                        $this->txnRepo->cancelByTrxId($txnTrxId);
+                        $this->txnRepo->cancelByTrxId($txnTrxId, $midInt);
                         return Response::json(['success' => false, 'error' => 'Payment link has expired.'], 410);
                     }
                 } else {
-                    $this->txnRepo->cancelByTrxId($txnTrxId);
+                    $this->txnRepo->cancelByTrxId($txnTrxId, $midInt);
                     return Response::json(['success' => false, 'error' => 'Payment link has expired.'], 410);
                 }
             }

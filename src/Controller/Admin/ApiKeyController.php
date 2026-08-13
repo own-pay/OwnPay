@@ -105,6 +105,22 @@ final class ApiKeyController
             }
         }
 
+        // Security: the 'admin' scope grants unrestricted access to every
+        // /api/v1/admin/* endpoint (AdminBearerAuthMiddleware only checks for
+        // the 'admin' scope string, not for specific permissions). Allowing any
+        // staff member with the 'api_keys.manage' permission to mint an
+        // admin-scoped key would let them self-elevate to full admin-api
+        // control without their role actually holding the underlying
+        // permissions (devices.manage, sms.manage, etc.).
+        // Restrict the 'admin' scope to superadmins only — the same guard that
+        // RolesController::update() applies via $_SESSION['is_superadmin'].
+        // Non-superadmins can still mint read/write keys for routine work.
+        // See audit finding CUS-5 / issue #198.
+        if (in_array('admin', $scopes, true) && !$this->session->isSuperadmin()) {
+            $this->session->flashError('Only superadmins can generate admin-scoped API keys.');
+            return Response::redirect('/admin/developer');
+        }
+
         $key = $this->keys->generate($mid, $label, $scopes);
 
         $_SESSION['_generated_api_key'] = $key['key'];

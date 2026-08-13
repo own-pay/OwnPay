@@ -57,7 +57,6 @@ final class TwigExtensions extends AbstractExtension
             new TwigFunction('csrf_token', [$this, 'csrfToken'], ['is_safe' => ['html']]),
             new TwigFunction('csrf_field', [$this, 'csrfField'], ['is_safe' => ['html']]),
             new TwigFunction('asset', [$this, 'asset']),
-            new TwigFunction('env', [$this, 'env']),
             new TwigFunction('hook', [$this, 'hook'], ['is_safe' => ['html']]),
             new TwigFunction('hook_filter', [$this, 'hookFilter']),
             new TwigFunction('app_name', [$this, 'appName']),
@@ -134,18 +133,6 @@ final class TwigExtensions extends AbstractExtension
     }
 
     /**
-     * Fetch a key from environment configuration variables.
-     *
-     * @param string $key The key name of the environment variable.
-     * @param string $default The fallback value if key does not exist.
-     * @return string The configuration value or its default fallback.
-     */
-    public function env(string $key, string $default = ''): string
-    {
-        return (string) (getenv($key) ?: $default);
-    }
-
-    /**
      * Execute an action hook and capture all output buffer content.
      *
      * Enforces enterprise script-injection filters to sanitize plugin outputs,
@@ -199,18 +186,30 @@ final class TwigExtensions extends AbstractExtension
     {
         for ($pass = 0; $pass < 10; $pass++) {
             $before = $output;
+            // VW-2: 'style' is now in the stripped-tags list. CSS is
+            // Turing-complete enough for content exfiltration via
+            // selectors like input[value^="a"]{background:url(...)};
+            // leaving <style> in the output lets a compromised plugin
+            // leak CSRF tokens / password fields / API keys character by
+            // character to an attacker server via background-image hits.
             $output = preg_replace(
-                '/<\s*(script|iframe|object|embed|form|base|meta|link)[^>]*>.*?<\s*\/\s*\1\s*>/is',
+                '/<\s*(script|iframe|object|embed|form|base|meta|link|style)[^>]*>.*?<\s*\/\s*\1\s*>/is',
                 '',
                 $output
             ) ?? $output;
             $output = preg_replace(
-                '/<\s*(script|iframe|object|embed|form|base|meta|link)[^>]*\/?>/i',
+                '/<\s*(script|iframe|object|embed|form|base|meta|link|style)[^>]*\/?>/i',
                 '',
                 $output
             ) ?? $output;
             $output = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $output) ?? $output;
-            $output = preg_replace('/(?:href|src)\s*=\s*["\']?\s*javascript:[^"\'\s>]*["\']?/i', '', $output) ?? $output;
+            // VW-2: strip data: URIs in href/src alongside javascript:.
+            // Browsers will navigate to data:text/html,<script>...</script>
+            // when a user clicks, executing script in the origin's context
+            // (subject to CSP). The previous filter only blocked
+            // javascript: URIs, leaving data: as a phishing/script-exec
+            // vector.
+            $output = preg_replace('/(?:href|src)\s*=\s*["\']?\s*(?:javascript|data):[^"\'\s>]*["\']?/i', '', $output) ?? $output;
             if ($output === $before) {
                 return $output;
             }

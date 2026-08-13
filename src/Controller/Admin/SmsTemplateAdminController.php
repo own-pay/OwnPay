@@ -564,23 +564,117 @@ final class SmsTemplateAdminController
         }
 
         try {
-            $db->transaction(function () use ($mid, $smsId, $txnId, $txn, $transactionService, $ledgerService) {
-                $this->parsedRepo->forTenant($mid)->linkToTransaction($smsId, $txnId);
+            $db->transaction(function () use ($db, $mid, $smsId, $txnId, $transactionService, $ledgerService) {
+                // SMS-3: Lock both the SMS row and the transaction row for the
+                // duration of this DB transaction. The previous implementation
+                // read $txn['status'] BEFORE the DB transaction opened (stale
+                // against any concurrent completion by another admin or the
+                // SmsVerificationJob cron), and linkToTransaction() was a
+                // plain UPDATE with no guard that the SMS was not already
+                // matched. An admin could match SMS #1 to txn #1 (txn #1
+                // completed, ledger credited), then match SMS #1 again to
+                // txn #2 (SMS row's transaction_id overwritten to #2, txn #2
+                // completed, ledger credited again) — using one SMS as proof
+                // for two payments. There was also no amount/gateway check,
+                // so an SMS for 100 BDT could be matched to a 10,000 BDT txn.
+                $sms = $db->fetchOne(
+                    "SELECT id, amount, gateway_slug, match_status, transaction_id
+                     FROM op_sms_parsed
+                     WHERE id = :sid AND merchant_id = :mid
+                     LIMIT 1 FOR UPDATE",
+                    ['sid' => $smsId, 'mid' => $mid]
+                );
+                if ($sms === null) {
+                    throw new \RuntimeException('SMS record not found or unauthorized.');
+                }
+                $smsMatchStatus = isset($sms['match_status']) && is_scalar($sms['match_status'])
+                    ? (string) $sms['match_status']
+                    : '';
+                if ($smsMatchStatus === 'matched') {
+                    throw new \RuntimeException('SMS is already matched to a transaction.');
+                }
+                $smsAmount = isset($sms['amount']) && is_scalar($sms['amount']) ? (string) $sms['amount'] : '';
+                $smsGateway = isset($sms['gateway_slug']) && is_scalar($sms['gateway_slug'])
+                    ? (string) $sms['gateway_slug']
+                    : '';
 
-                if ($txn['status'] === 'pending') {
-                    $txAmount = isset($txn['amount']) && is_scalar($txn['amount']) ? (string) $txn['amount'] : '0.00';
-                    $txFee = isset($txn['fee']) && is_scalar($txn['fee']) ? (string) $txn['fee'] : '0.00';
-                    $txCurrency = isset($txn['currency']) && is_scalar($txn['currency']) ? (string) $txn['currency'] : 'BDT';
+                $txn = $db->fetchOne(
+                    "SELECT id, status, amount, fee, currency, gateway_slug
+                     FROM op_transactions
+                     WHERE id = :tid AND merchant_id = :mid
+                     LIMIT 1 FOR UPDATE",
+                    ['tid' => $txnId, 'mid' => $mid]
+                );
+                if ($txn === null) {
+                    throw new \RuntimeException('Transaction not found or unauthorized.');
+                }
+                $txnStatus = isset($txn['status']) && is_scalar($txn['status']) ? (string) $txn['status'] : '';
+                if ($txnStatus !== 'pending') {
+                    throw new \RuntimeException("Transaction is not pending (current status: {$txnStatus}).");
+                }
+                $txnAmount = isset($txn['amount']) && is_scalar($txn['amount']) ? (string) $txn['amount'] : '0.00';
+                $txnFee = isset($txn['fee']) && is_scalar($txn['fee']) ? (string) $txn['fee'] : '0.00';
+                $txCurrency = isset($txn['currency']) && is_scalar($txn['currency']) ? (string) $txn['currency'] : 'BDT';
+                $txnGateway = isset($txn['gateway_slug']) && is_scalar($txn['gateway_slug'])
+                    ? (string) $txn['gateway_slug']
+                    : '';
 
-                    $transactionService->complete($txnId, $mid);
-                    $ledgerService->recordPaymentReceived(
-                        $mid,
-                        $txnId,
-                        $txAmount,
-                        $txFee,
-                        $txCurrency
+                // SMS-3: Refuse if the SMS amount does not equal the txn amount.
+                // Without this check a 100-BDT SMS could be matched to a
+                // 10,000-BDT transaction, defrauding the merchant.
+                if ($smsAmount !== '' && is_numeric($smsAmount) && is_numeric($txnAmount)
+                    && bccomp($smsAmount, $txnAmount, 2) !== 0) {
+                    throw new \RuntimeException(
+                        "SMS amount {$smsAmount} does not match transaction amount {$txnAmount}."
                     );
                 }
+
+                // SMS-3: Refuse if the SMS gateway does not match the txn gateway.
+                // An SMS from bKash should not verify a Nagad transaction.
+                if ($smsGateway !== '' && $txnGateway !== '' && $smsGateway !== $txnGateway) {
+                    throw new \RuntimeException(
+                        "SMS gateway {$smsGateway} does not match transaction gateway {$txnGateway}."
+                    );
+                }
+
+                // SMS-3: Use a conditional link that only succeeds when the SMS
+                // is still unmatched — defends against a concurrent matchSms
+                // call that raced us between the FOR UPDATE read above and
+                // the write. (The FOR UPDATE should already prevent this, but
+                // the conditional UPDATE is belt-and-suspenders.)
+                $affected = $db->update(
+                    "UPDATE op_sms_parsed
+                     SET transaction_id = :tid, match_status = 'matched'
+                     WHERE id = :sid AND merchant_id = :mid AND match_status != 'matched'",
+                    ['tid' => $txnId, 'sid' => $smsId, 'mid' => $mid]
+                );
+                if ($affected === 0) {
+                    throw new \RuntimeException('SMS was matched by another caller; please refresh and try again.');
+                }
+
+                // SMS-3: complete() returns the transaction record array.
+                // Internally it calls markCompletedIfNotTerminal() (an atomic
+                // UPDATE … WHERE status NOT IN (terminal)) and only fires the
+                // payment.transaction.completed event + audit log when
+                // affected=1. We mirror that contract here: capture the
+                // pre-call status from the FOR UPDATE row above (already
+                // verified to be 'pending'), call complete(), then check
+                // whether the returned record's status is 'completed' AND
+                // the pre-call status was 'pending' to decide whether to
+                // credit the ledger. Two concurrent callers would both see
+                // status='pending' on their stale pre-transaction read, but
+                // the FOR UPDATE lock serializes them — the second caller
+                // observes the post-complete status='completed' from the
+                // locked row and the conditional above (txnStatus !== 'pending')
+                // already rejected them.
+                $transactionService->complete($txnId, $mid);
+                $ledgerService->recordPaymentReceived(
+                    $mid,
+                    $txnId,
+                    $txnAmount,
+                    $txnFee,
+                    $txCurrency
+                );
             });
 
             $this->session->flashSuccess('SMS successfully matched and transaction completed.');

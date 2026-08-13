@@ -9,6 +9,9 @@ on:
   schedule:
     - cron: '35 19 * * 0'
 
+# Minimum permissions for the workflow — CodeQL flagged the absence
+# of this block in PR #120. The default GITHUB_TOKEN otherwise grants
+# contents:write, pull-requests:write, etc.
 permissions:
   contents: read
 
@@ -23,11 +26,38 @@ jobs:
     steps:
       # Checkout the repository to the GitHub Actions runner
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
+      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis.
+      #
+      # continue-on-error is set because the Codacy CLI v4.x ships several
+      # sub-tools (pmd, phpmd, stylelint, eslint, metrics) that frequently
+      # crash on real-world PHP/JS codebases (e.g. "Argument list too long"
+      # for phpmd, "ConfigurationNotFoundError" for eslint when scanning
+      # subdirectories without an eslint config, PDepend AST failures, etc.).
+      # When any sub-tool crashes the CLI exits with code 1, even though it
+      # has already produced a valid results.sarif for the tools that did
+      # succeed. Wrapping the step with continue-on-error lets the workflow
+      # still upload whatever SARIF was produced, instead of failing the
+      # entire pipeline.
+      #
+      # tool-timeout bounds each sub-tool to 3 minutes. The Codacy CLI v7.9.x
+      # runs ~27 Docker-based sub-tools (codacy-codesniffer, codacy-php-cs-fixer,
+      # codacy-biomejs, codacy-eslint9, codacy-pmd, codacy-jshint, etc.).
+      # Without a per-tool timeout the worst-case runtime is ~60 minutes.
+      #
+      # NOTE: Codacy CLI v7.9.x changed --tool-timeout to require a duration
+      # string (e.g. "3minutes", "180seconds") instead of a bare integer.
+      # The codacy-analysis-cli-action@v4 wrapper passes the value
+      # through verbatim, so we use "3minutes" here.
+      #
+      # timeout-minutes is a GitHub Actions step-level safeguard that kills
+      # the entire step (not just one sub-tool) if the CLI hangs for any
+      # reason not covered by --tool-timeout (e.g. SARIF post-processing
+      # hangs, network stall while pulling a Docker image, etc.). 25 minutes
+      # is comfortably above the observed ~17-minute full run on OwnPay.
       - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@d840f886c4bd4edc059706d09c6a1586111c540b
+        uses: codacy/codacy-analysis-cli-action@v4
         with:
           # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
           # You can also omit the token and run the tools that support default configurations
@@ -40,28 +70,49 @@ jobs:
           # Force 0 exit code to allow SARIF file generation
           # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
+          # Per-tool timeout. Default is 600 seconds (10 min).
+          tool-timeout: 3minutes
+        continue-on-error: true
+        timeout-minutes: 25
 
-      # Verify the SARIF file was produced before attempting to upload it.
-      # The Codacy CLI has been observed to crash mid-run with
-      # `java.nio.charset.MalformedInputException: Input length = 2`
-      # (raised by the SARIF formatter when it encounters a source file
-      # whose bytes cannot be decoded as UTF-8). When that happens the
-      # `results.sarif` file is either absent or truncated, and the
-      # subsequent `upload-sarif` step fails with "Path does not exist".
-      # Guarding the upload with `if: always() && hashFiles(...)` keeps
-      # the workflow green even when Codacy itself crashes, while still
-      # uploading valid results when they are produced.
-      - name: Verify SARIF file exists
+      # Verify the SARIF file was produced AND is valid JSON before attempting
+      # to upload it.
+      #
+      # The Codacy CLI has been observed to:
+      #   1. Crash mid-run with `java.nio.charset.MalformedInputException`
+      #      when the SARIF formatter hits a non-UTF-8 source file.
+      #   2. Exit non-zero (see comment above) but still write a valid SARIF.
+      #   3. Exit non-zero and leave an EMPTY results.sarif behind.
+      #
+      # The previous guard only checked `-s` (non-empty), which still passed
+      # for a 0-byte file. We now also validate that the file parses as JSON.
+      # The step sets a step output (`valid`) used by the upload step below
+      # so we skip the upload entirely when the SARIF is missing or broken.
+      - name: Verify SARIF file is valid
+        id: verify_sarif
+        if: always()
         run: |
           if [ ! -s results.sarif ]; then
             echo "::warning::Codacy did not produce a non-empty results.sarif file (likely a charset error in the Codacy CLI). Skipping SARIF upload."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "results.sarif is present ($(wc -c < results.sarif) bytes)."
+          if ! python3 -c "import json,sys; json.load(open('results.sarif'))" 2>/dev/null; then
+            echo "::warning::results.sarif is not valid JSON (Codacy CLI likely crashed mid-write). Skipping SARIF upload."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "results.sarif is present ($(wc -c < results.sarif) bytes) and valid JSON."
+          echo "valid=true" >> "$GITHUB_OUTPUT"
 
-      # Upload the SARIF file generated in the previous step
+      # Upload the SARIF file generated in the previous step.
+      # CodeQL Action v4 is required — v3 is being deprecated in December 2026
+      # (see https://github.blog/changelog/2025-10-28-upcoming-deprecation-of-codeql-action-v3/).
       - name: Upload SARIF results file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
-        if: always() && hashFiles('results.sarif') != ''
+        # Only upload when the verify step explicitly confirmed the SARIF
+        # is present AND parses as valid JSON. `always()` is required so
+        # the step still evaluates when the Codacy CLI step failed.
+        if: always() && steps.verify_sarif.outputs.valid == 'true'

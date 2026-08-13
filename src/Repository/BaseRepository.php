@@ -150,7 +150,10 @@ abstract class BaseRepository
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
         // (REPO-2) Shared safety check: reject forbidden SQL structures in $where.
-        $this->validateWhereClause($where);
+        // The helper also implements the REPO-1 conditional-comment defence
+        // (checks both the original and cleaned WHERE clause for keywords) and
+        // returns the cleaned WHERE for execution.
+        $cleanedWhere = $this->validateWhereClause($where);
 
         $safeOrder = $this->sanitizeOrderBy($orderBy);
         $page = max(1, (int) $page);
@@ -159,14 +162,16 @@ abstract class BaseRepository
         $perPage = $this->clampPerPage($perPage);
         $offset = ($page - 1) * $perPage;
 
+        // REPO-1: execute against $cleanedWhere (comments stripped), not the
+        // original $where. This neutralizes conditional comments.
         $totalVal = $this->db->fetchColumn(
-            "SELECT COUNT(*) FROM {$this->table} WHERE {$where}",
+            "SELECT COUNT(*) FROM {$this->table} WHERE {$cleanedWhere}",
             $params
         );
         $total = is_scalar($totalVal) ? (int) $totalVal : 0;
 
         $items = $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY {$safeOrder} LIMIT :lim OFFSET :off",
+            "SELECT * FROM {$this->table} WHERE {$cleanedWhere} ORDER BY {$safeOrder} LIMIT :lim OFFSET :off",
             array_merge($params, ['lim' => $perPage, 'off' => $offset])
         );
 
@@ -195,13 +200,15 @@ abstract class BaseRepository
         // (REPO-2) Apply the same forbidden-keyword / comment-strip check as
         // paginate() so a caller that interpolates user input into $where
         // cannot bypass the guard by routing through cursorPaginate().
-        $this->validateWhereClause($where);
+        // REPO-1: execute against the cleaned $where (comments stripped) to
+        // neutralise MySQL conditional comments.
+        $cleanedWhere = $this->validateWhereClause($where);
 
         // (REPO-3) Same $perPage clamp as paginate(); the +1 lookahead below
         // would otherwise inflate a 1M cap to a 1,000,001-row fetch.
         $perPage = $this->clampPerPage($perPage);
 
-        $sql = "SELECT * FROM {$this->table} WHERE {$where}";
+        $sql = "SELECT * FROM {$this->table} WHERE {$cleanedWhere}";
         if ($afterId !== null) {
             $sql .= " AND {$this->primaryKey} < :cursor";
             $params['cursor'] = $afterId;
@@ -356,7 +363,7 @@ abstract class BaseRepository
 
     /**
      * Validates a raw SQL WHERE clause fragment before it is concatenated
-     * into a query.
+     * into a query, and returns a comment-stripped version safe for execution.
      *
      * Defence-in-depth (REPO-2): every public method that interpolates a
      * caller-supplied $where string (paginate(), cursorPaginate()) routes
@@ -364,29 +371,57 @@ abstract class BaseRepository
      * a different pagination method. The check is NOT a substitute for
      * parameterized binds - callers must always pass user input via $params.
      *
-     * Strips SQL comments (block `/* ... *\/` and line `-- ...`) which could
-     * be used to break keyword matching, then rejects dangerous command
+     * REPO-1: returns the cleaned $where (block and line comments stripped)
+     * so the caller can execute against the stripped version rather than the
+     * original. This neutralises MySQL conditional comments (e.g. the
+     * `/*!50000 ... * /` form with the space removed) which would otherwise
+     * execute despite being stripped from the keyword check. Strips SQL
+     * comments (block `/* ... * /` and line `-- ...`) which could be used
+     * to break keyword matching, then rejects dangerous command
      * keywords, statement terminators, and inline comment markers.
      *
      * @param string $where Raw SQL WHERE clause fragment.
+     * @return string The cleaned WHERE clause (comments stripped) safe for execution.
      * @throws \InvalidArgumentException If the WHERE clause contains forbidden SQL structures or injection patterns.
      */
-    protected function validateWhereClause(string $where): void
+    protected function validateWhereClause(string $where): string
     {
+        // REPO-1: defence-in-depth against conditional-comment SQL injection.
+        //
+        // MySQL treats `/*!50000 ... */` as a conditional comment that executes
+        // the enclosed SQL only if the server version >= 5.00.00 (essentially
+        // always). A naive check that runs keyword matching against the
+        // comment-stripped $where only would miss an injection like
+        //   WHERE id=1/*!50000 UNION*//*!50000 SELECT * FROM op_users*/
+        // because the stripped version becomes `WHERE id=1` (passes) while the
+        // executed SQL becomes `WHERE id=1 UNION SELECT * FROM op_users`.
+        //
+        // Fix: run the keyword check against BOTH the original $where and the
+        // cleaned version, so conditional-comment-embedded keywords are caught
+        // before stripping.
+
         // Strip SQL comments to prevent bypass via inline sequences.
         $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
         $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
 
         // Collapse all whitespace and lowercase for consistent safety verification.
         $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
+        $lowerOriginalWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($where)));
 
         // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
+        // Check against BOTH the cleaned $where AND the original $where so that
+        // conditional-comment-embedded keywords (/*!50000 UNION*/) are caught
+        // before stripping.
         if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere)
+            || preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $where)
             || str_contains($lowerWhere, ';')
             || str_contains($lowerWhere, '--')
+            || str_contains($lowerOriginalWhere, ';')
         ) {
             throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
         }
+
+        return $cleanedWhere;
     }
 
     /**

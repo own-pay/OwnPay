@@ -298,7 +298,7 @@ final class Plugin implements PluginInterface, SmsProviderInterface
             if (!$commService instanceof CommunicationService) {
                 return;
             }
-            $rendered = $commService->renderTemplate($template, $vars);
+            $rendered = $commService->renderTemplate($template, $vars, 'text');
 
             // Dispatch through the central sendSms mechanism
             $commService->sendSms($merchantId, $to, $rendered);
@@ -409,7 +409,7 @@ final class Plugin implements PluginInterface, SmsProviderInterface
             if (!$commService instanceof CommunicationService) {
                 return;
             }
-            $rendered = $commService->renderTemplate($template, $vars);
+            $rendered = $commService->renderTemplate($template, $vars, 'text');
 
             // Dispatch through the central sendSms mechanism
             $commService->sendSms($merchantId, $to, $rendered);

@@ -465,18 +465,48 @@ final class Request
         $remoteAddr = $this->server('REMOTE_ADDR', '0.0.0.0');
 
         if ($this->isTrustedProxy($remoteAddr)) {
-            // X-Forwarded-For: client, proxy1, proxy2 - leftmost is original client.
+            // SEC-3: Walk the X-Forwarded-For chain right-to-left and return
+            // the rightmost IP that is NOT a trusted proxy — that is the IP
+            // set by the last trusted proxy in the chain, i.e. the real
+            // client as seen by our trusted edge.
+            //
+            // The previous implementation returned $ips[0] (the leftmost
+            // entry), which is fully client-controlled: an attacker behind
+            // the trusted proxy could set X-Forwarded-For: <arbitrary-ip>
+            // on every request and ip() would return that attacker-chosen
+            // value, defeating rate limiting and IP allowlists entirely.
+            //
+            // The trusted proxy *appends* the real client IP to the right of
+            // any client-supplied value, so the rightmost non-trusted entry
+            // is the secure choice.
             $xff = $this->server('HTTP_X_FORWARDED_FOR');
             if ($xff !== '') {
                 $ips = array_map('trim', explode(',', $xff));
-                $clientIp = $ips[0];
-                // Validate IP format.
-                if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
-                    return $clientIp;
+                // Remove empty entries left by malformed headers.
+                $ips = array_values(array_filter($ips, static fn ($v) => $v !== ''));
+                for ($i = count($ips) - 1; $i >= 0; $i--) {
+                    $candidate = $ips[$i];
+                    if (filter_var($candidate, FILTER_VALIDATE_IP) === false) {
+                        // Skip malformed entries — they cannot be the real
+                        // client IP and may be injection attempts.
+                        continue;
+                    }
+                    // Skip trusted-proxy entries in the chain — the real
+                    // client is the first non-trusted IP we encounter
+                    // walking right-to-left.
+                    if ($this->isTrustedProxy($candidate)) {
+                        continue;
+                    }
+                    return $candidate;
                 }
+                // Every entry in the chain was a trusted proxy (e.g. internal
+                // hop chain with no client IP appended). Fall through to
+                // X-Real-IP / REMOTE_ADDR below.
             }
 
-            // Fallback: X-Real-IP (single IP, set by Nginx).
+            // Fallback: X-Real-IP (single IP, set by Nginx to the immediate
+            // upstream peer — also trustworthy when REMOTE_ADDR is a trusted
+            // proxy).
             $realIp = $this->server('HTTP_X_REAL_IP');
             if ($realIp !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
                 return $realIp;

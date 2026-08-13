@@ -84,6 +84,40 @@ final class FileCache implements CacheInterface
         }
     }
 
+    public function add(string $key, mixed $value, int $ttl = 3600): bool
+    {
+        // If a non-expired entry already exists, fail. get() has the side
+        // effect of deleting expired files, so a successful return here
+        // guarantees the file is either absent or has just been cleaned up.
+        if ($this->get($key) !== null) {
+            return false;
+        }
+
+        $file = $this->path($key);
+        $dir = dirname($file);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $expires = $ttl > 0 ? time() + $ttl : 0;
+        $content = serialize(['expires' => $expires, 'data' => $value]);
+
+        // Atomic create-or-fail: fopen with mode "x" creates the file only
+        // if it does not already exist; otherwise it returns false and emits
+        // an E_WARNING (suppressed via @). This closes the TOCTOU window
+        // between the get() check above and the file creation - if another
+        // process created the file in between, fopen("x") will fail and we
+        // correctly report that the add() did not succeed.
+        $handle = @fopen($file, "x");
+        if ($handle === false) {
+            return false;
+        }
+
+        fwrite($handle, $content);
+        fclose($handle);
+        return true;
+    }
+
     public function has(string $key): bool
     {
         return $this->get($key) !== null;

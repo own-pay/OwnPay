@@ -235,6 +235,26 @@ EOT;
      */
     public function execute(string $version): array
     {
+        // UPD-3: Disable PHP's max_execution_time for the duration of the
+        // update pipeline. The pipeline downloads a ZIP (cURL timeout 300s),
+        // verifies SHA-256 + RSA signature, extracts the ZIP, runs DB
+        // migrations, clears cache, and runs health checks — a process that
+        // can easily exceed 60-120 seconds. Without this, PHP's
+        // max_execution_time (default 30s, often 60s on managed hosts) fires
+        // during migration execution and kills the process mid-transaction.
+        // The finally block releases the file lock, but the catch (\Throwable)
+        // block does NOT run for a fatal "Maximum execution time exceeded"
+        // error in PHP's non-deferred shutdown path — so maintenance mode is
+        // NOT exited and the rollback is NOT triggered, leaving the system in
+        // a partially-applied state.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        // Also raise the memory limit — migrations can be memory-intensive.
+        if (function_exists('ini_set')) {
+            @ini_set('memory_limit', '512M');
+        }
+
         // Acquire an exclusive on-disk lock BEFORE the isUpdateInProgress() DB
         // check. Without it, two concurrent /admin/system-update/apply requests
         // both read "no active update", both call startUpdate(), and run the
@@ -396,6 +416,21 @@ EOT;
                     $this->events->doAction('update.rollback', $version);
                     $this->history->markRolledBack((int) $updateId, $e->getMessage());
                     $this->log("Rollback completed");
+                } catch (RestoreDatabaseException $restoreError) {
+                    // Database restore aborted mid-statement and the restore
+                    // transaction has already been rolled back inside
+                    // BackupService::restoreDatabase(). Surface the restore
+                    // failure distinctly so operators can tell a corrupt
+                    // backup / SQL failure apart from a code-archive
+                    // extraction failure.
+                    $this->log(
+                        'CRITICAL: Database restore aborted: ' . $restoreError->getMessage(),
+                        'error'
+                    );
+                    $this->history->markFailed(
+                        (int) $updateId,
+                        'Database restore aborted: ' . $restoreError->getMessage()
+                    );
                 } catch (\Throwable $rollbackError) {
                     $this->log("CRITICAL: Rollback failed: " . $rollbackError->getMessage(), 'error');
                     $this->history->markFailed((int) $updateId, 'Rollback failed: ' . $rollbackError->getMessage());
@@ -498,19 +533,40 @@ EOT;
     /**
      * Downloads the release package to a temporary file path.
      *
+     * The temp file is created under the application-private storage/.tmp/
+     * directory (mode 0700) rather than the shared system temp dir, and is
+     * immediately chmod'd to 0600 so co-located users on the host cannot read
+     * the downloaded app source ZIP while it sits on disk between download and
+     * extraction. The file is removed by extractPackage()'s finally block —
+     * even on extraction failure — so no copy of the package is left behind.
+     *
      * @param string $url Secure update download URL.
      * @return string Path to the temporary zip package.
      * @throws \RuntimeException If the file cannot be created or cURL execution fails.
      */
     protected function downloadPackage(string $url): string
     {
-        $tmpFile = sys_get_temp_dir() . '/op_update_' . bin2hex(random_bytes(8)) . '.zip';
+        $privateDir = dirname(__DIR__, 2) . '/storage/.tmp';
+        if (!is_dir($privateDir)) {
+            @mkdir($privateDir, 0700, true);
+        }
+        // Fall back to system temp dir only if the private dir is unavailable;
+        // the chmod below still keeps the file readable only by the owner.
+        $tmpFile = tempnam(is_dir($privateDir) ? $privateDir : sys_get_temp_dir(), 'op_update_');
+        if ($tmpFile === false) {
+            throw new \RuntimeException('Cannot create temp file for download');
+        }
 
         $ch = curl_init($url);
         $fp = fopen($tmpFile, 'w');
         if ($fp === false) {
+            curl_close($ch);
+            @unlink($tmpFile);
             throw new \RuntimeException('Cannot create temp file for download');
         }
+        // Restrict to owner-only read/write even though the parent dir is 0700;
+        // tempnam() honors umask, so chmod explicitly to be safe.
+        @chmod($tmpFile, 0600);
 
         curl_setopt_array($ch, [
             CURLOPT_FILE           => $fp,
@@ -545,6 +601,10 @@ EOT;
      * Extracts files from the downloaded ZIP archive into the application root.
      *
      * Validates filenames to block directory traversal attacks before writing files.
+     * The downloaded package file is always unlinked via a finally block, so it
+     * does not linger on disk if extraction throws (previously it was only
+     * removed on the success path, leaving a copy of the full app source in
+     * storage/.tmp/ when validation or extraction failed).
      *
      * @param string $zipPath Path to the downloaded package.
      * @return void
@@ -552,27 +612,32 @@ EOT;
      */
     protected function extractPackage(string $zipPath): void
     {
-        $zip = new \ZipArchive();
-        $openResult = $zip->open($zipPath);
-        if ($openResult !== true) {
-            @unlink($zipPath);
-            throw new \RuntimeException('Invalid update package (ZIP error code: ' . $openResult . ')');
-        }
-
-        $appRoot = dirname(__DIR__, 2);
-
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $name = $zip->getNameIndex($i);
-            if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')) {
-                $zip->close();
-                @unlink($zipPath);
-                throw new \RuntimeException('Update package contains unsafe paths');
+        try {
+            $zip = new \ZipArchive();
+            $openResult = $zip->open($zipPath);
+            if ($openResult !== true) {
+                throw new \RuntimeException('Invalid update package (ZIP error code: ' . $openResult . ')');
             }
-        }
 
-        $zip->extractTo($appRoot);
-        $zip->close();
-        @unlink($zipPath);
+            try {
+                $appRoot = dirname(__DIR__, 2);
+
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $name = $zip->getNameIndex($i);
+                    if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')) {
+                        throw new \RuntimeException('Update package contains unsafe paths');
+                    }
+                }
+
+                $zip->extractTo($appRoot);
+            } finally {
+                $zip->close();
+            }
+        } finally {
+            // Always remove the downloaded package, whether extraction
+            // succeeded, failed validation, or threw during zip open.
+            @unlink($zipPath);
+        }
     }
 
     /**

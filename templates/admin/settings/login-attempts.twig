@@ -50,12 +50,12 @@
                         <td data-label="Actions" class="op-text-right">
                             {% if not attempt.success %}
                             <div class="op-btn-group" style="display:inline-flex; gap:4px;">
-                                <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" onsubmit="return confirm('Clear lockout and unlock login attempts for this Email?');">
+                                <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" data-confirm="Clear lockout and unlock login attempts for this Email?">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <input type="hidden" name="email" value="{{ attempt.email }}">
                                     <button type="submit" class="op-btn op-btn-xs op-btn-outline" title="Unlock Email">Unlock Email</button>
                                 </form>
-                                <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" onsubmit="return confirm('Clear lockout and unlock login attempts for this IP?');">
+                                <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" data-confirm="Clear lockout and unlock login attempts for this IP?">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <input type="hidden" name="ip" value="{{ attempt.ip_address }}">
                                     <button type="submit" class="op-btn op-btn-xs op-btn-outline" title="Unlock IP">Unlock IP</button>

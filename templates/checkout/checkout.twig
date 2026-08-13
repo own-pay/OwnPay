@@ -61,8 +61,8 @@
          data-manual-gateways="{{ manual_gateways|default('{}')|escape('html_attr') }}"
          data-brand-color="{{ brand.color ?? '#0D9488' }}"
          data-brand-accent-color="{{ brand.accent_color ?? brand.color ?? '#0D9488' }}"
-         data-custom-css="{{ brand.custom_css|default('') }}"
-         data-custom-js="{{ brand.custom_js|default('') }}">
+         data-custom-css="{{ brand.custom_css|default('')|escape('html_attr') }}"
+         data-custom-js="{{ brand.custom_js|default('')|escape('html_attr') }}">
     </div>
     <div id="op-extra-fields">{{ hook('checkout.form.fields')|raw }}</div>
 
