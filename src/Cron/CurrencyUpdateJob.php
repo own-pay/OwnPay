@@ -121,6 +121,25 @@ final class CurrencyUpdateJob
                 if (!is_string($currency) || !is_scalar($rate)) {
                     continue;
                 }
+                // CRON-4: Validate that the rate is a positive finite
+                // number. The previous implementation only checked
+                // is_scalar($rate), which passes for 0, -1, "0", "abc",
+                // true, etc. A rate of 0 means a 100 USD payment converts
+                // to 0 in the target currency — the customer pays nothing.
+                // A negative rate could credit money to the merchant on a
+                // payment. A non-numeric string would be implicitly cast
+                // to 0 by MySQL's DECIMAL column. The API URL is
+                // user-configurable (exchange_rate_api_url from
+                // op_system_settings), so an admin typo or a compromised
+                // CDN endpoint could return a JSON payload where rates are
+                // 0 or negative.
+                $rateVal = (float) $rate;
+                if ($rateVal <= 0 || !is_finite($rateVal)) {
+                    // CRON-4: best-effort log via error_log since this
+                    // job does not have a Logger dependency.
+                    error_log("CurrencyUpdateJob: rejecting invalid rate for {$currency}: " . var_export($rate, true));
+                    continue;
+                }
                 $currencyUpper = strtoupper($currency);
                 if (!isset($registeredSet[$currencyUpper])) {
                     continue;

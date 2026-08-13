@@ -139,9 +139,22 @@ final class SmsVerificationJob
                     $receivedAt = isset($sms['received_at']) && is_scalar($sms['received_at']) ? (string) $sms['received_at'] : null;
 
                     if ($isAllBrands) {
-                        if ($receivedAt !== null) {
-                            $transaction = $this->transactions->findPendingMatchGlobal($amount, $gatewaySlug ?? '', $receivedAt);
-                        }
+                        // CRON-5: Removed the `if ($receivedAt !== null)` guard.
+                        // The previous implementation silently dropped amount-
+                        // matching for all-brands SMS whose parser could not
+                        // extract a timestamp (e.g. the SMS body had no
+                        // parseable date — SmsParserService::normalizeTimestamp
+                        // is documented as lossy). The corresponding pending
+                        // transaction stayed unresolved, the customer's payment
+                        // was never auto-verified, and the merchant had to
+                        // manually verify it — a silent data-loss bug affecting
+                        // only the all-brands device path (the most common
+                        // deployment for small merchants). The repository
+                        // method findPendingMatchGlobal() already handles the
+                        // null-timestamp case safely with an ambiguity-guarded
+                        // count query, so the guard was an unnecessary
+                        // restriction.
+                        $transaction = $this->transactions->findPendingMatchGlobal($amount, $gatewaySlug ?? '', $receivedAt);
                     } else {
                         $transaction = $this->transactions->findPendingMatch($smsMerchantId, $amount, $gatewaySlug ?? '', $receivedAt);
                     }
