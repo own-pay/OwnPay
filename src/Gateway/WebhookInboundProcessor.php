@@ -438,7 +438,15 @@ final class WebhookInboundProcessor
             $txnCurrency = (string) $txn['currency'];
 
             $txnAmountStr = isset($txn['amount']) && is_scalar($txn['amount']) ? (string) $txn['amount'] : '';
-            $refundAmountVal = $data['refund_amount'] ?? $data['amount'] ?? $txn['amount'] ?? null;
+            // PAY-19: Do NOT fall back to $txn['amount'] when the webhook omits the refund amount.
+            // A gateway bug or partial-payload retry that drops the amount field would otherwise
+            // trigger a full refund even if the gateway only intended a partial refund.
+            // Require the gateway to explicitly state the refund amount.
+            $refundAmountVal = $data['refund_amount'] ?? $data['amount'] ?? null;
+            if ($refundAmountVal === null) {
+                $this->logger->warning("refund.completed rejected: missing amount for transaction {$txnId}");
+                return;
+            }
             $amount = is_scalar($refundAmountVal) ? (string) $refundAmountVal : '';
             if (!is_numeric($amount) || !is_numeric($txnAmountStr)
                 || bccomp($amount, '0', 2) <= 0
