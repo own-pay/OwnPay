@@ -104,11 +104,26 @@ class Database
      * Creates and stores a singleton instance from connection parameters.
      * Used by integration tests that cannot access the DI container.
      *
-     * @param string $host   The database host.
-     * @param string $name   The database name.
-     * @param string $user   The database username.
-     * @param string $pass   The database password.
-     * @param int    $port   The database port.
+     * The default PDO option set only set errmode/fetch-mode/emulate-prepares;
+     * it omitted any connection timeout, any TLS configuration, and any
+     * persistent-connection toggle. This made remote-DB deployments either
+     * hang for the full MySQL default 10s connect_timeout during bootstrap
+     * (no application-level override) or traverse the wire in cleartext.
+     *
+     * The caller may now pass:
+     *   - $options[PDO::ATTR_TIMEOUT] (default 5) — connect timeout in seconds.
+     *   - $options[PDO::ATTR_PERSISTENT] (default false) — set true for
+     *     long-running CLI/cron workers to reuse pooled connections.
+     *   - $sslCa (path to a PEM-encoded CA bundle) — when non-null, TLS is
+     *     enabled with server-cert verification pinned to the supplied CA.
+     *
+     * @param string                                                $host    The database host.
+     * @param string                                                $name    The database name.
+     * @param string                                                $user    The database username.
+     * @param string                                                $pass    The database password.
+     * @param int                                                   $port    The database port.
+     * @param array<int, int|bool|string>                           $options PDO driver options (merged over defaults).
+     * @param string|null                                           $sslCa   Optional path to a CA bundle for TLS verification.
      * @return self The initialized Database instance.
      */
     public static function init(
@@ -116,14 +131,38 @@ class Database
         string $name,
         string $user,
         string $pass,
-        int $port = 3306
+        int $port = 3306,
+        array $options = [],
+        ?string $sslCa = null
     ): self {
         $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
-        $pdo = new PDO($dsn, $user, $pass, [
+
+        // Sensible defaults that the caller may override via $options.
+        $defaults = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
+            // Cap connect_timeout at 5s so a hung/unreachable DB fails fast
+            // during bootstrap instead of stalling the full request.
+            PDO::ATTR_TIMEOUT            => 5,
+        ];
+
+        if ($sslCa !== null && $sslCa !== '') {
+            // Enable TLS with server-cert verification pinned to the supplied
+            // CA bundle so remote-DB credentials cannot be sniffed/MITM'd.
+            $defaults[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                $defaults[\constant('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')] = true;
+            }
+        }
+
+        // Caller-provided options override the defaults.
+        $merged = $defaults;
+        foreach ($options as $key => $value) {
+            $merged[$key] = $value;
+        }
+
+        $pdo = new PDO($dsn, $user, $pass, $merged);
         self::$instance = new self($pdo);
         return self::$instance;
     }
