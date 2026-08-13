@@ -499,17 +499,26 @@ final class TransactionRepository extends BaseRepository
     /**
      * Cancels a pending or created transaction by transaction ID code.
      *
-     * Public checkout callback helper; intentionally unscoped.
+     * REPO-6 (issue #461): Added required $merchantId parameter. The trx_id is a
+     * customer-facing identifier exposed in checkout URLs, email links, and
+     * receipts — anyone who obtains it could previously cancel ANY pending
+     * transaction across ALL tenants by calling this method. The merchant_id
+     * scope ensures only the owning merchant's rows are affected.
      *
      * @param string $trxId Unique transaction identifier.
+     * @param int $merchantId Owning merchant ID (required for tenant scoping).
      * @return void
+     * @throws \InvalidArgumentException When $merchantId <= 0.
      */
-    public function cancelByTrxId(string $trxId): void
+    public function cancelByTrxId(string $trxId, int $merchantId): void
     {
+        if ($merchantId <= 0) {
+            throw new \InvalidArgumentException('cancelByTrxId requires a positive merchant_id; got ' . $merchantId);
+        }
         $this->db->execute(
             "UPDATE {$this->table} SET status = 'cancelled', updated_at = NOW()
-             WHERE trx_id = :ref AND status IN ('pending','created')",
-            ['ref' => $trxId]
+             WHERE trx_id = :ref AND merchant_id = :mid AND status IN ('pending','created')",
+            ['ref' => $trxId, 'mid' => $merchantId]
         );
     }
 
@@ -535,19 +544,29 @@ final class TransactionRepository extends BaseRepository
      * transaction's `gateway_slug` no longer matches, and is rejected - so the customer
      * cannot be "completed" by a stale webhook from a gateway they explicitly abandoned.
      *
+     * REPO-6 (issue #461): Added required $merchantId parameter. The trx_id is
+     * customer-facing and was previously unscoped — an attacker with a known trx_id
+     * could revert ANY merchant's processing transaction, causing double-charges.
+     *
      * @param string $trxId Unique transaction identifier.
+     * @param int $merchantId Owning merchant ID (required for tenant scoping).
      * @return bool True if a row was actually reverted, false if no matching `processing` row
      *              existed (or it was too recent to safely revert per the cooldown).
+     * @throws \InvalidArgumentException When $merchantId <= 0.
      */
-    public function reactivateForRetry(string $trxId): bool
+    public function reactivateForRetry(string $trxId, int $merchantId): bool
     {
+        if ($merchantId <= 0) {
+            throw new \InvalidArgumentException('reactivateForRetry requires a positive merchant_id; got ' . $merchantId);
+        }
         $stmt = $this->db->execute(
             "UPDATE {$this->table}
              SET status = 'pending', gateway_slug = '', updated_at = NOW()
              WHERE trx_id = :ref
+               AND merchant_id = :mid
                AND status = 'processing'
                AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
-            ['ref' => $trxId]
+            ['ref' => $trxId, 'mid' => $merchantId]
         );
         return $stmt->rowCount() > 0;
     }
@@ -560,18 +579,26 @@ final class TransactionRepository extends BaseRepository
      * Inherits the 10-minute cooldown and `gateway_slug` clearing behaviour of
      * {@see reactivateForRetry()} (issue #338, PAY-10).
      *
+     * REPO-6 (issue #461): Added required $merchantId parameter for tenant scoping.
+     *
      * @param int $intentId Linked `op_payment_intents.id`.
+     * @param int $merchantId Owning merchant ID (required for tenant scoping).
      * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     * @throws \InvalidArgumentException When $merchantId <= 0.
      */
-    public function reactivateForRetryByIntentId(int $intentId): bool
+    public function reactivateForRetryByIntentId(int $intentId, int $merchantId): bool
     {
+        if ($merchantId <= 0) {
+            throw new \InvalidArgumentException('reactivateForRetryByIntentId requires a positive merchant_id; got ' . $merchantId);
+        }
         $stmt = $this->db->execute(
             "UPDATE {$this->table}
              SET status = 'pending', gateway_slug = '', updated_at = NOW()
              WHERE payment_intent_id = :pi
+               AND merchant_id = :mid
                AND status = 'processing'
                AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
-            ['pi' => $intentId]
+            ['pi' => $intentId, 'mid' => $merchantId]
         );
         return $stmt->rowCount() > 0;
     }

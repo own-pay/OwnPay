@@ -162,8 +162,11 @@ final class PaymentIntentCheckoutController
         if ($intentStatus === 'processing') {
             $intentIdVal = $intent['id'] ?? 0;
             $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
-            if ($this->intents->reactivateForRetry($token)) {
-                $this->txnRepo->reactivateForRetryByIntentId($intentId);
+            // REPO-6 (issue #461): reactivateForRetry now requires merchant_id for tenant scoping.
+            $reactivateMidVal = $intent['merchant_id'] ?? 0;
+            $reactivateMid = (is_int($reactivateMidVal) || is_string($reactivateMidVal)) ? (int) $reactivateMidVal : 0;
+            if ($reactivateMid > 0 && $this->intents->reactivateForRetry($token, $reactivateMid)) {
+                $this->txnRepo->reactivateForRetryByIntentId($intentId, $reactivateMid);
                 $intent = $this->paymentService->findByToken($token);
                 if (!$intent) {
                     return $this->renderStatus($token, 'expired');
