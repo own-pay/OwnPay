@@ -1792,6 +1792,29 @@ final class SettingsController
      */
     private function sanitizeBrandCss(string $css): string
     {
+        // Decode CSS hex-escape sequences before applying the denylist
+        // (audit THM-1). Browsers decode `\65` to `e`, `\6D` to `m`, `\73`
+        // to `s`, etc. before applying the rule, so an attacker can encode
+        // keyword characters (`expr\65ssion`, `b\65havior:`, `@i\6Dport`,
+        // `url(java\73cript:)`) to evade every regex below. Normalising the
+        // escapes first makes the denylist effective against encoded
+        // payloads. Only `\` + 1-6 hex digits (optionally followed by a
+        // single whitespace) is decoded; literal escapes like `\.` or `\:`
+        // (non-hex) are left untouched so legitimate CSS identifiers still
+        // survive. Null codepoints are stripped entirely (they break the
+        // regex matchers and have no legitimate use in brand CSS).
+        $css = (string) preg_replace_callback(
+            '/\\\\([0-9a-fA-F]{1,6})\s?/u',
+            static function (array $m): string {
+                $code = (int) hexdec($m[1]);
+                if ($code === 0 || $code > 0x10FFFF) {
+                    return '';
+                }
+                return mb_chr($code, 'UTF-8');
+            },
+            $css
+        );
+
         // Strip legacy dynamic-expression / behavior-binding properties.
         $css = (string) preg_replace('/expression\s*\(/i', '(', $css);
         $css = (string) preg_replace('/-?behavior\s*:/i', 'x-behavior-disabled:', $css);
