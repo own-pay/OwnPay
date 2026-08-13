@@ -8,6 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Customer\ApiKeyService;
+use OwnPay\Service\System\AuditService;
 
 /**
  * Class ApiKeyController
@@ -36,17 +37,24 @@ final class ApiKeyController
     private ApiKeyService $keys;
 
     /**
+     * @var AuditService The application audit logging service.
+     */
+    private AuditService $audit;
+
+    /**
      * ApiKeyController constructor.
      *
      * @param Container     $c       The dependency injection container.
      * @param AdminSession  $session The administrative session service.
      * @param ApiKeyService $keys    The API key management service.
+     * @param AuditService  $audit   The application audit logging service.
      */
-    public function __construct(Container $c, AdminSession $session, ApiKeyService $keys)
+    public function __construct(Container $c, AdminSession $session, ApiKeyService $keys, AuditService $audit)
     {
         $this->c       = $c;
         $this->session = $session;
         $this->keys    = $keys;
+        $this->audit   = $audit;
     }
 
     /**
@@ -124,8 +132,13 @@ final class ApiKeyController
         $brand->resolveFromRequest($req);
         // All Brands view revokes platform-owned keys; a brand view revokes its own.
         $mid = $brand->getWriteMerchantId();
-        $this->keys->revoke($mid, $id);
-        $this->session->flashSuccess('API key revoked');
+        $count = $this->keys->revoke($mid, $id);
+        if ($count === 0) {
+            $this->session->flashError('API key not found or already revoked');
+        } else {
+            $this->session->flashSuccess('API key revoked');
+            $this->audit->log('api_key.revoked', 'api_keys', $id, null, ['merchant_id' => $mid]);
+        }
         $referer = $req->header('Referer');
         $redirectUrl = str_contains($referer, '/admin/settings') 
             ? '/admin/settings#tab-api' 
@@ -151,8 +164,13 @@ final class ApiKeyController
         }
         $brand->resolveFromRequest($req);
         $mid = $brand->getWriteMerchantId();
-        $this->keys->lock($mid, $id);
-        $this->session->flashSuccess('API key locked');
+        $count = $this->keys->lock($mid, $id);
+        if ($count === 0) {
+            $this->session->flashError('API key not found');
+        } else {
+            $this->session->flashSuccess('API key locked');
+            $this->audit->log('api_key.locked', 'api_keys', $id, null, ['merchant_id' => $mid]);
+        }
         $referer = $req->header('Referer');
         $redirectUrl = str_contains($referer, '/admin/settings')
             ? '/admin/settings#tab-api'
@@ -178,8 +196,13 @@ final class ApiKeyController
         }
         $brand->resolveFromRequest($req);
         $mid = $brand->getWriteMerchantId();
-        $this->keys->unlock($mid, $id);
-        $this->session->flashSuccess('API key unlocked');
+        $count = $this->keys->unlock($mid, $id);
+        if ($count === 0) {
+            $this->session->flashError('API key not found');
+        } else {
+            $this->session->flashSuccess('API key unlocked');
+            $this->audit->log('api_key.unlocked', 'api_keys', $id, null, ['merchant_id' => $mid]);
+        }
         $referer = $req->header('Referer');
         $redirectUrl = str_contains($referer, '/admin/settings')
             ? '/admin/settings#tab-api'
