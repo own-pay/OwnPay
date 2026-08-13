@@ -138,16 +138,14 @@ final class Container
             return $this->instances[$abstract];
         }
 
-        if (!isset($this->bindings[$abstract])) {
-            if (class_exists($abstract)) {
-                return $this->autowire($abstract);
-            }
-
-            throw new RuntimeException(
-                "No binding registered for [{$abstract}]."
-            );
-        }
-
+        // CORE-1: the circular-dependency guard must wrap BOTH the bound-factory
+        // branch AND the autowire fast path. Previously the guard only ran for
+        // explicitly bound services - autowired classes (no bind()/singleton()
+        // registration) fell through to $this->autowire() which recurses via
+        // $this->get($dependencyClass) without ever touching $this->resolving,
+        // so a constructor cycle (A type-hints B, B type-hints A) crashed PHP
+        // with a "Maximum function nesting level reached" fatal instead of the
+        // documented RuntimeException.
         if (isset($this->resolving[$abstract])) {
             throw new RuntimeException(
                 "Circular dependency detected while resolving [{$abstract}]."
@@ -157,7 +155,15 @@ final class Container
         $this->resolving[$abstract] = true;
 
         try {
-            $instance = ($this->bindings[$abstract])($this);
+            if (isset($this->bindings[$abstract])) {
+                $instance = ($this->bindings[$abstract])($this);
+            } elseif (class_exists($abstract)) {
+                $instance = $this->autowire($abstract);
+            } else {
+                throw new RuntimeException(
+                    "No binding registered for [{$abstract}]."
+                );
+            }
         } finally {
             unset($this->resolving[$abstract]);
         }
