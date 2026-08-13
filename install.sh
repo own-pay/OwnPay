@@ -1616,14 +1616,25 @@ phase_env() {
   _env_set() {
     local key="$1"
     local val="$2"
-    # Escape special characters for sed
-    local safe_val
-    safe_val="$(printf '%s' "$val" | sed 's/[\/&]/\\&/g')"
-    sed -i "s|^${key}=.*|${key}=${safe_val}|" "$env_file" || true
-    # If key doesn't exist, append it
-    if ! grep -q "^${key}=" "$env_file"; then
-      echo "${key}=${val}" >> "$env_file"
-    fi
+    # SECURITY/ROBUSTNESS (audit INST-5): the previous implementation
+    # used `sed -i "s|^${key}=.*|${key}=${safe_val}|"` with safe_val
+    # only escaping `/` and `&`. Because `|` was the sed separator,
+    # any value containing `|` broke the substitution; `\` and `$` in
+    # the replacement text were also interpreted by sed, corrupting
+    # the .env line. Strong passwords like `Secur3|P@ss\\$word` would
+    # silently produce a malformed DB_PASS= line.
+    #
+    # Fix: avoid sed entirely. Strip embedded newlines (.env is
+    # line-oriented), drop any existing `key=` line via grep -v, then
+    # append the new value verbatim via printf '%s=%s\n'. The cat >
+    # preserves the original file's inode/ownership/permissions.
+    val="${val//$'\n'/ }"
+    local tmp
+    tmp="$(mktemp)"
+    grep -v "^${key}=" "$env_file" > "$tmp" 2>/dev/null || true
+    printf '%s=%s\n' "$key" "$val" >> "$tmp"
+    cat "$tmp" > "$env_file"
+    rm -f "$tmp"
   }
 
   _env_set "APP_NAME"        "\"${APP_NAME}\""
