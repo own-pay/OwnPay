@@ -513,19 +513,40 @@ EOT;
     /**
      * Downloads the release package to a temporary file path.
      *
+     * The temp file is created under the application-private storage/.tmp/
+     * directory (mode 0700) rather than the shared system temp dir, and is
+     * immediately chmod'd to 0600 so co-located users on the host cannot read
+     * the downloaded app source ZIP while it sits on disk between download and
+     * extraction. The file is removed by extractPackage()'s finally block —
+     * even on extraction failure — so no copy of the package is left behind.
+     *
      * @param string $url Secure update download URL.
      * @return string Path to the temporary zip package.
      * @throws \RuntimeException If the file cannot be created or cURL execution fails.
      */
     protected function downloadPackage(string $url): string
     {
-        $tmpFile = sys_get_temp_dir() . '/op_update_' . bin2hex(random_bytes(8)) . '.zip';
+        $privateDir = dirname(__DIR__, 2) . '/storage/.tmp';
+        if (!is_dir($privateDir)) {
+            @mkdir($privateDir, 0700, true);
+        }
+        // Fall back to system temp dir only if the private dir is unavailable;
+        // the chmod below still keeps the file readable only by the owner.
+        $tmpFile = tempnam(is_dir($privateDir) ? $privateDir : sys_get_temp_dir(), 'op_update_');
+        if ($tmpFile === false) {
+            throw new \RuntimeException('Cannot create temp file for download');
+        }
 
         $ch = curl_init($url);
         $fp = fopen($tmpFile, 'w');
         if ($fp === false) {
+            curl_close($ch);
+            @unlink($tmpFile);
             throw new \RuntimeException('Cannot create temp file for download');
         }
+        // Restrict to owner-only read/write even though the parent dir is 0700;
+        // tempnam() honors umask, so chmod explicitly to be safe.
+        @chmod($tmpFile, 0600);
 
         curl_setopt_array($ch, [
             CURLOPT_FILE           => $fp,
@@ -560,6 +581,10 @@ EOT;
      * Extracts files from the downloaded ZIP archive into the application root.
      *
      * Validates filenames to block directory traversal attacks before writing files.
+     * The downloaded package file is always unlinked via a finally block, so it
+     * does not linger on disk if extraction throws (previously it was only
+     * removed on the success path, leaving a copy of the full app source in
+     * storage/.tmp/ when validation or extraction failed).
      *
      * @param string $zipPath Path to the downloaded package.
      * @return void
@@ -567,27 +592,32 @@ EOT;
      */
     protected function extractPackage(string $zipPath): void
     {
-        $zip = new \ZipArchive();
-        $openResult = $zip->open($zipPath);
-        if ($openResult !== true) {
-            @unlink($zipPath);
-            throw new \RuntimeException('Invalid update package (ZIP error code: ' . $openResult . ')');
-        }
-
-        $appRoot = dirname(__DIR__, 2);
-
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $name = $zip->getNameIndex($i);
-            if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')) {
-                $zip->close();
-                @unlink($zipPath);
-                throw new \RuntimeException('Update package contains unsafe paths');
+        try {
+            $zip = new \ZipArchive();
+            $openResult = $zip->open($zipPath);
+            if ($openResult !== true) {
+                throw new \RuntimeException('Invalid update package (ZIP error code: ' . $openResult . ')');
             }
-        }
 
-        $zip->extractTo($appRoot);
-        $zip->close();
-        @unlink($zipPath);
+            try {
+                $appRoot = dirname(__DIR__, 2);
+
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $name = $zip->getNameIndex($i);
+                    if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')) {
+                        throw new \RuntimeException('Update package contains unsafe paths');
+                    }
+                }
+
+                $zip->extractTo($appRoot);
+            } finally {
+                $zip->close();
+            }
+        } finally {
+            // Always remove the downloaded package, whether extraction
+            // succeeded, failed validation, or threw during zip open.
+            @unlink($zipPath);
+        }
     }
 
     /**
