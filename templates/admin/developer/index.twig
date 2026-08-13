@@ -280,7 +280,7 @@ if (!hash_equals($expected, $signature)) {
             <h3>Webhook Endpoints</h3>
             <div class="op-flex-gap-8">
                 <a href="/admin/webhooks/events" class="op-btn op-btn-sm op-btn-outline">View Delivery Log</a>
-                <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
+                <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" data-wh="">+ Add Endpoint</button>
             </div>
         </div>
         <div class="op-card-body op-p-0">
@@ -322,7 +322,7 @@ if (!hash_equals($expected, $signature)) {
                             <td data-label="Actions" class="op-text-right">
                                 <button type="button" class="op-btn op-btn-xs op-btn-outline op-mr-1"
                                         data-open-modal="webhook-modal"
-                                        onclick='window.prepareWebhookForm({{ wh|json_encode|raw }})'>
+                                        data-wh="{{ wh|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|escape('html_attr') }}">
                                     Edit
                                 </button>
                                 <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/toggle" class="op-inline-form">
@@ -634,7 +634,7 @@ X-RateLimit-Remaining: 0
 
 {% endblock %}
 {% block scripts %}
-<script nonce="{{ csp_nonce }}" src="/assets/js/pages/developer.js?v=002"></script>
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/developer.js?v=003"></script>
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     var addRuleBtn = document.getElementById('add-rule-btn');
