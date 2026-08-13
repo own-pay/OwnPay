@@ -115,6 +115,21 @@ final class Kernel
         } catch (\Throwable) {
         }
 
+        // Wire a logger into EnvironmentService so DB persistence failures
+        // from EnvironmentService::set() surface in the application error
+        // log instead of being silently swallowed (issue #388).
+        try {
+            if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $envLogger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                if ($envLogger instanceof \OwnPay\Service\System\Logger) {
+                    \OwnPay\Service\System\EnvironmentService::setLogger($envLogger);
+                }
+            }
+        } catch (\Throwable) {
+            // Logger unavailable — EnvironmentService::set() will degrade to
+            // silent caching as before; not fatal.
+        }
+
         try {
             if ($this->container->has(\OwnPay\Core\Database::class)) {
                 $db = $this->container->get(\OwnPay\Core\Database::class);
