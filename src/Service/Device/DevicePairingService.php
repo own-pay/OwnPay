@@ -7,6 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Security\FieldEncryptor;
 use OwnPay\Service\Auth\JwtService;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Support\DateHelper;
 
 /**
@@ -60,23 +61,33 @@ final class DevicePairingService
     private EventManager $events;
 
     /**
+     * @var AuditService|null Application audit logging service. Nullable so
+     *                          the service remains constructable in contexts
+     *                          where the audit pipeline is unavailable.
+     */
+    private ?AuditService $audit;
+
+    /**
      * Constructs a new DevicePairingService instance.
      *
      * @param PairedDeviceRepository $devices Repository for device database records.
      * @param FieldEncryptor|null $encryptor Cryptographic helper for PII and credentials.
      * @param JwtService $jwt JSON Web Token service provider.
      * @param EventManager|null $events Optional custom event dispatcher instance.
+     * @param AuditService|null $audit Optional audit logger for device lifecycle events.
      */
     public function __construct(
         PairedDeviceRepository $devices,
         ?FieldEncryptor $encryptor,
         JwtService $jwt,
-        ?EventManager $events = null
+        ?EventManager $events = null,
+        ?AuditService $audit = null
     ) {
         $this->devices   = $devices;
         $this->encryptor = $encryptor;
         $this->jwt       = $jwt;
         $this->events    = $events ?? EventManager::getInstance();
+        $this->audit     = $audit;
     }
 
     /**
@@ -616,9 +627,12 @@ final class DevicePairingService
      *
      * @param string $deviceUuid Cryptographic identifier of the device.
      * @param int|null $merchantId Unique identifier of the merchant/brand.
+     * @param int|null $actorId Identifier of the admin/user initiating the
+     *                          revocation (recorded in the audit log); null
+     *                          when the actor is not known (e.g. JWT-only path).
      * @return bool True if device was successfully revoked; false otherwise.
      */
-    public function revoke(string $deviceUuid, ?int $merchantId): bool
+    public function revoke(string $deviceUuid, ?int $merchantId, ?int $actorId = null): bool
     {
         $repo = ($merchantId === null || $merchantId === 0)
             ? $this->devices->forAllTenants()
@@ -646,18 +660,50 @@ final class DevicePairingService
         $updateRepo->updateScoped((int) $deviceIdVal, ['status' => 'revoked']);
 
         $this->events->doAction('mobile.device.revoked', $deviceUuid, $deviceMerchantId ?? 0);
+
+        // Write an audit-log entry so device revocations leave a forensic trail
+        // (DEV-7). The event listener is not guaranteed to materialize the row,
+        // so we record it explicitly here. AuditService resolves user_id from
+        // the admin session when available; actorId is passed as metadata for
+        // JWT-only paths (mobile/admin API) where no session exists.
+        $this->audit?->log(
+            'mobile.device.revoked',
+            'devices',
+            is_numeric($deviceIdVal) ? (int) $deviceIdVal : null,
+            null,
+            [
+                'device_uuid' => $deviceUuid,
+                'merchant_id' => $deviceMerchantId ?? 0,
+                'revoked_by'  => $actorId,
+            ]
+        );
         return true;
     }
 
     /**
      * Records a client activity heartbeat timestamp.
      *
+     * The repository is scoped to the device's own merchant before the UPDATE
+     * fires so the tenant-scoped SQL path in PairedDeviceRepository::updateHeartbeat()
+     * applies (defense-in-depth: prevents cross-tenant heartbeat updates if a
+     * device_id collision ever occurs). Falls back to the global scope for
+     * All-Brands / platform devices paired under merchant_id IS NULL.
+     *
      * @param string $deviceUuid Cryptographic identifier of the device.
      * @return void
      */
     public function heartbeat(string $deviceUuid): void
     {
-        $this->devices->updateHeartbeat($deviceUuid);
+        $device = $this->devices->findByUuid($deviceUuid);
+        if ($device === null) {
+            return;
+        }
+        $midVal = $device['merchant_id'] ?? null;
+        $mid = is_scalar($midVal) ? (int) $midVal : null;
+        $repo = $mid === null
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($mid);
+        $repo->updateHeartbeat($deviceUuid);
     }
 
     /**

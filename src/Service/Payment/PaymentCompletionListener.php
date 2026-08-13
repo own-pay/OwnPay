@@ -73,18 +73,16 @@ final class PaymentCompletionListener
         $linkIdVal = $meta['payment_link_id'] ?? null;
         $linkId = is_scalar($linkIdVal) ? (int) $linkIdVal : null;
         if ($linkId !== null) {
+            // PAY-13: increment use_count and flip status to 'inactive' atomically. The
+            // previous sequence (incrementUseCount -> findScoped -> check >= maxUses ->
+            // updateScoped) was non-atomic: two concurrent completions of the same link
+            // could both increment, both observe a sub-threshold use_count, and both
+            // leave the link active, allowing use_count to overshoot max_uses. The atomic
+            // version returns 0 when the link is already exhausted (no row updated); the
+            // transaction itself has already been captured at the gateway at this point,
+            // so we cannot refund here — but at least the in-platform state stays correct.
             $scopedLinks = $this->linkRepo->forTenant($merchantId);
-            $scopedLinks->incrementUseCount($linkId);
-            $link = $scopedLinks->findScoped($linkId);
-            if ($link) {
-                $maxUsesVal = $link['max_uses'] ?? 0;
-                $useCountVal = $link['use_count'] ?? 0;
-                $maxUses = is_scalar($maxUsesVal) ? (int) $maxUsesVal : 0;
-                $useCount = is_scalar($useCountVal) ? (int) $useCountVal : 0;
-                if ($maxUses > 0 && $useCount >= $maxUses) {
-                    $scopedLinks->updateScoped($linkId, ['status' => 'inactive']);
-                }
-            }
+            $scopedLinks->incrementUseCountAtomic($linkId);
         }
     }
 }

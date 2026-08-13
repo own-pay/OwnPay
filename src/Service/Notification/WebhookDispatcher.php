@@ -265,6 +265,22 @@ final class WebhookDispatcher
 
         $urlVal = $webhook['url'];
         $url = is_string($urlVal) ? $urlVal : '';
+
+        // SSRF pre-check (API-17): mirror the sendWithRetry() pattern and validate
+        // the webhook URL before doSend(). doSend() internally calls
+        // UrlValidator::resolveSafeWebhookIp() which already provides SSRF
+        // protection, but the defence-in-depth principle of double-checking
+        // (scheme/host validation + IP resolution) was lost on the test path.
+        // If a future change to resolveSafeWebhookIp() introduces a gap, the
+        // test endpoint would have been the first exposed path.
+        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
+            $this->logger->error("Webhook test blocked by SSRF protection: merchant={$merchantId} url={$url}");
+            return [
+                'success' => false,
+                'error'   => 'Webhook URL failed SSRF validation. Ensure it uses https and targets a public host.',
+            ];
+        }
+
         return $this->doSend($url, $json, $signature, time());
     }
 
@@ -447,11 +463,16 @@ final class WebhookDispatcher
      */
     public function listDeliveries(?int $merchantId, int $limit = 50): array
     {
+        // Clamp limit to a reasonable maximum (API-13): without this a caller could
+        // pass PHP_INT_MAX and force MySQL to materialise an unbounded result set,
+        // exhausting process memory. Bound as a parameter instead of interpolating.
+        $limit = max(1, min($limit, 500));
         $where = $merchantId !== null ? 'WHERE merchant_id = :mid' : '';
         $params = $merchantId !== null ? ['mid' => $merchantId] : [];
+        $params['lim'] = $limit;
         return $this->db->fetchAll(
             "SELECT id, event, url, direction, status_code, response_time_ms, attempt, status, created_at
-             FROM op_webhook_deliveries {$where} ORDER BY created_at DESC LIMIT {$limit}",
+             FROM op_webhook_deliveries {$where} ORDER BY created_at DESC LIMIT :lim",
             $params
         );
     }

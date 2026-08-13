@@ -223,10 +223,24 @@ final class Authenticator
                 $params = session_get_cookie_params();
                 $sessionName = session_name();
                 if (is_string($sessionName)) {
-                    setcookie($sessionName, '', time() - 42000,
-                        $params['path'], $params['domain'],
-                        $params['secure'], $params['httponly']
-                    );
+                    // Use the PHP 7.3+ array form (SEC-20): the positional
+                    // setcookie() call omitted the `samesite` attribute. When
+                    // SessionMiddleware set the cookie with samesite => 'Lax'
+                    // (or 'None'), the expiry cookie had no SameSite attribute,
+                    // so some browsers did not delete the old cookie (the
+                    // attributes must match for the overwrite to take effect).
+                    // The session is destroyed server-side, so this is not a
+                    // live-session leak - but the stale cookie may be sent on
+                    // subsequent cross-site navigations until it naturally
+                    // expires.
+                    setcookie($sessionName, '', [
+                        'expires'  => time() - 42000,
+                        'path'     => $params['path'],
+                        'domain'   => $params['domain'],
+                        'secure'   => $params['secure'],
+                        'httponly' => $params['httponly'],
+                        'samesite' => $params['samesite'],
+                    ]);
                 }
             }
             session_destroy();

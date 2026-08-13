@@ -218,16 +218,33 @@ class BackupService
             if ($tableName === '') {
                 continue;
             }
-            $createRow = $db->fetchOne("SHOW CREATE TABLE `{$tableName}`");
+            // Escape table-name identifier (SYS-7): although the name comes from
+            // SHOW TABLES (a real DB catalog row, not user input), a corrupted
+            // or hostile table name containing a backtick would prematurely
+            // terminate the surrounding identifier quotes and inject SQL into
+            // the dump statements. Defence-in-depth:
+            //   1. Validate the charset (MySQL identifiers are [A-Za-z0-9_.$] max 64).
+            //   2. Escape any literal backtick by doubling it.
+            //   3. Re-validate length.
+            if (!preg_match('/^[A-Za-z0-9_.$]{1,64}$/', $tableName)) {
+                // Skip tables whose names fall outside the safe identifier
+                // charset rather than risk producing a malformed dump.
+                $this->logger?->warning("BackupService: skipping table with unsafe identifier: " . substr($tableName, 0, 64));
+                continue;
+            }
+            $escapedName = str_replace('`', '``', $tableName);
+            $quoted = "`{$escapedName}`";
+
+            $createRow = $db->fetchOne("SHOW CREATE TABLE {$quoted}");
             $createTableSql = is_array($createRow) && isset($createRow['Create Table']) && is_string($createRow['Create Table']) ? $createRow['Create Table'] : '';
             $sql .= $createTableSql . ";\n\n";
 
-            $rows = $db->fetchAll("SELECT * FROM `{$tableName}`");
+            $rows = $db->fetchAll("SELECT * FROM {$quoted}");
             foreach ($rows as $dataRow) {
                 $values = array_map(function ($v) use ($pdo) {
                     return $v === null ? 'NULL' : $pdo->quote(is_scalar($v) ? (string) $v : '');
                 }, array_values($dataRow));
-                $sql .= "INSERT INTO `{$tableName}` VALUES (" . implode(',', $values) . ");\n";
+                $sql .= "INSERT INTO {$quoted} VALUES (" . implode(',', $values) . ");\n";
             }
             $sql .= "\n";
         }

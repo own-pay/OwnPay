@@ -130,6 +130,17 @@ final class InvoiceCheckoutController
         $merchantIdVal = $invoice['merchant_id'] ?? 0;
         $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
 
+        // PAY-20: refuse to create a transaction for an invoice whose total is not a
+        // positive numeric value. InvoiceService::create()/update() clamp a negative
+        // total (e.g. when discount > subtotal + tax) to '0.00' rather than rejecting
+        // it, so without this guard a misconfigured invoice becomes payable for $0 -
+        // the HMAC checkout flow accepts any amount including 0. Fail closed to the
+        // expired/unavailable view so the customer is never redirected to a $0 checkout.
+        if (!is_numeric($total) || bccomp($total, '0.00', 2) <= 0) {
+            $brandId = $merchantId > 0 ? $merchantId : null;
+            return $this->renderExpired($brandId, 'Invoice Total Invalid');
+        }
+
         $customerIdVal = $invoice['customer_id'] ?? null;
         $customerId = ($customerIdVal !== null && (is_int($customerIdVal) || is_string($customerIdVal))) ? (int) $customerIdVal : null;
 

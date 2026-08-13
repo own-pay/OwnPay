@@ -257,7 +257,13 @@ final class TwoFactorSetupController
     {
         $time = (int) floor(time() / 30);
         for ($i = -$window; $i <= $window; $i++) {
-            if ($this->generateTotp($secret, $time + $i) === $code) {
+            // Use hash_equals() for constant-time comparison (SEC-18).
+            // The sibling Authenticator::verifyCodeWithReplayGuard() already
+            // uses hash_equals; this local copy was inconsistent and used ===,
+            // a non-constant-time comparison. TOTP codes are only 6 digits so
+            // the timing signal is limited, but the inconsistency is the
+            // sort of latent regression that audit-flagged.
+            if (hash_equals($this->generateTotp($secret, $time + $i), $code)) {
                 return true;
             }
         }

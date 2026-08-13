@@ -68,13 +68,32 @@ final class LedgerRepository extends BaseRepository
             return $account;
         }
 
-        $id = $this->insert([
-            'name' => $name,
-            'type' => $type,
-            'currency' => $currency,
-            'merchant_id' => $mid,
-            'balance' => '0.00',
-        ]);
+        try {
+            $id = $this->insert([
+                'name' => $name,
+                'type' => $type,
+                'currency' => $currency,
+                'merchant_id' => $mid,
+                'balance' => '0.00',
+            ]);
+        } catch (\PDOException $e) {
+            // PAY-15: TOCTOU race on findOrCreateAccount. Two concurrent first-time posts
+            // to a brand-new (merchant, currency) combination can both observe "no row"
+            // and both attempt INSERT against the UNIQUE KEY uk_merchant_name_currency
+            // (database/schema.sql). The losing INSERT raises a duplicate-key PDOException
+            // (SQLSTATE 23000 / MySQL errno 1062) — re-SELECT the now-existing row and
+            // return it instead of letting the failure roll back the entire ledger post.
+            $errno = isset($e->errorInfo[1]) ? (int) $e->errorInfo[1] : 0;
+            $sqlstate = isset($e->errorInfo[0]) ? (string) $e->errorInfo[0] : '';
+            if ($errno !== 1062 && $sqlstate !== '23000') {
+                throw $e;
+            }
+            $account = $this->db->fetchOne("SELECT * FROM {$this->table} WHERE {$where} LIMIT 1", $params);
+            if ($account === null) {
+                throw new \RuntimeException("Race on findOrCreateAccount('{$name}', '{$currency}'): account vanished after duplicate-key.", 0, $e);
+            }
+            return $account;
+        }
 
         $account = $this->find($id);
         if ($account === null) {

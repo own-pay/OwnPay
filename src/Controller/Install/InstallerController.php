@@ -295,7 +295,26 @@ final class InstallerController
             }
 
             if ($prefix !== 'op_') {
-                $sql = str_replace('`op_', "`{$prefix}", $sql);
+                // Replace backticked, single-quoted, and bare table-prefix
+                // references. The naive `str_replace('`op_', "`$prefix", $sql)`
+                // only handled the backticked form and silently missed any
+                // single-quoted or unquoted references (e.g. inside
+                // REFERENCES clauses, comments, or default-value strings),
+                // leaving the schema half-prefixed and causing "table not
+                // found" errors at runtime. The prefix is validated against
+                // /^[a-z0-9_]{1,30}$/i above, so it is safe to interpolate
+                // into the replacement without further escaping.
+                $sql = preg_replace_callback(
+                    '/(?P<q>[`\'])(?P<name>op_[a-z_][a-z0-9_]*)\k<q>'
+                    . '|(?P<pre>[\s(])(?P<bare>op_[a-z_][a-z0-9_]*)/i',
+                    static function (array $m) use ($prefix): string {
+                        if ($m['q'] !== '') {
+                            return $m['q'] . $prefix . substr($m['name'], 3) . $m['q'];
+                        }
+                        return $m['pre'] . $prefix . substr($m['bare'], 3);
+                    },
+                    $sql
+                ) ?? $sql;
             }
 
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
@@ -789,7 +808,7 @@ final class InstallerController
             // Bootstrap languages folder and copy master en.json
             $languagesDir = $this->rootDir . '/storage/languages';
             if (!is_dir($languagesDir)) {
-                @mkdir($languagesDir, 0755, true);
+                @mkdir($languagesDir, 0750, true);
             }
             $masterEn = $this->rootDir . '/config/languages/en.json';
             $destEn = $languagesDir . '/en.json';

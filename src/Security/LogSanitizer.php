@@ -29,7 +29,13 @@ final class LogSanitizer
         'jwt', 'token', 'refresh_token',
         'credentials_enc', 'webhook_secret',
         'credit_card', 'card_number', 'cvv', 'cvc',
-        'ssn', 'social_security', 'authorization', 'signing_secret'
+        'ssn', 'social_security', 'authorization', 'signing_secret',
+        // 2FA / OTP / verification-code fields (SEC-17): previously these slipped
+        // through unredacted because none of them matched the suffix patterns
+        // in containsSensitiveKey() either. A live 6-digit OTP landing in a
+        // debug log is a credential disclosure.
+        'otp', 'mfa_code', 'verification_code', 'code', 'pin',
+        'auth_code', 'backup_code', 'recovery_code',
     ];
 
     /**
@@ -228,6 +234,16 @@ final class LogSanitizer
     {
         $patterns = ['_secret', '_key', '_token', '_hash'];
         foreach ($patterns as $pattern) {
+            if (str_contains($key, $pattern)) {
+                return true;
+            }
+        }
+        // Catch OTP/MFA/code substrings in compound keys (SEC-17):
+        // e.g. `sms_otp`, `device_pin`, `totp_code`, `user_pin_hash` (the
+        // `_hash` suffix already catches the last one, but `_otp`, `_code`,
+        // `_pin` need explicit coverage).
+        $codePatterns = ['_otp', '_code', '_pin', 'otp', 'mfa'];
+        foreach ($codePatterns as $pattern) {
             if (str_contains($key, $pattern)) {
                 return true;
             }

@@ -397,6 +397,12 @@ final class AuthController
 
         $this->audit->log('password_reset.completed', 'user', null);
         $this->session->flashSuccess('Your password has been reset. Please sign in with your new password.');
+        // Use the dynamic login slug (SEC-19): every other redirect in this
+        // controller uses resolveLoginSlug() to honour the admin-configurable
+        // login URL (e.g. /secret-login). Hardcoding '/login' here meant that
+        // if the admin changed the slug, a user who just reset their password
+        // landed on a 404 — and may have believed the reset failed, retrying
+        // with the now-consumed token and getting a 'link expired' error.
         return Response::redirect('/' . $this->resolveLoginSlug());
     }
 

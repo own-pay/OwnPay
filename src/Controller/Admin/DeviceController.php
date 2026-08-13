@@ -255,21 +255,7 @@ final class DeviceController
             throw new \RuntimeException('No active brand found.');
         }
 
-        $svc->revoke($uuid, $mid);
-        // Audit-trail each device revocation. Revoking a device is a
-        // security-sensitive action that severs the companion-app's access to
-        // the merchant's transaction stream; without an audit entry there was
-        // no way to investigate "who revoked this device and when".
-        $this->audit->log(
-            'mobile.device.revoked',
-            'devices',
-            $mid,
-            null,
-            [
-                'device_uuid' => $uuid,
-                'admin_id'    => $this->session->userId(),
-            ]
-        );
+        $svc->revoke($uuid, $mid, $this->session->userId());
         $this->session->flashSuccess('Device revoked');
         return Response::redirect('/admin/devices');
     }
@@ -306,20 +292,7 @@ final class DeviceController
             $adminId = $this->session->userId();
             foreach ($ids as $uuid) {
                 if (is_string($uuid)) {
-                    $svc->revoke($uuid, $mid);
-                    // Per-device audit entry so investigators can trace each
-                    // revocation back to the bulk action and the actor.
-                    $this->audit->log(
-                        'mobile.device.revoked',
-                        'devices',
-                        $mid,
-                        null,
-                        [
-                            'device_uuid' => $uuid,
-                            'admin_id'    => $adminId,
-                            'bulk'        => true,
-                        ]
-                    );
+                    $svc->revoke($uuid, $mid, $adminId);
                     $count++;
                 }
             }

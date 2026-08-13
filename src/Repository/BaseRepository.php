@@ -42,6 +42,19 @@ abstract class BaseRepository
     protected array $fillable = [];
 
     /**
+     * Hard upper bound on the number of rows a single paginate()/
+     * cursorPaginate() call may return (REPO-3).
+     *
+     * Without this clamp, a caller passing $perPage = 1_000_000 causes the
+     * DB to materialise up to 1M rows and PDO::FETCH_ASSOC to hydrate them
+     * all into one array, easily exhausting the FPM worker's memory limit
+     * (default 128M ~ 1.3k wide transaction rows before OOM). The OFFSET
+     * math explodes the same way and forces MySQL to scan-and-discard a
+     * million rows - a slow-query DoS on top of the memory pressure.
+     */
+    public const int MAX_PER_PAGE = 100;
+
+    /**
      * Initializes the repository with the database connector.
      *
      * @param Database $db Database adapter instance.
@@ -136,50 +149,17 @@ abstract class BaseRepository
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
-        // REPO-1: defense-in-depth against conditional-comment SQL injection.
-        //
-        // MySQL treats `/*!50000 ... */` as a conditional comment that executes
-        // the enclosed SQL only if the server version >= 5.00.00 (essentially
-        // always). The previous safety check ran against $cleanedWhere (which
-        // had comments stripped) but the actual SQL execution used the
-        // ORIGINAL $where — so
-        //   WHERE id=1/*!50000 UNION*//*!50000 SELECT * FROM op_users*/
-        // became `WHERE id=1` after cleaning (passed the keyword check) but
-        // executed as `WHERE id=1 UNION SELECT * FROM op_users` in MySQL.
-        //
-        // Fix: (1) run the keyword check against BOTH the original $where and
-        // the cleaned version, so conditional-comment-embedded keywords are
-        // caught before stripping. (2) execute the SQL with the cleaned
-        // $where (comments stripped) instead of the original — non-conditional
-        // comments are stripped semantically (MySQL ignores them anyway), and
-        // conditional comments are neutralized because their delimiters are
-        // removed before execution.
-
-        // Security checks: Strip SQL comments to prevent bypass via inline sequences.
-        $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
-        $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
-
-        // Collapse all whitespace and lowercase for consistent safety verification.
-        $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
-
-        // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
-        // Check against BOTH the cleaned $where AND the original $where so that
-        // conditional-comment-embedded keywords (/*!50000 UNION*/) are caught
-        // before stripping.
-        $lowerOriginalWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($where)));
-        if (
-            preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere)
-            || preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $where)
-            || str_contains($lowerWhere, ';')
-            || str_contains($lowerWhere, '--')
-            || str_contains($lowerOriginalWhere, ';')
-        ) {
-            throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
-        }
+        // (REPO-2) Shared safety check: reject forbidden SQL structures in $where.
+        // The helper also implements the REPO-1 conditional-comment defence
+        // (checks both the original and cleaned WHERE clause for keywords) and
+        // returns the cleaned WHERE for execution.
+        $cleanedWhere = $this->validateWhereClause($where);
 
         $safeOrder = $this->sanitizeOrderBy($orderBy);
         $page = max(1, (int) $page);
-        $perPage = (int) $perPage;
+        // (REPO-3) Clamp $perPage to a sane maximum so a caller cannot force
+        // a million-row result set and OOM the FPM worker / DoS the DB.
+        $perPage = $this->clampPerPage($perPage);
         $offset = ($page - 1) * $perPage;
 
         // REPO-1: execute against $cleanedWhere (comments stripped), not the
@@ -217,7 +197,18 @@ abstract class BaseRepository
      */
     public function cursorPaginate(int $perPage = 20, ?string $afterId = null, string $where = '1=1', array $params = []): array
     {
-        $sql = "SELECT * FROM {$this->table} WHERE {$where}";
+        // (REPO-2) Apply the same forbidden-keyword / comment-strip check as
+        // paginate() so a caller that interpolates user input into $where
+        // cannot bypass the guard by routing through cursorPaginate().
+        // REPO-1: execute against the cleaned $where (comments stripped) to
+        // neutralise MySQL conditional comments.
+        $cleanedWhere = $this->validateWhereClause($where);
+
+        // (REPO-3) Same $perPage clamp as paginate(); the +1 lookahead below
+        // would otherwise inflate a 1M cap to a 1,000,001-row fetch.
+        $perPage = $this->clampPerPage($perPage);
+
+        $sql = "SELECT * FROM {$this->table} WHERE {$cleanedWhere}";
         if ($afterId !== null) {
             $sql .= " AND {$this->primaryKey} < :cursor";
             $params['cursor'] = $afterId;
@@ -368,6 +359,95 @@ abstract class BaseRepository
             throw new \InvalidArgumentException("Invalid column: {$column}");
         }
         return $column;
+    }
+
+    /**
+     * Validates a raw SQL WHERE clause fragment before it is concatenated
+     * into a query, and returns a comment-stripped version safe for execution.
+     *
+     * Defence-in-depth (REPO-2): every public method that interpolates a
+     * caller-supplied $where string (paginate(), cursorPaginate()) routes
+     * through this helper so the safety check cannot be bypassed by picking
+     * a different pagination method. The check is NOT a substitute for
+     * parameterized binds - callers must always pass user input via $params.
+     *
+     * REPO-1: returns the cleaned $where (block and line comments stripped)
+     * so the caller can execute against the stripped version rather than the
+     * original. This neutralises MySQL conditional comments (e.g. the
+     * `/*!50000 ... * /` form with the space removed) which would otherwise
+     * execute despite being stripped from the keyword check. Strips SQL
+     * comments (block `/* ... * /` and line `-- ...`) which could be used
+     * to break keyword matching, then rejects dangerous command
+     * keywords, statement terminators, and inline comment markers.
+     *
+     * @param string $where Raw SQL WHERE clause fragment.
+     * @return string The cleaned WHERE clause (comments stripped) safe for execution.
+     * @throws \InvalidArgumentException If the WHERE clause contains forbidden SQL structures or injection patterns.
+     */
+    protected function validateWhereClause(string $where): string
+    {
+        // REPO-1: defence-in-depth against conditional-comment SQL injection.
+        //
+        // MySQL treats `/*!50000 ... */` as a conditional comment that executes
+        // the enclosed SQL only if the server version >= 5.00.00 (essentially
+        // always). A naive check that runs keyword matching against the
+        // comment-stripped $where only would miss an injection like
+        //   WHERE id=1/*!50000 UNION*//*!50000 SELECT * FROM op_users*/
+        // because the stripped version becomes `WHERE id=1` (passes) while the
+        // executed SQL becomes `WHERE id=1 UNION SELECT * FROM op_users`.
+        //
+        // Fix: run the keyword check against BOTH the original $where and the
+        // cleaned version, so conditional-comment-embedded keywords are caught
+        // before stripping.
+
+        // Strip SQL comments to prevent bypass via inline sequences.
+        $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
+        $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
+
+        // Collapse all whitespace and lowercase for consistent safety verification.
+        $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
+        $lowerOriginalWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($where)));
+
+        // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
+        // Check against BOTH the cleaned $where AND the original $where so that
+        // conditional-comment-embedded keywords (/*!50000 UNION*/) are caught
+        // before stripping.
+        if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere)
+            || preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $where)
+            || str_contains($lowerWhere, ';')
+            || str_contains($lowerWhere, '--')
+            || str_contains($lowerOriginalWhere, ';')
+        ) {
+            throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
+        }
+
+        return $cleanedWhere;
+    }
+
+    /**
+     * Clamps the supplied page size to a positive integer no greater than
+     * MAX_PER_PAGE (REPO-3).
+     *
+     * Logs a warning via error_log() when a caller exceeds the cap so abusive
+     * callers (or buggy controllers forwarding user-supplied per_page) are
+     * visible to operators without breaking the request.
+     *
+     * @param int $perPage Requested page size.
+     * @return int Clamped page size (1..MAX_PER_PAGE).
+     */
+    protected function clampPerPage(int $perPage): int
+    {
+        $clamped = min(max(1, $perPage), self::MAX_PER_PAGE);
+        if ($clamped !== $perPage) {
+            error_log(sprintf(
+                'BaseRepository::clampPerPage: %s requested per_page=%d, clamped to %d (table=%s)',
+                static::class,
+                $perPage,
+                $clamped,
+                $this->table
+            ));
+        }
+        return $clamped;
     }
 
     /**
