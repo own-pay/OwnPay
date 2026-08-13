@@ -259,7 +259,20 @@ final class InstallerController
             if ($showTablesStmt !== false) {
                 $existing = $showTablesStmt->fetchAll(\PDO::FETCH_COLUMN);
             }
+            // SECURITY (INST-6): only drop tables that match the configured
+            // OwnPay table prefix. Previously the loop destroyed every table
+            // in the target database, including unrelated applications sharing
+            // the same MySQL database (e.g. phpMyAdmin control tables, legacy
+            // application data). The schema file already renames op_* tables
+            // to the configured prefix via str_replace above, so dropping only
+            // prefixed tables is sufficient to clean a previous OwnPay install.
             foreach ($existing as $table) {
+                if (!is_string($table)) {
+                    continue;
+                }
+                if (!str_starts_with($table, $prefix)) {
+                    continue;
+                }
                 $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
             }
 

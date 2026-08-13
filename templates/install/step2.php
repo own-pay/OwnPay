@@ -103,10 +103,10 @@
             <!-- Warning if existing tables found -->
             <div id="dbOverwriteWarning" class="ins-warn" style="display: none;">
                 <strong>⚠️ Warning - Existing Structures Detected:</strong><br>
-                This database contains <span id="dbExistingTableCount">0</span> existing tables. Proceeding will completely drop all schemas and erase any active payment configurations or historical ledgers permanently!
+                This database contains <span id="dbExistingTableCount">0</span> existing tables. Proceeding will drop only tables matching the configured OwnPay prefix and reinstall a fresh schema. Tables belonging to other applications sharing this database are preserved.
                 <div style="margin-top: 10px; display: flex; align-items: flex-start; gap: 8px;">
                     <input type="checkbox" id="confirmOverwriteCheckbox" style="margin-top: 3px; cursor: pointer;">
-                    <label for="confirmOverwriteCheckbox" style="cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--danger);">I explicitly authorize dropping all existing tables and installing a fresh schema.</label>
+                    <label for="confirmOverwriteCheckbox" style="cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--danger);">I explicitly authorize dropping existing OwnPay-prefixed tables and installing a fresh schema.</label>
                 </div>
             </div>
 
