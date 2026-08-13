@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Notification;
 
-use OwnPay\Support\DateHelper;
-
 /**
  * Service managing mobile push notifications for paired devices.
  *
@@ -116,29 +114,33 @@ final class MobileNotificationService
             }
         }
 
-        $this->queueNotification([
-            'device_uuid' => $deviceUuid,
-            'type'        => 'payment_' . $type,
-            'title'       => $title,
-            'body'        => $body,
-            'data'        => [
-                'trx_id'   => $trxId,
-                'amount'   => $amount,
-                'sender'   => $senderName,
-                'sms_from' => $smsFrom,
-            ],
-        ]);
-        return 1;
+        // API-4: Removed the global /tmp/op_notifications.json fallback.
+        // The previous fallback wrote every merchant's notification payloads
+        // (containing transaction amounts, sender names, TRX IDs — PII and
+        // financial data) into a single shared temp file with no tenant
+        // separation and no consumption mechanism, growing unbounded. Any
+        // process running as the web user could read every merchant's
+        // notification data. We now fail loudly: if no repository is
+        // configured, the service cannot queue notifications and the caller
+        // must handle the failure rather than silently losing data into an
+        // insecure shared file.
+        throw new \RuntimeException(
+            'MobileNotificationService cannot queue notifications: no repository configured. '
+            . 'Wire OwnPay\Repository\MobileNotificationRepository into the container.'
+        );
     }
 
     /**
      * Polls active mobile device notifications.
      *
      * @param string $deviceUuid Unique identifier of the polling device.
+     * @param int $merchantId Merchant/brand scope for unread-count queries
+     *                        (API-3: previously hardcoded to 1, leaking
+     *                        merchant 1's notification counts to every brand).
      * @param string|null $since ISO timestamp cursor representing the last poll boundary.
      * @return array{notifications: array<int, array<string, mixed>>, unread_count: int, poll_interval_seconds: int} Poll results packet.
      */
-    public function poll(string $deviceUuid, ?string $since = null): array
+    public function poll(string $deviceUuid, int $merchantId, ?string $since = null): array
     {
         $notifications = [];
         $unreadCount = 0;
@@ -156,7 +158,10 @@ final class MobileNotificationService
                 if ($ref->getNumberOfParameters() === 1) {
                     $unreadCount = $this->repo->countUnread($deviceUuid);
                 } else {
-                    $unreadCount = $this->repo->countUnread(1, $deviceUuid);
+                    // API-3: pass the actual merchant context — previously
+                    // hardcoded to 1, which leaked merchant 1's notification
+                    // counts to every brand on the installation.
+                    $unreadCount = $this->repo->countUnread($merchantId, $deviceUuid);
                 }
             }
         }
@@ -205,56 +210,25 @@ final class MobileNotificationService
      * @param string $body Body text description.
      * @param array<string, mixed> $data Associated parameters payload.
      * @return void
+     * @throws \RuntimeException when no repository is configured (API-4).
      */
     public function send(string $deviceUuid, string $title, string $body, array $data = []): void
     {
-        $this->queueNotification([
-            'device_uuid' => $deviceUuid,
-            'type'        => 'general',
-            'title'       => $title,
-            'body'        => $body,
-            'data'        => $data,
-        ]);
-    }
-
-    /**
-     * Stores a notification payload in the system temp directory fallback queue.
-     *
-     * @param array<string, mixed> $payload Notification payload.
-     * @return void
-     */
-    private function queueNotification(array $payload): void
-    {
-        $file = sys_get_temp_dir() . '/op_notifications.json';
-        $queue = [];
-        
-        $fp = @fopen($file, 'c+');
-        if ($fp) {
-            if (flock($fp, LOCK_EX)) {
-                $size = @filesize($file);
-                if ($size !== false && $size > 0) {
-                    $content = @fread($fp, $size);
-                    if (is_string($content)) {
-                        $decoded = json_decode($content, true);
-                        if (is_array($decoded)) {
-                            $queue = $decoded;
-                        }
-                    }
-                }
-                $payload['queued_at'] = DateHelper::now();
-                $queue[] = $payload;
-                
-                @ftruncate($fp, 0);
-                @rewind($fp);
-                $json = json_encode($queue);
-                if (is_string($json)) {
-                    @fwrite($fp, $json);
-                }
-                @fflush($fp);
-                flock($fp, LOCK_UN);
+        if ($this->repo !== null) {
+            if (method_exists($this->repo, 'queue')) {
+                $this->repo->queue($deviceUuid, 'general', $title, $body, $data);
+                return;
+            } elseif (method_exists($this->repo, 'create')) {
+                $this->repo->create($deviceUuid, 'general', $title, $body, $data);
+                return;
             }
-            fclose($fp);
-            @chmod($file, 0600);
         }
+
+        // API-4: see queuePaymentNotification() for the rationale. The temp-file
+        // fallback was a cross-tenant data leak and has been removed.
+        throw new \RuntimeException(
+            'MobileNotificationService cannot send notifications: no repository configured. '
+            . 'Wire OwnPay\Repository\MobileNotificationRepository into the container.'
+        );
     }
 }

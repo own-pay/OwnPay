@@ -594,7 +594,7 @@ if (!hash_equals($expected, $signature)) {
                             </td>
                             <td data-label="Actions" class="op-text-right">
                                 {% if is_superadmin %}
-                                <form method="POST" action="/admin/developer/rate-limits/reset" class="op-inline-form" onsubmit="return confirm('Reset rate limit bucket for this key?');">
+                                <form method="POST" action="/admin/developer/rate-limits/reset" class="op-inline-form" data-confirm="Reset rate limit bucket for this key?">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <input type="hidden" name="key" value="{{ limit.key_name }}">
                                     <button type="submit" class="op-btn op-btn-xs op-btn-danger">Reset</button>

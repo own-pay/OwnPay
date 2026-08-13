@@ -47,8 +47,12 @@
                 <h4>Step 1 - Scan QR Code</h4>
                 <p class="op-text-muted">Open your authenticator app (Google Authenticator, Authy, etc.) and scan this QR code.</p>
                 <div class="op-2fa-qr op-2fa-qr-container">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ qr_uri|url_encode }}"
+                    {% if qr_data_uri %}
+                    <img src="{{ qr_data_uri }}"
                           alt="2FA QR Code" width="200" height="200" class="op-qr-img">
+                    {% else %}
+                    <p class="op-text-muted">QR code could not be rendered. Please enter the code manually below.</p>
+                    {% endif %}
                 </div>
                 <details class="op-mt-2">
                     <summary class="op-text-muted op-cursor-pointer op-details-summary">Can't scan? Enter this code manually</summary>

@@ -61,6 +61,25 @@ final class PaymentController
      */
     public function initiate(Request $req): Response
     {
+        // API-5: Require an Idempotency-Key header on every payment-initiation
+        // request. Without this, a merchant's HTTP client that retries due to
+        // a network timeout (response lost but server processed the request)
+        // would create a duplicate payment intent, potentially leading to
+        // double-charges or duplicate checkout sessions. Stripe, Square, and
+        // all major processors require/recommend idempotency keys on payment
+        // creation. The IdempotencyMiddleware handles the actual duplicate
+        // detection; this guard ensures the header is always present so the
+        // middleware's protection actually applies.
+        $idempotencyKey = $req->header('Idempotency-Key');
+        if ($idempotencyKey === '') {
+            return Response::json([
+                'success' => false,
+                'error'   => 'Idempotency-Key header is required for payment initiation. '
+                    . 'Generate a unique key per logical request and retry with the same key '
+                    . 'if you do not receive a response.',
+            ], 400);
+        }
+
         $midVal = $req->getAttribute('merchant_id');
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $body = $req->json();

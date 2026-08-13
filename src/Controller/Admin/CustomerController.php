@@ -350,7 +350,14 @@ final class CustomerController
     }
 
     /**
-     * Deletes a customer profile under the scoped merchant context.
+     * Soft-deletes a customer profile under the scoped merchant context.
+     *
+     * Delegates to CustomerPiiService::delete() so that the row is preserved
+     * with `status='deleted'` and all PII fields (email_enc, phone_enc,
+     * name_enc, email_hash, phone_hash) are cleared in place. This keeps the
+     * transaction->customer FK intact (no SET NULL cascade) and dispatches
+     * the `customer.deleted` event that plugins/CRM integrations rely on.
+     * An audit-log entry is written so the action is attributable.
      *
      * @param Request $req The incoming HTTP request.
      *
@@ -377,14 +384,30 @@ final class CustomerController
             return Response::redirect('/admin/customers');
         }
 
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        if (!$db instanceof \OwnPay\Core\Database) {
-            throw new \RuntimeException('Database service unavailable');
+        // SECURITY (CUS-1): perform a SOFT delete via CustomerPiiService so
+        // that PII is wiped but the row is preserved with status='deleted'.
+        // Previously this method ran `DELETE FROM op_customers WHERE id=...`
+        // which physically removed the row, nulled every op_transactions.
+        // customer_id (FK ON DELETE SET NULL), skipped PII-retention
+        // controls, skipped the `customer.deleted` event, and produced no
+        // audit-log entry.
+        $pii = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
+        if (!$pii instanceof \OwnPay\Service\Customer\CustomerPiiService) {
+            throw new \RuntimeException('CustomerPiiService unavailable');
         }
-        $db->execute('DELETE FROM op_customers WHERE id = :id AND merchant_id = :mid', [
-            'id'  => $id,
-            'mid' => $mid,
-        ]);
+        $pii->delete($mid, $id);
+
+        // Audit-log the soft-delete so the action is attributable.
+        $audit = $this->c->get(\OwnPay\Service\System\AuditService::class);
+        if ($audit instanceof \OwnPay\Service\System\AuditService) {
+            $audit->log(
+                'customer.deleted',
+                'customer',
+                $id,
+                ['status' => $customer['status'] ?? null],
+                ['status' => 'deleted']
+            );
+        }
 
         $this->session->flashSuccess('Customer deleted');
         return Response::redirect('/admin/customers');

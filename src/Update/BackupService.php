@@ -54,7 +54,11 @@ class BackupService
         $this->logger = $logger;
         $this->db = $db ?? \OwnPay\Core\Database::getInstance();
         if (!is_dir($this->backupDir)) {
-            @mkdir($this->backupDir, 0755, true);
+            // SECURITY (UPD-1): use 0750 (owner+group only, no world) so that
+            // co-located users on the server cannot list or read backup files.
+            // Backups contain full database dumps including password hashes,
+            // API key hashes, encrypted credentials, and audit logs.
+            @mkdir($this->backupDir, 0750, true);
         }
     }
 
@@ -70,7 +74,9 @@ class BackupService
     {
         $timestamp = DateHelper::backupTimestamp();
         $backupPath = $this->backupDir . '/backup_' . $timestamp;
-        @mkdir($backupPath, 0755, true);
+        // SECURITY (UPD-1): per-backup directory is owner-only (0700) so that
+        // even co-located users in the same group cannot read the dump.
+        @mkdir($backupPath, 0700, true);
 
         $this->dumpDatabase($backupPath . '/database.sql');
 
@@ -83,6 +89,11 @@ class BackupService
             'db_file'    => 'database.sql',
             'code_file'  => 'code.zip',
         ]));
+        // SECURITY (UPD-1): explicitly tighten permissions on the manifest
+        // (file_put_contents inherits umask, which is typically 0022 -> 0644
+        // and therefore world-readable). manifest.json reveals the OwnPay
+        // version and PHP version, which is useful for an attacker.
+        @chmod($backupPath . '/manifest.json', 0600);
 
         return $backupPath;
     }
@@ -178,6 +189,14 @@ class BackupService
         if ($exitCode !== 0) {
             $this->pdoDump($outputPath);
         }
+        // SECURITY (UPD-1): mysqldump inherits umask (typically 0022 -> 0644,
+        // world-readable). The dump contains every row of every table
+        // including password hashes, API key hashes, encrypted credentials,
+        // and audit logs. Force owner-only permissions regardless of how the
+        // file was produced.
+        if (file_exists($outputPath)) {
+            @chmod($outputPath, 0600);
+        }
     }
 
     /**
@@ -214,6 +233,11 @@ class BackupService
         }
 
         file_put_contents($outputPath, $sql);
+        // SECURITY (UPD-1): file_put_contents inherits umask (typically
+        // 0022 -> 0644, world-readable). The dump contains every row of
+        // every table including password hashes, API key hashes, encrypted
+        // credentials, and audit logs. Force owner-only permissions.
+        @chmod($outputPath, 0600);
     }
 
     /**
@@ -360,6 +384,13 @@ class BackupService
         }
 
         $zip->close();
+        // SECURITY (UPD-1): ZipArchive produces files with umask-based
+        // permissions (typically 0022 -> 0644, world-readable). The code.zip
+        // contains the full source tree, including any secrets that may have
+        // been committed by accident. Force owner-only permissions.
+        if (file_exists($outputPath)) {
+            @chmod($outputPath, 0600);
+        }
     }
 
     /**

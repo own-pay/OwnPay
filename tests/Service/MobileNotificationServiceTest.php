@@ -72,7 +72,7 @@ final class MobileNotificationServiceTest extends TestCase
         ], unreadCount: 3);
 
         $service = new MobileNotificationService($repo);
-        $result = $service->poll('device-001', '2026-04-27T09:00:00Z');
+        $result = $service->poll('device-001', 7, '2026-04-27T09:00:00Z');
 
         $this->assertArrayHasKey('notifications', $result);
         $this->assertArrayHasKey('unread_count', $result);
@@ -89,7 +89,7 @@ final class MobileNotificationServiceTest extends TestCase
         $repo = $this->stubRepo(notifications: [], unreadCount: 0);
         $service = new MobileNotificationService($repo);
 
-        $result = $service->poll('device-001');
+        $result = $service->poll('device-001', 7);
 
         $this->assertEmpty($result['notifications']);
         $this->assertSame(0, $result['unread_count']);

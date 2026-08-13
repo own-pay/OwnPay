@@ -116,6 +116,7 @@ final class JwtService
             'sub' => $userId,
             'mid' => $merchantId,
             'did' => $deviceId,
+            'typ' => self::TYPE_ACCESS,
             'iat' => $now,
             'exp' => $now + ($ttl ?? $this->ttl),
             'jti' => bin2hex(random_bytes(8)),
@@ -144,6 +145,7 @@ final class JwtService
             'did'      => $deviceUuid,
             'brand_id' => $brandId,
             'scopes'   => $scopes,
+            'typ'      => self::TYPE_ACCESS,
             'iat'      => $now,
             'exp'      => $now + $ttl,
             'jti'      => bin2hex(random_bytes(8)),
@@ -298,6 +300,11 @@ final class JwtService
     /**
      * Issues a long-lived refresh token associated with the device context.
      *
+     * The token carries `typ=refresh` so JwtAuthMiddleware can reject it for
+     * direct API access — refresh tokens are only usable at the /auth/refresh
+     * endpoint to mint a new short-lived access token. A stolen refresh token
+     * therefore cannot be used as a long-lived access credential.
+     *
      * @param int $userId Primary user ID.
      * @param int $merchantId Active merchant context.
      * @param string $deviceId Unique companion hardware ID.
@@ -305,6 +312,20 @@ final class JwtService
      */
     public function issueRefreshToken(int $userId, int $merchantId, string $deviceId): string
     {
-        return $this->issue($userId, $merchantId, $deviceId, 2592000); // 30 days
+        $now = time();
+        $ttl = 2592000; // 30 days
+        $payload = [
+            'iss' => $this->issuer,
+            'aud' => 'ownpay-mobile',
+            'sub' => $userId,
+            'mid' => $merchantId,
+            'did' => $deviceId,
+            'typ' => self::TYPE_REFRESH,
+            'iat' => $now,
+            'exp' => $now + $ttl,
+            'jti' => bin2hex(random_bytes(8)),
+        ];
+
+        return JWT::encode($payload, $this->secret, 'HS256');
     }
 }

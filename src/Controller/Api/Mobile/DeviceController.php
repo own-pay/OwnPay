@@ -165,6 +165,17 @@ final class DeviceController
      * POST /api/mobile/v1/devices/bulk-revoke
      * Input Body: { device_ids: ["uuid1", "uuid2"] }
      *
+     * SECURITY (DEV-1): a paired mobile device may only revoke its OWN
+     * device UUID. Previously this endpoint iterated `device_ids` and
+     * called revoke() on each without comparing against the caller's
+     * `device_id` (resolved from the JWT by JwtAuthMiddleware), so any
+     * paired device holding a valid JWT for merchant X could revoke any
+     * other paired device UUID belonging to merchant X. A single
+     * compromised device could DoS the merchant's entire mobile fleet.
+     *
+     * Each successful revocation is audit-logged so an admin can
+     * attribute the action later.
+     *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP response with the count of revoked devices.
      */
@@ -172,6 +183,8 @@ final class DeviceController
     {
         $midVal  = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $callerDeviceIdVal = $req->getAttribute('device_id');
+        $callerDeviceId = is_string($callerDeviceIdVal) ? $callerDeviceIdVal : '';
         $body = $req->json();
         $bodyArr = is_array($body) ? $body : [];
 
@@ -191,10 +204,60 @@ final class DeviceController
             return Response::apiError('DEVICE_IDS_REQUIRED', 'device_ids required', 'device_ids', 422);
         }
 
+        // SECURITY (DEV-1): enforce device-level ownership. A paired device
+        // can only bulk-revoke its own UUID; any other UUID is rejected with
+        // 403. If a future admin-scoped caller needs to revoke other
+        // devices, that should go through a separate admin API endpoint
+        // (Api/Admin/DeviceController) with explicit `devices.manage`
+        // permission checks.
+        if ($callerDeviceId === '') {
+            return Response::apiError(
+                'CALLER_DEVICE_REQUIRED',
+                'Caller device_id missing from JWT',
+                'device_id',
+                403
+            );
+        }
+        $unauthorized = array_values(array_filter(
+            $ids,
+            fn($id) => $id !== $callerDeviceId
+        ));
+        if ($unauthorized !== []) {
+            return Response::apiError(
+                'DEVICE_OWNERSHIP_REQUIRED',
+                'A paired device may only revoke its own UUID; revoking other devices requires admin API access',
+                'device_ids',
+                403
+            );
+        }
+
+        // Resolve AuditService up-front so a missing service does not silently
+        // skip audit logging for any individual revocation.
+        $audit = null;
+        try {
+            $resolved = $this->c->get(\OwnPay\Service\System\AuditService::class);
+            if ($resolved instanceof \OwnPay\Service\System\AuditService) {
+                $audit = $resolved;
+            }
+        } catch (\Throwable) {
+            // AuditService unavailable - revocation still proceeds, but we
+            // log to error_log so the omission is visible to operators.
+            error_log('[DeviceController] AuditService unavailable; bulk-revoke will skip audit logging');
+        }
+
         $count = 0;
         foreach ($ids as $deviceUuid) {
             if ($this->devices->revoke($deviceUuid, $mid)) {
                 $count++;
+                if ($audit instanceof \OwnPay\Service\System\AuditService) {
+                    $audit->log(
+                        'mobile.device.revoked',
+                        'devices',
+                        $mid,
+                        null,
+                        ['device_uuid' => $deviceUuid, 'revoked_by' => $callerDeviceId]
+                    );
+                }
             }
         }
         return Response::apiSuccess(['revoked' => $count]);

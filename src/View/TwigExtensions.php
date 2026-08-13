@@ -57,7 +57,6 @@ final class TwigExtensions extends AbstractExtension
             new TwigFunction('csrf_token', [$this, 'csrfToken'], ['is_safe' => ['html']]),
             new TwigFunction('csrf_field', [$this, 'csrfField'], ['is_safe' => ['html']]),
             new TwigFunction('asset', [$this, 'asset']),
-            new TwigFunction('env', [$this, 'env']),
             new TwigFunction('hook', [$this, 'hook'], ['is_safe' => ['html']]),
             new TwigFunction('hook_filter', [$this, 'hookFilter']),
             new TwigFunction('app_name', [$this, 'appName']),
@@ -131,18 +130,6 @@ final class TwigExtensions extends AbstractExtension
         }
         $cleanPath = ltrim($path, '/');
         return '/assets/' . $cleanPath . '?v=' . $version;
-    }
-
-    /**
-     * Fetch a key from environment configuration variables.
-     *
-     * @param string $key The key name of the environment variable.
-     * @param string $default The fallback value if key does not exist.
-     * @return string The configuration value or its default fallback.
-     */
-    public function env(string $key, string $default = ''): string
-    {
-        return (string) (getenv($key) ?: $default);
     }
 
     /**
