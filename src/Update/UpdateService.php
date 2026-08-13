@@ -235,6 +235,26 @@ EOT;
      */
     public function execute(string $version): array
     {
+        // UPD-3: Disable PHP's max_execution_time for the duration of the
+        // update pipeline. The pipeline downloads a ZIP (cURL timeout 300s),
+        // verifies SHA-256 + RSA signature, extracts the ZIP, runs DB
+        // migrations, clears cache, and runs health checks — a process that
+        // can easily exceed 60-120 seconds. Without this, PHP's
+        // max_execution_time (default 30s, often 60s on managed hosts) fires
+        // during migration execution and kills the process mid-transaction.
+        // The finally block releases the file lock, but the catch (\Throwable)
+        // block does NOT run for a fatal "Maximum execution time exceeded"
+        // error in PHP's non-deferred shutdown path — so maintenance mode is
+        // NOT exited and the rollback is NOT triggered, leaving the system in
+        // a partially-applied state.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        // Also raise the memory limit — migrations can be memory-intensive.
+        if (function_exists('ini_set')) {
+            @ini_set('memory_limit', '512M');
+        }
+
         // Acquire an exclusive on-disk lock BEFORE the isUpdateInProgress() DB
         // check. Without it, two concurrent /admin/system-update/apply requests
         // both read "no active update", both call startUpdate(), and run the
