@@ -27,6 +27,11 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
+          # Extensions required by src/Plugin/PluginInstaller, src/Update/UpdateService,
+          # src/Update/BackupService and their tests. shivammathur/setup-php ships these
+          # by default on its ubuntu Docker image, but listing them explicitly makes
+          # the requirement self-documenting and resilient to image changes.
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -48,6 +53,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -82,6 +88,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: xdebug
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -108,6 +115,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -171,6 +179,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
