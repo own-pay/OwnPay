@@ -63,10 +63,15 @@ jobs:
           # Force 0 exit code to allow SARIF file generation
           # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
-          # Per-tool timeout in seconds. Default is 600 (10 min) which on
+          # Per-tool timeout. Default is 600 seconds (10 min) which on
           # OwnPay's codebase causes the workflow to hang for 30+ minutes
           # when sub-tools get stuck on PHP 8.3 / complex AST patterns.
-          tool-timeout: 180
+          #
+          # NOTE: Codacy CLI v7.9.x changed --tool-timeout to require a
+          # duration string (e.g. "3minutes", "180seconds") instead of a
+          # bare integer. The codacy-analysis-cli-action@v4.4.7 wrapper
+          # passes the value through verbatim, so we use "3minutes" here.
+          tool-timeout: 3minutes
         continue-on-error: true
 
       # Verify the SARIF file was produced AND is valid JSON before attempting
