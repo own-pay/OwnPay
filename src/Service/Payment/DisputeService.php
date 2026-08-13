@@ -153,10 +153,21 @@ final class DisputeService
      * @param string $status The final dispute status ('won', 'lost', 'closed').
      * @param string|null $resolution Optional description of the resolution details.
      * @return void
+     * @throws \RuntimeException If the dispute is already resolved (no rows affected by the
+     *                            state-machine-guarded UPDATE). The controller surfaces this
+     *                            as a user-facing flash error.
      */
     public function resolve(int $merchantId, int $disputeId, string $status, ?string $resolution = null): void
     {
-        $this->disputes->forTenant($merchantId)->resolve($disputeId, $status, $resolution);
+        $affected = $this->disputes->forTenant($merchantId)->resolve($disputeId, $status, $resolution);
+        if ($affected === 0) {
+            // The UPDATE WHERE clause restricted to status IN ('open','under_review')
+            // matched no rows - i.e. the dispute is already resolved (won/lost/closed).
+            // Refuse to overwrite the existing resolution / re-fire dispute.resolved.
+            throw new \RuntimeException(
+                "Dispute #{$disputeId} is already resolved and cannot be re-resolved."
+            );
+        }
         $this->events->doAction('dispute.resolved', ['id' => $disputeId, 'status' => $status, 'resolution' => $resolution]);
     }
 }
