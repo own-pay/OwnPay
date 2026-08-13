@@ -139,7 +139,7 @@ final class ApiKeyController
         $id = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        
+
         try {
             $revoked = $this->keys->revoke($mid, $id);
             if ($revoked === 0) {
@@ -147,7 +147,11 @@ final class ApiKeyController
             }
             return Response::apiSuccess(['message' => 'Key revoked']);
         } catch (\Throwable $e) {
-            return Response::apiError('KEY_REVOCATION_FAILED', $e->getMessage(), 'id', 400);
+            // Don't leak raw exception messages (PDO errors, file paths, etc.) to
+            // the API client — log the full exception internally and return a
+            // generic, safe message.
+            $this->logException('API key revocation failed', $e);
+            return Response::apiError('KEY_REVOCATION_FAILED', 'Key revocation failed. Please try again.', 'id', 400);
         }
     }
 
@@ -196,5 +200,26 @@ final class ApiKeyController
         }
 
         return null;
+    }
+
+    /**
+     * Logs a caught exception to the system logger if available.
+     *
+     * Used by catch blocks that return a generic API error so the underlying
+     * exception details (which may include SQL fragments, file paths, etc.) are
+     * never sent to the client but are still preserved server-side for triage.
+     *
+     * @param string $message Human-readable context message.
+     * @param \Throwable $e The caught exception.
+     */
+    private function logException(string $message, \Throwable $e): void
+    {
+        if (!$this->c->has(\OwnPay\Service\System\Logger::class)) {
+            return;
+        }
+        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+        if ($logger instanceof \OwnPay\Service\System\Logger) {
+            $logger->error($message, ['exception' => $e]);
+        }
     }
 }

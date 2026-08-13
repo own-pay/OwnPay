@@ -101,7 +101,18 @@ final class DeviceController
 
             return Response::apiSuccess($data, null, 201);
         } catch (\InvalidArgumentException $e) {
-            return Response::apiError('INVALID_PAIRING_CODE', $e->getMessage(), 'pairing_code', 400);
+            // InvalidArgumentException here is thrown by InputSanitizer for
+            // programmer-error cases (unsupported method), NOT for user-facing
+            // input validation. The message is therefore internal and must not
+            // be relayed to the client. Log the full exception and return a
+            // generic, user-facing message.
+            $this->logException('Mobile pairing failed (invalid argument)', $e);
+            return Response::apiError('INVALID_PAIRING_CODE', 'Pairing failed. Please request a new pairing code.', 'pairing_code', 400);
+        } catch (\Throwable $e) {
+            // Catch-all: log internally, return a generic message. Avoids leaking
+            // PDO errors, file paths, or library internals to the API client.
+            $this->logException('Mobile pairing failed', $e);
+            return Response::apiError('PAIRING_FAILED', 'Pairing failed. Please try again.', 'pairing_code', 400);
         }
     }
 
@@ -271,5 +282,23 @@ final class DeviceController
         ];
 
         return Response::apiSuccess($data);
+    }
+
+    /**
+     * Logs a caught exception to the system logger if available.
+     *
+     * @param string $message Human-readable context message.
+     * @param \Throwable $e The caught exception.
+     * @param array<string, mixed> $context Additional structured context.
+     */
+    private function logException(string $message, \Throwable $e, array $context = []): void
+    {
+        if (!$this->c->has(\OwnPay\Service\System\Logger::class)) {
+            return;
+        }
+        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+        if ($logger instanceof \OwnPay\Service\System\Logger) {
+            $logger->error($message, $context + ['exception' => $e]);
+        }
     }
 }
