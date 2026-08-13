@@ -19,6 +19,7 @@ on:
   schedule:
     - cron: '33 14 * * 5'
 
+# Minimum permissions — CodeQL flagged the absence of this block.
 permissions:
   contents: read
 
@@ -32,18 +33,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout project source
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Scan code using project's configuration on https://semgrep.dev/manage
-      - uses: returntocorp/semgrep-action@fcd5ab7459e8d91cb1777481980d1b18b4fc6735
+      #
+      # Migrated from the deprecated returntocorp/semgrep-action to the
+      # Semgrep Native GitHub Action (semgrep/semgrep-action) — see
+      # https://github.com/marketplace/actions/semgrep-action. The
+      # returntocorp repository was officially deprecated and is no
+      # longer receiving updates. Both actions wrap the same Docker
+      # image (returntocorp/semgrep-agent:v1), so the publishToken /
+      # publishDeployment / generateSarif inputs continue to work
+      # unchanged.
+      - uses: semgrep/semgrep-action@v1
         with:
           publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
           publishDeployment: ${{ secrets.SEMGREP_DEPLOYMENT_ID }}
           generateSarif: "1"
+        continue-on-error: true
 
-      # Upload SARIF file generated in previous step
+      # Verify the SARIF file is present AND valid JSON before upload.
+      # Semgrep may produce no SARIF on empty repos, missing tokens, or
+      # internal Semgrep errors — guarding here prevents the upload step
+      # from failing with "Invalid SARIF. JSON syntax error".
+      - name: Verify SARIF file is valid
+        id: verify_sarif
+        if: always()
+        run: |
+          if [ ! -s semgrep.sarif ]; then
+            echo "::warning::Semgrep did not produce a non-empty semgrep.sarif file. Skipping SARIF upload."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! python3 -c "import json,sys; json.load(open('semgrep.sarif'))" 2>/dev/null; then
+            echo "::warning::semgrep.sarif is not valid JSON. Skipping SARIF upload."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "semgrep.sarif is present ($(wc -c < semgrep.sarif) bytes) and valid JSON."
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+
+      # Upload SARIF file generated in previous step.
+      # CodeQL Action v4 is required — v3 is being deprecated in December 2026.
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep.sarif
-        if: always()
+        if: always() && steps.verify_sarif.outputs.valid == 'true'

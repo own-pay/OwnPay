@@ -1,6 +1,45 @@
+# Dependabot configuration for automated dependency updates.
+# Keeps PHP (Composer) and JavaScript (npm) dependencies up-to-date
+# with automated pull requests and security patch alerts.
 version: 2
+
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # Composer (PHP) dependencies
+  - package-ecosystem: composer
+    directory: /
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - php
+    reviewers:
+      - fattain-naime
+    target-branch: dev
+
+  # npm (JavaScript) dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - javascript
+    reviewers:
+      - fattain-naime
+    target-branch: dev
+
+  # GitHub Actions — keep workflow actions up-to-date
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    target-branch: dev
