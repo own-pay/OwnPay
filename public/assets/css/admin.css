@@ -2500,6 +2500,13 @@ input[type="checkbox"]:focus-visible {
   color: var(--op-text-muted);
 }
 
+.op-date-picker-input:focus,
+.op-date-picker-input:focus-visible {
+  outline: none;
+  border-color: var(--op-primary);
+  box-shadow: 0 0 0 2px rgb(15 151 237 / 10%);
+}
+
 .op-date-picker-trigger {
   background: transparent;
   border: none;
