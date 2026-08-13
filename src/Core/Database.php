@@ -429,10 +429,17 @@ class Database
     /**
      * Checks if a row exists in the database.
      *
+     * SECURITY: The $where argument is concatenated directly into the SQL
+     * string. Callers MUST NOT interpolate user input into $where — only
+     * literal SQL fragments with :named placeholders bound via $params are
+     * permitted. A runtime assertion rejects obvious SQL-injection markers
+     * (statement separator, comment markers, NUL/control bytes) as a
+     * defence-in-depth guardrail against future callers that take a shortcut.
+     *
      * @param string $table  The table name.
-     * @param string $where  The SQL WHERE clause.
+     * @param string $where  The SQL WHERE clause. Use :named placeholders only; never interpolate user input.
      * @param array<string|int, mixed>  $params The parameters to bind.
-     * @throws \InvalidArgumentException If table name contains forbidden characters.
+     * @throws \InvalidArgumentException If table name or WHERE clause contains forbidden characters.
      * @return bool True if row exists, false otherwise.
      */
     public function exists(string $table, string $where, array $params = []): bool
@@ -441,6 +448,7 @@ class Database
         if (!preg_match('/^[a-zA-Z0-9_`]+$/', $table)) {
             throw new \InvalidArgumentException('Invalid table name: ' . $table);
         }
+        self::assertSafeWhereClause($where);
         $sql = "SELECT 1 FROM {$table} WHERE {$where} LIMIT 1";
         return $this->fetchColumn($sql, $params) !== null;
     }
@@ -448,10 +456,17 @@ class Database
     /**
      * Counts rows matching selection parameters.
      *
+     * SECURITY: The $where argument is concatenated directly into the SQL
+     * string. Callers MUST NOT interpolate user input into $where — only
+     * literal SQL fragments with :named placeholders bound via $params are
+     * permitted. A runtime assertion rejects obvious SQL-injection markers
+     * (statement separator, comment markers, NUL/control bytes) as a
+     * defence-in-depth guardrail against future callers that take a shortcut.
+     *
      * @param string $table  The table name.
-     * @param string $where  The SQL WHERE clause.
+     * @param string $where  The SQL WHERE clause. Use :named placeholders only; never interpolate user input.
      * @param array<string|int, mixed>  $params The parameters to bind.
-     * @throws \InvalidArgumentException If table name contains forbidden characters.
+     * @throws \InvalidArgumentException If table name or WHERE clause contains forbidden characters.
      * @return int The row count.
      */
     public function count(string $table, string $where = '1=1', array $params = []): int
@@ -460,9 +475,60 @@ class Database
         if (!preg_match('/^[a-zA-Z0-9_`]+$/', $table)) {
             throw new \InvalidArgumentException('Invalid table name: ' . $table);
         }
+        self::assertSafeWhereClause($where);
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
         $val = $this->fetchColumn($sql, $params);
         return is_scalar($val) ? (int) $val : 0;
+    }
+
+    /**
+     * Defence-in-depth guard for the $where clause accepted by exists()/count().
+     *
+     * Rejects obvious SQL-injection markers (the semicolon statement
+     * separator, the double-dash and slash-star/star-slash comment markers,
+     * and NUL/control bytes other than the whitespace chars that legitimately
+     * appear in WHERE clauses). Legitimate WHERE fragments built with :named
+     * placeholders and quoted SQL literals (e.g. status IN ('open',
+     * 'under_review')) pass through unchanged.
+     *
+     * This is NOT a complete SQL-injection defence — the only safe pattern is
+     * to bind all user-derived values via $params. The guard exists solely to
+     * turn an accidental caller shortcut into a loud failure rather than a
+     * silent exploit.
+     *
+     * @param string $where The WHERE clause to validate.
+     * @throws \InvalidArgumentException If the WHERE clause contains forbidden tokens.
+     * @return void
+     */
+    private static function assertSafeWhereClause(string $where): void
+    {
+        if ($where === '') {
+            return;
+        }
+        // Reject statement separators and SQL comment markers — no legitimate
+        // WHERE clause needs them.
+        if (
+            str_contains($where, ';')
+            || str_contains($where, '--')
+            || str_contains($where, '/*')
+            || str_contains($where, '*/')
+        ) {
+            throw new \InvalidArgumentException(
+                'Refusing to execute WHERE clause containing SQL statement/comment markers; '
+                . 'use :named placeholders for all user-supplied values.'
+            );
+        }
+        // Reject NUL and other C0 control bytes except tab/newline/CR (which
+        // are whitespace and may legitimately appear in multi-line clauses).
+        for ($i = 0, $len = strlen($where); $i < $len; $i++) {
+            $ord = ord($where[$i]);
+            if ($ord < 0x20 && $ord !== 0x09 && $ord !== 0x0A && $ord !== 0x0D) {
+                throw new \InvalidArgumentException(
+                    'Refusing to execute WHERE clause containing control bytes; '
+                    . 'use :named placeholders for all user-supplied values.'
+                );
+            }
+        }
     }
 
     /**
