@@ -249,6 +249,12 @@ final class Response
     /**
      * Creates a file download attachment response instance.
      *
+     * The Content-Disposition header is built per RFC 6266 / RFC 5987: an
+     * ASCII-safe fallback `filename` is always emitted (non-ASCII bytes
+     * replaced with `_`) plus a `filename*=UTF-8''<percent-encoded>` parameter
+     * for non-ASCII filenames so browsers render CJK/accented/emoji names
+     * correctly instead of garbling or truncating them.
+     *
      * @param string $filePath The absolute filesystem path to the file.
      * @param string $filename The recommended filename for client download.
      * @param string $contentType The HTTP Content-Type header value. Defaults to 'application/octet-stream'.
@@ -262,9 +268,48 @@ final class Response
         $body = (string) file_get_contents($filePath);
         $response = new self($body, 200);
         $response->headers['Content-Type'] = $contentType;
-        $response->headers['Content-Disposition'] = 'attachment; filename="' . addslashes($filename) . '"';
+        $response->headers['Content-Disposition'] = self::buildContentDisposition($filename);
         $response->headers['Content-Length'] = (string) strlen($body);
         return $response;
+    }
+
+    /**
+     * Builds an RFC 6266 / RFC 5987-compliant Content-Disposition header value
+     * for an attachment download filename.
+     *
+     * Emits both an ASCII-only `filename="..."` fallback (non-ASCII bytes
+     * replaced with `_` so the value stays inside a quoted-string) and a
+     * `filename*=UTF-8''<percent-encoded>` parameter for non-ASCII names.
+     * `addslashes()` was previously used, which broke on UTF-8 filenames
+     * (browsers truncated or garbled at the first non-ASCII byte).
+     *
+     * @param string $filename The client-recommended download filename.
+     * @return string The full `attachment; filename="..."; filename*=UTF-8''...` value.
+     */
+    private static function buildContentDisposition(string $filename): string
+    {
+        // ASCII-only fallback: replace any byte outside the printable ASCII
+        // range (0x20-0x7E) with an underscore. Also strip `"` and `\` so the
+        // quoted-string stays well-formed without addslashes() (which would
+        // mangle UTF-8 multibyte sequences by backslash-escaping individual
+        // bytes).
+        $ascii = preg_replace('/[^\x20-\x7E]/', '_', $filename) ?? '';
+        $ascii = str_replace(['"', '\\'], '_', $ascii);
+        if ($ascii === '') {
+            $ascii = 'download';
+        }
+
+        // RFC 5987 percent-encoded UTF-8 form. rawurlencode encodes every byte
+        // outside the unreserved set (A-Za-z0-9-._~) so the result is safe to
+        // embed in a header value without further escaping.
+        $encoded = rawurlencode($filename);
+
+        // If the filename is pure ASCII, the `filename*` parameter is redundant
+        // and only the legacy `filename` form is required.
+        if ($encoded === $filename) {
+            return 'attachment; filename="' . $ascii . '"';
+        }
+        return 'attachment; filename="' . $ascii . '"; filename*=UTF-8\'\'' . $encoded;
     }
 
     /**
