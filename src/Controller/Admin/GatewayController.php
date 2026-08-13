@@ -401,10 +401,126 @@ final class GatewayController
     {
         $merchantId = $this->resolveOwnerId($request);
         $gid = (int) $request->param('id');
+
+        // MG-2: unlink orphaned logo/QR files before the row is removed. Files whose URL is
+        // still referenced by another manual gateway of the same slug under a different
+        // merchant (e.g. a platform template that a brand overrode) are left in place so
+        // the surviving reference does not dangle.
+        $this->purgeManualGatewayAssets($gid, $merchantId);
+
         $this->manualGateways->forTenant($merchantId)->deleteScoped($gid);
         $this->audit->log('gateway.deleted', 'manual_gateway', $gid);
         $this->session->flashSuccess('Gateway deleted.');
         return Response::redirect('/admin/gateways');
+    }
+
+    /**
+     * Removes the uploaded logo/QR files attached to a manual gateway immediately before
+     * the row itself is deleted.
+     *
+     * Files whose path is still referenced by another manual gateway of the same slug
+     * (typically the platform template that a brand overrode) are kept on disk so the
+     * surviving reference does not dangle. Asset URLs are strictly validated to live
+     * within the public uploads subtree to prevent path traversal.
+     *
+     * @param int $gid        Manual gateway id about to be deleted.
+     * @param int $merchantId Owner merchant id of the row being deleted.
+     *
+     * @return void
+     */
+    private function purgeManualGatewayAssets(int $gid, int $merchantId): void
+    {
+        $row = $this->manualGateways->forTenant($merchantId)->findScoped($gid);
+        if ($row === null) {
+            return;
+        }
+
+        $slugVal = $row['slug'] ?? '';
+        $slug = is_string($slugVal) ? $slugVal : '';
+
+        foreach (['logo_path', 'qr_code_path'] as $field) {
+            $urlVal = $row[$field] ?? '';
+            $url = is_string($urlVal) ? $urlVal : '';
+            if ($url === '') {
+                continue;
+            }
+
+            // Leave the file on disk if any other manual gateway (any merchant) of the
+            // same slug still references the same asset URL.
+            if ($slug !== '' && $this->manualGatewayAssetReferencedElsewhere($field, $url, $slug, $gid)) {
+                continue;
+            }
+
+            $this->unlinkPublicUpload($url);
+        }
+    }
+
+    /**
+     * Determines whether a given asset URL is referenced by any manual gateway other than
+     * the one currently being deleted. Used to decide whether the underlying file can be
+     * safely unlinked (no other row depends on it).
+     *
+     * @param string $field      Column name ('logo_path' or 'qr_code_path').
+     * @param string $url        Stored asset URL to look up.
+     * @param string $slug       Manual gateway slug to scope the cross-reference check.
+     * @param int    $excludeId  Manual gateway id being deleted (excluded from the count).
+     *
+     * @return bool True if at least one other manual gateway references the same asset URL.
+     */
+    private function manualGatewayAssetReferencedElsewhere(string $field, string $url, string $slug, int $excludeId): bool
+    {
+        $count = $this->manualGateways
+            ->forAllTenants()
+            ->countScoped(
+                "slug = :slug AND {$field} = :url AND id <> :id",
+                ['slug' => $slug, 'url' => $url, 'id' => $excludeId]
+            );
+
+        return $count > 0;
+    }
+
+    /**
+     * Deletes a public-upload asset file by its web-root-relative URL.
+     *
+     * The URL must be of the form `/assets/uploads/<subdir>/<year>/<month>/<hash>.<ext>`
+     * as produced by {@see FilesystemService::storePublicUpload()}. The path is resolved
+     * strictly against the public uploads directory; any attempt to escape it (via `..`
+     * segments, null bytes, absolute paths, or alternate prefixes) is silently ignored
+     * rather than throwing — asset cleanup is best-effort and must never break the
+     * surrounding delete flow.
+     *
+     * @param string $url Web-root-relative asset URL.
+     *
+     * @return void
+     */
+    private function unlinkPublicUpload(string $url): void
+    {
+        $prefix = '/assets/uploads/';
+        if (!str_starts_with($url, $prefix)) {
+            return;
+        }
+
+        $relative = substr($url, strlen($prefix));
+        if ($relative === '' || str_contains($relative, '..') || str_contains($relative, "\0")) {
+            return;
+        }
+
+        $publicDir = dirname(__DIR__, 3) . '/public/assets/uploads';
+        $baseReal = realpath($publicDir);
+        if ($baseReal === false) {
+            return;
+        }
+
+        $absolute = realpath($publicDir . '/' . $relative);
+        if ($absolute === false || !is_file($absolute)) {
+            return;
+        }
+
+        if (!str_starts_with($absolute, $baseReal . DIRECTORY_SEPARATOR)) {
+            return;
+        }
+
+        @unlink($absolute);
     }
 
     // ---- Extracted Helpers
