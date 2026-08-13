@@ -19,6 +19,28 @@ final class UrlValidator
     private const ALLOWED_SCHEMES = ['http', 'https'];
 
     /**
+     * @var array<int, string> Allowed URL schemes for sanitize() — broader than
+     *                         ALLOWED_SCHEMES because sanitize() is also used for
+     *                         mailto/tel links and other user-supplied URL strings
+     *                         that are not outbound HTTP targets.
+     */
+    private const SANITIZE_ALLOWED_SCHEME_PREFIXES = [
+        'http://',
+        'https://',
+        'mailto:',
+        'tel:',
+        'ftp://',
+    ];
+
+    /**
+     * @var string URL-safe character set per RFC 3986 unreserved + reserved
+     *             (excluding delimiters that aren't legal in a URL string) plus
+     *             percent-encoded triplet characters. Used by sanitize() to
+     *             reject any URL containing characters outside this set.
+     */
+    private const SANITIZE_ALLOWED_CHARS_REGEX = '/^[a-zA-Z0-9\-._~:\/?#\[\]@!$&\'()*+,;=%]+$/';
+
+    /**
      * @var array<int, string> Private and loopback IP CIDR ranges blocked to prevent SSRF.
      * @phpstan-ignore classConstant.unused
      */
@@ -271,14 +293,31 @@ final class UrlValidator
     }
 
     /**
-     * Cleanses a URL string by blocking unsafe URI schemes (e.g. javascript:, data:) and sanitizing content.
+     * Cleanses a URL string by blocking unsafe URI schemes and rejecting any URL
+     * containing characters outside the URL-safe set.
+     *
+     * PHP 8.1 deprecated FILTER_SANITIZE_URL and PHP 8.2 removed it; on PHP 8.2+
+     * filter_var($url, FILTER_SANITIZE_URL) returns false, so the previous
+     * implementation silently dropped every URL parameter. We replace that
+     * filter with an explicit allowlist approach:
+     *
+     *   1. Trim the URL.
+     *   2. Reject dangerous schemes (javascript:, data:, vbscript:, file:).
+     *   3. Require an allowed scheme prefix (http://, https://, mailto:,
+     *      tel:, ftp://).
+     *   4. Reject if the URL contains any character outside the URL-safe
+     *      character set [a-zA-Z0-9-._~:/?#\[\]@!$&'()*+,;=%].
+     *   5. Otherwise return the URL as-is.
      *
      * @param string $url The raw URL string.
-     * @return string The sanitized URL string, or empty if dangerous.
+     * @return string The sanitized URL string, or empty if dangerous or invalid.
      */
     public static function sanitize(string $url): string
     {
         $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
 
         // Terminate validation if the URL initiates with a dangerous scheme pattern.
         $dangerous = ['javascript:', 'data:', 'vbscript:', 'file:'];
@@ -288,7 +327,27 @@ final class UrlValidator
             }
         }
 
-        return filter_var($url, FILTER_SANITIZE_URL) ?: '';
+        // Require an allowed scheme prefix. Anything else (e.g. relative URLs,
+        // protocol-relative URLs, unknown schemes) is rejected.
+        $schemeOk = false;
+        foreach (self::SANITIZE_ALLOWED_SCHEME_PREFIXES as $prefix) {
+            if (stripos($url, $prefix) === 0) {
+                $schemeOk = true;
+                break;
+            }
+        }
+        if (!$schemeOk) {
+            return '';
+        }
+
+        // Reject any character outside the URL-safe set. This catches control
+        // characters, whitespace, quotes, backticks, and anything else that
+        // could be used to break out of a URL context.
+        if (preg_match(self::SANITIZE_ALLOWED_CHARS_REGEX, $url) !== 1) {
+            return '';
+        }
+
+        return $url;
     }
 
     /**
