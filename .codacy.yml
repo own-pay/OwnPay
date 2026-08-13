@@ -1,0 +1,56 @@
+# Codacy configuration — https://docs.codacy.com/repositories-configure/configuring-codacy-using-a-codacy-yaml-file/
+#
+# Excludes vendor/, node_modules/, and other dependency/build directories
+# from Codacy analysis. The Codacy CLI v7.9.x was spending ~12 minutes
+# iterating over every file in these directories during the language-
+# detection phase (logging "No language found for X" for thousands of
+# files), which made the workflow impractically slow.
+#
+# Excluding these directories is also semantically correct — third-party
+# dependencies are not part of OwnPay's own attack surface, and any
+# vulnerabilities in them are tracked by `composer audit` / `npm audit`
+# (which the CI workflow already runs).
+
+---
+exclude_paths:
+  - vendor/**
+  - node_modules/**
+  - var/**
+  - storage/logs/**
+  - storage/cache/**
+  - storage/sessions/**
+  - storage/uploads/**
+  - public/assets/vendor/**
+  - public/assets/lib/**
+  - build/**
+  - dist/**
+  - tests/fixtures/**
+  - database/migrations/fixtures/**
+  - docs/_site/**
+  - docs/vendor/**
+
+# Tool-specific configuration. We keep the defaults for everything
+# except enabling the security-focused tools that are off by default
+# in the Codacy CLI v7.9.x.
+engines:
+  phpmd:
+    enabled: true
+  phpcs:
+    enabled: true
+  phpdepend:
+    enabled: false  # Crashes on PHP 8.3 union/intersection types
+  eslint:
+    enabled: true
+  stylelint:
+    enabled: true
+  duplication:
+    enabled: true
+    exclude_fingerprints: []
+    config:
+      languages:
+        php:
+        javascript:
+
+# Don't fail the build on the Codacy side — let GitHub code scanning
+# surface the results as PR annotations instead.
+min_blob_strength: 1
