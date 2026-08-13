@@ -133,6 +133,7 @@ final class Request
         $files = [];
         foreach ($_FILES as $k => $v) {
             if (is_array($v)) {
+                /** @var array<string, mixed> $v */
                 $files[(string)$k] = $v;
             }
         }
