@@ -138,20 +138,55 @@ final class StaffController
             }
         }
 
-        // Validate required fields + password minimum length
+        // Validate required fields + password policy.
+        // Audit fix STF-2: the previous implementation only enforced
+        // strlen($password) < 8. Common passwords like 'password' and
+        // '12345678' passed. We now require:
+        //   - minimum length 12 characters
+        //   - at least 3 of 4 character classes (uppercase, lowercase,
+        //     digit, symbol)
+        //   - a password_confirm field that must match password
+        // HIBP breach-list check is intentionally omitted: the audit's
+        // optional HIBP step requires outbound HTTPS, which may not be
+        // available in air-gapped deployments. The complexity + length
+        // rules above are the deterministic, side-effect-free baseline.
         $nameVal = $data['name'] ?? '';
         $name = InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
         $emailVal = $data['email'] ?? '';
         $email = trim(is_string($emailVal) ? $emailVal : '');
         $passwordVal = $data['password'] ?? '';
         $password = is_string($passwordVal) ? $passwordVal : '';
+        $passwordConfirmVal = $data['password_confirm'] ?? '';
+        $passwordConfirm = is_string($passwordConfirmVal) ? $passwordConfirmVal : '';
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required.');
             return Response::redirect('/admin/staff/create');
         }
-        if (strlen($password) < 8) {
-            $this->session->flashError('Password must be at least 8 characters.');
+        if (strlen($password) < 12) {
+            $this->session->flashError('Password must be at least 12 characters.');
+            return Response::redirect('/admin/staff/create');
+        }
+        $classesMet = 0;
+        if (preg_match('/[A-Z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[a-z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[0-9]/', $password)) {
+            $classesMet++;
+        }
+        // Symbols: anything that is not a letter or digit.
+        if (preg_match('/[^A-Za-z0-9]/', $password)) {
+            $classesMet++;
+        }
+        if ($classesMet < 3) {
+            $this->session->flashError('Password must use at least 3 of the 4 character classes: uppercase, lowercase, digits, symbols.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if ($password !== $passwordConfirm) {
+            $this->session->flashError('Password confirmation does not match.');
             return Response::redirect('/admin/staff/create');
         }
 
