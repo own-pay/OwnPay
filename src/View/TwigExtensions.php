@@ -362,13 +362,13 @@ final class TwigExtensions extends AbstractExtension
     public function formatMoney(string|int|float $amount, string $currency = 'BDT', int $decimals = 2): string
     {
         $symbols = [
-            'BDT' => 'à§³',
+            'BDT' => '৳',   // ৳ U+09F3 BENGALI RUPEE SIGN
             'USD' => '$',
-            'EUR' => '€',
-            'GBP' => 'Â£',
-            'INR' => '¹',
-            'JPY' => 'Â¥',
-            'CNY' => 'Â¥',
+            'EUR' => '€',   // € U+20AC EURO SIGN
+            'GBP' => '£',       // £ U+00A3 POUND SIGN
+            'INR' => '₹',   // ₹ U+20B9 INDIAN RUPEE SIGN
+            'JPY' => '¥',       // ¥ U+00A5 YEN SIGN
+            'CNY' => '¥',       // ¥ U+00A5 YEN SIGN
             'CAD' => 'C$',
             'AUD' => 'A$',
         ];

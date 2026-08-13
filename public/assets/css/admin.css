@@ -5,6 +5,31 @@
    Glassmorphic / Neo-Modern Design System
    ═══════════════════════════════════════════════════════ */
 
+/* Skip-to-content link: visually hidden until focused (WCAG 2.4.1) */
+.op-skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 8px 16px;
+  margin: 8px;
+  background: var(--op-primary, #0F97ED);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px;
+  transform: translateY(-150%);
+  transition: transform 0.2s ease;
+}
+
+.op-skip-link:focus,
+.op-skip-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  transform: translateY(0);
+}
+
 /* -- Admin-specific token overrides (LIGHT DEFAULT) -- */
 :root {
   --op-font: var(--font);
