@@ -54,11 +54,15 @@ final class SecurityHeadersMiddleware
         // Keep payment=() - OwnPay uses gateway redirects, not Payment Request API.
         $response->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
-        // Enforce modern Report-To header (SSRF/CSP reporting compliance)
-        $scheme = $request->isSecure() ? 'https' : 'http';
-        $host = $request->host();
-        if ($host !== '') {
-            $reportUrl = $scheme . '://' . $host . '/csp-report-api';
+        // Enforce modern Report-To header (SSRF/CSP reporting compliance).
+        //
+        // SECURITY: The report endpoint URL must be resolved from a server-side
+        // configuration value (APP_URL / config.app.url) and never from the
+        // client-supplied HTTP Host header. Browsers POST CSP violation reports
+        // to whatever URL we advertise here, so a spoofed Host could otherwise
+        // direct victims' reports to an attacker-controlled domain.
+        $reportUrl = $this->resolveCspReportUrl();
+        if ($reportUrl !== null) {
             $reportTo = json_encode([
                 'group' => 'csp-endpoint',
                 'max_age' => 10886400,
@@ -339,5 +343,51 @@ final class SecurityHeadersMiddleware
         }
 
         return true;
+    }
+
+    /**
+     * Resolves the CSP Report-To endpoint URL from server-side configuration only.
+     *
+     * Resolution order (every source is server-controlled — never the HTTP Host header):
+     *   1. config.app.url (set from the APP_URL env var in config/app.php)
+     *   2. $_SERVER['SERVER_NAME'] (set by the web server, not the client)
+     *
+     * Returns null when no trusted server-side origin can be determined; in that case
+     * the Report-To header is simply omitted rather than being constructed from an
+     * untrusted source.
+     *
+     * @return string|null Fully-qualified report endpoint URL, or null if unavailable.
+     */
+    private function resolveCspReportUrl(): ?string
+    {
+        $base = '';
+
+        try {
+            $configApp = $this->container->get('config.app');
+            if (is_array($configApp) && isset($configApp['url']) && is_string($configApp['url'])) {
+                $base = trim($configApp['url']);
+            }
+        } catch (\Throwable) {
+            // Container / config unavailable — fall through to SERVER_NAME below.
+        }
+
+        if ($base === '') {
+            $serverName = $_SERVER['SERVER_NAME'] ?? '';
+            $serverName = is_string($serverName) ? trim($serverName) : '';
+            if ($serverName !== '') {
+                // SERVER_NAME in standard web SAPIs is the configured virtual-host
+                // value, not the client's HTTP Host header. Build a URL from it.
+                $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                    || (($_SERVER['SERVER_PORT'] ?? 0) == 443);
+                $base = ($isHttps ? 'https://' : 'http://') . $serverName;
+            }
+        }
+
+        if ($base === '') {
+            return null;
+        }
+
+        // Strip any trailing slash before appending the report path.
+        return rtrim($base, '/') . '/csp-report-api';
     }
 }

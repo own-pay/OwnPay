@@ -23,8 +23,13 @@ return [
     'codename'=> 'Genesis',
 
     // Environment settings
-    'env'   => getenv('APP_ENV') ?: 'production',   
+    'env'   => getenv('APP_ENV') ?: 'production',
     'debug' => filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+
+    // Canonical application URL (server-side configured; never trust HTTP Host header).
+    // Used for security-critical response headers (e.g. Report-To) where a spoofed
+    // Host header must NOT redirect client browser reports to an attacker's domain.
+    'url'   => getenv('APP_URL') ?: '',
 
     // System-wide timezone configuration
     'timezone' => getenv('APP_TIMEZONE') ?: 'Asia/Dhaka',
