@@ -95,6 +95,19 @@ final class SecurityHeadersMiddleware
         if ($isCheckout) {
             $gatewayCsp = $this->collectGatewayCspSources();
 
+            // Resolve the explicit list of frame-ancestors the checkout/invoice/pay
+            // page may be embedded by. Per TMPL-5: previously `frame-ancestors
+            // 'self' https:` allowed ANY HTTPS origin to iframe the checkout
+            // page (modern browsers honour CSP frame-ancestors over the global
+            // X-Frame-Options: DENY header), enabling clickjacking overlays.
+            // Now we enumerate the active brand's DNS-verified+active custom
+            // domains from `op_domains` and emit them as the explicit allow
+            // list. Falls back to `'self'` only when no verified domain is
+            // registered or the container/DB is unavailable — merchants who
+            // want embedded checkout must explicitly register their embedding
+            // domain in the Domains admin and complete DNS verification.
+            $frameAncestors = $this->resolveCheckoutFrameAncestors();
+
             $scriptSrc  = array_unique(array_merge(["'self'", "'nonce-{$nonce}'"], $gatewayCsp['script_src']));
             $styleSrc   = array_unique(array_merge(["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], $gatewayCsp['style_src']));
             $frameSrc   = array_unique(array_merge(["'self'"], $gatewayCsp['frame_src']));
@@ -108,7 +121,7 @@ final class SecurityHeadersMiddleware
                 "img-src 'self' data: https:",
                 'connect-src ' . implode(' ', $connectSrc),
                 'frame-src ' . implode(' ', $frameSrc),
-                "frame-ancestors 'self' https:",
+                "frame-ancestors {$frameAncestors}",
                 "base-uri 'self'",
                 "form-action 'self' https:",
                 "report-uri /csp-report",
@@ -125,7 +138,7 @@ final class SecurityHeadersMiddleware
                     "img-src 'self' data: https:",
                     "connect-src 'self'",
                     "frame-src 'self'",
-                    "frame-ancestors 'self' https:",
+                    "frame-ancestors {$frameAncestors}",
                     "base-uri 'self'",
                     "form-action 'self' https:",
                     "report-uri /csp-report",
@@ -343,6 +356,99 @@ final class SecurityHeadersMiddleware
         }
 
         return true;
+    }
+
+    /**
+     * Resolves the explicit CSP frame-ancestors source list for checkout/invoice/pay pages.
+     *
+     * Per TMPL-5: the previous `frame-ancestors 'self' https:` policy allowed ANY
+     * HTTPS origin to iframe the checkout page. Modern browsers honour CSP
+     * frame-ancestors over the global `X-Frame-Options: DENY` header, so the
+     * global DENY was overridden on checkout paths — an attacker site at
+     * `https://evil.com` could iframe the OwnPay checkout, overlay it with a
+     * transparent UI, and trick the customer into clicking "Pay" on what they
+     * thought was the attacker's UI but was actually the OwnPay checkout
+     * (classic clickjacking).
+     *
+     * Resolution order (every source is server-controlled — never the client):
+     *   1. `'self'` always (the OwnPay origin itself, including white-labeled
+     *      custom domains that resolve to this OwnPay install).
+     *   2. Every DNS-verified + active custom domain registered for the active
+     *      brand in `op_domains`, emitted as `https://<host>`. Only verified+
+     *      active rows are eligible — a `pending` or `inactive` domain must
+     *      never be a frame-ancestor.
+     *
+     * Strict hostname validation (letters, digits, hyphen, dot only, ASCII) is
+     * applied to every domain before emission as defence-in-depth on top of the
+     * admin controller's own storage-time validation: a tampered `domain` value
+     * containing whitespace, semicolons, quotes, or a scheme/port must never
+     * reach the CSP header (which would allow CSP-directive injection).
+     *
+     * Falls back to `'self'` only when BrandContext / DomainRepository is
+     * unavailable, the active brand is unresolved, or the brand has no
+     * verified+active custom domains. Merchants who want embedded checkout
+     * must explicitly register their embedding domain in the Domains admin
+     * and complete DNS verification.
+     *
+     * @return string Space-separated CSP frame-ancestors source list, e.g.
+     *                `"'self' https://shop.example.com https://pay.other.com"`.
+     */
+    private function resolveCheckoutFrameAncestors(): string
+    {
+        $sources = ["'self'"];
+
+        try {
+            if (!$this->container->has(\OwnPay\Service\Brand\BrandContext::class)) {
+                return implode(' ', $sources);
+            }
+            $ctx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+            if (!$ctx instanceof \OwnPay\Service\Brand\BrandContext) {
+                return implode(' ', $sources);
+            }
+            $brandId = $ctx->getActiveBrandId();
+            if ($brandId === null || $brandId <= 0) {
+                return implode(' ', $sources);
+            }
+
+            $repo = $this->container->get(\OwnPay\Repository\DomainRepository::class);
+            if (!$repo instanceof \OwnPay\Repository\DomainRepository) {
+                return implode(' ', $sources);
+            }
+
+            // Pull every domain registered for the active brand (tenant-scoped).
+            // Filter to dns_verified=1 + status=active only. The list is
+            // typically 1-3 entries per merchant; cap at 20 as a sanity bound
+            // against pathological cases that could blow up the CSP header.
+            $rows = $repo->forTenant($brandId)->listAllScoped();
+            $emitted = 0;
+            foreach ($rows as $row) {
+                if ($emitted >= 20) {
+                    break;
+                }
+                $domain = isset($row['domain']) && is_scalar($row['domain']) ? trim((string) $row['domain']) : '';
+                if ($domain === '') {
+                    continue;
+                }
+                $dnsVerified = isset($row['dns_verified']) ? (bool) $row['dns_verified'] : false;
+                $status = isset($row['status']) && is_scalar($row['status']) ? (string) $row['status'] : '';
+                if (!$dnsVerified || $status !== 'active') {
+                    continue;
+                }
+                // Defence-in-depth: strict ASCII hostname charset. Rejects any
+                // tampered `domain` value containing scheme/port/path/whitespace/
+                // quote/semicolon — prevents CSP-directive injection from a
+                // corrupted row.
+                if (preg_match('/^[a-z0-9.\-]+$/i', $domain) !== 1) {
+                    continue;
+                }
+                $sources[] = 'https://' . strtolower($domain);
+                $emitted++;
+            }
+        } catch (\Throwable) {
+            // Container / DB unavailable — fail closed to 'self' only.
+        }
+
+        return implode(' ', array_values(array_unique($sources)));
     }
 
     /**
