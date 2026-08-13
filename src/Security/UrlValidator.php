@@ -127,12 +127,29 @@ final class UrlValidator
     /**
      * Validates if a URL is safe to perform client redirects (mitigating open redirection).
      *
+     * SECURITY: $allowedDomain is now MANDATORY. The previous signature allowed
+     * a null $allowedDomain, in which case any URL with an http/https scheme and
+     * a host was accepted — an open-redirect sink for any caller that didn't
+     * pass an explicit allowlist. The fix is to require the caller to explicitly
+     * provide the app's canonical host (e.g. from config.app.url, SERVER_NAME,
+     * or RouteHelper::siteUrl('MainDomain')), so every redirect target is
+     * constrained to the application's own domain or a configured subdomain.
+     *
      * @param string $url The target URL to validate.
-     * @param string|null $allowedDomain Optional domain string to restrict the host.
-     * @return bool True if the URL is valid for redirection, otherwise false.
+     * @param string $allowedDomain Required domain string to restrict the host.
+     *                              Subdomains are accepted (e.g. passing
+     *                              'example.com' allows 'foo.example.com').
+     * @return bool True if the URL is valid for redirection to the allowed
+     *              domain, otherwise false.
      */
-    public static function isValidRedirect(string $url, ?string $allowedDomain = null): bool
+    public static function isValidRedirect(string $url, string $allowedDomain): bool
     {
+        // An empty allowed domain means the caller has no configured canonical
+        // host — fail closed rather than risk an open-redirect sink.
+        if ($allowedDomain === '') {
+            return false;
+        }
+
         // Enforce absolute URL parsing criteria.
         $parsed = parse_url($url);
         if ($parsed === false || !isset($parsed['scheme'], $parsed['host'])) {
@@ -144,12 +161,14 @@ final class UrlValidator
             return false;
         }
 
-        // Apply domain restriction logic if specified.
-        if ($allowedDomain !== null) {
-            $host = strtolower($parsed['host']);
-            if ($host !== strtolower($allowedDomain) && !str_ends_with($host, '.' . strtolower($allowedDomain))) {
-                return false;
-            }
+        // Apply domain restriction: host must equal the allowed domain or be a
+        // subdomain of it. str_ends_with('foo.example.com', '.example.com')
+        // correctly matches subdomains while preventing suffix attacks
+        // (e.g. 'evilexample.com' is NOT a suffix-match of '.example.com').
+        $host = strtolower($parsed['host']);
+        $domain = strtolower($allowedDomain);
+        if ($host !== $domain && !str_ends_with($host, '.' . $domain)) {
+            return false;
         }
 
         return true;
