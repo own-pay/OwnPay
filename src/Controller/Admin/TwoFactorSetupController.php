@@ -127,7 +127,17 @@ final class TwoFactorSetupController
     }
 
     /**
-     * Disable 2FA on user account after verifying their current password.
+     * Disable 2FA on user account after step-up authentication.
+     *
+     * PCI-DSS 8.4.2 requires step-up authentication for security-critical
+     * setting changes. We therefore require BOTH:
+     *   1. The user's current password (knowledge factor).
+     *   2. A fresh TOTP code from their authenticator (possession factor).
+     * Disabling 2FA is a high-impact security setting change, so even though
+     * the user is already authenticated by session, they must re-prove both
+     * factors at the moment of the change. After successful disable we also
+     * rotate the current session ID to limit any window in which a stolen
+     * session cookie could be replayed against the now-2FA-less account.
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP redirect response.
@@ -141,6 +151,8 @@ final class TwoFactorSetupController
         }
         $passwordRaw = $req->post('password', '');
         $password = is_string($passwordRaw) ? $passwordRaw : '';
+        $codeRaw  = $req->post('totp_code', '');
+        $code     = (string) preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
 
         $hash = $this->userRepo->getPasswordHash($userId);
         if (!is_string($hash) || !password_verify($password, $hash)) {
@@ -148,8 +160,22 @@ final class TwoFactorSetupController
             return Response::redirect('/admin/my-account/2fa');
         }
 
+        // Step-up: require a fresh TOTP code in addition to the password.
+        $secret = $this->userRepo->getTotpSecret($userId);
+        if (!$secret || !$this->verifyTotp($secret, $code)) {
+            $this->session->flashError('Invalid TOTP code. Step-up authentication is required to disable 2FA.');
+            return Response::redirect('/admin/my-account/2fa');
+        }
+
         $this->userRepo->disableTotp($userId);
         $this->session->set('two_fa_enabled', false);
+
+        // Rotate the current session ID to invalidate any session-fixation
+        // replay window now that the account no longer has 2FA protection.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+
         $this->session->flashSuccess('2FA has been disabled.');
         return Response::redirect('/admin/my-account');
     }
