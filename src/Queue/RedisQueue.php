@@ -17,6 +17,13 @@ use Ramsey\Uuid\Uuid;
 final class RedisQueue implements QueueInterface
 {
     /**
+     * Maximum number of processing attempts allowed before a job is permanently
+     * dead-lettered. Matches QueueWorkerJob::MAX_ATTEMPTS so the queue driver
+     * and the database-backed worker agree on the retry ceiling.
+     */
+    private const int MAX_ATTEMPTS = 3;
+
+    /**
      * @var \Redis The Redis client connection handler instance.
      */
     private \Redis $redis;
@@ -163,7 +170,10 @@ final class RedisQueue implements QueueInterface
      * Re-pushes a failed job back onto its original queue for reprocessing.
      *
      * Scans the failed list to find the matching job record, removes it from the list,
-     * and queues it with the designated delay interval.
+     * and either re-queues it (when under MAX_ATTEMPTS) or moves it to the dead-letter
+     * list (when the attempt budget is exhausted). Constructing the retried job record
+     * inline — rather than delegating to push() — preserves the attempt counter so
+     * that handlers which always throw cannot trigger an infinite retry storm.
      *
      * @param string $jobId The UUID identifier of the job.
      * @param int $delay The delay interval in seconds before the retried job is made active. Defaults to 60.
@@ -172,6 +182,7 @@ final class RedisQueue implements QueueInterface
     public function retry(string $jobId, int $delay = 60): void
     {
         $failedKey = $this->prefix . 'failed';
+        $deadKey = $this->prefix . 'dead';
         $length = $this->redis->lLen($failedKey);
 
         for ($i = 0; $i < $length; $i++) {
@@ -184,24 +195,68 @@ final class RedisQueue implements QueueInterface
             if (is_array($job) && ($job['id'] ?? '') === $jobId) {
                 $this->redis->lRem($failedKey, (string) $raw, 1);
 
-                $queueName = is_string($job['queue'] ?? null) ? $job['queue'] : 'default';
-                $handlerClass = is_string($job['handler'] ?? null) ? $job['handler'] : '';
-                $payloadData = [];
-                if (isset($job['payload']) && is_array($job['payload'])) {
-                    foreach ($job['payload'] as $k => $v) {
-                        $payloadData[(string) $k] = $v;
-                    }
+                $attempts = is_numeric($job['attempts'] ?? null) ? (int) $job['attempts'] : 0;
+
+                // Dead-letter jobs that have exhausted MAX_ATTEMPTS. We must
+                // NOT re-queue them, otherwise a handler that always throws
+                // causes an infinite retry storm via repeated retry() calls.
+                if ($attempts >= self::MAX_ATTEMPTS) {
+                    $job['dead_at'] = time();
+                    $job['dead_reason'] = 'exceeded max attempts (' . self::MAX_ATTEMPTS . ')';
+                    $this->redis->lPush(
+                        $deadKey,
+                        (string) json_encode($job, JSON_UNESCAPED_UNICODE)
+                    );
+                    return;
                 }
 
-                $this->push(
-                    $queueName,
-                    $handlerClass,
-                    $payloadData,
-                    $delay
-                );
+                // Construct the retried job record inline with attempts
+                // incremented by 1. We deliberately do NOT call push() here —
+                // push() resets attempts to 0, which would defeat the
+                // MAX_ATTEMPTS cap and reintroduce the infinite-retry bug.
+                $queueName = is_string($job['queue'] ?? null) ? $job['queue'] : 'default';
+                $job['attempts'] = $attempts + 1;
+                $job['error'] = null;
+                $job['retried_at'] = time();
+                $payload = (string) json_encode($job, JSON_UNESCAPED_UNICODE);
+
+                if ($delay > 0) {
+                    $this->redis->zAdd(
+                        $this->prefix . $queueName . ':delayed',
+                        time() + $delay,
+                        $payload
+                    );
+                } else {
+                    $this->redis->lPush($this->prefix . $queueName, $payload);
+                }
                 return;
             }
         }
+    }
+
+    /**
+     * Lists dead-lettered jobs that have exhausted MAX_ATTEMPTS for admin inspection.
+     *
+     * @param int $limit Maximum records to return.
+     * @return array<int, array<string, mixed>> List of dead-lettered job records.
+     */
+    public function deadList(int $limit = 50): array
+    {
+        $raw = $this->redis->lRange($this->prefix . 'dead', 0, max(0, $limit - 1));
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $item) {
+            if (!is_string($item)) {
+                continue;
+            }
+            $job = json_decode($item, true);
+            if (is_array($job)) {
+                $out[] = $job;
+            }
+        }
+        return $out;
     }
 
     /**
