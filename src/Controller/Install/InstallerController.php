@@ -694,7 +694,24 @@ final class InstallerController
                 }
             }
             $finalContent = implode("\n", $lines);
-            
+
+            // SECURITY (audit INST-12): back up any existing .env before
+            // overwriting. Without this, a re-run of finalize() (e.g.
+            // after the marker file was accidentally deleted and the DB
+            // was briefly unreachable, so isInstalled() returned false)
+            // would silently clobber the existing .env with freshly-
+            // generated crypto keys — making all field-encrypted PII
+            // permanently unreadable and breaking the audit chain HMAC
+            // verification (SYS-1).
+            $envBackup = null;
+            if (file_exists($finalEnv)) {
+                $envBackup = $finalEnv . '.bak.' . time();
+                if (!@rename($finalEnv, $envBackup)) {
+                    return Response::json(['success' => false, 'error' => 'A .env file already exists and could not be backed up. Manually rename or delete .env before re-running the installer.'], 409);
+                }
+                error_log('[OwnPay] SECURITY (audit INST-12): backed up existing .env to ' . $envBackup . ' before finalize() overwrite.');
+            }
+
             file_put_contents($finalEnv, $finalContent, LOCK_EX);
             @chmod($finalEnv, 0640);
 
@@ -757,7 +774,11 @@ final class InstallerController
             @chmod($this->markerFile, 0640);
             @unlink($tempEnv);
 
-            return Response::json(['success' => true, 'message' => 'Installation complete']);
+            $response = ['success' => true, 'message' => 'Installation complete'];
+            if ($envBackup !== null) {
+                $response['env_backup'] = $envBackup;
+            }
+            return Response::json($response);
         } catch (\Throwable $e) {
             $msg = $e->getMessage();
             if (str_contains($msg, 'Access denied')) {
