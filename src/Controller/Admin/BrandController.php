@@ -368,7 +368,17 @@ final class BrandController
     }
 
     /**
-     * Removes a brand instance and cascades records via foreign key constraints.
+     * Removes a brand instance.
+     *
+     * Deletion is BLOCKED when the brand has any financial history
+     * (transactions, refunds, disputes, customers, invoices, payment links,
+     * or non-zero ledger balances). This protects the audit trail required by
+     * PCI-DSS requirement 10 (≥1 year retention) and tax-law record-retention
+     * mandates (typically 5–7 years). Brands with no financial activity
+     * (e.g. created in error) can still be deleted.
+     *
+     * See audit finding BRD-1 / issue #237 for the full impact analysis of the
+     * previous unconditional CASCADE delete.
      *
      * @param Request $req The incoming HTTP request.
      *
@@ -399,16 +409,93 @@ final class BrandController
             return Response::redirect('/admin/brands');
         }
 
-        // Hard delete brand + cascade handled by DB FK constraints
+        // Integrity: refuse to delete a brand that has any financial history.
+        // CASCADE deletion would destroy transactions, refunds, double-entry
+        // ledger rows, disputes, customers, invoices, and webhook delivery
+        // logs — violating PCI-DSS, tax-law, and chargeback-defense retention
+        // requirements. The admin must first archive/migrate those records to
+        // a cold-storage table (out of scope for this controller).
         $db = $this->c->get(\OwnPay\Core\Database::class);
-        if ($db instanceof \OwnPay\Core\Database) {
-            $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            $this->session->flashError('Database service unavailable; cannot verify brand is safe to delete');
+            return Response::redirect('/admin/brands');
         }
+
+        $blockers = $this->collectDeletionBlockers($db, $id);
+        if (!empty($blockers)) {
+            $brandNameVal = $brand['name'] ?? '';
+            $brandName = is_string($brandNameVal) ? $brandNameVal : '';
+            $this->audit->log('brand.delete_blocked', 'merchant', $id, null, [
+                'name' => $brandName,
+                'blockers' => $blockers,
+            ]);
+            $summary = implode(', ', $blockers);
+            $this->session->flashError(
+                "Cannot delete brand '{$brandName}': it has financial history ({$summary}). "
+                . 'Archive or migrate those records before deletion.'
+            );
+            return Response::redirect('/admin/brands');
+        }
+
+        // No financial history — safe to hard-delete. Cascade handled by DB FK constraints.
+        $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
 
         $brandNameVal = $brand['name'] ?? '';
         $brandName = is_string($brandNameVal) ? $brandNameVal : '';
         $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brandName]);
         $this->session->flashSuccess("Brand '{$brandName}' deleted");
         return Response::redirect('/admin/brands');
+    }
+
+    /**
+     * Collects the list of financial-history blockers that prevent brand deletion.
+     *
+     * Returns a non-empty array of human-readable blocker descriptions when the
+     * brand has any dependent financial records. Returns an empty array when the
+     * brand is safe to hard-delete.
+     *
+     * @param \OwnPay\Core\Database $db The database wrapper.
+     * @param int $id The merchant/brand ID.
+     * @return list<string> List of blocker descriptions; empty when safe to delete.
+     */
+    private function collectDeletionBlockers(\OwnPay\Core\Database $db, int $id): array
+    {
+        $checks = [
+            ['op_transactions', 'transactions'],
+            ['op_refunds', 'refunds'],
+            ['op_disputes', 'disputes'],
+            ['op_invoices', 'invoices'],
+            ['op_payment_links', 'payment links'],
+            ['op_payment_intents', 'payment intents'],
+            ['op_customers', 'customers'],
+            ['op_webhooks', 'webhook deliveries'],
+            ['op_api_keys', 'API keys'],
+            ['op_merchant_users', 'staff accounts'],
+            ['op_fee_rules', 'fee rules'],
+        ];
+
+        $blockers = [];
+        foreach ($checks as [$table, $label]) {
+            $count = $db->fetchOne("SELECT COUNT(*) AS c FROM {$table} WHERE merchant_id = :mid", ['mid' => $id]);
+            $countVal = $count['c'] ?? 0;
+            $countInt = is_numeric($countVal) ? (int) $countVal : 0;
+            if ($countInt > 0) {
+                $blockers[] = "{$countInt} {$label}";
+            }
+        }
+
+        // Non-zero ledger account balances would silently disappear under CASCADE
+        // delete, so they get their own explicit check.
+        $balances = $db->fetchOne(
+            "SELECT COALESCE(SUM(balance), 0) AS total FROM op_ledger_accounts WHERE merchant_id = :mid",
+            ['mid' => $id]
+        );
+        $totalVal = $balances['total'] ?? 0;
+        $totalStr = is_numeric($totalVal) ? (string) $totalVal : '0';
+        if (bccomp($totalStr, '0', 2) !== 0) {
+            $blockers[] = "non-zero ledger balance ({$totalStr})";
+        }
+
+        return $blockers;
     }
 }
