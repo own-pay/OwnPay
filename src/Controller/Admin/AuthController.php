@@ -302,6 +302,7 @@ final class AuthController
         $supportEmailStr = is_string($supportEmail) ? $supportEmail : '';
         return $this->renderAdminPage('page/forgot.twig', [
             'support_email' => $supportEmailStr,
+            'login_url'     => '/' . $this->resolveLoginSlug(),
         ]);
     }
 
@@ -321,7 +322,8 @@ final class AuthController
 
         if ($email === '') {
             return $this->renderAdminPage('page/forgot.twig', [
-                'error' => 'Please enter your email address.',
+                'error'     => 'Please enter your email address.',
+                'login_url' => '/' . $this->resolveLoginSlug(),
             ]);
         }
 
@@ -332,7 +334,8 @@ final class AuthController
         $this->events->doAction('auth.forgot_password', ['email' => $email]);
 
         return $this->renderAdminPage('page/forgot.twig', [
-            'success' => 'If an account exists for that email, a password reset link has been sent. It expires in 1 hour.',
+            'success'   => 'If an account exists for that email, a password reset link has been sent. It expires in 1 hour.',
+            'login_url' => '/' . $this->resolveLoginSlug(),
         ]);
     }
 
@@ -350,12 +353,16 @@ final class AuthController
 
         if (!$this->passwordReset()->tokenIsValid($token)) {
             return $this->renderAdminPage('page/reset.twig', [
-                'invalid' => true,
-                'error'   => 'This password reset link is invalid or has expired. Please request a new one.',
+                'invalid'   => true,
+                'error'     => 'This password reset link is invalid or has expired. Please request a new one.',
+                'login_url' => '/' . $this->resolveLoginSlug(),
             ]);
         }
 
-        return $this->renderAdminPage('page/reset.twig', ['token' => $token]);
+        return $this->renderAdminPage('page/reset.twig', [
+            'token'     => $token,
+            'login_url' => '/' . $this->resolveLoginSlug(),
+        ]);
     }
 
     /**
@@ -381,15 +388,16 @@ final class AuthController
             // resetPassword() always returns 'error' on failure, so it is safe to read directly here.
             $tokenAlive = $this->passwordReset()->tokenIsValid($token);
             return $this->renderAdminPage('page/reset.twig', [
-                'token'   => $tokenAlive ? $token : '',
-                'invalid' => !$tokenAlive,
-                'error'   => $result['error'],
+                'token'     => $tokenAlive ? $token : '',
+                'invalid'   => !$tokenAlive,
+                'error'     => $result['error'],
+                'login_url' => '/' . $this->resolveLoginSlug(),
             ]);
         }
 
         $this->audit->log('password_reset.completed', 'user', null);
         $this->session->flashSuccess('Your password has been reset. Please sign in with your new password.');
-        return Response::redirect('/login');
+        return Response::redirect('/' . $this->resolveLoginSlug());
     }
 
     /**
