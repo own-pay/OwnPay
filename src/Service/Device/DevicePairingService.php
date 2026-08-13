@@ -472,12 +472,27 @@ final class DevicePairingService
     /**
      * Records a client activity heartbeat timestamp.
      *
+     * The repository is scoped to the device's own merchant before the UPDATE
+     * fires so the tenant-scoped SQL path in PairedDeviceRepository::updateHeartbeat()
+     * applies (defense-in-depth: prevents cross-tenant heartbeat updates if a
+     * device_id collision ever occurs). Falls back to the global scope for
+     * All-Brands / platform devices paired under merchant_id IS NULL.
+     *
      * @param string $deviceUuid Cryptographic identifier of the device.
      * @return void
      */
     public function heartbeat(string $deviceUuid): void
     {
-        $this->devices->updateHeartbeat($deviceUuid);
+        $device = $this->devices->findByUuid($deviceUuid);
+        if ($device === null) {
+            return;
+        }
+        $midVal = $device['merchant_id'] ?? null;
+        $mid = is_scalar($midVal) ? (int) $midVal : null;
+        $repo = $mid === null
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($mid);
+        $repo->updateHeartbeat($deviceUuid);
     }
 
     /**
