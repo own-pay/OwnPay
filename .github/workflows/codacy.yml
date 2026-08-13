@@ -41,14 +41,21 @@ jobs:
       # still upload whatever SARIF was produced, instead of failing the
       # entire pipeline.
       #
-      # tool-timeout bounds each sub-tool to 3 minutes (180s). The Codacy
-      # action's default is 10 minutes per tool, which on a codebase the
-      # size of OwnPay (with ~6 sub-tools) yields a worst-case run of
-      # ~60 minutes. The previous run was observed hanging at 30+ minutes
-      # before being cancelled. 3 minutes per tool is plenty for any
-      # sub-tool that actually finishes; if a sub-tool needs more it is
-      # almost certainly stuck (PDepend AST walker on PHP 8.3 syntax,
-      # phpmd "Argument list too long", etc.) and should be killed.
+      # tool-timeout bounds each sub-tool to 3 minutes. The Codacy CLI v7.9.x
+      # runs ~27 Docker-based sub-tools (codacy-codesniffer, codacy-php-cs-fixer,
+      # codacy-biomejs, codacy-eslint9, codacy-pmd, codacy-jshint, etc.).
+      # Without a per-tool timeout the worst-case runtime is ~60 minutes.
+      #
+      # NOTE: Codacy CLI v7.9.x changed --tool-timeout to require a duration
+      # string (e.g. "3minutes", "180seconds") instead of a bare integer.
+      # The codacy-analysis-cli-action@v4.4.7 wrapper passes the value
+      # through verbatim, so we use "3minutes" here.
+      #
+      # timeout-minutes is a GitHub Actions step-level safeguard that kills
+      # the entire step (not just one sub-tool) if the CLI hangs for any
+      # reason not covered by --tool-timeout (e.g. SARIF post-processing
+      # hangs, network stall while pulling a Docker image, etc.). 25 minutes
+      # is comfortably above the observed ~17-minute full run on OwnPay.
       - name: Run Codacy Analysis CLI
         uses: codacy/codacy-analysis-cli-action@v4.4.7
         with:
@@ -63,16 +70,10 @@ jobs:
           # Force 0 exit code to allow SARIF file generation
           # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
-          # Per-tool timeout. Default is 600 seconds (10 min) which on
-          # OwnPay's codebase causes the workflow to hang for 30+ minutes
-          # when sub-tools get stuck on PHP 8.3 / complex AST patterns.
-          #
-          # NOTE: Codacy CLI v7.9.x changed --tool-timeout to require a
-          # duration string (e.g. "3minutes", "180seconds") instead of a
-          # bare integer. The codacy-analysis-cli-action@v4.4.7 wrapper
-          # passes the value through verbatim, so we use "3minutes" here.
+          # Per-tool timeout. Default is 600 seconds (10 min).
           tool-timeout: 3minutes
         continue-on-error: true
+        timeout-minutes: 25
 
       # Verify the SARIF file was produced AND is valid JSON before attempting
       # to upload it.
