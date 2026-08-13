@@ -379,8 +379,61 @@ final class InstallerController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return Response::json(['success' => false, 'error' => 'Invalid email'], 422);
         }
-        if (strlen($password) < 8) {
-            return Response::json(['success' => false, 'error' => 'Password min 8 chars'], 422);
+        // Audit fix INST-8: the previous check only enforced strlen >= 8,
+        // so passwords like 'password' or '12345678' were accepted for
+        // the superadmin account — the highest-privilege credential in
+        // the system (unrestricted access to ALL merchant data, ALL
+        // brands, ALL financial operations). Mirrors the
+        // StaffController::create() policy (audit STF-2):
+        //   - minimum length 12 characters
+        //   - at least 3 of 4 character classes (uppercase, lowercase,
+        //     digit, symbol)
+        //   - reject passwords that embed the admin's own identity
+        //     fields or the product name
+        // HIBP k-anonymity check is intentionally omitted: the installer
+        // may run in air-gapped deployments where outbound HTTPS to
+        // api.pwnedpasswords.com is unavailable. The complexity + length
+        // + context checks above are the deterministic, side-effect-free
+        // baseline.
+        if (strlen($password) < 12) {
+            return Response::json(['success' => false, 'error' => 'Password must be at least 12 characters.'], 422);
+        }
+        $classesMet = 0;
+        if (preg_match('/[A-Z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[a-z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[0-9]/', $password)) {
+            $classesMet++;
+        }
+        // Symbols: anything that is not a letter or digit.
+        if (preg_match('/[^A-Za-z0-9]/', $password)) {
+            $classesMet++;
+        }
+        if ($classesMet < 3) {
+            return Response::json(['success' => false, 'error' => 'Password must use at least 3 of the 4 character classes: uppercase, lowercase, digits, symbols.'], 422);
+        }
+        // Context-aware blocklist: reject passwords that embed the admin's
+        // own identity fields or the product name. These are the first
+        // guesses an attacker would try once they know the admin's email.
+        $pwLower = strtolower($password);
+        $forbiddenSubstrings = ['ownpay'];
+        $forbiddenSubstrings[] = strtolower($name);
+        $forbiddenSubstrings[] = strtolower($username);
+        if (str_contains($email, '@')) {
+            $emailUser = strtolower(explode('@', $email, 2)[0]);
+            if ($emailUser !== '') {
+                $forbiddenSubstrings[] = $emailUser;
+            }
+        }
+        foreach ($forbiddenSubstrings as $needle) {
+            // Skip short needles — they would cause false positives
+            // (e.g. name "Jo" rejecting any password containing "jo").
+            if (strlen($needle) >= 4 && str_contains($pwLower, $needle)) {
+                return Response::json(['success' => false, 'error' => 'Password must not contain your name, username, email, or "ownpay".'], 422);
+            }
         }
 
         $envFile = $this->rootDir . '/storage/.env.temp';
