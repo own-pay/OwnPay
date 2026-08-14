@@ -87,20 +87,46 @@ final class ApiKeyService
         $maxTimestamp = time() + self::MAX_KEY_LIFETIME_SECONDS;
 
         if ($expiresAt === null || $expiresAt === '') {
-            return date('c', $maxTimestamp);
+            return $this->normalizeDatetime($maxTimestamp);
         }
 
         $parsed = strtotime($expiresAt);
         if ($parsed === false) {
             // Unparseable input — fail safe to the default max lifetime.
-            return date('c', $maxTimestamp);
+            return $this->normalizeDatetime($maxTimestamp);
         }
 
         if ($parsed > $maxTimestamp) {
-            return date('c', $maxTimestamp);
+            return $this->normalizeDatetime($maxTimestamp);
         }
 
-        return $expiresAt;
+        return $this->normalizeDatetime($parsed);
+    }
+
+    /**
+     * Normalizes a Unix timestamp into a MariaDB/MySQL-friendly datetime string.
+     *
+     * PHP's `date('c', $ts)` produces an ISO-8601 string like
+     * "2027-08-13T23:21:08+00:00". While that format is valid ISO-8601, the
+     * `DATETIME[(6)]` column type used throughout OwnPay rejects the `T`
+     * separator and the timezone offset on MariaDB 11.x with the default
+     * `STRICT_TRANS_TABLES` sql_mode, raising:
+     *
+     *   SQLSTATE[22007]: Invalid datetime format: 1292 Incorrect datetime
+     *   value: '2027-08-13T23:21:08+00:00' for column ... `expires_at`
+     *
+     * To keep the storage layer robust regardless of the host's sql_mode, we
+     * always emit the canonical `Y-m-d H:i:s` representation. The timezone
+     * offset is intentionally dropped because DATETIME columns store the
+     * literal value verbatim (they are not timezone-aware); the application
+     * layer treats all stored timestamps as UTC.
+     *
+     * @param int $timestamp Unix timestamp (assumed UTC).
+     * @return non-empty-string Formatted as "Y-m-d H:i:s" in UTC.
+     */
+    private function normalizeDatetime(int $timestamp): string
+    {
+        return gmdate('Y-m-d H:i:s', $timestamp);
     }
 
     /**

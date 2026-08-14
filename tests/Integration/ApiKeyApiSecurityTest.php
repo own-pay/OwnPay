@@ -289,9 +289,22 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
     {
         $adminController = $this->container->get(\OwnPay\Controller\Admin\ApiKeyController::class);
 
+        // Seed a platform-owned key so the revoke has a real row to act on.
+        // Without this, revoke() returns 0 and the audit-fix error path
+        // ("API key not found or already revoked") fires, which the
+        // original test (written before the audit fix) did not expect.
+        $platformId = $this->db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1")['id'] ?? null;
+        $this->assertNotNull($platformId, 'Platform merchant must exist');
+        $platformId = (int) $platformId;
+
+        $keyInfo = $this->apiKeyService->generate($platformId, 'Platform Revoke Test', ['read', 'write']);
+        $keyRow = $this->db->fetchOne("SELECT id FROM op_api_keys WHERE key_prefix = :p", ['p' => $keyInfo['prefix']]);
+        $this->assertIsArray($keyRow, 'Platform key must be persisted');
+        $keyId = (int) $keyRow['id'];
+
         $req = new Request([], []);
         $req->setAttribute('merchant_id', 0);
-        $req->setRouteParams(['id' => '123']);
+        $req->setRouteParams(['id' => (string) $keyId]);
 
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
@@ -301,5 +314,12 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
 
         $this->assertSame(302, $res->getStatusCode());
         $this->assertNull($_SESSION['flash_error'] ?? null, 'No "select a brand" error in All Brands view');
+
+        // Verify the platform-owned key was actually revoked.
+        $revokedRow = $this->db->fetchOne("SELECT status FROM op_api_keys WHERE id = :id", ['id' => $keyId]);
+        $this->assertSame('revoked', $revokedRow['status'] ?? null, 'Platform key must be revoked in All Brands view');
+
+        // Cleanup
+        $this->db->execute("DELETE FROM op_api_keys WHERE id = :id", ['id' => $keyId]);
     }
 }

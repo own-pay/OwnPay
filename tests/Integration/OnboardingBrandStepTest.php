@@ -59,7 +59,37 @@ final class OnboardingBrandStepTest extends IntegrationTestCase
     private function cleanup(): void
     {
         $this->db->execute("DELETE FROM op_merchants WHERE slug LIKE 'zzwizardbrand%' OR slug LIKE 'zz-wizardbrand%' OR slug LIKE 'zz-wizard-brand%'");
+        // Re-seed the canonical test merchants that other suites assume exist
+        // (id=1 "Test Merchant", id=2 "Test Merchant 2", id=500085 platform row).
+        // The two `test*` and `testConfigures…` methods below deliberately wipe
+        // every row in op_merchants to exercise the "zero brands" branch, so
+        // without this safety-net they would corrupt the database for every
+        // subsequent integration test (PasswordResetServiceTest,
+        // PaymentLinkAdminFixesTest, etc. all fail with FK 1452 otherwise).
+        $this->ensureSeedMerchantsExist();
         unset($_SESSION['active_brand_id'], $_SESSION['auth_merchant_id']);
+    }
+
+    /**
+     * Idempotently re-inserts the canonical seed merchants wiped by the
+     * "DELETE FROM op_merchants" inside the test bodies of this class.
+     *
+     * Wrapped in INSERT IGNORE so it is a no-op when the rows already exist.
+     */
+    private function ensureSeedMerchantsExist(): void
+    {
+        $this->db->execute(
+            "INSERT IGNORE INTO op_merchants (id, uuid, name, slug, email, status, settings)
+             VALUES (1, 'merchant-uuid-1', 'Test Merchant', 'test-merchant-1', 'test1@example.com', 'active', '{}')"
+        );
+        $this->db->execute(
+            "INSERT IGNORE INTO op_merchants (id, uuid, name, slug, email, status, settings)
+             VALUES (2, 'merchant-uuid-2', 'Test Merchant 2', 'test-merchant-2', 'test2@example.com', 'active', '{}')"
+        );
+        $this->db->execute(
+            "INSERT IGNORE INTO op_merchants (id, uuid, name, slug, email, status, is_platform, settings)
+             VALUES (500085, '00000000-0000-4000-8000-0000000000aa', 'All Brands (Platform)', '__platform__', 'platform@ownpay.local', 'active', 1, NULL)"
+        );
     }
 
     private function countBrands(): int
