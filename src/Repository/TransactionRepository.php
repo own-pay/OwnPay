@@ -458,7 +458,7 @@ final class TransactionRepository extends BaseRepository
             "SELECT t.*, m.name as merchant_name, m.id as merchant_id
              FROM {$this->table} t
              JOIN op_merchants m ON m.id = t.merchant_id
-             WHERE t.trx_id = :ref AND t.status IN ('pending','created')
+             WHERE t.trx_id = :ref AND t.status IN ('pending','created','processing')
              LIMIT 1",
             ['ref' => $trxId]
         );

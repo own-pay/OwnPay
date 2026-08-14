@@ -148,7 +148,7 @@ final class InstallerLockTest extends IntegrationTestCase
             'name'     => 'Evil Admin',
             'email'    => 'evil@example.com',
             'username' => 'evil',
-            'password' => 'password123',
+            'password' => 'Password123!',
         ]));
 
         $this->assertSame(403, $response->getStatusCode());
@@ -188,7 +188,7 @@ final class InstallerLockTest extends IntegrationTestCase
                 'name'     => 'Rebuild Admin',
                 'email'    => 'rebuild@example.com',
                 'username' => 'rebuild',
-                'password' => 'password123',
+                'password' => 'Password123!',
             ],
             ['HTTP_X_INSTALL_FORCE_KEY' => 'force-key-0123456789abcdef']
         ));
@@ -209,7 +209,7 @@ final class InstallerLockTest extends IntegrationTestCase
                 'name'     => 'Evil Admin',
                 'email'    => 'evil2@example.com',
                 'username' => 'evil2',
-                'password' => 'password123',
+                'password' => 'Password123!',
             ],
             ['HTTP_X_INSTALL_FORCE_KEY' => 'short']
         ));
@@ -226,7 +226,7 @@ final class InstallerLockTest extends IntegrationTestCase
             'name'     => 'First Admin',
             'email'    => 'first@example.com',
             'username' => 'first',
-            'password' => 'password123',
+            'password' => 'Password123!',
         ]));
 
         $this->assertSame(400, $response->getStatusCode());

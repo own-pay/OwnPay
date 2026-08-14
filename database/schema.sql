@@ -234,7 +234,9 @@ CREATE TABLE `op_customers` (
   `email_hash` VARCHAR(64) NOT NULL,
   `phone_enc` VARBINARY(512) DEFAULT NULL,
   `phone_hash` VARCHAR(64) DEFAULT NULL,
+  `address_enc` VARBINARY(1024) DEFAULT NULL,
   `metadata` JSON DEFAULT NULL,
+  `status` ENUM('active','deleted') NOT NULL DEFAULT 'active',
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -242,6 +244,7 @@ CREATE TABLE `op_customers` (
   UNIQUE KEY `uk_merchant_email` (`merchant_id`, `email_hash`),
   KEY `idx_merchant` (`merchant_id`),
   KEY `idx_merchant_phone_hash` (`merchant_id`, `phone_hash`),
+  KEY `idx_merchant_status` (`merchant_id`, `status`),
   CONSTRAINT `fk_cust_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

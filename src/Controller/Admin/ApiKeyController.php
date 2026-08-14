@@ -156,8 +156,8 @@ final class ApiKeyController
             $this->audit->log('api_key.revoked', 'api_keys', $id, null, ['merchant_id' => $mid]);
         }
         $referer = $req->header('Referer');
-        $redirectUrl = str_contains($referer, '/admin/settings') 
-            ? '/admin/settings#tab-api' 
+        $redirectUrl = str_contains($referer, '/admin/settings')
+            ? '/admin/settings#tab-api'
             : '/admin/developer';
         return Response::redirect($redirectUrl);
     }

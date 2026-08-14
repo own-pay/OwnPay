@@ -140,8 +140,13 @@ final class DomainControllerAjaxResponseTest extends IntegrationTestCase
     {
         $this->activateBrand();
 
+        // The redirect_url must be same-origin with the seeded domain
+        // ('zz-ajax-test-99991.example.com') — DOM-2 audit fix tightened
+        // validateRedirectUrl() to reject any external host, so the original
+        // 'https://example.com/x' would now fail validation and the response
+        // would be success=false instead of the expected fresh domain state.
         $req = new Request([], [
-            'type' => 'api', 'redirect_url' => 'https://example.com/x',
+            'type' => 'api', 'redirect_url' => 'https://zz-ajax-test-' . $this->merchantId . '.example.com/x',
             'status' => 'pending', 'dns_verified' => '0', 'is_primary' => '0',
         ], [
             'REQUEST_METHOD' => 'POST',
@@ -156,7 +161,7 @@ final class DomainControllerAjaxResponseTest extends IntegrationTestCase
         $this->assertIsArray($body);
         $this->assertTrue($body['success']);
         $this->assertSame('api', $body['domain']['type']);
-        $this->assertSame('https://example.com/x', $body['domain']['redirect_url']);
+        $this->assertSame('https://zz-ajax-test-' . $this->merchantId . '.example.com/x', $body['domain']['redirect_url']);
         $this->assertSame('Pending DNS', $body['domain']['status_pill']['label']);
     }
 }

@@ -13,7 +13,9 @@ use OwnPay\Plugin\PluginManifest;
 use OwnPay\Plugin\PluginRegistry;
 use OwnPay\Repository\PluginRepository;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+#[AllowMockObjectsWithoutExpectations]
 final class PluginLoaderAdminMenuCapabilityTest extends TestCase
 {
     private function makeLoader(): array

@@ -27,8 +27,15 @@ class UpdateService
 {
     /**
      * Hardcoded RSA Public Key PEM used to verify cryptographically signed updates.
+     *
+     * Exposed as a protected static property (instead of a private const) so
+     * the test harness can substitute a test-only key pair without needing
+     * the production private key — see TestableUpdateService in
+     * tests/Unit/UpdateServiceTest.php.
+     *
+     * @var string
      */
-    private const UPDATE_PUBLIC_KEY = <<<EOT
+    protected static string $updatePublicKey = <<<EOT
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzBVsd2Yd/xqMD00Dts/e
 OuSIjjYab3fRqEtRaPf9cAl0iFRR+o7RGloz6dh6M2trswiKx2s2mN4+JPL604Z/
@@ -358,7 +365,7 @@ EOT;
                 @unlink($packagePath);
                 throw new \RuntimeException("Failed to read downloaded package content.");
             }
-            $pubKeyResource = openssl_pkey_get_public(self::UPDATE_PUBLIC_KEY);
+            $pubKeyResource = openssl_pkey_get_public(self::$updatePublicKey);
             if ($pubKeyResource === false) {
                 @unlink($packagePath);
                 throw new \RuntimeException("Failed to load embedded public key for verification.");

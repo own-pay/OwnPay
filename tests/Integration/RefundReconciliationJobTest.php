@@ -77,18 +77,21 @@ final class RefundReconciliationJobTest extends IntegrationTestCase
         $this->insertRefund(8003, 'completed', "DATE_SUB(NOW(), INTERVAL 48 HOUR)");
 
         $fired = [];
-        $this->events->addAction('payment.refund.reconciliation_failed', function (...$args) use (&$fired): void {
+        $this->events->addAction('payment.refund.requires_verification', function (...$args) use (&$fired): void {
             $fired[] = $args[0] ?? null;
         });
 
         $result = $this->job->run();
 
-        $this->assertSame(1, $result['failed']);
+        // Audit fix CRON-7: the 'failed' key was renamed to 'requires_verification'
+        // and stale refunds are now marked 'pending_verification' (preserving the
+        // balance hold) instead of 'failed' (which would release the hold).
+        $this->assertSame(1, $result['requires_verification']);
         $this->assertSame(1, $result['total']);
 
         $stale = $this->db->fetchOne("SELECT status FROM op_refunds WHERE id = 8001");
         $this->assertNotNull($stale);
-        $this->assertSame('failed', $stale['status'], 'Stale pending refund must be auto-failed');
+        $this->assertSame('pending_verification', $stale['status'], 'Stale pending refund must be marked pending_verification');
 
         $recent = $this->db->fetchOne("SELECT status FROM op_refunds WHERE id = 8002");
         $this->assertNotNull($recent);
@@ -98,12 +101,12 @@ final class RefundReconciliationJobTest extends IntegrationTestCase
         $this->assertNotNull($completed);
         $this->assertSame('completed', $completed['status'], 'Terminal refunds must never be touched');
 
-        $this->assertCount(1, $fired, 'Notification event must fire once per auto-failed refund');
+        $this->assertCount(1, $fired, 'Notification event must fire once per marked refund');
 
         $auditRow = $this->db->fetchOne(
-            "SELECT id FROM op_audit_logs WHERE action = 'refund.reconciliation_failed' AND entity_id = 8001 ORDER BY id DESC LIMIT 1"
+            "SELECT id FROM op_audit_logs WHERE action = 'refund.requires_verification' AND entity_id = 8001 ORDER BY id DESC LIMIT 1"
         );
-        $this->assertNotNull($auditRow, 'Auto-fail must leave an audit trail');
+        $this->assertNotNull($auditRow, 'Auto-mark must leave an audit trail');
     }
 
     public function testIdempotentAcrossRuns(): void
@@ -113,7 +116,8 @@ final class RefundReconciliationJobTest extends IntegrationTestCase
         $first = $this->job->run();
         $second = $this->job->run();
 
-        $this->assertSame(1, $first['failed']);
-        $this->assertSame(0, $second['failed'], 'A second run must not re-fail or re-audit the same refund');
+        // Audit fix CRON-7: 'failed' key renamed to 'requires_verification'.
+        $this->assertSame(1, $first['requires_verification']);
+        $this->assertSame(0, $second['requires_verification'], 'A second run must not re-mark or re-audit the same refund');
     }
 }

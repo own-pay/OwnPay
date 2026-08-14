@@ -421,6 +421,16 @@ PHP;
         // The mock must return an active 'mock-plugin' row so the listener
         // is allowed to run and the SQL-sandbox check actually fires.
         $db->method('fetchOne')->willReturn(['slug' => 'mock-plugin', 'status' => 'active']);
+        // When a prior test leaves $_SESSION['active_brand_id'] populated
+        // (common in full-suite runs — DeviceLiveStatusTest, etc. all seed
+        // it), BrandContext::getActiveBrandId() returns that stale id and
+        // isPluginActive takes the brand-scoped branch, which calls
+        // fetchAll() instead of fetchOne(). Without an active row from
+        // fetchAll() the plugin looks inactive, the filter is skipped, and
+        // the expected RuntimeException never fires. Returning an active
+        // row from fetchAll() makes the test robust against leftover
+        // session state without depending on test execution order.
+        $db->method('fetchAll')->willReturn([['slug' => 'mock-plugin', 'status' => 'active']]);
         $repo = new PluginRepository($db);
         $registry = new PluginRegistry($repo);
 
