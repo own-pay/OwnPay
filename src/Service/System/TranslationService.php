@@ -484,7 +484,11 @@ final class TranslationService
             if (!empty($dbTranslations) || $this->exists($code)) {
                 $json = json_encode($dbTranslations, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 if ($json !== false) {
-                    @file_put_contents($filePath, $json === '' ? '{}' : $json, LOCK_EX);
+                    // json_encode([]) returns '[]' (a non-empty string), so
+                    // no empty-string guard is needed here. Write the encoded
+                    // payload verbatim — the file will always contain at
+                    // minimum '[]' or '{}'.
+                    @file_put_contents($filePath, $json, LOCK_EX);
                     @chmod($filePath, 0664);
                 }
                 return array_merge($base, $dbTranslations);

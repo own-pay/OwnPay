@@ -109,9 +109,17 @@ jobs:
       - name: Initialize test database
         run: |
           mysql -h 127.0.0.1 -u root -proot ownpay_test < database/schema.sql
-        continue-on-error: true
+          for f in database/seeds/*.sql; do
+            mysql -h 127.0.0.1 -u root -proot ownpay_test < "$f"
+          done
 
       - name: Run PHPUnit
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: ownpay_test
+          DB_USER: root
+          DB_PASS: root
         run: vendor/bin/phpunit --colors=always
 
   # ──────────────────────────────────────────────

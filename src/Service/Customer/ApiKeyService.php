@@ -80,7 +80,7 @@ final class ApiKeyService
      * - If provided but exceeds the limit: clamped down to the maximum.
      *
      * @param string|null $expiresAt ISO-8601 timestamp or null.
-     * @return non-empty-string ISO-8601 timestamp guaranteed to be within the maximum lifetime.
+     * @return string Datetime string guaranteed to be within the maximum lifetime.
      */
     private function enforceMaxLifetime(?string $expiresAt): string
     {
@@ -122,7 +122,7 @@ final class ApiKeyService
      * layer treats all stored timestamps as UTC.
      *
      * @param int $timestamp Unix timestamp (assumed UTC).
-     * @return non-empty-string Formatted as "Y-m-d H:i:s" in UTC.
+     * @return string Formatted as "Y-m-d H:i:s" in UTC (always non-empty for valid timestamps).
      */
     private function normalizeDatetime(int $timestamp): string
     {

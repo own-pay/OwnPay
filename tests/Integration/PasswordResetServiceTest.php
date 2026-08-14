@@ -228,4 +228,73 @@ final class PasswordResetServiceTest extends IntegrationTestCase
         $this->assertSame($before, $this->currentHash(), 'invalid input leaves the password unchanged');
         $this->assertSame(1, $this->countValidTokens(), 'token remains usable after a rejected attempt');
     }
+
+    /**
+     * Regression test for the race-condition fix (issue #546).
+     *
+     * The pre-fix flow did `findValidByHash()` (SELECT) → `updatePassword()`
+     * → `markUsed()` (UPDATE) as three separate SQL statements with PHP
+     * logic in between. Two parallel requests carrying the same token could
+     * both pass the SELECT before either reached the UPDATE, both change
+     * the password, and both send a "password changed" notification.
+     *
+     * The fix replaces that pattern with a single atomic
+     * `UPDATE ... WHERE used_at IS NULL` whose affected-row count is the
+     * concurrency arbiter. This test verifies the atomicity guarantee at
+     * the repository level: a second claim on the same hash returns null,
+     * and a subsequent resetPassword() call with the same token is rejected
+     * without mutating the password.
+     *
+     * Credit: Nahid Hasan (responsible disclosure).
+     */
+    public function testClaimByHashIsAtomicAndSingleUse(): void
+    {
+        $token = bin2hex(random_bytes(32));
+        $hash = hash('sha256', $token);
+        $this->tokens->createToken($this->userId, $hash);
+        $before = $this->currentHash();
+
+        // First claim wins — simulates the winner of the race.
+        $first = $this->tokens->claimByHash($hash);
+        $this->assertNotNull($first, 'First claim must succeed');
+        $this->assertSame($this->userId, (int) $first['user_id']);
+
+        // Second claim loses — token already consumed by the first claim.
+        $second = $this->tokens->claimByHash($hash);
+        $this->assertNull($second, 'Second claim must fail (token already consumed)');
+
+        // And the service-level resetPassword must also fail, leaving the
+        // password exactly as it was before the race.
+        $result = $this->service->resetPassword($token, 'NewSecret123', 'NewSecret123');
+        $this->assertFalse($result['success'], 'resetPassword must reject a token claimed by a concurrent request');
+        $this->assertSame($before, $this->currentHash(), 'loser of the race must not mutate the password');
+        $this->assertSame(0, $this->countValidTokens(), 'token remains consumed after the race');
+    }
+
+    /**
+     * Verifies that a failed resetPassword() (e.g. password too short) does
+     * NOT consume the token — the user can retry with the same link using a
+     * valid password. This is the fail-open guarantee that complements the
+     * fail-closed atomic-claim guarantee above.
+     *
+     * Credit: Nahid Hasan (responsible disclosure — motivated this contract
+     * being made explicit in the test suite).
+     */
+    public function testRejectedPasswordDoesNotConsumeToken(): void
+    {
+        $token = bin2hex(random_bytes(32));
+        $hash = hash('sha256', $token);
+        $this->tokens->createToken($this->userId, $hash);
+
+        // Failed attempt — password too short.
+        $this->assertFalse($this->service->resetPassword($token, 'short', 'short')['success']);
+
+        // Token must still be usable.
+        $this->assertSame(1, $this->countValidTokens(), 'token survives a rejected attempt');
+
+        // Now a valid attempt must succeed — proving the token was not consumed.
+        $result = $this->service->resetPassword($token, 'ValidNewPass1', 'ValidNewPass1');
+        $this->assertTrue($result['success'], 'token remains usable after a rejected attempt');
+        $this->assertSame(0, $this->countValidTokens(), 'token consumed by the successful attempt');
+    }
 }
