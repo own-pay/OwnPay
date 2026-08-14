@@ -18,7 +18,7 @@ final class GatewayGovernanceTest extends IntegrationTestCase
     private Database $db;
     private Container $container;
     private GatewayController $controller;
-    private int $brandId = 1;
+    private int $brandId = 2;
     private int $platformId = 0;
 
     protected function setUp(): void
@@ -37,6 +37,10 @@ final class GatewayGovernanceTest extends IntegrationTestCase
         $bootstrap = require dirname(__DIR__, 2) . '/config/services.php';
         $bootstrap($this->container);
         $this->container->instance(Database::class, $this->db);
+
+        // Ensure a non-platform brand merchant exists so brand-scoped
+        // operations target a different row than the platform template.
+        $this->ensureMerchant($this->brandId);
 
         $row = $this->db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1");
         $this->platformId = ($row !== null && is_scalar($row['id'] ?? null)) ? (int) $row['id'] : 0;
