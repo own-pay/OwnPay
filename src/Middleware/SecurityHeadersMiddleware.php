@@ -43,7 +43,16 @@ final class SecurityHeadersMiddleware
         $nonce = base64_encode(random_bytes(16));
         $request->setAttribute('csp_nonce', $nonce);
 
-        $this->container->instance('csp_nonce', $nonce);
+        if ($this->container->has(\OwnPay\Security\CspNonce::class)) {
+            try {
+                $cspNonce = $this->container->get(\OwnPay\Security\CspNonce::class);
+                if ($cspNonce instanceof \OwnPay\Security\CspNonce) {
+                    $cspNonce->setNonce($nonce);
+                }
+            } catch (\Throwable) {
+                // Graceful fallback
+            }
+        }
 
         $response = $next($request);
 

@@ -317,15 +317,20 @@ return static function (\OwnPay\Container $c): void {
 
         /**
          * Expose CSP nonce to all templates.
-         * SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
-         * Use lazy proxy since nonce isn't generated until middleware runs.
+         * SecurityHeadersMiddleware sets the nonce on CspNonce singleton and Request attribute.
          */
         $twig->addGlobal('csp_nonce', new class($c) implements \Stringable {
             private \OwnPay\Container $c;
             public function __construct(\OwnPay\Container $c) { $this->c = $c; }
             public function __toString(): string
             {
-                return $this->c->has('csp_nonce') && is_string($n = $this->c->get('csp_nonce')) ? $n : '';
+                if ($this->c->has(\OwnPay\Security\CspNonce::class)) {
+                    $nonceObj = $this->c->get(\OwnPay\Security\CspNonce::class);
+                    if ($nonceObj instanceof \OwnPay\Security\CspNonce) {
+                        return $nonceObj->getNonce();
+                    }
+                }
+                return '';
             }
         });
         return $twig;
@@ -550,6 +555,10 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Repository\PluginRepository::class, $repoFactory(\OwnPay\Repository\PluginRepository::class));
 
     // --- Security
+    $c->singleton(\OwnPay\Security\CspNonce::class, static function (): \OwnPay\Security\CspNonce {
+        return new \OwnPay\Security\CspNonce();
+    });
+
     $c->singleton(\OwnPay\Security\FieldEncryptor::class, static function (): \OwnPay\Security\FieldEncryptor {
         return new \OwnPay\Security\FieldEncryptor();
     });
