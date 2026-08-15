@@ -222,7 +222,7 @@
         }
         try {
             window.prepareWebhookForm(JSON.parse(raw));
-        } catch (err) {
+        } catch {
             // Malformed JSON should never happen (server-controlled), but
             // fail closed to Add mode instead of leaking raw text into the
             // form fields.
