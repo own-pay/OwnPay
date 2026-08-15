@@ -36,7 +36,7 @@ Our focus during the beta period:
 - 🚧 Real-world feedback loop - triaging issues from beta self-hosters
 - 🚧 Public **live demo** at [demo.ownpay.org](https://demo.ownpay.org)
 - 🚧 Expanded api documentation at [docs.ownpay.org](https://docs.ownpay.org)
-- 🚧 Guides & tutorials at [learn.ownpay.org](https://learn.ownpay.org)
+- 🚧 Guides & tutorials at [ownpay.org/docs](https://ownpay.org/docs)
 - 🚧 Hardening, edge-case validation, and performance tuning
 - 🚧 Broader gateway coverage and gateway-specific test coverage
 

@@ -6,7 +6,7 @@
   <img src="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-with-bg.png" height="100" alt="OwnPayLogo" />
 </picture>
 
-### Your Gateway. Your Server. Your Rules.
+### Your Gateway. Your Server. Your Rules
 
 **The self-hosted, open-source payment gateway automation platform.**
 
@@ -90,6 +90,7 @@ Most payment platforms make you a tenant on *their* infrastructure - your data, 
 <td align="center" width="33%">
 
 ### 🛡️
+
 **Complete Ownership**
 
 Your financial infrastructure lives on your server. No middlemen, no third-party access, no vendor lock-in. Ever.
@@ -98,6 +99,7 @@ Your financial infrastructure lives on your server. No middlemen, no third-party
 <td align="center" width="33%">
 
 ### ⚡
+
 **Built for Builders**
 
 A clean custom core, a sandboxed plugin system, and a full REST API - engineered for developers who demand control.
@@ -106,6 +108,7 @@ A clean custom core, a sandboxed plugin system, and a full REST API - engineered
 <td align="center" width="33%">
 
 ### 🌍
+
 **Open & Community-Driven**
 
 AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the community that runs it.
@@ -123,6 +126,7 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 <td width="50%" valign="top">
 
 #### 💳 Payments & Checkout
+
 - **120+ payment gateway integrations** (plugin-based)
 - Manual & API gateways + express checkout
 - Hosted checkout, payment links, invoices & payment intents
@@ -130,6 +134,7 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 - Multi-currency with automatic conversion
 
 #### 🏢 Multi-Brand by Design
+
 - One owner, many brands (stores) - fully isolated
 - Per-brand domains, gateways, customers & ledgers
 - White-label custom-domain checkout
@@ -139,12 +144,14 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 <td width="50%" valign="top">
 
 #### 🔐 Security & Accounting
+
 - Double-entry ledger engine (bcmath precision)
 - AES-256-GCM PII encryption · Argon2id passwords
 - CSRF, strict CSP, rate limiting, SSRF guards
 - Staff RBAC - granular roles & permissions
 
 #### 🧩 Platform & Operations
+
 - Sandboxed plugin/addon system + domain hook engine
 - Mobile companion app - device pairing, JWT, SMS verification
 - Full i18n - admin panel **and** customer checkout
@@ -263,7 +270,7 @@ composer lint       # Twig + JS + CSS
 **⚙️ Backend**
 
 | Component | Technology |
-|:---|:---|
+| :--- | :--- |
 | Language | PHP 8.3+ &nbsp;·&nbsp; Strict Types |
 | Database | MySQL 8.x / MariaDB 10.4+ |
 | Package Manager | Composer v2 |
@@ -277,7 +284,7 @@ composer lint       # Twig + JS + CSS
 **🔐 Security & Quality**
 
 | Feature | Details |
-|:---|:---|
+| :--- | :--- |
 | Field Encryption | AES-256-GCM |
 | Password Hashing | Argon2id |
 | Templating | Twig 3.x &nbsp;·&nbsp; Server-rendered |
@@ -296,10 +303,10 @@ composer lint       # Twig + JS + CSS
 ## <a id="documentation-ecosystem"></a>📚 Documentation & Ecosystem
 
 | Resource | Where | What you'll find |
-|:---|:---|:---|
+| :--- | :--- | :--- |
 | 🌐 **Website** | [ownpay.org](https://ownpay.org) | Product overview & download |
 | 📖 **Developer Docs / API** | [docs.ownpay.org](https://docs.ownpay.org) | REST API reference |
-| 🎓 **Learn / Guides** | [learn.ownpay.org](https://ownpay.org/docs) | Step-by-step tutorials, how-tos, deployment & integration |
+| 🎓 **Learn / Guides** | [ownpay.org/docs](https://ownpay.org/docs) | Step-by-step tutorials, how-tos, deployment & integration |
 | 🧩 **Plugins** | [plugin.ownpay.org](https://plugins.ownpay.org) | Gateway & plugins catalog |
 | 📰 **Blog & Updates** | [blog.ownpay.org](https://blog.ownpay.org) | Releases, changelog & announcements |
 | ▶️ **Live Demo** | [demo.ownpay.org](https://demo.ownpay.org) | Try it without installing |
@@ -414,7 +421,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 | **Fattain Naime** | Lead Developer & Maintainer | [iamnaime.info.bd](https://iamnaime.info.bd) |
 | **Tahira Akter Hira** | Logo & Brand Design | [LinkedIn](https://www.linkedin.com/in/tahera-akter-180223259) |
 | **M Azmain Israq** | UI/UX Designer | [azmain.pp.ua](https://azmain.pp.ua) |
-| **Hamidullah Ismail** | Features and Reviewer  | [Facebook](https://www.facebook.com/hamidulla.me) |
+| **Hamidullah Ismail** | Features and Reviewer | [Facebook](https://www.facebook.com/hamidulla.me) |
 
 ### Code Contributors
 
@@ -435,7 +442,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 
 [![Website](https://img.shields.io/badge/Website-ownpay.org-0066FF?style=for-the-badge)](https://ownpay.org)&nbsp;
 [![Docs](https://img.shields.io/badge/Docs-docs.ownpay.org-0066FF?style=for-the-badge)](https://docs.ownpay.org)&nbsp;
-[![Learn](https://img.shields.io/badge/Learn-learn.ownpay.org-0066FF?style=for-the-badge)](https://ownpay.org/docs)&nbsp;
+[![Learn](https://img.shields.io/badge/Learn-ownpay.org/docs-0066FF?style=for-the-badge)](https://ownpay.org/docs)&nbsp;
 [![Blog](https://img.shields.io/badge/Blog-blog.ownpay.org-0066FF?style=for-the-badge)](https://blog.ownpay.org)
 
 [![Facebook Page](https://img.shields.io/badge/Facebook-Page-1877F2?style=for-the-badge&logo=facebook&logoColor=white)](https://www.facebook.com/ownpay.org)&nbsp;

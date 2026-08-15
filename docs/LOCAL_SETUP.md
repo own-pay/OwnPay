@@ -9,7 +9,7 @@ Get **OwnPay** running on your machine for development and contribution - on **W
 ## Prerequisites
 
 | Tool | Version | Why | Get it |
-|------|---------|-----|--------|
+| ------ | --------- | ----- | -------- |
 | **PHP** | **8.3+** with `bcmath`, `json`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `curl` | Runtime | [php.net/downloads](https://www.php.net/downloads) · [windows.php.net](https://windows.php.net/download/) |
 | **Composer** | 2.x | PHP dependencies | [getcomposer.org/download](https://getcomposer.org/download/) |
 | **MySQL** *or* **MariaDB** | MySQL 8.0+ / MariaDB 10.4+ | Database | [dev.mysql.com](https://dev.mysql.com/downloads/mysql/) · [mariadb.org](https://mariadb.org/download/) |
@@ -145,7 +145,7 @@ ngrok http 8000
 ## Troubleshooting
 
 | Symptom | Fix |
-|---------|-----|
+| --------- | ----- |
 | `/install` says an extension is missing | Install the listed `php-*` extension and restart the server. Re-check with `php -m`. |
 | `composer install` fails on `ext-*` | Your CLI PHP lacks an extension. Install it (e.g. `php8.3-bcmath`) - note the **CLI** php.ini may differ from the web one. |
 | "Could not connect to database" in the wizard | Confirm MySQL is running and the DB exists; on macOS/Linux the default user is often `root` with an empty or socket password. |
@@ -162,7 +162,7 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full map. Most contributions 
 - `src/Controller/` - HTTP handlers
 - `src/Service/` - business logic
 - `src/Repository/` - data access
-- `modules/gateways/` - payment integrations (see the [Plugin Developer Guide](https://learn.ownpay.org/plugins-developer-guide))
+- `modules/gateways/` - payment integrations (see the [Plugin Developer Guide](https://ownpay.org/docs/plugins-developer-guide))
 - `templates/` - Twig views
 
 Happy hacking! 🚀

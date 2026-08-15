@@ -11,10 +11,10 @@ Need help with OwnPay? You're in the right place. This page points you to the be
 Most questions are already answered in the docs:
 
 | Resource | Best for |
-|:---|:---|
+| :--- | :--- |
 | 🌐 **[ownpay.org](https://ownpay.org)** | Product overview, download, general info |
 | 📖 **[docs.ownpay.org](https://docs.ownpay.org)** | API reference |
-| 🎓 **[learn.ownpay.org](https://learn.ownpay.org)** | Step-by-step guides & tutorials, deployment & integration docs |
+| 🎓 **[ownpay.org/docs](https://ownpay.org/docs)** | Step-by-step guides & tutorials, deployment & integration docs |
 | 🧩 **[plugin.ownpay.org](https://plugin.ownpay.org)** | Gateways & add-ons catalog |
 | 📰 **[blog.ownpay.org](https://blog.ownpay.org)** | Release notes, changelog & announcements |
 
