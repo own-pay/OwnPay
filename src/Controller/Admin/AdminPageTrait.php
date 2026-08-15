@@ -123,8 +123,8 @@ trait AdminPageTrait
 
         // Contextual Documentation URL Mapping:
         // Maps the active administrative view or feature domain to its corresponding
-        // section in the official OwnPay User Guide (https://ownpay.org/docs/user-guide).
-        // If an unmapped page is accessed, gracefully falls back to the user guide index.
+        // section in the official OwnPay Documentation (https://ownpay.org/docs).
+        // If an unmapped page is accessed, gracefully falls back to the documentation index.
         $activePage = is_string($data['active_page'] ?? null) ? (string) $data['active_page'] : '';
         $docMap = [
             'dashboard'            => 'dashboard',
@@ -166,7 +166,7 @@ trait AdminPageTrait
             'system-update'        => 'system',
         ];
         $docPath = $docMap[$activePage] ?? '';
-        $data['doc_url'] = 'https://ownpay.org/docs/user-guide' . ($docPath !== '' ? '/' . $docPath : '');
+        $data['doc_url'] = 'https://ownpay.org/docs' . ($docPath !== '' ? '/' . $docPath : '');
 
         $registry = $c->has('admin.renderer_registry') ? $c->get('admin.renderer_registry') : null;
         if (!$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
