@@ -140,7 +140,7 @@ final class DomainMiddleware
         // before it is emitted as a `Location:` header. Storage-time validation
         // in DomainController::store()/update() should already have rejected
         // dangerous values (external hosts, javascript:/data: URIs), but rows
-        // written before that fix landed — or a SQL-level tamper — could still
+        // written before that fix landed - or a SQL-level tamper - could still
         // contain an open-redirect target. Defense-in-depth: if the stored
         // value is not a safe relative path or a same-origin absolute URL, the
         // redirect is suppressed and the request falls through to the standard
