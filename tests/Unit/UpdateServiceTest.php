@@ -265,11 +265,16 @@ class UpdateServiceTest extends TestCase
             'private_key_bits' => 2048,
             'private_key_type' => OPENSSL_KEYTYPE_RSA,
         ];
+        if (getenv('OPENSSL_CONF') !== false && is_file((string) getenv('OPENSSL_CONF'))) {
+            $keyConfig['config'] = (string) getenv('OPENSSL_CONF');
+        } elseif (is_file(dirname(PHP_BINARY) . '/extras/ssl/openssl.cnf')) {
+            $keyConfig['config'] = dirname(PHP_BINARY) . '/extras/ssl/openssl.cnf';
+        }
         $keyResource = openssl_pkey_new($keyConfig);
         $this->assertNotFalse($keyResource);
 
         $privateKeyContent = '';
-        $this->assertTrue(openssl_pkey_export($keyResource, $privateKeyContent));
+        $this->assertTrue(openssl_pkey_export($keyResource, $privateKeyContent, null, $keyConfig));
         $privKeyResource = openssl_pkey_get_private($privateKeyContent);
         $this->assertNotFalse($privKeyResource);
 
