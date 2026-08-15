@@ -208,7 +208,7 @@ graph LR
 ### 3. White-Label Custom Domain Pipeline
 **WHAT**: Allows each brand to operate under its own custom domain (e.g. `pay.brand.com`) while sharing a single application instance.
 
-**WHY**: Customers never see `ownpay.test` or a generic gateway domain. The entire checkout experience belongs 100% to the brand.
+**WHY**: Customers never see `ownpay.org` (your panel domain, where the OwnPay installed) or a generic gateway domain. The entire checkout experience belongs 100% to the brand.
 
 **HOW**:
 - **`DomainMiddleware`**: Intercepts every HTTP request, strips ports, lowercases hostnames, and checks against active, DNS-verified domains in `op_domains`.

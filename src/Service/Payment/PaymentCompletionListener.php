@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 use OwnPay\Repository\InvoiceRepository;
+use OwnPay\Repository\PaymentIntentRepository;
 use OwnPay\Repository\PaymentLinkRepository;
 use OwnPay\Support\DateHelper;
 
@@ -27,22 +28,32 @@ final class PaymentCompletionListener
     private PaymentLinkRepository $linkRepo;
 
     /**
+     * @var PaymentIntentRepository Repository accessing payment intents.
+     */
+    private PaymentIntentRepository $intentRepo;
+
+    /**
      * PaymentCompletionListener constructor.
      *
      * @param InvoiceRepository $invoiceRepo Repository for invoice database actions.
      * @param PaymentLinkRepository $linkRepo Repository for payment link database actions.
+     * @param PaymentIntentRepository $intentRepo Repository for payment intent database actions.
      */
-    public function __construct(InvoiceRepository $invoiceRepo, PaymentLinkRepository $linkRepo)
-    {
+    public function __construct(
+        InvoiceRepository $invoiceRepo,
+        PaymentLinkRepository $linkRepo,
+        PaymentIntentRepository $intentRepo
+    ) {
         $this->invoiceRepo = $invoiceRepo;
         $this->linkRepo = $linkRepo;
+        $this->intentRepo = $intentRepo;
     }
 
     /**
      * Responds to the transaction completion event.
      *
-     * Extracts meta-parameters to identify linked invoices and payment links.
-     * Marks invoices as paid and updates link usage constraints.
+     * Extracts meta-parameters to identify linked invoices, payment links, and payment intents.
+     * Marks invoices as paid, updates link usage constraints, and marks payment intents as completed.
      *
      * @param array<string, mixed> $transaction The completed transaction database record fields.
      * @return void
@@ -83,6 +94,14 @@ final class PaymentCompletionListener
             // so we cannot refund here - but at least the in-platform state stays correct.
             $scopedLinks = $this->linkRepo->forTenant($merchantId);
             $scopedLinks->incrementUseCountAtomic($linkId);
+        }
+
+        $intentIdVal = $transaction['payment_intent_id'] ?? $meta['payment_intent_id'] ?? null;
+        $intentId = is_scalar($intentIdVal) ? (int) $intentIdVal : null;
+        if ($intentId !== null && $intentId > 0) {
+            $this->intentRepo->forTenant($merchantId)->updateScoped($intentId, [
+                'status' => 'completed',
+            ]);
         }
     }
 }

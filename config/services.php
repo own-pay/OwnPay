@@ -681,11 +681,12 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    // Payment completion listener (invoice paid + link use_count)
+    // Payment completion listener (invoice paid + link use_count + payment intent completed)
     $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
         return new \OwnPay\Service\Payment\PaymentCompletionListener(
             ensureType($c->get(\OwnPay\Repository\InvoiceRepository::class), \OwnPay\Repository\InvoiceRepository::class),
-            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class)
+            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class),
+            ensureType($c->get(\OwnPay\Repository\PaymentIntentRepository::class), \OwnPay\Repository\PaymentIntentRepository::class)
         );
     });
 
