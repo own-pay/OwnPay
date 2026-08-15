@@ -127,7 +127,7 @@ final class CsrfMiddleware
 
         // SECURITY (audit SEC-6): never log the actual CSRF token values. The
         // session token is the *current valid* CSRF token for the victim's
-        // session — if logs leak (shared log aggregator, backup, support
+        // session - if logs leak (shared log aggregator, backup, support
         // dashboard), an attacker who reads them gets a live CSRF token and can
         // forge state-changing requests on the victim's behalf. The submitted
         // token may also be a (wrong but real) token from another victim's

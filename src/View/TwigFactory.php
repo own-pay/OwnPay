@@ -130,9 +130,9 @@ final class TwigFactory
             ['if', 'for', 'set', 'block', 'extends', 'include', 'macro', 'import', 'from'],
             // Allowed filters: common formatting filters only.
             ['abs', 'capitalize', 'date', 'default', 'escape', 'first', 'format', 'join', 'json_encode', 'keys', 'last', 'length', 'lower', 'merge', 'nl2br', 'number_format', 'replace', 'reverse', 'round', 'slice', 'sort', 'split', 'striptags', 'title', 'trim', 'upper', 'url_encode'],
-            // Allowed methods: none — templates cannot call object methods.
+            // Allowed methods: none - templates cannot call object methods.
             [],
-            // Allowed properties: none — templates cannot access object
+            // Allowed properties: none - templates cannot access object
             // properties via dot notation beyond what __get exposes.
             [],
             // Allowed functions: only safe built-ins. env(), setting(),

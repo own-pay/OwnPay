@@ -114,7 +114,7 @@ final class CustomerController
         // Determine whether the current viewer is permitted to reveal unmasked
         // customer PII. The previous implementation unconditionally decrypted
         // full PII (name, email, phone) for every row in the paginated list and
-        // passed the plaintext values straight to Twig — a staff member with
+        // passed the plaintext values straight to Twig - a staff member with
         // only the customers.view (read-only) permission saw every customer's
         // email and phone in cleartext. Now we mask by default and only attach
         // the unmasked plaintext when the viewer has customers.manage (or is a

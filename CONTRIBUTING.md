@@ -1,6 +1,6 @@
 # Contributing to OwnPay
 
-First off — **thank you** for considering a contribution to OwnPay! 🎉 Whether it's a bug report, a new payment gateway, a translation, a documentation fix, or a feature, every contribution helps make self-hosted, open-source payment infrastructure better for everyone.
+First off - **thank you** for considering a contribution to OwnPay! 🎉 Whether it's a bug report, a new payment gateway, a translation, a documentation fix, or a feature, every contribution helps make self-hosted, open-source payment infrastructure better for everyone.
 
 This guide explains how to get involved effectively.
 
@@ -14,12 +14,12 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ## 🧭 Ways to Contribute
 
-- **🐛 Report bugs** — open a clear, reproducible [issue](https://github.com/own-pay/OwnPay/issues).
-- **💡 Suggest features** — start a [discussion](https://github.com/own-pay/OwnPay/discussions) or feature request.
-- **🔌 Build a gateway/plugin** — add a payment gateway or add-on (see below).
-- **🌍 Translate** — add or improve a language catalog (see [TRANSLATIONS.md](docs/TRANSLATIONS.md)).
-- **📖 Improve docs** — fix typos, clarify guides, expand examples.
-- **🧹 Improve code** — fix bugs, add tests, refactor with care.
+- **🐛 Report bugs** - open a clear, reproducible [issue](https://github.com/own-pay/OwnPay/issues).
+- **💡 Suggest features** - start a [discussion](https://github.com/own-pay/OwnPay/discussions) or feature request.
+- **🔌 Build a gateway/plugin** - add a payment gateway or add-on (see below).
+- **🌍 Translate** - add or improve a language catalog (see [TRANSLATIONS.md](docs/TRANSLATIONS.md)).
+- **📖 Improve docs** - fix typos, clarify guides, expand examples.
+- **🧹 Improve code** - fix bugs, add tests, refactor with care.
 
 > Not sure where to start? Look for issues labelled **`good first issue`** or **`help wanted`**.
 
@@ -47,8 +47,8 @@ This project and everyone participating in it is governed by our [Code of Conduc
 3. Run the full local check suite (this is what CI runs):
 
    ```bash
-   composer test       # PHPUnit — all tests must pass
-   composer analyse    # PHPStan — must stay clean at level 9
+   composer test       # PHPUnit - all tests must pass
+   composer analyse    # PHPStan - must stay clean at level 9
    composer lint       # Twig + JS + CSS linting
    ```
 
@@ -64,11 +64,11 @@ This project and everyone participating in it is governed by our [Code of Conduc
 OwnPay maintains a high quality bar. Please match the existing code and these rules:
 
 - **Strict types everywhere.** Every PHP file starts with `declare(strict_types=1);` as its first statement (no BOM).
-- **PHPStan level 9 must stay green.** Don't suppress errors with baselines, `@phpstan-ignore`, or needless casts — fix the root cause.
+- **PHPStan level 9 must stay green.** Don't suppress errors with baselines, `@phpstan-ignore`, or needless casts - fix the root cause.
 - **Money is always bcmath strings, never floats.** Financial correctness is non-negotiable.
 - **Tenant scoping is mandatory.** Never run a scoped query without `forTenant()` / `*Scoped()`; use `forAllTenants()` only for deliberate owner-level views.
-- **Build URLs via `DomainUrlService`** (`buildCheckoutUrl()`, `buildCallbackUrl()`) — never hardcode a host (white-label domains depend on this).
-- **CSRF tokens via `SecurityHelpers::csrfToken()`** — never read `$_SESSION` directly.
+- **Build URLs via `DomainUrlService`** (`buildCheckoutUrl()`, `buildCallbackUrl()`) - never hardcode a host (white-label domains depend on this).
+- **CSRF tokens via `SecurityHelpers::csrfToken()`** - never read `$_SESSION` directly.
 - **Prepared statements only.** No string-interpolated SQL, ever.
 - **Escape output.** Twig autoescaping stays on; never `|raw` untrusted data.
 - **Keep it lean.** No new heavyweight dependencies without discussion; prefer the existing first-party utilities.
@@ -85,7 +85,7 @@ Gateways and add-ons are plugins under `modules/`:
 1. Create `modules/gateways/<slug>/` with a `manifest.json` (metadata, capabilities, CSP origins, icon).
 2. Add an adapter class implementing `OwnPay\Gateway\GatewayAdapterInterface` (use the `GatewayDefaults` trait for no-op defaults).
 3. Declare `supportedCurrencies()` accurately (return `[]` for "any currency").
-4. Keep the plugin within the sandbox rules — no `exec`, `shell_exec`, `eval`, raw PDO, etc.
+4. Keep the plugin within the sandbox rules - no `exec`, `shell_exec`, `eval`, raw PDO, etc.
 5. Test the full flow (initiate → callback → verify → refund) locally.
 
 See the gateway developer guide on **[Gateway Developer Guide](https://ownpay.org/docs/developer/plugin-types/gateway-development)** for the full contract and examples.
@@ -94,7 +94,7 @@ See the gateway developer guide on **[Gateway Developer Guide](https://ownpay.or
 
 ## 🌍 Contributing Translations
 
-OwnPay has full i18n for both the admin panel and customer checkout. To add or update a language, follow **[docs/TRANSLATIONS.md](docs/TRANSLATIONS.md)** — create a dot-notation JSON catalog (keep `:placeholders` intact) and place core languages in `config/languages/`.
+OwnPay has full i18n for both the admin panel and customer checkout. To add or update a language, follow **[docs/TRANSLATIONS.md](docs/TRANSLATIONS.md)** - create a dot-notation JSON catalog (keep `:placeholders` intact) and place core languages in `config/languages/`.
 
 ---
 
@@ -120,11 +120,11 @@ Please write clear messages. We encourage [Conventional Commits](https://www.con
 
 ## 📥 Pull Request Guidelines
 
-- Keep PRs focused — one logical change each. Split large work into reviewable pieces.
+- Keep PRs focused - one logical change each. Split large work into reviewable pieces.
 - Fill out the PR description: **what** changed, **why**, and **how to test** it.
 - Link the related issue (e.g. `Closes #123`).
 - Update documentation and tests alongside code.
-- Be responsive to review feedback — we review with care because this is payment software.
+- Be responsive to review feedback - we review with care because this is payment software.
 - Ensure all CI checks are green.
 
 ---
@@ -137,7 +137,7 @@ OwnPay is licensed under the **[GNU AGPL-3.0](LICENSE)**. By submitting a contri
 
 ## 🙏 Thank You
 
-Every issue, PR, translation, and idea moves OwnPay forward. We're building this in the open, for the community — and we're glad you're here.
+Every issue, PR, translation, and idea moves OwnPay forward. We're building this in the open, for the community - and we're glad you're here.
 
 Questions about contributing? Reach out at **[ping@ownpay.org](mailto:ping@ownpay.org)** or open a [discussion](https://github.com/own-pay/OwnPay/discussions).
 

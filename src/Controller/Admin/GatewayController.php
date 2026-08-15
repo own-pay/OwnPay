@@ -486,7 +486,7 @@ final class GatewayController
      * as produced by {@see FilesystemService::storePublicUpload()}. The path is resolved
      * strictly against the public uploads directory; any attempt to escape it (via `..`
      * segments, null bytes, absolute paths, or alternate prefixes) is silently ignored
-     * rather than throwing — asset cleanup is best-effort and must never break the
+     * rather than throwing - asset cleanup is best-effort and must never break the
      * surrounding delete flow.
      *
      * @param string $url Web-root-relative asset URL.

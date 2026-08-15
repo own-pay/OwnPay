@@ -8,7 +8,7 @@
 #  ╚██████╔╝╚███╔███╔╝██║ ╚████║██║     ██║  ██║   ██║
 #   ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚═╝     ╚═╝  ╚═╝   ╚═╝
 #
-#  Open-Source Payment Gateway — VPS One-Click Installer
+#  Open-Source Payment Gateway - VPS One-Click Installer
 #  Version 1.0.0 | https://github.com/ownpay/ownpay
 # ==============================================================================
 #
@@ -16,12 +16,12 @@
 #    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh -o install.sh
 #    curl -fsSL https://raw.githubusercontent.com/ownpay/ownpay/main/install.sh.sha256 -o install.sh.sha256
 #    sha256sum -c install.sh.sha256 && sudo bash install.sh
-#    — or —
+#    - or -
 #    sudo bash install.sh [--unattended] [--resume] [--help]
 #
 #  SECURITY: Always verify the SHA-256 checksum (install.sh.sha256, published
 #  alongside install.sh) BEFORE running the installer as root. Piping
-#  curl | sudo bash skips all integrity verification — a compromised CDN or
+#  curl | sudo bash skips all integrity verification - a compromised CDN or
 #  hijacked repo would give an attacker root on every new VPS.
 #
 #  OPTIONS:
@@ -40,7 +40,7 @@ set -euo pipefail
 readonly INSTALLER_VERSION="1.0.0"
 readonly OWNPAY_GITHUB_ORG="own-pay"
 readonly OWNPAY_GITHUB_REPO="OwnPay"
-# Primary update source — OwnPay's own manifest (channels.beta is the stable channel)
+# Primary update source - OwnPay's own manifest (channels.beta is the stable channel)
 readonly OWNPAY_MANIFEST_URL="https://update.ownpay.org/manifest.json"
 # GitHub fallback (used only if the manifest is unreachable)
 readonly OWNPAY_GITHUB_FALLBACK="https://github.com/${OWNPAY_GITHUB_ORG}/${OWNPAY_GITHUB_REPO}/archive/refs/heads/main.zip"
@@ -129,7 +129,7 @@ WEBSERVER_USER="www-data"
 
 _SPINNER_PID=""
 
-# Inner loop runs in a subshell — must be a named function so `local` is valid.
+# Inner loop runs in a subshell - must be a named function so `local` is valid.
 _spinner_loop() {
   local msg="$1"
   local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
@@ -280,7 +280,7 @@ show_banner() {
   ║   ╚██████╔╝╚███╔███╔╝██║ ╚████║██║     ██║  ██║   ██║               ║
   ║    ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚═╝     ╚═╝  ╚═╝   ╚═╝               ║
   ║                                                                       ║
-  ║         Open-Source Payment Gateway — VPS Production Installer        ║
+  ║         Open-Source Payment Gateway - VPS Production Installer        ║
   ║                                                                       ║
   ╚═══════════════════════════════════════════════════════════════════════╝
 BANNER
@@ -486,7 +486,7 @@ run_quiet() {
   if [ $rc -eq 0 ]; then
     log_success "$desc"
   else
-    log_error "$desc — FAILED (exit code $rc). Check $LOG_FILE for details."
+    log_error "$desc - FAILED (exit code $rc). Check $LOG_FILE for details."
   fi
   return $rc
 }
@@ -563,7 +563,7 @@ phase_wizard() {
   show_phase_header "1" "🧙" "Configuration Wizard" "Set up your OwnPay installation"
 
   if [ "$UNATTENDED" = "1" ]; then
-    log_info "Running in unattended mode — reading from environment variables"
+    log_info "Running in unattended mode - reading from environment variables"
     DOMAIN="${OWNPAY_DOMAIN:-}"
     APP_NAME="${OWNPAY_APP_NAME:-OwnPay}"
     TIMEZONE="${OWNPAY_TIMEZONE:-UTC}"
@@ -609,9 +609,9 @@ phase_wizard() {
     "Web Server" \
     "Choose a web server to install and configure" \
     WEBSERVER \
-    "nginx"   "Nginx     — Recommended. High performance, low memory." \
-    "apache"  "Apache    — Battle-tested. Great .htaccess support." \
-    "caddy"   "Caddy     — Modern. Automatic HTTPS out of the box."
+    "nginx"   "Nginx     - Recommended. High performance, low memory." \
+    "apache"  "Apache    - Battle-tested. Great .htaccess support." \
+    "caddy"   "Caddy     - Modern. Automatic HTTPS out of the box."
 
   # ── SSL ───────────────────────────────────────────────────────────────────
 
@@ -620,12 +620,12 @@ phase_wizard() {
       "SSL / HTTPS" \
       "How should the installer provision an SSL certificate?" \
       SSL_MODE \
-      "letsencrypt" "Let's Encrypt  — Free, auto-renewing (requires public domain & DNS)" \
-      "selfsigned"  "Self-signed    — Generate a local certificate (browser warning)" \
-      "skip"        "Skip SSL       — HTTP only (⚠ not recommended for production)"
+      "letsencrypt" "Let's Encrypt  - Free, auto-renewing (requires public domain & DNS)" \
+      "selfsigned"  "Self-signed    - Generate a local certificate (browser warning)" \
+      "skip"        "Skip SSL       - HTTP only (⚠ not recommended for production)"
   else
     SSL_MODE="caddy"
-    log_info "Caddy manages SSL automatically — no extra configuration needed."
+    log_info "Caddy manages SSL automatically - no extra configuration needed."
   fi
 
   # ── Database ──────────────────────────────────────────────────────────────
@@ -648,7 +648,7 @@ phase_wizard() {
     "Cache & Queue Driver" \
     "Redis provides better performance; file driver works on any server." \
     _REDIS_CHOICE \
-    "redis" "Redis (Recommended for production — will be installed)" \
+    "redis" "Redis (Recommended for production - will be installed)" \
     "file"  "File driver (Simpler, works everywhere)"
 
   [ "$_REDIS_CHOICE" = "redis" ] && USE_REDIS=1 || USE_REDIS=0
@@ -896,7 +896,7 @@ phase_mariadb() {
     fi
 
     # Auto-retrieve the signing key from the keyserver using the keyid
-    # embedded in the .asc file. Fail closed if verification fails — we
+    # embedded in the .asc file. Fail closed if verification fails - we
     # would rather abort the install than run an unverified script as root.
     if ! gpg --keyserver hkp://keyserver.ubuntu.com:80 \
             --keyserver-options auto-key-retrieve \
@@ -904,7 +904,7 @@ phase_mariadb() {
             >>"$LOG_FILE" 2>&1; then
       rm -f "$mariadb_setup_script" "$mariadb_setup_sig"
       spinner_stop
-      log_error "MariaDB repo setup GPG signature verification FAILED — aborting"
+      log_error "MariaDB repo setup GPG signature verification FAILED - aborting"
       exit 1
     fi
 
@@ -974,7 +974,7 @@ GRANT ALL PRIVILEGES ON ${sql_db_name}.* TO ${sql_db_user}@$(_sql_str 'localhost
 FLUSH PRIVILEGES;
 SQL
   spinner_stop
-  log_success "Database '${DB_NAME}' created — user '${DB_USER}' granted access"
+  log_success "Database '${DB_NAME}' created - user '${DB_USER}' granted access"
 
   phase_done 4
 }
@@ -1056,8 +1056,8 @@ server {
     # SECURITY (audit INST-3): suppress access logging for /install/* URIs.
     # Their POST bodies carry DB credentials and the admin password during
     # initial setup. The default combined format does not include
-    # $request_body, but a future log_format change — or a global `mirror`
-    # directive — would otherwise expose these credentials in plaintext in
+    # $request_body, but a future log_format change - or a global `mirror`
+    # directive - would otherwise expose these credentials in plaintext in
     # /var/log/nginx/ownpay-access.log. The `if=` parameter on access_log
     # gates logging on a per-request variable.
     set \$loggable 1;
@@ -1193,7 +1193,7 @@ phase_ssl() {
   case "$SSL_MODE" in
     letsencrypt) _ssl_letsencrypt ;;
     selfsigned)  _ssl_selfsigned ;;
-    caddy)       log_info "Caddy handles SSL automatically — no action needed." ;;
+    caddy)       log_info "Caddy handles SSL automatically - no action needed." ;;
     skip)        log_warn "SSL skipped. Site will be served over HTTP only." ;;
   esac
 
@@ -1339,7 +1339,7 @@ phase_composer() {
 
     if [ -n "$expected" ] && [ -n "$actual" ]; then
       if [ "$actual" != "$expected" ]; then
-        log_error "Composer installer checksum mismatch — aborting (tampered download?)"
+        log_error "Composer installer checksum mismatch - aborting (tampered download?)"
         rm -f /tmp/composer-setup.php
         exit 1
       fi
@@ -1348,7 +1348,7 @@ phase_composer() {
       log_warn "Checksum verification skipped (signature endpoint unreachable)"
     fi
 
-    # Install — fully non-interactive, memory-unlimited, quiet
+    # Install - fully non-interactive, memory-unlimited, quiet
     spinner_start "Installing Composer globally..."
     php /tmp/composer-setup.php \
       --quiet \
@@ -1429,8 +1429,8 @@ phase_deploy() {
       [ -n "$size_bytes" ] && size_mb="$(( size_bytes / 1048576 ))"
       log_success "Latest version: ${C_BOLD}${version}${C_RESET}  (${size_mb} MB)"
     else
-      # Manifest unreachable or malformed — fall back to GitHub main branch
-      log_warn "Update manifest unavailable — falling back to GitHub main branch"
+      # Manifest unreachable or malformed - fall back to GitHub main branch
+      log_warn "Update manifest unavailable - falling back to GitHub main branch"
       version="main"
       zip_name="OwnPay-main.zip"
       zip_url="${OWNPAY_GITHUB_FALLBACK}"
@@ -1444,7 +1444,7 @@ phase_deploy() {
     printf "\n  ${C_BRAND}${C_BOLD}\u25b8${C_RESET}  ${C_WHITE}${C_BOLD}%s${C_RESET}\n" "$zip_name"
     printf "  ${C_MUTED}  %s${C_RESET}\n\n" "$zip_url"
 
-    # Named function — local is valid here (fixes the subshell local bug)
+    # Named function - local is valid here (fixes the subshell local bug)
     _dl_anim_loop() {
       local frames=('\u280b' '\u2819' '\u2839' '\u2838' '\u283c' '\u2834' '\u2826' '\u2827' '\u2807' '\u280f')
       local out_file="$1"
@@ -1479,7 +1479,7 @@ phase_deploy() {
 
     local dl_kb
     dl_kb="$(du -k "$tmp_zip" 2>/dev/null | cut -f1 || echo '?')"
-    log_success "Download complete — ${dl_kb} KB  →  /tmp/${zip_name}"
+    log_success "Download complete - ${dl_kb} KB  →  /tmp/${zip_name}"
 
     # ─ Step 3: SHA-256 checksum verification ────────────────────────────────
     if [ -n "$checksum_expected" ] && command -v sha256sum >/dev/null 2>&1; then
@@ -1490,14 +1490,14 @@ phase_deploy() {
       if [ "$checksum_actual" = "$checksum_expected" ]; then
         log_success "Checksum verified ✔  ${checksum_actual:0:16}..."
       else
-        log_error "Checksum MISMATCH — the download may be corrupted or tampered with"
+        log_error "Checksum MISMATCH - the download may be corrupted or tampered with"
         log_error "  Expected: ${checksum_expected}"
         log_error "  Got:      ${checksum_actual}"
         rm -f "$tmp_zip"
         exit 1
       fi
     else
-      [ -z "$checksum_expected" ] && log_info "No checksum in manifest — skipping verification"
+      [ -z "$checksum_expected" ] && log_info "No checksum in manifest - skipping verification"
     fi
 
     # ─ Step 4: Extract ────────────────────────────────────────────────────
@@ -1508,7 +1508,7 @@ phase_deploy() {
     spinner_start "Extracting ${zip_name}..."
     if ! unzip -q "$tmp_zip" -d "$tmp_extract" >>"$LOG_FILE" 2>&1; then
       spinner_stop
-      log_error "Extraction failed — file may be corrupt. Check: tail -20 ${LOG_FILE}"
+      log_error "Extraction failed - file may be corrupt. Check: tail -20 ${LOG_FILE}"
       exit 1
     fi
     spinner_stop
@@ -1521,7 +1521,7 @@ phase_deploy() {
     [ -n "$nested" ] && [ -f "${nested}/composer.json" ] && source_dir="$nested"
 
     if [ ! -f "${source_dir}/composer.json" ]; then
-      log_error "composer.json not found in extracted archive — invalid package"
+      log_error "composer.json not found in extracted archive - invalid package"
       exit 1
     fi
 
@@ -1553,7 +1553,7 @@ phase_deploy() {
   # ── Composer dependencies ─────────────────────────────────────────────────
   # Skip if vendor/autoload.php already exists (re-run safety)
   if [ -f "${OWNPAY_INSTALL_DIR}/vendor/autoload.php" ]; then
-    log_success "Composer dependencies already installed (vendor/ exists — skipping)"
+    log_success "Composer dependencies already installed (vendor/ exists - skipping)"
   else
     export COMPOSER_NO_INTERACTION=1
     export COMPOSER_MEMORY_LIMIT=-1
@@ -1595,7 +1595,7 @@ phase_redis() {
   show_phase_header "9" "⚡" "Redis" "Installing Redis cache & queue server"
 
   if [ "$USE_REDIS" != "1" ]; then
-    log_info "Redis skipped — using file driver"
+    log_info "Redis skipped - using file driver"
     phase_done 9
     return
   fi
@@ -1767,7 +1767,7 @@ phase_web_installer() {
   trap 'rm -f "$payload_file"' RETURN
 
   # ── Step 1: Test database connection ────────────────────────────────────
-  spinner_start "Step 1/4 — Testing database connection..."
+  spinner_start "Step 1/4 - Testing database connection..."
   cat > "$payload_file" <<JSON
 {"host":"${DB_HOST}","port":${DB_PORT},"name":"${DB_NAME}","user":"${DB_USER}","pass":"${DB_PASS}","prefix":"op_"}
 JSON
@@ -1785,11 +1785,11 @@ JSON
     local err
     err="$(echo "$resp" | grep -o '"error":"[^"]*"' | sed 's/"error":"//;s/"//')" || true
     log_warn "DB test response: ${err:-$resp}"
-    log_warn "Proceeding — the web installer at ${base_url}/install can complete this manually."
+    log_warn "Proceeding - the web installer at ${base_url}/install can complete this manually."
   fi
 
   # ── Step 2: Import schema ──────────────────────────────────────────────────────────────────────
-  spinner_start "Step 2/4 — Importing database schema..."
+  spinner_start "Step 2/4 - Importing database schema..."
   cat > "$payload_file" <<JSON
 {"host":"${DB_HOST}","port":${DB_PORT},"name":"${DB_NAME}","user":"${DB_USER}","pass":"${DB_PASS}","prefix":"op_","confirm_overwrite":true}
 JSON
@@ -1812,7 +1812,7 @@ JSON
   fi
 
   # ── Step 3: Create admin account ────────────────────────────────────────────────────────────────────
-  spinner_start "Step 3/4 — Creating admin account..."
+  spinner_start "Step 3/4 - Creating admin account..."
   cat > "$payload_file" <<JSON
 {"name":"${ADMIN_NAME}","email":"${ADMIN_EMAIL}","username":"${ADMIN_USERNAME}","password":"${ADMIN_PASSWORD}"}
 JSON
@@ -1835,7 +1835,7 @@ JSON
   fi
 
   # ── Step 4: Finalize ──────────────────────────────────────────────────────────────────────────
-  spinner_start "Step 4/4 — Finalizing installation..."
+  spinner_start "Step 4/4 - Finalizing installation..."
   cat > "$payload_file" <<JSON
 {"app_name":"${APP_NAME}","currency":"USD","timezone":"${TIMEZONE}"}
 JSON
@@ -1859,7 +1859,7 @@ JSON
   if [ -f "${OWNPAY_INSTALL_DIR}/storage/.installed" ]; then
     log_success "Installation marker confirmed: storage/.installed"
   else
-    log_warn "Marker file missing — please visit http://${DOMAIN}/install to complete setup."
+    log_warn "Marker file missing - please visit http://${DOMAIN}/install to complete setup."
   fi
 
   phase_done 11
@@ -1877,7 +1877,7 @@ phase_firewall() {
     log_success "Installing UFW"
   fi
 
-  # Allow SSH (safety first — prevent lockout)
+  # Allow SSH (safety first - prevent lockout)
   ufw allow OpenSSH >> "$LOG_FILE" 2>&1 || true
   ufw allow 80/tcp >> "$LOG_FILE" 2>&1 || true
   ufw allow 443/tcp >> "$LOG_FILE" 2>&1 || true
@@ -1894,7 +1894,7 @@ phase_firewall() {
     log_success "Installing Fail2ban"
     systemctl enable fail2ban >> "$LOG_FILE" 2>&1 || true
     systemctl start fail2ban >> "$LOG_FILE" 2>&1 || true
-    log_success "Fail2ban active — brute force protection enabled"
+    log_success "Fail2ban active - brute force protection enabled"
   fi
 
   phase_done 12
@@ -1956,11 +1956,11 @@ Install Dir:    ${OWNPAY_INSTALL_DIR}
 Log File:       ${LOG_FILE}
 CREDS
   chmod 600 "$creds_file"
-  log_success "Credentials saved to ${creds_file} (chmod 600 — root only)"
+  log_success "Credentials saved to ${creds_file} (chmod 600 - root only)"
 
   # SECURITY (audit INST-4): auto-delete the credentials file after 24h.
   # Without this, /root/.ownpay-credentials persists indefinitely with
-  # both the admin password and DB password in cleartext — any future
+  # both the admin password and DB password in cleartext - any future
   # root compromise (sudo misconfig, kernel exploit, backup tape
   # exfiltration) yields both credentials with no rotation.
   #
@@ -1974,13 +1974,13 @@ CREDS
   #     Belt-and-suspenders for systems without systemd-tmpfiles or
   #     where the clean timer is disabled.
   cat > /etc/tmpfiles.d/ownpay-credentials.conf << TMPFILES
-# OwnPay install credentials — auto-delete after 24h (audit INST-4)
+# OwnPay install credentials - auto-delete after 24h (audit INST-4)
 r ${creds_file} - - 24h
 TMPFILES
   chmod 644 /etc/tmpfiles.d/ownpay-credentials.conf
 
   cat > /etc/cron.d/ownpay-creds-cleanup << CRONCONF
-# OwnPay install credentials — auto-delete after 24h (audit INST-4)
+# OwnPay install credentials - auto-delete after 24h (audit INST-4)
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 0 3 * * * root find ${creds_file} -mtime +1 -delete 2>/dev/null
@@ -2044,7 +2044,7 @@ EOF
   _box_row "  ${C_BRAND}${C_BOLD}2.${C_RESET}  ${C_WHITE}Configure payment gateways under Gateways${C_RESET}" $w
   _box_row "  ${C_BRAND}${C_BOLD}3.${C_RESET}  ${C_WHITE}Add your brands under People → Brands${C_RESET}" $w
   _box_row "  ${C_BRAND}${C_BOLD}4.${C_RESET}  ${C_WHITE}Invite staff members via People → Staff${C_RESET}" $w
-  _box_row "  ${C_BRAND}${C_BOLD}5.${C_RESET}  ${C_WHITE}Note credentials — /root/.ownpay-credentials auto-deletes in 24h${C_RESET}" $w
+  _box_row "  ${C_BRAND}${C_BOLD}5.${C_RESET}  ${C_WHITE}Note credentials - /root/.ownpay-credentials auto-deletes in 24h${C_RESET}" $w
   _box_empty $w
   _box_bot $w
 

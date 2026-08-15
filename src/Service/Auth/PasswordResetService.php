@@ -125,7 +125,7 @@ final class PasswordResetService
      * is rejected before any password mutation or notification fires. This
      * closes the race-condition window that existed when the read
      * (`findValidByHash`) and the write (`markUsed`) were two separate SQL
-     * statements with PHP logic — and a password update — in between.
+     * statements with PHP logic - and a password update - in between.
      *
      * @param string $token The plaintext token from the reset link.
      * @param string $newPassword The new password.
@@ -149,7 +149,7 @@ final class PasswordResetService
 
         try {
             return $this->db->transaction(function () use ($tokenHash, $newPassword): array {
-                // Atomic claim — this is the concurrency arbiter. If a
+                // Atomic claim - this is the concurrency arbiter. If a
                 // parallel request has already consumed this token, the
                 // UPDATE inside claimByHash() matches 0 rows and we abort
                 // before touching the password.
@@ -184,7 +184,7 @@ final class PasswordResetService
                         $this->apiKeys->revokeAllForMerchant($merchantId);
                     } catch (\Throwable $e) {
                         // Do not fail the reset flow if API-key revocation hits a
-                        // transient DB error — the password itself was already
+                        // transient DB error - the password itself was already
                         // changed, which is the primary remediation. Log so SOC can
                         // audit the partial-failure case.
                         $this->logger->error('API-key revocation on password reset failed: ' . $e->getMessage());

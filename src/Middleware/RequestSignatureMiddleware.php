@@ -99,7 +99,7 @@ final class RequestSignatureMiddleware
         $timestamp = $request->header('X-Timestamp');
         if ($timestamp === '') {
             // SEC-2: X-Timestamp is mandatory. Without it the body HMAC alone
-            // provides zero replay protection — a captured signed webhook can
+            // provides zero replay protection - a captured signed webhook can
             // be replayed indefinitely. Reject up-front rather than silently
             // degrading to a replayable state.
             return Response::json([
@@ -118,7 +118,7 @@ final class RequestSignatureMiddleware
         }
 
         // SEC-2: Nonce-based replay guard. Even within the 5-minute tolerance
-        // window, the same signed body must not be accepted twice — otherwise
+        // window, the same signed body must not be accepted twice - otherwise
         // a captured webhook can be replayed to trigger double-crediting,
         // double-refunds, or duplicate order fulfilment. We persist a nonce
         // derived from the body hash for the duration of the tolerance window
@@ -142,7 +142,7 @@ final class RequestSignatureMiddleware
                 $cache->set($nonceKey, time(), $tolerance + 60);
             }
         } catch (\Throwable $e) {
-            // Cache unavailable — fail closed by rejecting the request rather
+            // Cache unavailable - fail closed by rejecting the request rather
             // than silently allowing a potentially-replayed payload through.
             if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
                 $logger = $this->container->get(\OwnPay\Service\System\Logger::class);

@@ -412,7 +412,7 @@ final class BrandController
         // Integrity: refuse to delete a brand that has any financial history.
         // CASCADE deletion would destroy transactions, refunds, double-entry
         // ledger rows, disputes, customers, invoices, and webhook delivery
-        // logs — violating PCI-DSS, tax-law, and chargeback-defense retention
+        // logs - violating PCI-DSS, tax-law, and chargeback-defense retention
         // requirements. The admin must first archive/migrate those records to
         // a cold-storage table (out of scope for this controller).
         $db = $this->c->get(\OwnPay\Core\Database::class);
@@ -437,7 +437,7 @@ final class BrandController
             return Response::redirect('/admin/brands');
         }
 
-        // No financial history — safe to hard-delete. Cascade handled by DB FK constraints.
+        // No financial history - safe to hard-delete. Cascade handled by DB FK constraints.
         $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
 
         $brandNameVal = $brand['name'] ?? '';

@@ -481,7 +481,7 @@ final class WebhookInboundProcessor
             }
 
             // PAY-5: Only flip the transaction to 'refunded' when the total
-            // refunded equals the original amount — mirroring
+            // refunded equals the original amount - mirroring
             // RefundService::create() line 251-255. The previous
             // implementation unconditionally set status='refunded' on any
             // refund webhook (partial or full), which permanently froze the

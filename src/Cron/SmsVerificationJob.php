@@ -143,11 +143,11 @@ final class SmsVerificationJob
                         // The previous implementation silently dropped amount-
                         // matching for all-brands SMS whose parser could not
                         // extract a timestamp (e.g. the SMS body had no
-                        // parseable date — SmsParserService::normalizeTimestamp
+                        // parseable date - SmsParserService::normalizeTimestamp
                         // is documented as lossy). The corresponding pending
                         // transaction stayed unresolved, the customer's payment
                         // was never auto-verified, and the merchant had to
-                        // manually verify it — a silent data-loss bug affecting
+                        // manually verify it - a silent data-loss bug affecting
                         // only the all-brands device path (the most common
                         // deployment for small merchants). The repository
                         // method findPendingMatchGlobal() already handles the
@@ -187,14 +187,14 @@ final class SmsVerificationJob
                             // complete() internally calls markCompletedIfNotTerminal()
                             // (an atomic UPDATE … WHERE status NOT IN (terminal))
                             // which returns 0 affected rows when another worker
-                            // already completed the txn — but the cron did NOT
+                            // already completed the txn - but the cron did NOT
                             // check that return value, so it credited the ledger
                             // a second time. Two concurrent workers (or a worker
                             // racing an admin matchSms call) processing two
                             // different SMS that matched the same transaction
                             // would each link their own SMS row, each call
                             // complete() (second is a no-op), and each call
-                            // recordPaymentReceived() — crediting the merchant
+                            // recordPaymentReceived() - crediting the merchant
                             // ledger twice for one payment.
                             $lockedTxn = $this->db->fetchOne(
                                 "SELECT id, status FROM op_transactions

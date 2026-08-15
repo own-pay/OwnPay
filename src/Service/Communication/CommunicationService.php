@@ -164,7 +164,7 @@ final class CommunicationService
      * caller-controlled values (refund reasons, transaction ids, customer names) cannot
      * inject <script>, <img>, or other active markup into the rendered HTML body.
      * When $contentType is 'text' (plain-text SMS body), values are interpolated raw
-     * because SMS clients render body text literally — escaping would just add visible
+     * because SMS clients render body text literally - escaping would just add visible
      * '&lt;' noise.
      *
      * @param string $template Plain text or HTML template content.

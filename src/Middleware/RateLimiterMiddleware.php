@@ -265,7 +265,7 @@ final class RateLimiterMiddleware
 
             // Fail closed for non-safe mutating endpoints: when the rate limiter
             // backend is unavailable (Redis down, DB down, etc.), we must NOT
-            // silently allow POST/PUT/PATCH/DELETE traffic through — that would
+            // silently allow POST/PUT/PATCH/DELETE traffic through - that would
             // disable brute-force protection for the entire app for as long as
             // the limiter is down. Read-only safe methods (GET/HEAD/OPTIONS)
             // are allowed through as a graceful-degradation measure.

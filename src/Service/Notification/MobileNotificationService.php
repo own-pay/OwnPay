@@ -116,7 +116,7 @@ final class MobileNotificationService
 
         // API-4: Removed the global /tmp/op_notifications.json fallback.
         // The previous fallback wrote every merchant's notification payloads
-        // (containing transaction amounts, sender names, TRX IDs — PII and
+        // (containing transaction amounts, sender names, TRX IDs - PII and
         // financial data) into a single shared temp file with no tenant
         // separation and no consumption mechanism, growing unbounded. Any
         // process running as the web user could read every merchant's
@@ -158,7 +158,7 @@ final class MobileNotificationService
                 if ($ref->getNumberOfParameters() === 1) {
                     $unreadCount = $this->repo->countUnread($deviceUuid);
                 } else {
-                    // API-3: pass the actual merchant context — previously
+                    // API-3: pass the actual merchant context - previously
                     // hardcoded to 1, which leaked merchant 1's notification
                     // counts to every brand on the installation.
                     $unreadCount = $this->repo->countUnread($merchantId, $deviceUuid);

@@ -1,8 +1,8 @@
 # OwnPay Architecture
 
-A developer's guide to how **OwnPay** is built — for contributors and integrators.
+A developer's guide to how **OwnPay** is built - for contributors and integrators.
 
-OwnPay is a **self-hosted, single-owner, multi-brand payment orchestrator** written in modern PHP (8.3+). One administrator runs the platform and creates multiple **brands** (stores); each brand has its own domain, gateways, customers, and ledgers, all isolated inside a single MySQL database by a `merchant_id` column. It is **not** a multi-tenant SaaS — there is no public sign-up.
+OwnPay is a **self-hosted, single-owner, multi-brand payment orchestrator** written in modern PHP (8.3+). One administrator runs the platform and creates multiple **brands** (stores); each brand has its own domain, gateways, customers, and ledgers, all isolated inside a single MySQL database by a `merchant_id` column. It is **not** a multi-tenant SaaS - there is no public sign-up.
 
 > Looking to run it locally first? See **[LOCAL_SETUP.md](LOCAL_SETUP.md)**.
 
@@ -19,7 +19,7 @@ OwnPay is a **self-hosted, single-owner, multi-brand payment orchestrator** writ
 | DI | Custom PSR-11 container (`src/Container.php`) with reflection autowiring |
 | Auth (mobile/API) | `firebase/php-jwt` |
 | Frontend | Server-rendered Twig + vanilla CSS/JS (no SPA build step) |
-| Dependencies | Intentionally minimal — see `composer.json` |
+| Dependencies | Intentionally minimal - see `composer.json` |
 | Static analysis | PHPStan **level 9** |
 | Tests | PHPUnit |
 
@@ -49,7 +49,7 @@ flowchart TD
 1. Load `.env` (`vlucas/phpdotenv`).
 2. Build the DI container from `config/services.php`.
 3. Set the timezone.
-4. **Boot plugins** (`PluginLoader::boot()`) — *before* middleware, so a plugin can inject middleware via the `system.middleware.pipeline` filter.
+4. **Boot plugins** (`PluginLoader::boot()`) - *before* middleware, so a plugin can inject middleware via the `system.middleware.pipeline` filter.
 5. Load the middleware pipeline from `config/middleware.php` and apply the plugin filter. Security-critical admin middleware is then re-asserted and cannot be removed by a plugin.
 6. Fire the `system.boot` action.
 7. Load routes from `config/routes/web.php` + `config/routes/api.php` (+ plugin routes).
@@ -65,7 +65,7 @@ If the app isn't installed yet, all requests redirect to `/install`. Error and m
 
 ```text
 ownpay/
-├── public/            # Web root — index.php + static assets (only PHP file here)
+├── public/            # Web root - index.php + static assets (only PHP file here)
 ├── src/               # All application code (PSR-4: OwnPay\ → src/)
 │   ├── Kernel.php         # Boot + dispatch orchestrator
 │   ├── Container.php      # PSR-11 DI container
@@ -118,9 +118,9 @@ Money movements are recorded as balanced debits/credits across `op_ledger_accoun
 Plugins are discovered via `manifest.json`, run through a **static code scanner** (`PluginSandbox`) that denies dangerous calls (`exec`, `shell_exec`, `passthru`, `eval`, `system`, raw PDO/reflection), and only then loaded.
 
 ### 4.5 White-label custom domains *(industry first)*
-OwnPay is the **first self-hosted payment platform** to support per-brand custom-domain checkout on a single installation. A brand maps its own domain (e.g. `pay.yourbrand.com`), which is DNS-verified (TXT ownership + A-record routing), then fully activated. From that point, every customer-facing URL uses the brand's domain — customers see the brand's logo, name, and colors; there is no trace of OwnPay.
+OwnPay is the **first self-hosted payment platform** to support per-brand custom-domain checkout on a single installation. A brand maps its own domain (e.g. `pay.yourbrand.com`), which is DNS-verified (TXT ownership + A-record routing), then fully activated. From that point, every customer-facing URL uses the brand's domain - customers see the brand's logo, name, and colors; there is no trace of OwnPay.
 
-`DomainMiddleware` resolves `HTTP_HOST` against the `op_domains` table, injects the `merchant_id`, and blocks `/admin/*` on custom domains. **Always** build customer-facing and gateway URLs through `DomainUrlService` (`buildCheckoutUrl()`, `buildCallbackUrl()`) — never hardcode a host.
+`DomainMiddleware` resolves `HTTP_HOST` against the `op_domains` table, injects the `merchant_id`, and blocks `/admin/*` on custom domains. **Always** build customer-facing and gateway URLs through `DomainUrlService` (`buildCheckoutUrl()`, `buildCallbackUrl()`) - never hardcode a host.
 
 ### 4.6 Payment gateways
 Gateways are plugins implementing `GatewayAdapterInterface` (`src/Gateway/`):
@@ -190,10 +190,10 @@ Formal API schema: **[docs.ownpay.org](https://docs.ownpay.org)**. Integration e
 ## 7. Conventions for contributors
 
 1. `declare(strict_types=1);` is the first line of every PHP file (no BOM).
-2. Keep PHPStan at **level 9** — run `composer analyse` before pushing.
+2. Keep PHPStan at **level 9** - run `composer analyse` before pushing.
 3. Money is **bcmath strings**, never floats.
 4. Scoped DB access always goes through `forTenant()` / `*Scoped()`.
-5. Customer/gateway URLs always go through `DomainUrlService` — never hardcode a host.
+5. Customer/gateway URLs always go through `DomainUrlService` - never hardcode a host.
 6. New gateway? Add a directory under `modules/gateways/<slug>/` with a `manifest.json` and an adapter implementing `GatewayAdapterInterface`. See the [Plugin Developer Guide](https://learn.ownpay.org/plugin-developer-guide).
 7. Run the full check before a PR: `composer test && composer analyse && composer lint`.
 

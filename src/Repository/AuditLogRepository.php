@@ -144,7 +144,7 @@ final class AuditLogRepository extends BaseRepository
 
         // SYS-1: Include prevHash in the payload so the signature forms
         // a forward hash chain. Without this, an attacker with DB write
-        // access could DELETE audit log entries without detection — the
+        // access could DELETE audit log entries without detection - the
         // verifyIntegrity() scan simply wouldn't see them. With the
         // chain, deleting a row breaks the link between its predecessor
         // and successor, which verifyIntegrity() flags as compromised.
@@ -216,7 +216,7 @@ final class AuditLogRepository extends BaseRepository
 
             // SYS-1: Chain-link check. If the row's stored prev_hash does
             // not match the signature of the immediately preceding row, the
-            // chain is broken — a row was deleted or inserted between the
+            // chain is broken - a row was deleted or inserted between the
             // predecessor and this row. We mark the row as compromised so
             // the audit-trail UI surfaces the gap.
             if ($expectedPrevHash !== null && $storedPrevHash !== null && !hash_equals($expectedPrevHash, $storedPrevHash)) {

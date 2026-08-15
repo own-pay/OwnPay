@@ -125,7 +125,7 @@ final class CurrencyUpdateJob
                 // number. The previous implementation only checked
                 // is_scalar($rate), which passes for 0, -1, "0", "abc",
                 // true, etc. A rate of 0 means a 100 USD payment converts
-                // to 0 in the target currency — the customer pays nothing.
+                // to 0 in the target currency - the customer pays nothing.
                 // A negative rate could credit money to the merchant on a
                 // payment. A non-numeric string would be implicitly cast
                 // to 0 by MySQL's DECIMAL column. The API URL is

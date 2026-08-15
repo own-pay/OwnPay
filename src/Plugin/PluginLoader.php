@@ -610,7 +610,7 @@ final class PluginLoader
             }
 
             if (!$progress) {
-                // Circular dependency detected — load remaining in original order
+                // Circular dependency detected - load remaining in original order
                 foreach ($remaining as $p) {
                     $sorted[] = $p;
                 }

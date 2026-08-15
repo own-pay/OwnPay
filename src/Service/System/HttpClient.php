@@ -314,7 +314,7 @@ final class HttpClient
                 // Fail closed: if both DNS resolution paths returned nothing,
                 // we cannot pin an IP. UrlValidator::isValidWebhookUrl()
                 // already proved the host resolves to a public IP moments
-                // ago, so an empty result here is suspicious — likely a DNS
+                // ago, so an empty result here is suspicious - likely a DNS
                 // rebinding window where an attacker has changed the record
                 // between the isValidWebhookUrl check and now. Refuse to
                 // send rather than letting cURL perform its own resolution

@@ -253,7 +253,7 @@ final class AuthController
         }
 
         if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($decryptedSecret, $code, 1, $lastUsedWindow)) {
-            // Verification failed — release the per-code lock so the user can
+            // Verification failed - release the per-code lock so the user can
             // retry with a fresh code. A wrong code should not permanently
             // consume the slot for the next 120 seconds. (If $cache was not
             // available, no lock was acquired and there is nothing to release.)
@@ -401,7 +401,7 @@ final class AuthController
         // controller uses resolveLoginSlug() to honour the admin-configurable
         // login URL (e.g. /secret-login). Hardcoding '/login' here meant that
         // if the admin changed the slug, a user who just reset their password
-        // landed on a 404 — and may have believed the reset failed, retrying
+        // landed on a 404 - and may have believed the reset failed, retrying
         // with the now-consumed token and getting a 'link expired' error.
         return Response::redirect('/' . $this->resolveLoginSlug());
     }

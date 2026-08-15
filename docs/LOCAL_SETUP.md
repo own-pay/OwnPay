@@ -1,6 +1,6 @@
 # Local Setup Guide
 
-Get **OwnPay** running on your machine for development and contribution — on **Windows**, **macOS**, or **Linux**. The fast path below takes about **2 minutes** after the prerequisites are installed.
+Get **OwnPay** running on your machine for development and contribution - on **Windows**, **macOS**, or **Linux**. The fast path below takes about **2 minutes** after the prerequisites are installed.
 
 > New to the codebase? Read **[ARCHITECTURE.md](ARCHITECTURE.md)** first.
 
@@ -27,7 +27,7 @@ php -m
 
 ---
 
-## Quick Start — all platforms (~2 minutes)
+## Quick Start - all platforms (~2 minutes)
 
 This uses PHP's built-in web server, so it works identically on Windows, macOS, and Linux. No web-server config needed.
 
@@ -46,7 +46,7 @@ mysql -u root -p -e "CREATE DATABASE ownpay CHARACTER SET utf8mb4 COLLATE utf8mb
 php -S localhost:8000 -t public
 ```
 
-Now open **<http://localhost:8000>** in your browser. You'll be redirected to the **`/install` wizard** — it generates your `.env`, imports the schema, and creates your admin account for you. No manual `.env` editing required.
+Now open **<http://localhost:8000>** in your browser. You'll be redirected to the **`/install` wizard** - it generates your `.env`, imports the schema, and creates your admin account for you. No manual `.env` editing required.
 
 ```mermaid
 flowchart LR
@@ -67,9 +67,9 @@ flowchart LR
 
 ## Platform-specific all-in-one stacks
 
-Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Quick Start still applies — just point the stack's web root at `public/`.
+Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Quick Start still applies - just point the stack's web root at `public/`.
 
-### 🪟 Windows — Laragon (recommended)
+### 🪟 Windows - Laragon (recommended)
 
 [Laragon](https://laragon.org/download/) bundles PHP, MySQL, Apache/Nginx, and auto-creates `.test` domains.
 
@@ -82,7 +82,7 @@ Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Q
 
 > Laragon's document root maps to the project's `public/` automatically via the bundled rewrite rules.
 
-### 🍎 macOS — Laravel Herd (recommended)
+### 🍎 macOS - Laravel Herd (recommended)
 
 [Herd](https://herd.laravel.com/) is a free, one-click PHP environment (PHP + Nginx + dnsmasq for `.test` domains).
 
@@ -94,7 +94,7 @@ Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Q
 
 Homebrew-only alternative: `brew install php@8.3 composer mysql` then use the **Quick Start** built-in-server path.
 
-### 🐧 Linux — native packages
+### 🐧 Linux - native packages
 
 ```bash
 # Debian / Ubuntu
@@ -116,7 +116,7 @@ For a production-like Nginx/Apache vhost, point the document root at `public/` a
 
 ---
 
-## After install — verify your setup
+## After install - verify your setup
 
 Run the same checks CI does:
 
@@ -147,7 +147,7 @@ ngrok http 8000
 | Symptom | Fix |
 |---------|-----|
 | `/install` says an extension is missing | Install the listed `php-*` extension and restart the server. Re-check with `php -m`. |
-| `composer install` fails on `ext-*` | Your CLI PHP lacks an extension. Install it (e.g. `php8.3-bcmath`) — note the **CLI** php.ini may differ from the web one. |
+| `composer install` fails on `ext-*` | Your CLI PHP lacks an extension. Install it (e.g. `php8.3-bcmath`) - note the **CLI** php.ini may differ from the web one. |
 | "Could not connect to database" in the wizard | Confirm MySQL is running and the DB exists; on macOS/Linux the default user is often `root` with an empty or socket password. |
 | Blank page / 500 with no detail | Set `APP_DEBUG=true` in `.env` for a detailed dev error page (never in production), check `storage/logs/`. |
 | Installer keeps redirecting after completion | Delete `storage/.installed` only if you intend to reinstall; otherwise clear `storage/cache/`. |
@@ -159,10 +159,10 @@ ngrok http 8000
 
 See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full map. Most contributions touch:
 
-- `src/Controller/` — HTTP handlers
-- `src/Service/` — business logic
-- `src/Repository/` — data access
-- `modules/gateways/` — payment integrations (see the [Plugin Developer Guide](https://learn.ownpay.org/plugins-developer-guide))
-- `templates/` — Twig views
+- `src/Controller/` - HTTP handlers
+- `src/Service/` - business logic
+- `src/Repository/` - data access
+- `modules/gateways/` - payment integrations (see the [Plugin Developer Guide](https://learn.ownpay.org/plugins-developer-guide))
+- `templates/` - Twig views
 
 Happy hacking! 🚀

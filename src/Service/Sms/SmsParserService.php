@@ -457,7 +457,7 @@ final class SmsParserService
      * UTC explicitly (the safest universal assumption), then convert to the
      * server timezone for storage. Inputs that already carry an explicit
      * offset (ISO-8601 like "2024-01-15T14:30:00+06:00" or "...Z") are
-     * forwarded to DateTimeImmutable untouched — it handles them natively.
+     * forwarded to DateTimeImmutable untouched - it handles them natively.
      *
      * @param string $ts Raw client date representation string.
      * @return string Normalized MySQL DATETIME representation string.

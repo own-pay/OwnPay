@@ -422,7 +422,7 @@ PHP;
         // is allowed to run and the SQL-sandbox check actually fires.
         $db->method('fetchOne')->willReturn(['slug' => 'mock-plugin', 'status' => 'active']);
         // When a prior test leaves $_SESSION['active_brand_id'] populated
-        // (common in full-suite runs — DeviceLiveStatusTest, etc. all seed
+        // (common in full-suite runs - DeviceLiveStatusTest, etc. all seed
         // it), BrandContext::getActiveBrandId() returns that stale id and
         // isPluginActive takes the brand-scoped branch, which calls
         // fetchAll() instead of fetchOne(). Without an active row from

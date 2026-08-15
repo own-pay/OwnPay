@@ -4,7 +4,7 @@ Complete reference of every capability built into OwnPay. For architectural deep
 
 ---
 
-## 🏆 Flagship — Sovereign White-Label Architecture
+## 🏆 Flagship - Sovereign White-Label Architecture
 
 > **OwnPay is the first self-hosted payment platform to implement a full white-label, multi-brand, custom-domain checkout architecture on a single installation.**
 >
@@ -12,15 +12,15 @@ Complete reference of every capability built into OwnPay. For architectural deep
 
 Here is exactly what it means:
 
-- **One server, one installation** — owned by one super-admin.
-- **Multiple brands** — create unlimited stores (brands). Each is a fully isolated entity with its own custom domain, logo, name, color scheme, gateways, customers, ledgers, and staff.
-- **Custom domain per brand** — map `pay.yourbrand.com` to a brand. OwnPay verifies ownership via a DNS TXT record (`_ownpay-verification.{domain}`) and confirms routing via A-record check, then activates the domain.
-- **Invisible infrastructure** — when a customer reaches checkout, they land on `pay.yourbrand.com`. They see the brand's logo, name, and colors. There is no mention of OwnPay, no shared domain, no "powered by" indicator unless the brand explicitly adds one.
-- **Admin panel stays private** — the admin dashboard is only accessible on the master installation domain. Custom brand domains return 404 for all `/admin/*` paths.
-- **Complete data isolation** — every customer record, transaction, ledger entry, gateway credential, and webhook secret is scoped per brand via `merchant_id` in the database. Zero data bleed between brands.
-- **Brand-aware URLs** — all checkout URLs, gateway callback URLs, and webhook endpoints are automatically built using the brand's custom domain via `DomainUrlService`. The installation domain never leaks into customer-facing flows.
+- **One server, one installation** - owned by one super-admin.
+- **Multiple brands** - create unlimited stores (brands). Each is a fully isolated entity with its own custom domain, logo, name, color scheme, gateways, customers, ledgers, and staff.
+- **Custom domain per brand** - map `pay.yourbrand.com` to a brand. OwnPay verifies ownership via a DNS TXT record (`_ownpay-verification.{domain}`) and confirms routing via A-record check, then activates the domain.
+- **Invisible infrastructure** - when a customer reaches checkout, they land on `pay.yourbrand.com`. They see the brand's logo, name, and colors. There is no mention of OwnPay, no shared domain, no "powered by" indicator unless the brand explicitly adds one.
+- **Admin panel stays private** - the admin dashboard is only accessible on the master installation domain. Custom brand domains return 404 for all `/admin/*` paths.
+- **Complete data isolation** - every customer record, transaction, ledger entry, gateway credential, and webhook secret is scoped per brand via `merchant_id` in the database. Zero data bleed between brands.
+- **Brand-aware URLs** - all checkout URLs, gateway callback URLs, and webhook endpoints are automatically built using the brand's custom domain via `DomainUrlService`. The installation domain never leaks into customer-facing flows.
 
-**The result:** One server. Multiple brands. Each brand is a complete, independent, fully custom-branded payment gateway — invisible to each other and invisible to OwnPay.
+**The result:** One server. Multiple brands. Each brand is a complete, independent, fully custom-branded payment gateway - invisible to each other and invisible to OwnPay.
 
 ---
 
@@ -175,7 +175,7 @@ Here is exactly what it means:
 | Trial balance | Verify total debits equal total credits at any point |
 | Ledger history | Query all entries per account with date-range filters |
 | Balance verification | `BalanceVerificationJob` cron cross-checks ledger vs gateway balances |
-| bcmath precision | All monetary math uses bcmath strings — never floats |
+| bcmath precision | All monetary math uses bcmath strings - never floats |
 
 ---
 
@@ -380,8 +380,8 @@ Triggered by `GET /cron/{secret}`. Individual jobs can also be run manually from
 | CSRF protection | Per-session CSRF tokens; all POST/PUT/DELETE require a valid token |
 | Content Security Policy | Per-request nonce; strict policy blocks unauthorized inline scripts |
 | HSTS | HTTP Strict Transport Security header enforced |
-| X-Frame-Options | `DENY` — prevents clickjacking |
-| X-Content-Type-Options | `nosniff` — prevents MIME sniffing |
+| X-Frame-Options | `DENY` - prevents clickjacking |
+| X-Content-Type-Options | `nosniff` - prevents MIME sniffing |
 | Referrer-Policy | Limits referrer information leakage |
 | SSRF protection | `UrlValidator` resolves and pins webhook URLs to validated public IPs; redirect-following blocked |
 | Rate limiting | Per-route, per-IP sliding window; 429 with `Retry-After` header |
@@ -436,7 +436,7 @@ Triggered by `GET /cron/{secret}`. Individual jobs can also be run manually from
 | API key management | Generate, list, and revoke API keys |
 | Rate limit display | View current API rate limit configuration |
 | Webhook delivery logs | Inspect delivery attempts, response codes, and errors |
-| Health check endpoint | `GET /api/v1/health` — confirms database, cache, and queue status |
+| Health check endpoint | `GET /api/v1/health` - confirms database, cache, and queue status |
 | CSP violation reporting | Collect and log Content Security Policy violations |
 | Custom login slug | Set admin login URL to any custom slug |
 
@@ -446,13 +446,13 @@ Triggered by `GET /cron/{secret}`. Individual jobs can also be run manually from
 
 | Feature | Description |
 |:---|:---|
-| Web-based installer | Multi-step `/install` wizard — no CLI or SSH required |
+| Web-based installer | Multi-step `/install` wizard - no CLI or SSH required |
 | Database connection test | Tests connection before importing schema |
 | Schema import | Creates all 48 tables automatically |
 | Admin account creation | Creates super-admin during install |
 | Key generation | Generates `APP_KEY`, `ENCRYPTION_KEY`, and `JWT_SECRET` |
 | Install lock | Writes `storage/.installed` to prevent re-running the wizard |
-| Shared hosting support | No SSH or Composer required — `vendor/` bundled in release archives |
+| Shared hosting support | No SSH or Composer required - `vendor/` bundled in release archives |
 
 ---
 

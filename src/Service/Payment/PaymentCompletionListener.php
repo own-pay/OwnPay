@@ -80,7 +80,7 @@ final class PaymentCompletionListener
             // leave the link active, allowing use_count to overshoot max_uses. The atomic
             // version returns 0 when the link is already exhausted (no row updated); the
             // transaction itself has already been captured at the gateway at this point,
-            // so we cannot refund here — but at least the in-platform state stays correct.
+            // so we cannot refund here - but at least the in-platform state stays correct.
             $scopedLinks = $this->linkRepo->forTenant($merchantId);
             $scopedLinks->incrementUseCountAtomic($linkId);
         }

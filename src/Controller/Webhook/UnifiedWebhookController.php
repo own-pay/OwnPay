@@ -86,7 +86,7 @@ final class UnifiedWebhookController
         // implementation wrapped the signature check in
         //   if ($this->c->has(GatewayBridge::class)) { ... if ($bridge instanceof ...) { ... } }
         // which silently skipped verification when the bridge was missing or
-        // misregistered — a single configuration error disabled webhook
+        // misregistered - a single configuration error disabled webhook
         // authentication entirely. We now require the bridge to be resolvable
         // and to actually be a GatewayBridge instance; anything else is a
         // deployment/configuration failure that must not be allowed to fail

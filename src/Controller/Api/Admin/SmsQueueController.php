@@ -88,7 +88,7 @@ final class SmsQueueController
             return Response::apiSuccess(['message' => 'Queued for retry']);
         } catch (\Throwable $e) {
             // Don't leak raw exception messages (PDO errors, file paths, etc.) to
-            // the API client — log the full exception internally and return a
+            // the API client - log the full exception internally and return a
             // generic, safe message.
             $this->logger->error('SMS retry failed', ['exception' => $e, 'sms_id' => $id, 'merchant_id' => $mid]);
             return Response::apiError('SMS_RETRY_FAILED', 'SMS retry failed. Please try again.', 'id', 400);

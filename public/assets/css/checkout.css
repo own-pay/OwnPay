@@ -149,7 +149,7 @@
 .ck-icon-btn:hover { background: var(--snow); color: var(--ink-3); }
 .ck-icon-btn svg { width: 14px; height: 14px; }
 
-/* Timer — supports both old .ck-timer and new .ck-timer-pill */
+/* Timer - supports both old .ck-timer and new .ck-timer-pill */
 .ck-timer, .ck-timer-pill {
     display: flex; align-items: center; gap: 6px;
     background: var(--snow); border-radius: 20px; padding: 7px 14px;
@@ -288,7 +288,7 @@
     will-change: transform, width; z-index: 0; pointer-events: none;
 }
 
-/* Legacy: instant tab switch (no pill) — .on class toggles bg */
+/* Legacy: instant tab switch (no pill) - .on class toggles bg */
 .ck-tab.on:not([aria-selected="true"]) {
     background: var(--ink); color: var(--white);
     box-shadow: 0 2px 12px rgb(8 13 26 / 18%);

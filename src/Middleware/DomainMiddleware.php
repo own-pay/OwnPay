@@ -235,7 +235,7 @@ final class DomainMiddleware
      *
      * Returns false for anything else (external hosts, dangerous schemes,
      * protocol-relative URLs, empty allowedDomain). The caller then suppresses
-     * the redirect and serves the fallback 404 — no 302 is ever issued to an
+     * the redirect and serves the fallback 404 - no 302 is ever issued to an
      * untrusted target.
      *
      * @param string $url The stored redirect_url value.
@@ -249,7 +249,7 @@ final class DomainMiddleware
         }
 
         // Relative path: must start with `/` but not `//` (protocol-relative)
-        // or `/\` (backslash variant — some browsers normalize this to `//`).
+        // or `/\` (backslash variant - some browsers normalize this to `//`).
         if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_starts_with($url, '/\\')) {
             return true;
         }

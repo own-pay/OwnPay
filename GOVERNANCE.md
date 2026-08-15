@@ -1,6 +1,6 @@
 # OwnPay Project Governance
 
-This document describes how the OwnPay project is governed — who makes decisions, how they are made, and how contributors can grow into positions of greater responsibility. Our goal is to be **transparent, open, and merit-based** while keeping a clear line of accountability for a project that handles real financial infrastructure.
+This document describes how the OwnPay project is governed - who makes decisions, how they are made, and how contributors can grow into positions of greater responsibility. Our goal is to be **transparent, open, and merit-based** while keeping a clear line of accountability for a project that handles real financial infrastructure.
 
 ---
 
@@ -34,7 +34,7 @@ Maintainers are added by the Lead Maintainer based on a sustained track record o
 ### Lead Maintainer (Project Lead)
 OwnPay currently follows a **lead-maintainer model**. The Lead Maintainer is responsible for the overall technical direction, has final say on decisions when consensus cannot be reached, manages releases, and stewards the project's long-term health.
 
-- **Lead Maintainer:** **Fattain Naime** — [iamnaime.info.bd](https://iamnaime.info.bd)
+- **Lead Maintainer:** **Fattain Naime** - [iamnaime.info.bd](https://iamnaime.info.bd)
 
 As the project and its community grow, governance is expected to evolve toward a broader maintainer team and, eventually, a formal steering committee.
 
@@ -57,7 +57,7 @@ Most decisions are made through **lazy consensus** in issues and pull requests:
 
 - The Lead Maintainer (or a delegated maintainer) cuts releases and publishes them via [GitHub Releases](https://github.com/own-pay/OwnPay/releases).
 - Releases follow [Semantic Versioning](https://semver.org/). OwnPay is currently in the `0.x.x` Public Beta line on the road to a stable `1.0.0`.
-- Security fixes are prioritized and may ship out of the normal cadence — see [SECURITY.md](SECURITY.md).
+- Security fixes are prioritized and may ship out of the normal cadence - see [SECURITY.md](SECURITY.md).
 
 ---
 

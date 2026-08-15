@@ -111,10 +111,10 @@ class Database
      * (no application-level override) or traverse the wire in cleartext.
      *
      * The caller may now pass:
-     *   - $options[PDO::ATTR_TIMEOUT] (default 5) — connect timeout in seconds.
-     *   - $options[PDO::ATTR_PERSISTENT] (default false) — set true for
+     *   - $options[PDO::ATTR_TIMEOUT] (default 5) - connect timeout in seconds.
+     *   - $options[PDO::ATTR_PERSISTENT] (default false) - set true for
      *     long-running CLI/cron workers to reuse pooled connections.
-     *   - $sslCa (path to a PEM-encoded CA bundle) — when non-null, TLS is
+     *   - $sslCa (path to a PEM-encoded CA bundle) - when non-null, TLS is
      *     enabled with server-cert verification pinned to the supplied CA.
      *
      * @param string                                                $host    The database host.
@@ -259,7 +259,7 @@ class Database
         // every API key, or rewrite `UPDATE op_transactions SET status=
         // 'completed' WHERE id=:id AND merchant_id=:mid` to drop the tenant
         // guard. The sandbox check on line 238-247 only ran when the active
-        // owner was a plugin — for core-originated queries, no sandbox
+        // owner was a plugin - for core-originated queries, no sandbox
         // validation happened at all, and the rewritten SQL was executed
         // verbatim.
         //
@@ -468,7 +468,7 @@ class Database
      * Checks if a row exists in the database.
      *
      * SECURITY: The $where argument is concatenated directly into the SQL
-     * string. Callers MUST NOT interpolate user input into $where — only
+     * string. Callers MUST NOT interpolate user input into $where - only
      * literal SQL fragments with :named placeholders bound via $params are
      * permitted. A runtime assertion rejects obvious SQL-injection markers
      * (statement separator, comment markers, NUL/control bytes) as a
@@ -495,7 +495,7 @@ class Database
      * Counts rows matching selection parameters.
      *
      * SECURITY: The $where argument is concatenated directly into the SQL
-     * string. Callers MUST NOT interpolate user input into $where — only
+     * string. Callers MUST NOT interpolate user input into $where - only
      * literal SQL fragments with :named placeholders bound via $params are
      * permitted. A runtime assertion rejects obvious SQL-injection markers
      * (statement separator, comment markers, NUL/control bytes) as a
@@ -529,7 +529,7 @@ class Database
      * placeholders and quoted SQL literals (e.g. status IN ('open',
      * 'under_review')) pass through unchanged.
      *
-     * This is NOT a complete SQL-injection defence — the only safe pattern is
+     * This is NOT a complete SQL-injection defence - the only safe pattern is
      * to bind all user-derived values via $params. The guard exists solely to
      * turn an accidental caller shortcut into a loud failure rather than a
      * silent exploit.
@@ -543,7 +543,7 @@ class Database
         if ($where === '') {
             return;
         }
-        // Reject statement separators and SQL comment markers — no legitimate
+        // Reject statement separators and SQL comment markers - no legitimate
         // WHERE clause needs them.
         if (
             str_contains($where, ';')

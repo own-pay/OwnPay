@@ -574,7 +574,7 @@ final class SmsTemplateAdminController
                 // matched. An admin could match SMS #1 to txn #1 (txn #1
                 // completed, ledger credited), then match SMS #1 again to
                 // txn #2 (SMS row's transaction_id overwritten to #2, txn #2
-                // completed, ledger credited again) — using one SMS as proof
+                // completed, ledger credited again) - using one SMS as proof
                 // for two payments. There was also no amount/gateway check,
                 // so an SMS for 100 BDT could be matched to a 10,000 BDT txn.
                 $sms = $db->fetchOne(
@@ -638,7 +638,7 @@ final class SmsTemplateAdminController
                 }
 
                 // SMS-3: Use a conditional link that only succeeds when the SMS
-                // is still unmatched — defends against a concurrent matchSms
+                // is still unmatched - defends against a concurrent matchSms
                 // call that raced us between the FOR UPDATE read above and
                 // the write. (The FOR UPDATE should already prevent this, but
                 // the conditional UPDATE is belt-and-suspenders.)
@@ -663,7 +663,7 @@ final class SmsTemplateAdminController
                 // the pre-call status was 'pending' to decide whether to
                 // credit the ledger. Two concurrent callers would both see
                 // status='pending' on their stale pre-transaction read, but
-                // the FOR UPDATE lock serializes them — the second caller
+                // the FOR UPDATE lock serializes them - the second caller
                 // observes the post-complete status='completed' from the
                 // locked row and the conditional above (txnStatus !== 'pending')
                 // already rejected them.

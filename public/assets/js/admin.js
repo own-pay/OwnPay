@@ -1033,7 +1033,7 @@
                 // `<img src=x onerror=alert(1)>`) would otherwise become a
                 // DOM-XSS sink in the admin context. <script> tags injected
                 // via innerHTML do not execute in modern browsers, but event
-                // handler attributes (onerror/onload/onmouseover) DO fire —
+                // handler attributes (onerror/onload/onmouseover) DO fire -
                 // so we parse with DOMParser, strip dangerous elements + on*
                 // attributes + javascript:/vbscript:/data:text/html URLs +
                 // inline style attributes, then inject the sanitized DOM.
@@ -1042,7 +1042,7 @@
             })
             .catch(function (err) {
                 // Build the error shell via innerHTML (static, no interpolation)
-                // then write the dynamic message via textContent — never
+                // then write the dynamic message via textContent - never
                 // interpolate err.message into innerHTML (it could originate
                 // from a redirected fetch body in some browser/Fetch impls).
                 content.innerHTML = '<div class="op-error op-p-4"><p>Failed to load details.</p><pre class="op-text-sm op-text-muted op-mt-2"></pre></div>';
@@ -1059,7 +1059,7 @@
      *
      * Defence-in-depth sink hardening for window.openDetailModal (UI-9).
      * Today the only caller is /admin/activities/{id}/details, whose Twig
-     * template auto-escapes every field — so today this is a no-op
+     * template auto-escapes every field - so today this is a no-op
      * security-wise. But the data-open-detail-modal attribute is generic;
      * any future admin endpoint that returns non-escaped user-controlled
      * HTML and is invoked via that attribute would otherwise become a
@@ -1072,7 +1072,7 @@
      *   2. Strip every on* attribute (onclick, onerror, onload, ...).
      *   3. Strip javascript:/vbscript:/data:text/html URLs in href/src/
      *      action/formaction/background/poster/xlink:href.
-     *   4. Strip inline style attributes (CSS-based UI redress attacks —
+     *   4. Strip inline style attributes (CSS-based UI redress attacks -
      *      defence-in-depth; not strictly XSS but cheap to drop).
      *
      * No external dependency (no DOMPurify). Conservative: legitimate

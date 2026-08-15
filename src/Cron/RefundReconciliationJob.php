@@ -48,7 +48,7 @@ use OwnPay\Support\DateHelper;
  *     The previous auto-fail behaviour risked double-refunding: if the
  *     gateway had actually processed the refund but the local process died
  *     before the reconcile phase, the customer got their money back AND the
- *     merchant's withheld balance was released — so a merchant retry would
+ *     merchant's withheld balance was released - so a merchant retry would
  *     send a second refund.
  *
  * Fires system hooks:
@@ -171,7 +171,7 @@ final class RefundReconciliationJob
         // total reflects the sum of refunds the job actually transitioned;
         // refunds left pending (gateway 'pending' or unknown) are not counted.
         // Audit fix CRON-7: the 'failed' key was renamed to 'requires_verification'
-        // because Phase 2 no longer auto-fails — it marks the refund for
+        // because Phase 2 no longer auto-fails - it marks the refund for
         // explicit admin review instead.
         return [
             'requires_verification' => $requiresVerificationCount,
@@ -435,7 +435,7 @@ final class RefundReconciliationJob
      * Phase 2: marks refunds that have been pending longer than the 24-hour
      * stale window as 'pending_verification' (audit fix CRON-7, issue #377). The
      * previous behaviour auto-failed these refunds, which released the withheld
-     * balance — risking a double refund if the gateway had actually processed
+     * balance - risking a double refund if the gateway had actually processed
      * the refund but the local process died before reconcile.
      *
      * 'pending_verification' preserves the balance hold and surfaces the
