@@ -790,14 +790,24 @@
     var searchInput = document.getElementById("global-search");
     if (searchInput) {
         var debounce = null;
+        var executeSearch = function () {
+            var q = searchInput.value.trim();
+            if (q.length >= 2) {
+                window.location.href = "/admin/transactions?q=" + encodeURIComponent(q);
+            }
+        };
+
         searchInput.addEventListener("input", function () {
             clearTimeout(debounce);
-            debounce = setTimeout(function () {
-                var q = searchInput.value.trim();
-                if (q.length >= 2) {
-                    window.location.href = "/admin/transactions?q=" + encodeURIComponent(q);
-                }
-            }, 500);
+            debounce = setTimeout(executeSearch, 500);
+        });
+
+        searchInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                clearTimeout(debounce);
+                executeSearch();
+            }
         });
     }
 
