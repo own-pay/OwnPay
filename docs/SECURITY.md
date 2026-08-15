@@ -88,13 +88,13 @@ Please give us a reasonable opportunity to address the issue before any public d
 
 ## Scope
 
-**In scope:** the OwnPay core platform in this repository — including the kernel, controllers, middleware, repositories, services, API layers, gateway bridge, plugin sandbox, and the self-update mechanism.
+**In scope:** the OwnPay core platform in this repository - including the kernel, controllers, middleware, repositories, services, API layers, gateway bridge, plugin sandbox, and the self-update mechanism.
 
 **Out of scope / report to the relevant party instead:**
 
 - Vulnerabilities in third-party payment gateways or their SDKs.
 - Issues caused by misconfiguration of a self-hosted instance (e.g. exposed `.env`, missing HTTPS, weak server credentials, debug mode left on in production).
-- Vulnerabilities in dependencies that already have a public CVE and an available patch — please simply update.
+- Vulnerabilities in dependencies that already have a public CVE and an available patch - please simply update.
 - Social engineering, physical attacks, or denial-of-service via raw traffic volume.
 
 ---

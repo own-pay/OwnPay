@@ -28,7 +28,7 @@ Thumbs.db
 desktop.ini
 
 # --------------- PHP Tooling ---------------
-.phpunit.cache/
+/.phpunit.cache/
 .twig-cs-fixer.cache
 
 # --------------- JS Tooling ---------------
@@ -38,25 +38,23 @@ desktop.ini
 .agents/
 .claude/
 .planning/
+/.remember/
 graphify-out/
 task_plan.md
 findings.md
 progress.md
-output/
+/output/
 AGENTS.md
 CLAUDE.md
 
 
 # --------------- Non-Core Projects (separate repos) ---------------
-mobile-app/
-landing_page/
-dev/
+/dev/
 
-cli/
-.docker/
-docs/images/ownpay_logo/
-docs/v2/
-docs/changelog.md
+/cli/
+/.docker/
+/docs/images/
+/docs/v2/
 docker-compose.yml
 Dockerfile
 
@@ -87,7 +85,6 @@ phpunit_output.txt
 # --------------- Misc ---------------
 *.pem
 .phpunit.result.cache
-.gitignore
 install.sh
 /update/
-.superpowers/
+/.superpowers/

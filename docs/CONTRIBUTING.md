@@ -17,7 +17,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 - **🐛 Report bugs** - open a clear, reproducible [issue](https://github.com/own-pay/OwnPay/issues).
 - **💡 Suggest features** - start a [discussion](https://github.com/own-pay/OwnPay/discussions) or feature request.
 - **🔌 Build a gateway/plugin** - add a payment gateway or add-on (see below).
-- **🌍 Translate** - add or improve a language catalog (see [TRANSLATIONS.md](docs/TRANSLATIONS.md)).
+- **🌍 Translate** - add or improve a language catalog (see [TRANSLATIONS.md](TRANSLATIONS.md)).
 - **📖 Improve docs** - fix typos, clarify guides, expand examples.
 - **🧹 Improve code** - fix bugs, add tests, refactor with care.
 
@@ -28,7 +28,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 ## 🚀 Getting Set Up
 
 1. **Fork** the repository and clone your fork.
-2. Follow **[LOCAL_SETUP.md](docs/LOCAL_SETUP.md)** to get a local instance running (~2 minutes).
+2. Follow **[LOCAL_SETUP.md](LOCAL_SETUP.md)** to get a local instance running (~2 minutes).
 3. Create a feature branch from `dev` (the integration branch PRs target):
 
    ```bash
@@ -74,7 +74,7 @@ OwnPay maintains a high quality bar. Please match the existing code and these ru
 - **Keep it lean.** No new heavyweight dependencies without discussion; prefer the existing first-party utilities.
 - **Comments explain *why*, not *what*.** Document non-obvious decisions.
 
-For the full feature inventory, see the **[Feature Reference](docs/FEATURES.md)**. For the bigger picture, read the **[Architecture Guide](docs/ARCHITECTURE.md)**.
+For the full feature inventory, see the **[Feature Reference](FEATURES.md)**. For the bigger picture, read the **[Architecture Guide](ARCHITECTURE.md)**.
 
 ---
 
@@ -94,7 +94,7 @@ See the gateway developer guide on **[Gateway Developer Guide](https://ownpay.or
 
 ## 🌍 Contributing Translations
 
-OwnPay has full i18n for both the admin panel and customer checkout. To add or update a language, follow **[docs/TRANSLATIONS.md](docs/TRANSLATIONS.md)** - create a dot-notation JSON catalog (keep `:placeholders` intact) and place core languages in `config/languages/`.
+OwnPay has full i18n for both the admin panel and customer checkout. To add or update a language, follow **[TRANSLATIONS.md](TRANSLATIONS.md)** - create a dot-notation JSON catalog (keep `:placeholders` intact) and place core languages in `config/languages/`.
 
 ---
 
@@ -131,7 +131,7 @@ Please write clear messages. We encourage [Conventional Commits](https://www.con
 
 ## ⚖️ Licensing of Contributions
 
-OwnPay is licensed under the **[GNU AGPL-3.0](LICENSE)**. By submitting a contribution, you agree that your work is licensed under the **same AGPL-3.0** license as the project (inbound = outbound), and you certify its origin via your **DCO sign-off**. No separate CLA is required.
+OwnPay is licensed under the **[GNU AGPL-3.0](../LICENSE)**. By submitting a contribution, you agree that your work is licensed under the **same AGPL-3.0** license as the project (inbound = outbound), and you certify its origin via your **DCO sign-off**. No separate CLA is required.
 
 ---
 

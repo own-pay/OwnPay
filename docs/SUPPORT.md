@@ -18,17 +18,17 @@ Most questions are already answered in the docs:
 | 🧩 **[plugin.ownpay.org](https://plugin.ownpay.org)** | Gateways & add-ons catalog |
 | 📰 **[blog.ownpay.org](https://blog.ownpay.org)** | Release notes, changelog & announcements |
 
-In this repository: **[Local Setup](docs/LOCAL_SETUP.md)** · **[Architecture](docs/ARCHITECTURE.md)** · **[Translations](docs/TRANSLATIONS.md)**
+In this repository: **[Local Setup](LOCAL_SETUP.md)** · **[Architecture](ARCHITECTURE.md)** · **[Translations](TRANSLATIONS.md)**
 
 ---
 
 ## 💬 Ask the Community
 
-For setup help, "how do I…?" questions, and general discussion:
+For setup help, "how do I...?" questions, and general discussion:
 
-- **GitHub Discussions:** [github.com/own-pay/OwnPay/discussions](https://github.com/own-pay/OwnPay/discussions) — searchable, and great for questions others may share.
-- **Facebook Community Group:** [facebook.com/groups/ownpay.org](https://www.facebook.com/groups/ownpay.org) — ask the wider community.
-- **Facebook Page:** [facebook.com/ownpay.org](https://www.facebook.com/ownpay.org) — news & updates.
+- **GitHub Discussions:** [github.com/own-pay/OwnPay/discussions](https://github.com/own-pay/OwnPay/discussions) - searchable, and great for questions others may share.
+- **Facebook Community Group:** [facebook.com/groups/ownpay.org](https://www.facebook.com/groups/ownpay.org) - ask the wider community.
+- **Facebook Page:** [facebook.com/ownpay.org](https://www.facebook.com/ownpay.org) - news & updates.
 
 > When asking, include your OwnPay version, PHP version, hosting type (shared / VPS / dedicated), and the exact steps and error messages. The more detail, the faster the help.
 
@@ -46,7 +46,7 @@ Include reproduction steps, what you expected, what happened, your environment, 
 
 ## 🔐 Security Issues
 
-**Never** report security vulnerabilities in public issues or discussions. Email **[security@ownpay.org](mailto:security@ownpay.org)** instead — see **[SECURITY.md](SECURITY.md)**.
+**Never** report security vulnerabilities in public issues or discussions. Email **[security@ownpay.org](mailto:security@ownpay.org)** instead - see **[SECURITY.md](SECURITY.md)**.
 
 ---
 
@@ -61,7 +61,7 @@ For partnerships, sponsorships, press, or anything that doesn't fit the above:
 
 ## 🤝 Want to Help Others?
 
-The best way to keep support healthy is a strong community. If you know the answer to someone's question in Discussions or the community group, jump in — and consider [contributing](CONTRIBUTING.md) improvements back to the docs so the next person finds the answer instantly.
+The best way to keep support healthy is a strong community. If you know the answer to someone's question in Discussions or the community group, jump in - and consider [contributing](CONTRIBUTING.md) improvements back to the docs so the next person finds the answer instantly.
 
 Thanks for being part of OwnPay! 🌍
 

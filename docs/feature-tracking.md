@@ -181,6 +181,7 @@
 ## 📝 Update Protocol for AI Agents
 
 Whenever you introduce, refactor, or complete a feature in OwnPay:
+
 1. Locate the feature or add a new entry under the relevant domain table.
 2. Mark its status as `[DONE]`.
 3. Include the exact technical mechanism, file references, and relevant commit hash.

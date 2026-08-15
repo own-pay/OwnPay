@@ -17,7 +17,7 @@
 [![Release](https://img.shields.io/badge/Public%20Beta-v0.2.0-22C55E?style=for-the-badge&logo=rocket&logoColor=white)](https://github.com/own-pay/OwnPay/releases/latest)
 [![License](https://img.shields.io/badge/License-AGPL%20v3.0-3B82F6?style=for-the-badge)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](docs/CONTRIBUTING.md)
 
 [![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
 [![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=flat-square&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;
@@ -40,14 +40,14 @@
 
 <div align="center">
 
-[![ELITE SPONSOR](https://img.shields.io/badge/%E2%9A%A1%20ELITE%20SPONSOR-FFB800?style=flat-square&labelColor=111111)](https://namepart.com) &nbsp; <a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="22" alt="Namepart" /></a> &nbsp; **[Namepart](https://namepart.com)** — Powering open-source fintech infrastructure. &nbsp; <sub>[Become a Sponsor →](https://ownpay.org/donate)</sub>
+[![ELITE SPONSOR](https://img.shields.io/badge/%E2%9A%A1%20ELITE%20SPONSOR-FFB800?style=flat-square&labelColor=111111)](https://namepart.com) &nbsp; <a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="22" alt="Namepart" /></a> &nbsp; **[Namepart](https://namepart.com)** - Powering open-source fintech infrastructure. &nbsp; <sub>[Become a Sponsor →](https://ownpay.org/donate)</sub>
 
 </div>
 
 <br />
 
 > [!NOTE]
-> **OwnPay is in Public Beta (v0.2.0).** It's stable, hardened (PHPStan level 9 + automated test suite), and ready to self-host today. We're gathering real-world feedback on the road to `1.0` — [tell us what you find](https://github.com/own-pay/OwnPay/issues).
+> **OwnPay is in Public Beta (v0.2.0).** It's stable, hardened (PHPStan level 9 + automated test suite), and ready to self-host today. We're gathering real-world feedback on the road to `1.0` - [tell us what you find](https://github.com/own-pay/OwnPay/issues).
 
 ---
 
@@ -81,9 +81,9 @@ With native support for over 120+ payment gateways, a secure double-entry ledger
 
 ## <a id="why-ownpay"></a>💎 Why OwnPay?
 
-Most payment platforms make you a tenant on *their* infrastructure — your data, your customers, and your money flow through a third party you don't control. **OwnPay flips that.** You run it on your own server, own every record, and answer to no middleman.
+Most payment platforms make you a tenant on *their* infrastructure - your data, your customers, and your money flow through a third party you don't control. **OwnPay flips that.** You run it on your own server, own every record, and answer to no middleman.
 
-> **Your payment gateway. Your server. Your data. Your rules — forever.**
+> **Your payment gateway. Your server. Your data. Your rules - forever.**
 
 <table>
 <tr>
@@ -100,7 +100,7 @@ Your financial infrastructure lives on your server. No middlemen, no third-party
 ### ⚡
 **Built for Builders**
 
-A clean custom core, a sandboxed plugin system, and a full REST API — engineered for developers who demand control.
+A clean custom core, a sandboxed plugin system, and a full REST API - engineered for developers who demand control.
 
 </td>
 <td align="center" width="33%">
@@ -130,10 +130,10 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 - Multi-currency with automatic conversion
 
 #### 🏢 Multi-Brand by Design
-- One owner, many brands (stores) — fully isolated
+- One owner, many brands (stores) - fully isolated
 - Per-brand domains, gateways, customers & ledgers
 - White-label custom-domain checkout
-- Per-brand theming — logo, colors, custom CSS/JS
+- Per-brand theming - logo, colors, custom CSS/JS
 
 </td>
 <td width="50%" valign="top">
@@ -142,12 +142,12 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 - Double-entry ledger engine (bcmath precision)
 - AES-256-GCM PII encryption · Argon2id passwords
 - CSRF, strict CSP, rate limiting, SSRF guards
-- Staff RBAC — granular roles & permissions
+- Staff RBAC - granular roles & permissions
 
 #### 🧩 Platform & Operations
 - Sandboxed plugin/addon system + domain hook engine
-- Mobile companion app — device pairing, JWT, SMS verification
-- Full i18n — admin panel **and** customer checkout
+- Mobile companion app - device pairing, JWT, SMS verification
+- Full i18n - admin panel **and** customer checkout
 - REST API (merchant / mobile / admin) + webhooks
 - Signed, atomic, rollback-safe self-update engine
 
@@ -170,7 +170,7 @@ flowchart LR
     O -->|Verified result + ledger entry| M
 ```
 
-OwnPay sits on **your** server between your store and the world's payment providers. It renders a branded checkout, routes the payment through the gateway the customer chose, verifies the result (checksum + signature + webhook), books a double-entry ledger record, and notifies your store — all without a third party ever touching your data.
+OwnPay sits on **your** server between your store and the world's payment providers. It renders a branded checkout, routes the payment through the gateway the customer chose, verifies the result (checksum + signature + webhook), books a double-entry ledger record, and notifies your store - all without a third party ever touching your data.
 
 > Want the deep dive? Read the **[Architecture Guide →](docs/ARCHITECTURE.md)**
 
@@ -178,19 +178,19 @@ OwnPay sits on **your** server between your store and the world's payment provid
 
 ## <a id="deploy-to-your-server"></a>🚀 Deploy to Your Server
 
-OwnPay ships as a **self-contained release archive** — the same zip works on **shared hosting, a VPS, or a dedicated server**, and doubles as the installer. No build step required.
+OwnPay ships as a **self-contained release archive** - the same zip works on **shared hosting, a VPS, or a dedicated server**, and doubles as the installer. No build step required.
 
 > **Requirements:** PHP **8.3+** (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`) · MySQL 8 / MariaDB 10.4+ · HTTPS strongly recommended.
 
 <details open>
-<summary><b>🌐 Shared Hosting (cPanel / DirectAdmin — no SSH needed)</b></summary>
+<summary><b>🌐 Shared Hosting (cPanel / DirectAdmin - no SSH needed)</b></summary>
 <br />
 
 1. **Download** the latest [`ownpay-x.y.z.zip`](https://github.com/own-pay/OwnPay/releases/latest) release.
 2. In your hosting **File Manager**, upload and extract it into your site directory.
 3. Create a **MySQL database** + user and note the credentials.
 4. Point your domain's **document root to the `public/` folder** (or extract so `public/` maps to your web root).
-5. Visit your domain — the **`/install` wizard** checks requirements, writes `.env`, imports the schema, and creates your admin account.
+5. Visit your domain - the **`/install` wizard** checks requirements, writes `.env`, imports the schema, and creates your admin account.
 
 That's it. Dependencies (`vendor/`) are bundled in the release, so Composer is **not** required on the server.
 
@@ -206,7 +206,7 @@ cd /var/www
 curl -L -o ownpay.zip https://github.com/own-pay/OwnPay/releases/latest/download/ownpay.zip
 unzip ownpay.zip -d ownpay && cd ownpay
 
-# 2. (Source installs only — release zips already bundle vendor/)
+# 2. (Source installs only - release zips already bundle vendor/)
 # composer install --no-dev --optimize-autoloader
 
 # 3. Make runtime dirs writable by the web server
@@ -234,7 +234,7 @@ php -S localhost:8000 -t public      # then open http://localhost:8000 → /inst
 ```
 
 > 🛠️ **Full local guide** (Laragon · Herd · native · tunnels · troubleshooting): **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
-> 🤝 **Ready to contribute?** Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** — coding standards, workflow & PR process.
+> 🤝 **Ready to contribute?** Start with **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** - coding standards, workflow & PR process.
 
 Run the same checks CI does before opening a PR:
 
@@ -289,7 +289,7 @@ composer lint       # Twig + JS + CSS
 </tr>
 </table>
 
-<div align="center"><sub>No heavyweight framework — a small, readable, first-party core. Why? See the <a href="#-faq">FAQ</a>.</sub></div>
+<div align="center"><sub>No heavyweight framework - a small, readable, first-party core. Why? See the <a href="#-faq">FAQ</a>.</sub></div>
 
 ---
 
@@ -304,7 +304,7 @@ composer lint       # Twig + JS + CSS
 | 📰 **Blog & Updates** | [blog.ownpay.org](https://blog.ownpay.org) | Releases, changelog & announcements |
 | ▶️ **Live Demo** | [demo.ownpay.org](https://demo.ownpay.org) | Try it without installing |
 
-**In this repository:** [Architecture](docs/ARCHITECTURE.md) · [Local Setup](docs/LOCAL_SETUP.md) · [Translations](docs/TRANSLATIONS.md) · [Contributing](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Governance](GOVERNANCE.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
+**In this repository:** [Architecture](docs/ARCHITECTURE.md) · [Local Setup](docs/LOCAL_SETUP.md) · [Translations](docs/TRANSLATIONS.md) · [Contributing](docs/CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md) · [Security](docs/SECURITY.md) · [Support](docs/SUPPORT.md) · [Governance](docs/GOVERNANCE.md) · [Code of Conduct](docs/CODE_OF_CONDUCT.md)
 
 ---
 
@@ -314,7 +314,7 @@ composer lint       # Twig + JS + CSS
 <summary><b>What's the current project status?</b></summary>
 <br />
 
-OwnPay is available as **Public Beta v0.1.0** — feature-complete, security-hardened, and ready to self-host. We're collecting real-world feedback on the path to a `1.0` stable release. Grab the [latest release](https://github.com/own-pay/OwnPay/releases/latest) to get started.
+OwnPay is available as **Public Beta v0.1.0** - feature-complete, security-hardened, and ready to self-host. We're collecting real-world feedback on the path to a `1.0` stable release. Grab the [latest release](https://github.com/own-pay/OwnPay/releases/latest) to get started.
 
 </details>
 
@@ -322,7 +322,7 @@ OwnPay is available as **Public Beta v0.1.0** — feature-complete, security-har
 <summary><b>What does "Public Beta" mean for production use?</b></summary>
 <br />
 
-It's stable and usable today. For production, pin to a tagged release, test in staging first, keep backups, and follow the hardening notes in the [docs](https://docs.ownpay.org). OwnPay handles real money — correctness and security are the top priorities on the road to 1.0, and your [issue reports](https://github.com/own-pay/OwnPay/issues) directly shape it.
+It's stable and usable today. For production, pin to a tagged release, test in staging first, keep backups, and follow the hardening notes in the [docs](https://docs.ownpay.org). OwnPay handles real money - correctness and security are the top priorities on the road to 1.0, and your [issue reports](https://github.com/own-pay/OwnPay/issues) directly shape it.
 
 </details>
 
@@ -330,7 +330,7 @@ It's stable and usable today. For production, pin to a tagged release, test in s
 <summary><b>Why a custom framework instead of Laravel or Symfony?</b></summary>
 <br />
 
-OwnPay is built around requirements off-the-shelf frameworks don't solve cleanly — multi-brand domain isolation, a sandboxed plugin execution model, and a domain-specific hook engine. A full framework would mean fighting its conventions rather than leveraging them. The custom core gives us full control of the boot pipeline, zero dead code, and a security surface we own end-to-end.
+OwnPay is built around requirements off-the-shelf frameworks don't solve cleanly - multi-brand domain isolation, a sandboxed plugin execution model, and a domain-specific hook engine. A full framework would mean fighting its conventions rather than leveraging them. The custom core gives us full control of the boot pipeline, zero dead code, and a security surface we own end-to-end.
 
 </details>
 
@@ -338,7 +338,7 @@ OwnPay is built around requirements off-the-shelf frameworks don't solve cleanly
 <summary><b>Can I run it on cheap shared hosting?</b></summary>
 <br />
 
-Yes. The release archive bundles all dependencies, so no SSH or Composer is needed on the server — upload, point your domain at <code>public/</code>, and run the installer. You just need PHP 8.3+ and a MySQL/MariaDB database.
+Yes. The release archive bundles all dependencies, so no SSH or Composer is needed on the server - upload, point your domain at <code>public/</code>, and run the installer. You just need PHP 8.3+ and a MySQL/MariaDB database.
 
 </details>
 
@@ -354,7 +354,7 @@ Gateways are plugins. Add a directory under <code>modules/gateways/&lt;slug&gt;/
 <summary><b>Do you accept sponsors and donations?</b></summary>
 <br />
 
-Yes — and they keep the project alive. Sponsorships fund infrastructure, developer time, and security tooling. Visit <a href="https://ownpay.org/donate">ownpay.org/donate</a> or email <a href="mailto:ping@ownpay.org">ping@ownpay.org</a>.
+Yes - and they keep the project alive. Sponsorships fund infrastructure, developer time, and security tooling. Visit <a href="https://ownpay.org/donate">ownpay.org/donate</a> or email <a href="mailto:ping@ownpay.org">ping@ownpay.org</a>.
 
 </details>
 
@@ -364,7 +364,7 @@ Yes — and they keep the project alive. Sponsorships fund infrastructure, devel
 
 OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public live demo, an expanded plugin marketplace, mobile companion app GA, and deeper deployment tooling.
 
-➡️ **See the full [ROADMAP.md](ROADMAP.md)** for what's planned, in progress, and shipped.
+➡️ **See the full [ROADMAP.md](docs/ROADMAP.md)** for what's planned, in progress, and shipped.
 
 ---
 
@@ -423,7 +423,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 </a>
 
 <br /><br />
-<sub>Contributions of every kind are welcome — see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>.</sub>
+<sub>Contributions of every kind are welcome - see <a href="docs/CONTRIBUTING.md">CONTRIBUTING.md</a>.</sub>
 
 </div>
 
@@ -445,7 +445,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 
 </div>
 
-<div align="center"><sub>Need help? Read <a href="SUPPORT.md">SUPPORT.md</a> for the best place to ask. Please don't use the issue tracker for support questions.</sub></div>
+<div align="center"><sub>Need help? Read <a href="docs/SUPPORT.md">SUPPORT.md</a> for the best place to ask. Please don't use the issue tracker for support questions.</sub></div>
 
 ---
 
@@ -463,7 +463,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 
 <br />
 
-> **⭐ Star OwnPay to follow the road to 1.0 — and be notified of every release.**
+> **⭐ Star OwnPay to follow the road to 1.0 - and be notified of every release.**
 
 </div>
 
@@ -473,7 +473,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 
 Security is foundational to OwnPay. If you discover a vulnerability, **please do not open a public issue.**
 
-Report it privately to **[security@ownpay.org](mailto:security@ownpay.org)** — full policy in **[SECURITY.md](SECURITY.md)**. We're grateful to everyone who helps keep the community safe.
+Report it privately to **[security@ownpay.org](mailto:security@ownpay.org)** - full policy in **[docs/SECURITY.md](docs/SECURITY.md)**. We're grateful to everyone who helps keep the community safe.
 
 ---
 
