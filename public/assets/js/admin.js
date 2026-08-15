@@ -932,6 +932,55 @@
 
 
     // --- Global Modal Functions & CSP Delegated Handlers ------------------------------
+    function getFocusableElements(container) {
+        if (!container) {
+            return [];
+        }
+        return Array.prototype.slice.call(
+            container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        ).filter(function (el) {
+            return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+        });
+    }
+
+    window.openModal = function (id) {
+        var modal = typeof id === "string" ? document.getElementById(id) : id;
+        if (!modal) {
+            return;
+        }
+        modal._opener = document.activeElement;
+        modal.hidden = false;
+        var focusEl = modal.querySelector("[autofocus]");
+        if (!focusEl) {
+            var focusables = getFocusableElements(modal);
+            focusEl = focusables.length > 0 ? focusables[0] : modal;
+        }
+        if (focusEl && typeof focusEl.focus === "function") {
+            setTimeout(function () {
+                try {
+                    focusEl.focus();
+                } catch {
+                    // Ignore focus exceptions in detached/hidden elements
+                }
+            }, 10);
+        }
+    };
+
+    window.closeModal = function (id) {
+        var modal = typeof id === "string" ? document.getElementById(id) : id;
+        if (modal) {
+            modal.hidden = true;
+            if (modal._opener && typeof modal._opener.focus === "function") {
+                try {
+                    modal._opener.focus();
+                } catch {
+                    // Ignore focus exceptions
+                }
+                modal._opener = null;
+            }
+        }
+    };
+
     window.openDeleteModal = function (action, itemName) {
         var form = document.getElementById("delete-form");
         var nameEl = document.getElementById("delete-item-name");
@@ -944,14 +993,7 @@
                 return;
             }
             nameEl.textContent = itemName;
-            modal.hidden = false;
-        }
-    };
-
-    window.closeModal = function (id) {
-        var modal = document.getElementById(id);
-        if (modal) {
-            modal.hidden = true;
+            window.openModal("confirm-delete-modal");
         }
     };
 
@@ -963,7 +1005,7 @@
             return;
         }
         titleEl.textContent = title;
-        modal.hidden = false;
+        window.openModal("detail-modal");
         content.innerHTML = '<div class="op-loading">Loading...</div>';
         fetch(url)
             .then(function (r) {
@@ -1106,15 +1148,8 @@
         // 1b. Delegated Modal Open
         var openBtn = target.closest("[data-open-modal]");
         if (openBtn) {
-            var modalId = openBtn.getAttribute("data-open-modal") || openBtn.dataset.openModal;
-            var modal = document.getElementById(modalId);
-            if (modal) {
-                modal.hidden = false;
-                var focusEl = modal.querySelector("[autofocus]");
-                if (focusEl) {
-                    focusEl.focus();
-                }
-            }
+            var openModalId = openBtn.getAttribute("data-open-modal") || openBtn.dataset.openModal;
+            window.openModal(openModalId);
             return;
         }
 
@@ -1138,8 +1173,45 @@
     });
 
     document.addEventListener("keydown", function (e) {
+        var openModals = Array.prototype.slice.call(document.querySelectorAll(".op-modal:not([hidden])"));
+        if (openModals.length === 0) {
+            return;
+        }
+        var activeModal = openModals[openModals.length - 1];
+
         if (e.key === "Escape") {
-            document.querySelectorAll(".op-modal:not([hidden])").forEach(function (m) { m.hidden = true; });
+            e.preventDefault();
+            var modalId = activeModal.id;
+            if (modalId === "confirm-modal") {
+                closeConfirmModal();
+            } else if (modalId) {
+                window.closeModal(modalId);
+            } else {
+                window.closeModal(activeModal);
+            }
+            return;
+        }
+
+        if (e.key === "Tab") {
+            var focusables = getFocusableElements(activeModal);
+            if (focusables.length === 0) {
+                e.preventDefault();
+                return;
+            }
+            var first = focusables[0];
+            var last = focusables[focusables.length - 1];
+
+            if (e.shiftKey) {
+                if (document.activeElement === first || !activeModal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last || !activeModal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
         }
     });
 
@@ -1276,14 +1348,11 @@
         }
 
         confirmCallback = callback;
-        modal.hidden = false;
+        window.openModal("confirm-modal");
     };
 
     function closeConfirmModal() {
-        var modal = document.getElementById("confirm-modal");
-        if (modal) {
-            modal.hidden = true;
-        }
+        window.closeModal("confirm-modal");
         confirmCallback = null;
     }
 
