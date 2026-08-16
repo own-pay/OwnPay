@@ -14,10 +14,12 @@
 
 <br />
 
+<a href="https://www.producthunt.com/products/ownpay/reviews/new?utm_source=badge-product_review&utm_medium=badge&utm_source=badge-ownpay" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/product_review.svg?product_id=1293915&theme=light" alt="OwnPay - Self&#0045;hosted&#0044;&#0032;open&#0045;source&#0032;payment&#0032;gateway&#0032;software | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+
 [![Release](https://img.shields.io/badge/Public%20Beta-v0.2.0-22C55E?style=for-the-badge&logo=rocket&logoColor=white)](https://github.com/own-pay/OwnPay/releases/latest)
 [![License](https://img.shields.io/badge/License-AGPL%20v3.0-3B82F6?style=for-the-badge)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](docs/CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](.github/CONTRIBUTING.md)
 
 [![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
 [![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=flat-square&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;
@@ -241,7 +243,7 @@ php -S localhost:8000 -t public      # then open http://localhost:8000 → /inst
 ```
 
 > 🛠️ **Full local guide** (Laragon · Herd · native · tunnels · troubleshooting): **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
-> 🤝 **Ready to contribute?** Start with **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** - coding standards, workflow & PR process.
+> 🤝 **Ready to contribute?** Start with **[.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)** - coding standards, workflow & PR process.
 
 Run the same checks CI does before opening a PR:
 
@@ -311,7 +313,7 @@ composer lint       # Twig + JS + CSS
 | 📰 **Blog & Updates** | [blog.ownpay.org](https://blog.ownpay.org) | Releases, changelog & announcements |
 | ▶️ **Live Demo** | [demo.ownpay.org](https://demo.ownpay.org) | Try it without installing |
 
-**In this repository:** [Architecture](docs/ARCHITECTURE.md) · [Local Setup](docs/LOCAL_SETUP.md) · [Translations](docs/TRANSLATIONS.md) · [Contributing](docs/CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md) · [Security](docs/SECURITY.md) · [Support](docs/SUPPORT.md) · [Governance](docs/GOVERNANCE.md) · [Code of Conduct](docs/CODE_OF_CONDUCT.md)
+**In this repository:** [Architecture](docs/ARCHITECTURE.md) · [Local Setup](docs/LOCAL_SETUP.md) · [Translations](docs/TRANSLATIONS.md) · [Contributing](.github/CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md) · [Security](.github/SECURITY.md) · [Support](.github/SUPPORT.md) · [Governance](docs/GOVERNANCE.md) · [Code of Conduct](.github/CODE_OF_CONDUCT.md)
 
 ---
 
@@ -430,7 +432,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 </a>
 
 <br /><br />
-<sub>Contributions of every kind are welcome - see <a href="docs/CONTRIBUTING.md">CONTRIBUTING.md</a>.</sub>
+<sub>Contributions of every kind are welcome - see <a href=".github/CONTRIBUTING.md">CONTRIBUTING.md</a>.</sub>
 
 </div>
 
@@ -452,7 +454,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 
 </div>
 
-<div align="center"><sub>Need help? Read <a href="docs/SUPPORT.md">SUPPORT.md</a> for the best place to ask. Please don't use the issue tracker for support questions.</sub></div>
+<div align="center"><sub>Need help? Read <a href=".github/SUPPORT.md">SUPPORT.md</a> for the best place to ask. Please don't use the issue tracker for support questions.</sub></div>
 
 ---
 
@@ -480,7 +482,7 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 
 Security is foundational to OwnPay. If you discover a vulnerability, **please do not open a public issue.**
 
-Report it privately to **[security@ownpay.org](mailto:security@ownpay.org)** - full policy in **[docs/SECURITY.md](docs/SECURITY.md)**. We're grateful to everyone who helps keep the community safe.
+Report it privately to **[security@ownpay.org](mailto:security@ownpay.org)** - full policy in **[.github/SECURITY.md](.github/SECURITY.md)**. We're grateful to everyone who helps keep the community safe.
 
 ---
 

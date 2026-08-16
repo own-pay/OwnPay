@@ -19,7 +19,7 @@
 .idea/
 *.swp
 *.swo
-*~
+*.zcode
 *.zip
 
 # --------------- OS ---------------
@@ -38,7 +38,8 @@ desktop.ini
 .agents/
 .claude/
 .planning/
-/.remember/
+.remember/
+.mimosa/
 graphify-out/
 task_plan.md
 findings.md

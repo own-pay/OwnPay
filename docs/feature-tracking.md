@@ -167,6 +167,15 @@
 
 ---
 
+### 13. Open-Source Community Standards & GitHub Governance
+
+| Feature ID | Feature Name | Description & Technical Layer | Status | Implementation Ref / Files |
+| :--- | :--- | :--- | :---: | :--- |
+| `FEAT-GH-001` | **GitHub Community & Issue/PR Template Suite** | Standardized YAML issue forms (bug report, feature request, gateway request, docs improvement), issue config, multi-category PR templates (root, feature, bugfix, gateway, docs), automated release drafter, sponsor funding, and community health profiles. | `[DONE]` | `.github/` (`ISSUE_TEMPLATE/*`, `PULL_REQUEST_TEMPLATE/*`, `FUNDING.yml`, `release.yml`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`) |
+
+---
+
+
 ## 🚀 Upcoming & Planned Roadmap Backlog
 
 | Feature ID | Feature Name | Target Domain | Priority | Target Milestone | Description |

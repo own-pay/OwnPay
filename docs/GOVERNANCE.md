@@ -19,14 +19,14 @@ This document describes how the OwnPay project is governed - who makes decisions
 Anyone who runs OwnPay. Users contribute by reporting bugs, requesting features, asking questions, and helping others in the community.
 
 ### Contributors
-Anyone who contributes code, documentation, translations, gateways/plugins, reviews, or design. Contributions are made via pull requests under the [Contributing Guide](CONTRIBUTING.md). There is no barrier to becoming a contributor beyond following that guide.
+Anyone who contributes code, documentation, translations, gateways/plugins, reviews, or design. Contributions are made via pull requests under the [Contributing Guide](../.github/CONTRIBUTING.md). There is no barrier to becoming a contributor beyond following that guide.
 
 ### Maintainers
 Trusted contributors with merge rights to the repository. Maintainers:
 
 - Review and merge pull requests.
 - Triage issues and shepherd discussions.
-- Uphold coding standards, security, and the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Uphold coding standards, security, and the [Code of Conduct](../.github/CODE_OF_CONDUCT.md).
 - Help shape the [roadmap](ROADMAP.md).
 
 Maintainers are added by the Lead Maintainer based on a sustained track record of quality contributions and good judgment.
@@ -57,7 +57,7 @@ Most decisions are made through **lazy consensus** in issues and pull requests:
 
 - The Lead Maintainer (or a delegated maintainer) cuts releases and publishes them via [GitHub Releases](https://github.com/own-pay/OwnPay/releases).
 - Releases follow [Semantic Versioning](https://semver.org/). OwnPay is currently in the `0.x.x` Public Beta line on the road to a stable `1.0.0`.
-- Security fixes are prioritized and may ship out of the normal cadence - see [SECURITY.md](SECURITY.md).
+- Security fixes are prioritized and may ship out of the normal cadence - see [SECURITY.md](../.github/SECURITY.md).
 
 ---
 

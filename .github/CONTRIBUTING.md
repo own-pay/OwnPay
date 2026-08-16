@@ -1,8 +1,6 @@
 # Contributing to OwnPay
 
-First off - **thank you** for considering a contribution to OwnPay! 🎉 Whether it's a bug report, a new payment gateway, a translation, a documentation fix, or a feature, every contribution helps make self-hosted, open-source payment infrastructure better for everyone.
-
-This guide explains how to get involved effectively.
+First off - **thank you** for considering a contribution to OwnPay! 🎉 Whether it is a bug report, a new payment gateway, a translation, a documentation fix, or a feature, every contribution helps make self-hosted, open-source payment infrastructure better for everyone.
 
 ---
 
@@ -16,8 +14,8 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 - **🐛 Report bugs** - open a clear, reproducible [issue](https://github.com/own-pay/OwnPay/issues).
 - **💡 Suggest features** - start a [discussion](https://github.com/own-pay/OwnPay/discussions) or feature request.
-- **🔌 Build a gateway/plugin** - add a payment gateway or add-on (see below).
-- **🌍 Translate** - add or improve a language catalog (see [TRANSLATIONS.md](TRANSLATIONS.md)).
+- **🔌 Build a gateway / plugin** - add a payment gateway or add-on.
+- **🌍 Translate** - add or improve a language catalog (see [docs/TRANSLATIONS.md](../docs/TRANSLATIONS.md)).
 - **📖 Improve docs** - fix typos, clarify guides, expand examples.
 - **🧹 Improve code** - fix bugs, add tests, refactor with care.
 
@@ -28,7 +26,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 ## 🚀 Getting Set Up
 
 1. **Fork** the repository and clone your fork.
-2. Follow **[LOCAL_SETUP.md](LOCAL_SETUP.md)** to get a local instance running (~2 minutes).
+2. Follow **[docs/LOCAL_SETUP.md](../docs/LOCAL_SETUP.md)** to get a local instance running (~2 minutes).
 3. Create a feature branch from `dev` (the integration branch PRs target):
 
    ```bash
@@ -64,7 +62,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 OwnPay maintains a high quality bar. Please match the existing code and these rules:
 
 - **Strict types everywhere.** Every PHP file starts with `declare(strict_types=1);` as its first statement (no BOM).
-- **PHPStan level 9 must stay green.** Don't suppress errors with baselines, `@phpstan-ignore`, or needless casts - fix the root cause.
+- **PHPStan level 9 must stay green.** Do not suppress errors with baselines, `@phpstan-ignore`, or needless casts - fix the root cause.
 - **Money is always bcmath strings, never floats.** Financial correctness is non-negotiable.
 - **Tenant scoping is mandatory.** Never run a scoped query without `forTenant()` / `*Scoped()`; use `forAllTenants()` only for deliberate owner-level views.
 - **Build URLs via `DomainUrlService`** (`buildCheckoutUrl()`, `buildCallbackUrl()`) - never hardcode a host (white-label domains depend on this).
@@ -74,27 +72,25 @@ OwnPay maintains a high quality bar. Please match the existing code and these ru
 - **Keep it lean.** No new heavyweight dependencies without discussion; prefer the existing first-party utilities.
 - **Comments explain *why*, not *what*.** Document non-obvious decisions.
 
-For the full feature inventory, see the **[Feature Reference](FEATURES.md)**. For the bigger picture, read the **[Architecture Guide](ARCHITECTURE.md)**.
+For the full feature inventory, see the **[docs/FEATURES.md](../docs/FEATURES.md)**. For the architecture, read the **[docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)**.
 
 ---
 
 ## 🔌 Contributing a Payment Gateway or Plugin
 
-Gateways and add-ons are plugins under `modules/`:
+Gateways and add-ons are modular plugins under `modules/`:
 
 1. Create `modules/gateways/<slug>/` with a `manifest.json` (metadata, capabilities, CSP origins, icon).
 2. Add an adapter class implementing `OwnPay\Gateway\GatewayAdapterInterface` (use the `GatewayDefaults` trait for no-op defaults).
 3. Declare `supportedCurrencies()` accurately (return `[]` for "any currency").
 4. Keep the plugin within the sandbox rules - no `exec`, `shell_exec`, `eval`, raw PDO, etc.
-5. Test the full flow (initiate → callback → verify → refund) locally.
-
-See the gateway developer guide on **[Gateway Developer Guide](https://ownpay.org/docs/developer/plugin-types/gateway-development)** for the full contract and examples.
+5. Test the full flow (initiate -> callback -> verify -> refund) locally.
 
 ---
 
 ## 🌍 Contributing Translations
 
-OwnPay has full i18n for both the admin panel and customer checkout. To add or update a language, follow **[TRANSLATIONS.md](TRANSLATIONS.md)** - create a dot-notation JSON catalog (keep `:placeholders` intact) and place core languages in `config/languages/`.
+OwnPay has full i18n for both the admin panel and customer checkout. To add or update a language, follow **[docs/TRANSLATIONS.md](../docs/TRANSLATIONS.md)** - create a dot-notation JSON catalog (keep `:placeholders` intact) and place core languages in `config/languages/`.
 
 ---
 
@@ -114,7 +110,7 @@ This appends:
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
-Please write clear messages. We encourage [Conventional Commits](https://www.conventionalcommits.org/) style (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), though it isn't strictly enforced.
+We encourage [Conventional Commits](https://www.conventionalcommits.org/) style (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
 
 ---
 
@@ -137,10 +133,6 @@ OwnPay is licensed under the **[GNU AGPL-3.0](../LICENSE)**. By submitting a con
 
 ## 🙏 Thank You
 
-Every issue, PR, translation, and idea moves OwnPay forward. We're building this in the open, for the community - and we're glad you're here.
+Every issue, PR, translation, and idea moves OwnPay forward. We are building this in the open, for the community - and we are glad you are here.
 
 Questions about contributing? Reach out at **[ping@ownpay.org](mailto:ping@ownpay.org)** or open a [discussion](https://github.com/own-pay/OwnPay/discussions).
-
----
-
-❤️ Built by the **Community**, for the **Community**.

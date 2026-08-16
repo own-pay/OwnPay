@@ -23,8 +23,8 @@ Always run the latest tagged release. Once `1.0` ships, this table will track th
 
 Instead, report privately through either of these channels:
 
-- **Email:** **[security@ownpay.org](mailto:security@ownpay.org)** *(preferred)*
 - **GitHub Security Advisories:** [Report a vulnerability](https://github.com/own-pay/OwnPay/security/advisories/new) (private to maintainers)
+- **Email:** **[security@ownpay.org](mailto:security@ownpay.org)**
 
 To help us triage quickly, please include as much of the following as you can:
 
@@ -92,16 +92,16 @@ Please give us a reasonable opportunity to address the issue before any public d
 
 **Out of scope / report to the relevant party instead:**
 
-- Vulnerabilities in third-party payment gateways or their SDKs.
+- Vulnerabilities in third-party payment gateways or their external API servers.
 - Issues caused by misconfiguration of a self-hosted instance (e.g. exposed `.env`, missing HTTPS, weak server credentials, debug mode left on in production).
-- Vulnerabilities in dependencies that already have a public CVE and an available patch - please simply update.
+- Vulnerabilities in dependencies that already have a public CVE and an available patch - please update.
 - Social engineering, physical attacks, or denial-of-service via raw traffic volume.
 
 ---
 
 ## Security Best Practices for Operators
 
-If you self-host OwnPay, you are responsible for the security of your server. At minimum:
+If you self-host OwnPay, you are responsible for the security of your server:
 
 - Run the **latest release** and apply updates promptly.
 - Serve **only** the `public/` directory; keep `.env`, `storage/`, and source out of the web root.
@@ -113,7 +113,3 @@ If you self-host OwnPay, you are responsible for the security of your server. At
 ---
 
 Thank you for helping keep OwnPay and its community secure. 🛡️
-
----
-
-❤️ Built by the **Community**, for the **Community**.
