@@ -52,7 +52,7 @@
                 </form>
             {% endif %}
             {% if theme.slug != 'default' and theme.slug != active_theme %}
-                <form method="POST" action="/admin/themes/{{ theme.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Remove this theme?')">
+                <form method="POST" action="/admin/themes/{{ theme.slug }}/uninstall" class="op-inline-form" data-confirm="Remove this theme?">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="op-btn op-btn-sm op-btn-danger">Remove</button>
                 </form>

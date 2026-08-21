@@ -175,7 +175,7 @@
                         {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
                     </button>
                 </form>
-                <form method="POST" action="/admin/gateways/{{ mg.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete gateway {{ mg.name }}?')">
+                <form method="POST" action="/admin/gateways/{{ mg.id }}/delete" class="op-inline-form" data-confirm="Delete gateway {{ mg.name|e('html') }}?">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
                 </form>

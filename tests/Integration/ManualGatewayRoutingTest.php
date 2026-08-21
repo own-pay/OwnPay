@@ -15,7 +15,7 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
 {
     private Database $db;
     private ManualGatewayRepository $repo;
-    private int $brandId = 1;
+    private int $brandId = 2;
     private int $platformId = 0;
 
     protected function setUp(): void
@@ -28,6 +28,10 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
 
         $this->db = Database::getInstance();
         $this->repo = new ManualGatewayRepository($this->db);
+
+        // Ensure a non-platform brand merchant exists so brand-scoped
+        // operations target a different row than the platform template.
+        $this->ensureMerchant($this->brandId);
 
         $row = $this->db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1");
         $platformId = ($row !== null && isset($row['id']) && is_scalar($row['id'])) ? (int) $row['id'] : 0;

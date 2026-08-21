@@ -155,6 +155,55 @@ final class GatewayBridge
     }
 
     /**
+     * Reports whether the specified gateway adapter exposes a refund-status query API.
+     *
+     * Used by {@see \OwnPay\Cron\RefundReconciliationJob} to decide whether to
+     * probe the gateway for the current status of a refund stuck in 'pending'.
+     * When this returns false, the job logs a warning and skips gateway probing
+     * for that adapter, leaving the existing 24-hour stale-pending auto-fail
+     * backstop as the only reconciliation path.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @return bool True when the adapter's getRefundStatus() is implemented and meaningful.
+     */
+    public function supportsRefundStatus(string $gatewaySlug): bool
+    {
+        if (!isset($this->adapters[$gatewaySlug])) {
+            return false;
+        }
+        return $this->adapters[$gatewaySlug]->supportsRefundStatus();
+    }
+
+    /**
+     * Query the gateway for the current status of a previously-initiated refund.
+     *
+     * Resolves the adapter, decrypts the merchant's credentials, and delegates
+     * to the adapter's getRefundStatus(). Returns null when the adapter is not
+     * registered, does not support refund-status queries, or cannot determine
+     * the status - in all these cases the caller (RefundReconciliationJob)
+     * must treat the refund as unresolved and leave it pending for the 24-hour
+     * backstop (rather than prematurely failing it and releasing the balance
+     * hold on a refund that may still be in flight at the gateway).
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param string $gatewayRefundId The gateway-side refund identifier (or transaction ID fallback).
+     * @return string|null One of 'succeeded', 'failed', 'pending', 'not_found', or null when unknown.
+     */
+    public function getRefundStatus(string $gatewaySlug, int $merchantId, string $gatewayRefundId): ?string
+    {
+        if (!isset($this->adapters[$gatewaySlug])) {
+            return null;
+        }
+        $adapter = $this->adapters[$gatewaySlug];
+        if (!$adapter->supportsRefundStatus()) {
+            return null;
+        }
+        $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
+        return $adapter->getRefundStatus($gatewayRefundId, $credentials);
+    }
+
+    /**
      * Verify the signature of an incoming webhook call from the payment provider.
      *
      * AUD-G6: Secure webhook validation using gateway credentials. If no adapter is found,

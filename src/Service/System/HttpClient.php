@@ -311,6 +311,20 @@ final class HttpClient
                     }
                 }
 
+                // Fail closed: if both DNS resolution paths returned nothing,
+                // we cannot pin an IP. UrlValidator::isValidWebhookUrl()
+                // already proved the host resolves to a public IP moments
+                // ago, so an empty result here is suspicious - likely a DNS
+                // rebinding window where an attacker has changed the record
+                // between the isValidWebhookUrl check and now. Refuse to
+                // send rather than letting cURL perform its own resolution
+                // without an IP pin (which would bypass SSRF protection).
+                if (empty($resolvedIps)) {
+                    throw new \RuntimeException(
+                        'DNS resolution failed for host "' . $host . '"; refusing to send without IP pin'
+                    );
+                }
+
                 // Verify resolved IPs
                 foreach ($resolvedIps as $ip) {
                     if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
@@ -318,9 +332,7 @@ final class HttpClient
                     }
                 }
 
-                if (!empty($resolvedIps)) {
-                    $pinIp = $resolvedIps[0];
-                }
+                $pinIp = $resolvedIps[0];
             }
 
             $ch = curl_init($currentUrl);

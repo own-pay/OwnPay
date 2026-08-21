@@ -127,7 +127,7 @@ class UpdateHistoryRepository extends BaseRepository
      * @param string|null $error Optional failure description causing the rollback.
      * @return void
      */
-    public function markRolledBack(int $id, string $error = null): void
+    public function markRolledBack(int $id, ?string $error = null): void
     {
         $this->updateStep($id, 'rolled_back', $error);
     }

@@ -7,6 +7,9 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Security\PiiMasker;
+use OwnPay\Service\Customer\CustomerPiiService;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Service\System\PaginationService;
 
 /**
@@ -38,17 +41,36 @@ final class CustomerController
     private \OwnPay\Repository\CustomerRepository $customerRepo;
 
     /**
+     * @var CustomerPiiService PII service handling encryption, hashing, and lifecycle events.
+     */
+    private CustomerPiiService $piiService;
+
+    /**
+     * @var AuditService Audit logging service for security-sensitive admin actions.
+     */
+    private AuditService $audit;
+
+    /**
      * CustomerController constructor.
      *
      * @param Container                             $c            The dependency injection container.
      * @param AdminSession                          $session      The administrative session service.
      * @param \OwnPay\Repository\CustomerRepository $customerRepo The customer records repository.
+     * @param CustomerPiiService                    $piiService   The PII service for create/lookup operations.
+     * @param AuditService                          $audit        The audit log service.
      */
-    public function __construct(Container $c, AdminSession $session, \OwnPay\Repository\CustomerRepository $customerRepo) 
-    { 
+    public function __construct(
+        Container $c,
+        AdminSession $session,
+        \OwnPay\Repository\CustomerRepository $customerRepo,
+        CustomerPiiService $piiService,
+        AuditService $audit
+    ) {
         $this->c = $c;
-        $this->session = $session; 
+        $this->session = $session;
         $this->customerRepo = $customerRepo;
+        $this->piiService = $piiService;
+        $this->audit = $audit;
     }
 
     /**
@@ -76,30 +98,85 @@ final class CustomerController
         $qVal = $req->query('q', '');
         $q = is_string($qVal) ? $qVal : '';
 
-        $paginated = $this->customerRepo->paginateWithStats($isGlobal ? null : $mid, $q, $page, 20);
+        // Compute the email blind-index hash via the canonical service helper so
+        // the algorithm matches the one used at customer-write time (HMAC-SHA256
+        // with the server's field-encryption key). Prior to audit fix API-12 the
+        // repository recomputed the hash with plain hash('sha256', ...) which
+        // never matched the stored HMAC hashes, so admin search by email was
+        // completely broken.
+        $emailHash = '';
+        if (trim($q) !== '') {
+            $emailHash = $this->piiService->hashEmailForSearch($q);
+        }
 
-        // Decrypt PII fields for display
+        $paginated = $this->customerRepo->paginateWithStats($isGlobal ? null : $mid, $emailHash, $page, 20);
+
+        // Determine whether the current viewer is permitted to reveal unmasked
+        // customer PII. The previous implementation unconditionally decrypted
+        // full PII (name, email, phone) for every row in the paginated list and
+        // passed the plaintext values straight to Twig - a staff member with
+        // only the customers.view (read-only) permission saw every customer's
+        // email and phone in cleartext. Now we mask by default and only attach
+        // the unmasked plaintext when the viewer has customers.manage (or is a
+        // superadmin, which bypasses all permission checks upstream).
+        $permsVal = $req->getAttribute('user_permissions', []);
+        $perms = is_array($permsVal) ? $permsVal : [];
+        $canRevealPii = $this->session->isSuperadmin()
+            || in_array('customers.manage', $perms, true);
+
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
         if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
             throw new \RuntimeException('FieldEncryptor service unavailable');
         }
-        $customers = array_map(function (array $c) use ($enc) {
+        $customers = array_map(function (array $c) use ($enc, $canRevealPii) {
+            // Decrypt only what's needed for display. The plaintext is never
+            // exposed to the template unless the viewer can manage customers.
+            $namePlain  = '-';
+            $emailPlain = '-';
+            $phonePlain = '-';
             try {
-                $c['name']  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '-');
-                $c['email'] = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '-');
-                $c['phone'] = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '-');
-            } catch (\Throwable $e) {
-                $c['name']  = is_string($c['name'] ?? null) ? $c['name'] : '[encrypted]';
-                $c['email'] = is_string($c['email'] ?? null) ? $c['email'] : '[encrypted]';
-                $c['phone'] = is_string($c['phone'] ?? null) ? $c['phone'] : '-';
+                $namePlain  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '-');
+                $emailPlain = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '-');
+                $phonePlain = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '-');
+            } catch (\Throwable) {
+                $namePlain  = is_string($c['name'] ?? null) ? $c['name'] : '[encrypted]';
+                $emailPlain = is_string($c['email'] ?? null) ? $c['email'] : '[encrypted]';
+                $phonePlain = is_string($c['phone'] ?? null) ? $c['phone'] : '-';
             }
+
+            // Name is left decrypted because the avatar/identifier column
+            // needs to remain useful for locating customers in the list.
+            $c['name'] = $namePlain;
+
+            // Masked values are the default rendered in the list table. The
+            // Twig template reads `email_masked`/`phone_masked` instead of the
+            // plaintext `email`/`phone` columns.
+            $c['email_masked'] = PiiMasker::maskEmail($emailPlain);
+            $c['phone_masked'] = PiiMasker::maskPhone($phonePlain);
+            // Default the legacy email/phone columns to the masked values so
+            // any third-party template partial that still reads `c.email` is
+            // safe by default.
+            $c['email'] = $c['email_masked'];
+            $c['phone'] = $c['phone_masked'];
+
+            // The plaintext is only attached when the viewer is permitted to
+            // reveal it; the template renders a per-row "Reveal" affordance
+            // gated on `can_reveal_pii` AND the presence of `email_revealed`.
+            if ($canRevealPii) {
+                $c['email_revealed'] = $emailPlain;
+                $c['phone_revealed'] = $phonePlain;
+            }
+
+            // Strip the encrypted columns so the ciphertext never reaches Twig.
+            unset($c['email_enc'], $c['phone_enc'], $c['name_enc'], $c['address_enc']);
             return $c;
         }, $paginated['items']);
 
         return $this->renderAdminPage('admin/customers.twig', [
-            'customers'   => $customers,
-            'filters'     => ['q' => $q],
-            'pagination'  => [
+            'customers'       => $customers,
+            'can_reveal_pii'  => $canRevealPii,
+            'filters'         => ['q' => $q],
+            'pagination'      => [
                 'page'         => $paginated['page'],
                 'current_page' => $paginated['page'],
                 'per_page'     => $paginated['per_page'],
@@ -198,6 +275,8 @@ final class CustomerController
         if ($guard = $this->requireActiveBrand($mid, '/admin/customers')) {
             return $guard;
         }
+        // requireActiveBrand guarantees $mid is a positive int from here on.
+        \assert($mid !== null && $mid > 0);
 
         $nameVal = $req->post('name', '');
         $emailVal = $req->post('email', '');
@@ -212,30 +291,57 @@ final class CustomerController
             return Response::redirect('/admin/customers/create');
         }
 
-        $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
-        if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
-            throw new \RuntimeException('FieldEncryptor service unavailable');
+        // Email format validation. The previous raw INSERT accepted any string,
+        // producing garbage rows like "not-an-email" whose hash could never be
+        // looked up again. Reject early so the row is never persisted.
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $this->session->flashError('Please enter a valid email address.');
+            return Response::redirect('/admin/customers/create');
         }
-        $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
-        $now = \OwnPay\Support\DateHelper::nowMicro();
 
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        if (!$db instanceof \OwnPay\Core\Database) {
-            throw new \RuntimeException('Database service unavailable');
+        // Basic phone-format guard: only digits, +, -, spaces, parentheses,
+        // up to 30 chars. Rejects control chars, letters, and absurdly long
+        // inputs that would blow up the encrypted column.
+        if ($phone !== '' && !preg_match('/^[0-9+\-\s()]{1,30}$/', $phone)) {
+            $this->session->flashError('Phone number may only contain digits, +, -, spaces, and parentheses (max 30 chars).');
+            return Response::redirect('/admin/customers/create');
         }
-        $db->insert(
-            "INSERT INTO op_customers (merchant_id, uuid, name_enc, email_enc, email_hash, phone_enc, phone_hash, created_at, updated_at)
-             VALUES (:mid, :uuid, :name, :email, :ehash, :phone, :phash, :now, :now2)",
+
+        // Duplicate-email check. The previous raw INSERT blindly wrote a row
+        // even when an existing customer shared the same email_hash, leaving
+        // two customer records resolving to the same person.
+        $existing = $this->piiService->findByEmail($mid, $email);
+        if ($existing !== null) {
+            $this->session->flashError('A customer with this email already exists.');
+            return Response::redirect('/admin/customers/create');
+        }
+
+        // Delegate creation to CustomerPiiService::create() so we benefit from
+        // the canonical UUID generation, email_hash/phone_hash computation,
+        // AES-256-GCM encryption, and customer.created event dispatch. The
+        // previous raw INSERT bypassed all of these, leaving rows without a
+        // UUID and without triggering downstream integrations.
+        try {
+            $customer = $this->piiService->create($mid, [
+                'name'  => $name,
+                'email' => $email,
+                'phone' => $phone,
+            ]);
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to create customer: ' . $e->getMessage());
+            return Response::redirect('/admin/customers/create');
+        }
+
+        $customerId = isset($customer['id']) && is_scalar($customer['id']) ? (int) $customer['id'] : null;
+        $this->audit->log(
+            'customer.created',
+            'customers',
+            $customerId,
+            null,
             [
-                'mid'   => $mid,
-                'uuid'  => $uuid,
-                'name'  => $enc->encrypt($name),
-                'email' => $enc->encrypt($email),
-                'ehash' => $enc->hash($email),
-                'phone' => $phone !== '' ? $enc->encrypt($phone) : null,
-                'phash' => $phone !== '' ? $enc->hash($phone) : null,
-                'now'   => $now,
-                'now2'  => $now,
+                'admin_id'     => $this->session->userId(),
+                'merchant_id'  => $mid,
+                'email_masked' => PiiMasker::maskEmail($email),
             ]
         );
 
@@ -244,7 +350,14 @@ final class CustomerController
     }
 
     /**
-     * Deletes a customer profile under the scoped merchant context.
+     * Soft-deletes a customer profile under the scoped merchant context.
+     *
+     * Delegates to CustomerPiiService::delete() so that the row is preserved
+     * with `status='deleted'` and all PII fields (email_enc, phone_enc,
+     * name_enc, email_hash, phone_hash) are cleared in place. This keeps the
+     * transaction->customer FK intact (no SET NULL cascade) and dispatches
+     * the `customer.deleted` event that plugins/CRM integrations rely on.
+     * An audit-log entry is written so the action is attributable.
      *
      * @param Request $req The incoming HTTP request.
      *
@@ -271,14 +384,30 @@ final class CustomerController
             return Response::redirect('/admin/customers');
         }
 
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        if (!$db instanceof \OwnPay\Core\Database) {
-            throw new \RuntimeException('Database service unavailable');
+        // SECURITY (CUS-1): perform a SOFT delete via CustomerPiiService so
+        // that PII is wiped but the row is preserved with status='deleted'.
+        // Previously this method ran `DELETE FROM op_customers WHERE id=...`
+        // which physically removed the row, nulled every op_transactions.
+        // customer_id (FK ON DELETE SET NULL), skipped PII-retention
+        // controls, skipped the `customer.deleted` event, and produced no
+        // audit-log entry.
+        $pii = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
+        if (!$pii instanceof \OwnPay\Service\Customer\CustomerPiiService) {
+            throw new \RuntimeException('CustomerPiiService unavailable');
         }
-        $db->execute('DELETE FROM op_customers WHERE id = :id AND merchant_id = :mid', [
-            'id'  => $id,
-            'mid' => $mid,
-        ]);
+        $pii->delete($mid, $id);
+
+        // Audit-log the soft-delete so the action is attributable.
+        $audit = $this->c->get(\OwnPay\Service\System\AuditService::class);
+        if ($audit instanceof \OwnPay\Service\System\AuditService) {
+            $audit->log(
+                'customer.deleted',
+                'customer',
+                $id,
+                ['status' => $customer['status'] ?? null],
+                ['status' => 'deleted']
+            );
+        }
 
         $this->session->flashSuccess('Customer deleted');
         return Response::redirect('/admin/customers');

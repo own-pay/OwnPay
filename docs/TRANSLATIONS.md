@@ -1,6 +1,6 @@
 # OwnPay Internationalization & Translation Guide
 
-OwnPay features a robust, enterprise-grade internationalization (i18n) and localization architecture designed to deliver a localized administrative panel and white-labeled, customer-facing checkout interfaces. This guide outlines the core architecture of the translation system, locale resolution flow, usage in PHP code/Twig templates, and how developers can contribute or manage translation catalogs.
+OwnPay has an internationalization (i18n) and localization architecture that delivers a localized administrative panel and white-labeled, customer-facing checkout interfaces. This guide covers the translation system, locale resolution flow, usage in PHP code and Twig templates, and how you can contribute or manage translation catalogs.
 
 ---
 

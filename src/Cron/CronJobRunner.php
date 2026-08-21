@@ -171,8 +171,6 @@ final class CronJobRunner
                         'result'   => is_array($result) ? $result : null,
                     ]);
 
-                    $this->recordLastRun($name);
-
                     return [
                         'status'   => 'completed',
                         'duration' => $duration,
@@ -190,6 +188,13 @@ final class CronJobRunner
                         'duration' => $duration,
                         'error'    => $e->getMessage(),
                     ];
+                } finally {
+                    // CRON-3: Always advance the schedule, even on failure.
+                    // The previous implementation only called recordLastRun()
+                    // inside the try block, so a failing job was retried on
+                    // every cron tick with no backoff - a retry storm that
+                    // could log 28,800 errors/day per failing job.
+                    $this->recordLastRun($name);
                 }
             });
 
@@ -223,8 +228,16 @@ final class CronJobRunner
 
         $fp = @fopen($lockPath, 'c');
         if ($fp === false) {
-            $this->logger->warning("Cron run-lock unavailable for {$name}; executing without concurrency guard");
-            return $fn();
+            // CRON-1: Refuse to execute when the lock file cannot be
+            // opened. The previous implementation logged a warning and
+            // executed the job WITHOUT the concurrency guard, so a full
+            // disk / permission error / readonly filesystem silently
+            // disabled concurrency control - two concurrent cron
+            // invocations could both execute every job simultaneously.
+            // Returning null signals "lock unavailable" to the caller,
+            // which surfaces as 'status' => 'locked' in the run results.
+            $this->logger->error("Cron run-lock unavailable for {$name}; refusing to execute without concurrency guard");
+            return null;
         }
 
         try {

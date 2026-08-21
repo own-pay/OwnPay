@@ -97,15 +97,63 @@ final class RequestSignatureMiddleware
         }
 
         $timestamp = $request->header('X-Timestamp');
-        if ($timestamp !== '') {
-            $requestTime = (int) $timestamp;
-            $tolerance = 300; // 5 minutes
-            if (abs(time() - $requestTime) > $tolerance) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Request timestamp too old (replay rejected)',
-                ], 401);
+        if ($timestamp === '') {
+            // SEC-2: X-Timestamp is mandatory. Without it the body HMAC alone
+            // provides zero replay protection - a captured signed webhook can
+            // be replayed indefinitely. Reject up-front rather than silently
+            // degrading to a replayable state.
+            return Response::json([
+                'success' => false,
+                'message' => 'Missing request timestamp (replay protection required)',
+            ], 401);
+        }
+
+        $requestTime = (int) $timestamp;
+        $tolerance = 300; // 5 minutes
+        if (abs(time() - $requestTime) > $tolerance) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Request timestamp too old (replay rejected)',
+            ], 401);
+        }
+
+        // SEC-2: Nonce-based replay guard. Even within the 5-minute tolerance
+        // window, the same signed body must not be accepted twice - otherwise
+        // a captured webhook can be replayed to trigger double-crediting,
+        // double-refunds, or duplicate order fulfilment. We persist a nonce
+        // derived from the body hash for the duration of the tolerance window
+        // so the second submission of the same (timestamp, body) pair is
+        // rejected as a replay.
+        $nonceKey = 'webhook:nonce:' . hash('sha256', $body . '|' . $timestamp);
+        try {
+            $cache = $this->container->has(\OwnPay\Cache\CacheInterface::class)
+                ? $this->container->get(\OwnPay\Cache\CacheInterface::class)
+                : null;
+            if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+                if ($cache->has($nonceKey)) {
+                    return Response::json([
+                        'success' => false,
+                        'message' => 'Request already processed (replay rejected)',
+                    ], 401);
+                }
+                // Reserve the nonce for the tolerance window plus a small
+                // margin so a replay attempted at the edge of the window is
+                // still rejected.
+                $cache->set($nonceKey, time(), $tolerance + 60);
             }
+        } catch (\Throwable $e) {
+            // Cache unavailable - fail closed by rejecting the request rather
+            // than silently allowing a potentially-replayed payload through.
+            if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->warning('Webhook replay-guard cache unavailable: ' . $e->getMessage());
+                }
+            }
+            return Response::json([
+                'success' => false,
+                'message' => 'Replay guard unavailable',
+            ], 503);
         }
 
         return $next($request);

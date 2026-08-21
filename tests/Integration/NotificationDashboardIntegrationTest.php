@@ -123,7 +123,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
             self::TEST_DEVICE_UUID, 'credit', 1500.0, '01712345678', 'SVC001', 'bKash'
         );
 
-        $result = $this->notifService->poll(self::TEST_DEVICE_UUID);
+        $result = $this->notifService->poll(self::TEST_DEVICE_UUID, 1);
 
         $this->assertArrayHasKey('notifications', $result);
         $this->assertArrayHasKey('unread_count', $result);

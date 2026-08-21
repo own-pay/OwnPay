@@ -141,7 +141,12 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Updates the password hash for a user.
+     * Updates the password hash for a user and stamps the password-changed epoch.
+     *
+     * The `password_changed_at` timestamp is consumed by the session/JWT/API-key
+     * invalidation logic (SEC-4) to revoke credentials issued before the password
+     * change - so a victim who clicks the reset link after suspecting compromise
+     * actually kicks out the attacker's stolen session/refresh token/API key.
      *
      * @param int $id The user's primary key ID.
      * @param string $hash The raw Argon2id password hash.
@@ -150,9 +155,30 @@ final class MerchantUserRepository extends BaseRepository
     public function updatePassword(int $id, string $hash): void
     {
         $this->db->execute(
-            "UPDATE {$this->table} SET password_hash = :p WHERE id = :id",
+            "UPDATE {$this->table} SET password_hash = :p, password_changed_at = NOW(6) WHERE id = :id",
             ['p' => $hash, 'id' => $id]
         );
+    }
+
+    /**
+     * Retrieves the password-changed epoch for a user.
+     *
+     * Returns null when the column has never been set (i.e. the user's password
+     * has not been changed since the SEC-4 migration was deployed). Callers must
+     * treat null as "do not enforce epoch comparison" so existing sessions are
+     * not invalidated en masse on first deploy.
+     *
+     * @param int $id The user's primary key ID.
+     * @return string|null SQL-formatted DATETIME(6) string, or null if never set.
+     */
+    public function getPasswordChangedAt(int $id): ?string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT password_changed_at FROM {$this->table} WHERE id = :id LIMIT 1",
+            ['id' => $id]
+        );
+        $value = $row['password_changed_at'] ?? null;
+        return is_string($value) ? $value : null;
     }
 
     /**

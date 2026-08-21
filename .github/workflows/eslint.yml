@@ -1,0 +1,91 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+# ESLint is a tool for identifying and reporting on patterns
+# found in ECMAScript/JavaScript code.
+# More details at https://github.com/eslint/eslint
+# and https://eslint.org
+
+name: ESLint
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "main" ]
+  schedule:
+    - cron: '36 6 * * 1'
+
+# Minimum permissions - CodeQL flagged the absence of this block.
+permissions:
+  contents: read
+
+jobs:
+  eslint:
+    name: Run eslint scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install ESLint
+        # Install ESLint 9 (matches the flat-config format used by eslint.config.js
+        # in the repo root) plus the SARIF formatter used to upload results to
+        # GitHub code scanning. Pinning to a known-good major avoids silent
+        # breakage when a new ESLint major ships.
+        run: |
+          npm install eslint@9.18.0
+          npm install @microsoft/eslint-formatter-sarif@3.1.0
+
+      - name: Run ESLint
+        env:
+          SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
+        # Use the flat-config file (eslint.config.js) shipped in the repo root.
+        # ESLint 9 auto-discovers eslint.config.js, but we pass --config
+        # explicitly so the SARIF upload step can find the output regardless
+        # of the working directory GitHub Actions drops us into.
+        run: npx eslint .
+          --config eslint.config.js
+          --format @microsoft/eslint-formatter-sarif
+          --output-file eslint-results.sarif
+        continue-on-error: true
+
+      # Verify the SARIF file is present AND parses as valid JSON before
+      # attempting the upload. ESLint may exit early on config errors and
+      # leave either no file or an empty file behind, which would cause
+      # the upload-sarif step to fail with "Invalid SARIF. JSON syntax error".
+      - name: Verify SARIF file is valid
+        id: verify_sarif
+        if: always()
+        run: |
+          if [ ! -s eslint-results.sarif ]; then
+            echo "::warning::ESLint did not produce a non-empty eslint-results.sarif file. Skipping SARIF upload."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! python3 -c "import json,sys; json.load(open('eslint-results.sarif'))" 2>/dev/null; then
+            echo "::warning::eslint-results.sarif is not valid JSON. Skipping SARIF upload."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "eslint-results.sarif is present ($(wc -c < eslint-results.sarif) bytes) and valid JSON."
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: eslint-results.sarif
+          wait-for-processing: true
+        # Only upload when the SARIF is present AND valid.
+        if: always() && steps.verify_sarif.outputs.valid == 'true'

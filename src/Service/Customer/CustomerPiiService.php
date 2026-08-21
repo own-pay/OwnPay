@@ -101,13 +101,37 @@ final class CustomerPiiService
      */
     public function findByEmail(int $merchantId, string $email): ?array
     {
-        $hash = $this->encryptor->deterministicHash($email);
+        $hash = $this->hashEmailForSearch($email);
         $customer = $this->customers->forTenant($merchantId)->findByEmailHash($hash);
 
         if ($customer !== null) {
             return $this->decryptPii($customer);
         }
         return null;
+    }
+
+    /**
+     * Computes the deterministic blind-index hash used to search customers by email.
+     *
+     * Centralises the email-hash computation so that write paths (create / update)
+     * and read paths (findByEmail, admin dashboard search) can never drift apart
+     * again. The hash is HMAC-SHA256 with the server's field-encryption key over
+     * the lowercased, trimmed email - the exact same algorithm used by
+     * FieldEncryptor::hash() / deterministicHash() and persisted in the
+     * op_customers.email_hash column at customer-create time.
+     *
+     * Callers that need to search the repository by email should pass the result
+     * of this method rather than re-deriving the hash with a different algorithm
+     * (see audit finding API-12: prior code used plain hash('sha256', ...) in the
+     * repository search path, which never matched the HMAC hashes stored at
+     * write time).
+     *
+     * @param string $email The target customer email address (raw, unnormalised).
+     * @return string The deterministic HMAC-SHA256 blind-index hash.
+     */
+    public function hashEmailForSearch(string $email): string
+    {
+        return $this->encryptor->deterministicHash($email);
     }
 
     /**
@@ -205,12 +229,22 @@ final class CustomerPiiService
     public function delete(int $merchantId, int $customerId): void
     {
         $repo = $this->customers->forTenant($merchantId);
+        // Audit finding CUS-4: the previous implementation only cleared
+        // email_enc, phone_enc, name_enc, and email_hash. The
+        // phone_hash/address_enc/metadata columns were left intact on the
+        // soft-deleted row, meaning the customer's phone could still be
+        // resolved via findByPhoneHash() (defeating GDPR "right to be
+        // forgotten") and the encrypted address + JSON metadata blob
+        // lingered indefinitely. Clear every PII-bearing column instead.
         $repo->updateScoped($customerId, [
-            'email_enc'  => null,
-            'phone_enc'  => null,
-            'name_enc'   => null,
-            'email_hash' => null,
-            'status'     => 'deleted',
+            'email_enc'   => null,
+            'phone_enc'   => null,
+            'name_enc'    => null,
+            'address_enc' => null,
+            'email_hash'  => null,
+            'phone_hash'  => null,
+            'metadata'    => null,
+            'status'      => 'deleted',
         ]);
 
         $this->events->doAction('customer.deleted', $merchantId, $customerId);

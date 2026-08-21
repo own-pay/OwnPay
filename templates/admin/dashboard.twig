@@ -61,7 +61,7 @@
 
     {# Today's Payments #}
     <div class="dash-card">
-        <p class="dash-kpi-title">Todays Payments</p>
+        <p class="dash-kpi-title">{{ __('Today\'s Payments') }}</p>
         <h3 class="dash-kpi-value">{{ dashboard.today_count }}</h3>
         <div class="dash-kpi-footer">
             <span class="dash-trend-up">
@@ -88,7 +88,7 @@
                 </div>
             </div>
             <div class="dash-chart-container">
-                <canvas id="revenueChart"></canvas>
+                <canvas id="revenueChart" role="img" aria-label="{{ __('Revenue performance chart') }}"></canvas>
             </div>
         </div>
 
@@ -133,14 +133,14 @@
         {# Monthly Revenue Snapshot (Gauge) #}
         <div class="dash-card">
             <div class="dash-gauge-container">
-                <canvas id="gaugeChart" style="width: 100%; height: 100%;"></canvas>
+                <canvas id="gaugeChart" role="img" aria-label="{{ __('Monthly revenue target progress gauge') }}" style="width: 100%; height: 100%;"></canvas>
                 <div class="dash-gauge-text">
-                    <div class="dash-gauge-value">{{ dashboard.monthly_revenue|default('৳ 1,50,000') }}</div>
-                    <div class="dash-gauge-label">November · Target {{ dashboard.gauge_target|default('৳ 2,00,000') }}</div>
+                    <div class="dash-gauge-value">{{ dashboard.monthly_revenue|default('0.00') }}</div>
+                    <div class="dash-gauge-label">{{ "now"|date("F") }} · Target {{ dashboard.gauge_target|default('0.00') }}</div>
                 </div>
             </div>
             <div style="margin-top: 32px;">
-                <h3 class="dash-card-title">Montly Revenue Snapshot</h3>
+                <h3 class="dash-card-title">{{ __('Monthly Revenue Snapshot') }}</h3>
             </div>
         </div>
 
@@ -167,7 +167,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script nonce="{{ csp_nonce }}" src="/assets/js/vendor/chart.umd.min.js?v=4.4.1"></script>
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--op-primary').trim() || '#0F97ED';
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'doughnut',
             data: {
                 labels: ['Revenue', 'Remaining'],
-                datasets: [{ data: [{{ dashboard.gauge_percent|default(75) }}, {{ 100 - dashboard.gauge_percent|default(75) }}], backgroundColor: [brandColor, gaugeBg], borderWidth: 0 }]
+                datasets: [{ data: [{{ dashboard.gauge_percent|default(0) }}, {{ 100 - dashboard.gauge_percent|default(0) }}], backgroundColor: [brandColor, gaugeBg], borderWidth: 0 }]
             },
             options: {
                 responsive: true,

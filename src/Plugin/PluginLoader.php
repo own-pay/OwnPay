@@ -98,7 +98,13 @@ final class PluginLoader
                 }
 
                 $pluginDir = $dir . '/' . $entry;
-                if (!is_dir($pluginDir)) {
+                if (is_link($pluginDir) || !is_dir($pluginDir)) {
+                    continue;
+                }
+
+                $realPluginDir = realpath($pluginDir);
+                $realDir = realpath($dir);
+                if ($realPluginDir === false || $realDir === false || !str_starts_with($realPluginDir, $realDir)) {
                     continue;
                 }
 
@@ -604,7 +610,7 @@ final class PluginLoader
             }
 
             if (!$progress) {
-                // Circular dependency detected — load remaining in original order
+                // Circular dependency detected - load remaining in original order
                 foreach ($remaining as $p) {
                     $sorted[] = $p;
                 }

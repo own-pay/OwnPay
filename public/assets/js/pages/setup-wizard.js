@@ -16,7 +16,7 @@
         const otpText = otpEl ? otpEl.textContent : "";
         if (otpText && otpText !== "------") {
             // admin.js (which defines window.opCopyText) always loads before
-            // this page script — see #op-page-scripts in wizard.twig — so no
+            // this page script - see #op-page-scripts in wizard.twig - so no
             // typeof guard/fallback is needed. The old fallback called
             // navigator.clipboard.writeText() directly with no .catch(),
             // silently stranding the user mid-onboarding on any rejection
@@ -689,7 +689,7 @@
             finishBtn.addEventListener("click", completeWizard);
         }
 
-        // Mark step 1 active on first render — the tracker has no server-rendered
+        // Mark step 1 active on first render - the tracker has no server-rendered
         // active state, only showStep() toggles it, so it must run once on load.
         showStep(1);
     });

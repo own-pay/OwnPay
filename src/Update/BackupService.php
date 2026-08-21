@@ -54,7 +54,11 @@ class BackupService
         $this->logger = $logger;
         $this->db = $db ?? \OwnPay\Core\Database::getInstance();
         if (!is_dir($this->backupDir)) {
-            @mkdir($this->backupDir, 0755, true);
+            // SECURITY (UPD-1): use 0750 (owner+group only, no world) so that
+            // co-located users on the server cannot list or read backup files.
+            // Backups contain full database dumps including password hashes,
+            // API key hashes, encrypted credentials, and audit logs.
+            @mkdir($this->backupDir, 0750, true);
         }
     }
 
@@ -70,7 +74,9 @@ class BackupService
     {
         $timestamp = DateHelper::backupTimestamp();
         $backupPath = $this->backupDir . '/backup_' . $timestamp;
-        @mkdir($backupPath, 0755, true);
+        // SECURITY (UPD-1): per-backup directory is owner-only (0700) so that
+        // even co-located users in the same group cannot read the dump.
+        @mkdir($backupPath, 0700, true);
 
         $this->dumpDatabase($backupPath . '/database.sql');
 
@@ -83,6 +89,11 @@ class BackupService
             'db_file'    => 'database.sql',
             'code_file'  => 'code.zip',
         ]));
+        // SECURITY (UPD-1): explicitly tighten permissions on the manifest
+        // (file_put_contents inherits umask, which is typically 0022 -> 0644
+        // and therefore world-readable). manifest.json reveals the OwnPay
+        // version and PHP version, which is useful for an attacker.
+        @chmod($backupPath . '/manifest.json', 0600);
 
         return $backupPath;
     }
@@ -178,6 +189,14 @@ class BackupService
         if ($exitCode !== 0) {
             $this->pdoDump($outputPath);
         }
+        // SECURITY (UPD-1): mysqldump inherits umask (typically 0022 -> 0644,
+        // world-readable). The dump contains every row of every table
+        // including password hashes, API key hashes, encrypted credentials,
+        // and audit logs. Force owner-only permissions regardless of how the
+        // file was produced.
+        if (file_exists($outputPath)) {
+            @chmod($outputPath, 0600);
+        }
     }
 
     /**
@@ -199,47 +218,102 @@ class BackupService
             if ($tableName === '') {
                 continue;
             }
-            $createRow = $db->fetchOne("SHOW CREATE TABLE `{$tableName}`");
+            // Escape table-name identifier (SYS-7): although the name comes from
+            // SHOW TABLES (a real DB catalog row, not user input), a corrupted
+            // or hostile table name containing a backtick would prematurely
+            // terminate the surrounding identifier quotes and inject SQL into
+            // the dump statements. Defence-in-depth:
+            //   1. Validate the charset (MySQL identifiers are [A-Za-z0-9_.$] max 64).
+            //   2. Escape any literal backtick by doubling it.
+            //   3. Re-validate length.
+            if (!preg_match('/^[A-Za-z0-9_.$]{1,64}$/', $tableName)) {
+                // Skip tables whose names fall outside the safe identifier
+                // charset rather than risk producing a malformed dump.
+                $this->logger?->warning("BackupService: skipping table with unsafe identifier: " . substr($tableName, 0, 64));
+                continue;
+            }
+            $escapedName = str_replace('`', '``', $tableName);
+            $quoted = "`{$escapedName}`";
+
+            $createRow = $db->fetchOne("SHOW CREATE TABLE {$quoted}");
             $createTableSql = is_array($createRow) && isset($createRow['Create Table']) && is_string($createRow['Create Table']) ? $createRow['Create Table'] : '';
             $sql .= $createTableSql . ";\n\n";
 
-            $rows = $db->fetchAll("SELECT * FROM `{$tableName}`");
+            $rows = $db->fetchAll("SELECT * FROM {$quoted}");
             foreach ($rows as $dataRow) {
                 $values = array_map(function ($v) use ($pdo) {
                     return $v === null ? 'NULL' : $pdo->quote(is_scalar($v) ? (string) $v : '');
                 }, array_values($dataRow));
-                $sql .= "INSERT INTO `{$tableName}` VALUES (" . implode(',', $values) . ");\n";
+                $sql .= "INSERT INTO {$quoted} VALUES (" . implode(',', $values) . ");\n";
             }
             $sql .= "\n";
         }
 
         file_put_contents($outputPath, $sql);
+        // SECURITY (UPD-1): file_put_contents inherits umask (typically
+        // 0022 -> 0644, world-readable). The dump contains every row of
+        // every table including password hashes, API key hashes, encrypted
+        // credentials, and audit logs. Force owner-only permissions.
+        @chmod($outputPath, 0600);
     }
 
     /**
      * Restores database schema and records from an SQL file.
      *
-     * Parses the dump file into single queries and executes them sequentially.
+     * Parses the dump file into single queries and executes them sequentially
+     * inside a database transaction. If any statement fails, the transaction is
+     * rolled back and a RestoreDatabaseException is thrown so the caller
+     * (UpdateService::execute() rollback path) can mark the update as failed
+     * instead of leaving the database in a half-restored, inconsistent state.
+     *
+     * Note: MySQL DDL statements (CREATE/ALTER/DROP TABLE, etc.) implicitly
+     * commit and therefore CANNOT be rolled back - this is a MySQL engine
+     * limitation, not a code limitation. DML statements (INSERT/UPDATE/DELETE)
+     * WILL roll back. A DDL failure mid-restore still aborts the loop so the
+     * caller is informed; subsequent DML statements are not applied.
      *
      * @param string $sqlFile Absolute path to the SQL dump file.
      * @return void
+     * @throws \RuntimeException When the SQL file cannot be read or is empty.
+     * @throws RestoreDatabaseException When any statement fails; the transaction
+     *                                  has been rolled back before throwing.
      */
     private function restoreDatabase(string $sqlFile): void
     {
         $sql = file_get_contents($sqlFile);
         if ($sql === false || trim($sql) === '') {
-            return;
+            throw new \RuntimeException("Cannot restore database: SQL file is empty or unreadable: {$sqlFile}");
         }
 
         $db = $this->db;
         $statements = $this->splitSqlStatements($sql);
 
-        foreach ($statements as $stmt) {
-            try {
-                $db->execute($stmt);
-            } catch (\Throwable $e) {
-                $this->logger?->warning('SQL restore failed: ' . $e->getMessage());
+        $db->execute('START TRANSACTION');
+
+        $executed = 0;
+        try {
+            foreach ($statements as $stmt) {
+                try {
+                    $db->execute($stmt);
+                    $executed++;
+                } catch (\Throwable $e) {
+                    $this->logger?->error('SQL restore failed; rolling back transaction: ' . $e->getMessage());
+                    throw new RestoreDatabaseException(
+                        'SQL restore failed at statement #' . ($executed + 1) . ': ' . $e->getMessage(),
+                        0,
+                        $e
+                    );
+                }
             }
+            $db->execute('COMMIT');
+            $this->logger?->info("SQL restore completed: {$executed} statements executed");
+        } catch (\Throwable $e) {
+            try {
+                $db->execute('ROLLBACK');
+            } catch (\Throwable $rollbackError) {
+                $this->logger?->error('Failed to roll back restore transaction: ' . $rollbackError->getMessage());
+            }
+            throw $e;
         }
     }
 
@@ -327,6 +401,13 @@ class BackupService
         }
 
         $zip->close();
+        // SECURITY (UPD-1): ZipArchive produces files with umask-based
+        // permissions (typically 0022 -> 0644, world-readable). The code.zip
+        // contains the full source tree, including any secrets that may have
+        // been committed by accident. Force owner-only permissions.
+        if (file_exists($outputPath)) {
+            @chmod($outputPath, 0600);
+        }
     }
 
     /**

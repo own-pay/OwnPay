@@ -1,0 +1,10 @@
+# GitHub Sponsors & Project Funding Configuration
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+github:
+  - own-pay
+  - fattain-naime
+
+custom:
+  - https://ownpay.org/donate
+

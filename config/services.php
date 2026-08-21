@@ -148,10 +148,29 @@ return static function (\OwnPay\Container $c): void {
         $driver = $appCfg['cache_driver'] ?? 'file';
         if ($driver === 'redis' && class_exists(\Redis::class)) {
             try {
+                // CACHE-2: pass REDIS_PASSWORD / REDIS_USERNAME / REDIS_DB so
+                // operators can use authenticated Redis instances (requirepass
+                // or ACL). Without these, every command returned NOAUTH and
+                // the driver was unusable, pushing operators to disable Redis
+                // auth entirely (exposing the cache to the network).
+                $redisPasswordRaw = getenv('REDIS_PASSWORD');
+                $redisPassword = (is_string($redisPasswordRaw) && $redisPasswordRaw !== '')
+                    ? $redisPasswordRaw
+                    : null;
+                $redisUsernameRaw = getenv('REDIS_USERNAME');
+                $redisUsername = (is_string($redisUsernameRaw) && $redisUsernameRaw !== '')
+                    ? $redisUsernameRaw
+                    : null;
+                $redisDbRaw = getenv('REDIS_DB');
+                $redisDb = is_string($redisDbRaw) ? (int) $redisDbRaw : 0;
+
                 return new \OwnPay\Cache\RedisCache(
                     getenv('REDIS_HOST') ?: '127.0.0.1',
                     (int) (getenv('REDIS_PORT') ?: 6379),
-                    getenv('REDIS_PREFIX') ?: 'op:'
+                    getenv('REDIS_PREFIX') ?: 'op:',
+                    $redisPassword,
+                    $redisUsername,
+                    $redisDb
                 );
             } catch (\Throwable) {
                 // Graceful fallback to file cache
@@ -298,15 +317,20 @@ return static function (\OwnPay\Container $c): void {
 
         /**
          * Expose CSP nonce to all templates.
-         * SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
-         * Use lazy proxy since nonce isn't generated until middleware runs.
+         * SecurityHeadersMiddleware sets the nonce on CspNonce singleton and Request attribute.
          */
         $twig->addGlobal('csp_nonce', new class($c) implements \Stringable {
             private \OwnPay\Container $c;
             public function __construct(\OwnPay\Container $c) { $this->c = $c; }
             public function __toString(): string
             {
-                return $this->c->has('csp_nonce') && is_string($n = $this->c->get('csp_nonce')) ? $n : '';
+                if ($this->c->has(\OwnPay\Security\CspNonce::class)) {
+                    $nonceObj = $this->c->get(\OwnPay\Security\CspNonce::class);
+                    if ($nonceObj instanceof \OwnPay\Security\CspNonce) {
+                        return $nonceObj->getNonce();
+                    }
+                }
+                return '';
             }
         });
         return $twig;
@@ -531,6 +555,10 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Repository\PluginRepository::class, $repoFactory(\OwnPay\Repository\PluginRepository::class));
 
     // --- Security
+    $c->singleton(\OwnPay\Security\CspNonce::class, static function (): \OwnPay\Security\CspNonce {
+        return new \OwnPay\Security\CspNonce();
+    });
+
     $c->singleton(\OwnPay\Security\FieldEncryptor::class, static function (): \OwnPay\Security\FieldEncryptor {
         return new \OwnPay\Security\FieldEncryptor();
     });
@@ -613,7 +641,8 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\DisputeService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\DisputeService {
         return new \OwnPay\Service\Payment\DisputeService(
             ensureType($c->get(\OwnPay\Repository\DisputeRepository::class), \OwnPay\Repository\DisputeRepository::class),
-            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class)
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class)
         );
     });
 
@@ -652,11 +681,12 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    // Payment completion listener (invoice paid + link use_count)
+    // Payment completion listener (invoice paid + link use_count + payment intent completed)
     $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
         return new \OwnPay\Service\Payment\PaymentCompletionListener(
             ensureType($c->get(\OwnPay\Repository\InvoiceRepository::class), \OwnPay\Repository\InvoiceRepository::class),
-            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class)
+            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class),
+            ensureType($c->get(\OwnPay\Repository\PaymentIntentRepository::class), \OwnPay\Repository\PaymentIntentRepository::class)
         );
     });
 
@@ -678,7 +708,9 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Service\Communication\CommunicationService::class), \OwnPay\Service\Communication\CommunicationService::class),
             ensureType($c->get(\OwnPay\View\FragmentRenderer::class), \OwnPay\View\FragmentRenderer::class),
             ensureType($c->get(\OwnPay\Service\Domain\DomainUrlService::class), \OwnPay\Service\Domain\DomainUrlService::class),
-            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+            ensureType($c->get(\OwnPay\Repository\ApiKeyRepository::class), \OwnPay\Repository\ApiKeyRepository::class),
+            ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class)
         );
     });
 
@@ -700,6 +732,14 @@ return static function (\OwnPay\Container $c): void {
                 $emailNotifier = ensureType($c->get(\OwnPay\Service\Communication\EmailNotificationService::class), \OwnPay\Service\Communication\EmailNotificationService::class);
                 $events->addAction('payment.transaction.completed', [$emailNotifier, 'onTransactionCompleted'], 20);
                 $events->addAction('refund.created', [$emailNotifier, 'onRefundCreated'], 20);
+
+                // Auto-dispatch merchant webhooks on real payment completion (issue #59).
+                // Priority 30 so the listener runs after the payment-state listeners
+                // (PaymentCompletionListener at default priority, EmailNotifier at 20)
+                // have finalized invoice/link state; the webhook payload then reflects
+                // the post-completion view the merchant expects.
+                $webhookListener = ensureType($c->get(\OwnPay\Service\Payment\WebhookAutoDispatchListener::class), \OwnPay\Service\Payment\WebhookAutoDispatchListener::class);
+                $events->addAction('payment.transaction.completed', [$webhookListener, 'onTransactionCompleted'], 30);
             });
         } catch (\Throwable) {}
     }
@@ -783,7 +823,13 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class),
             ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
             ensureType($c->get(\OwnPay\Service\System\AuditLogger::class), \OwnPay\Service\System\AuditLogger::class),
-            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+            // Issue #340 (PAY-12): wire GatewayBridge + LedgerService + TransactionRepository
+            // so RefundReconciliationJob can probe the gateway for refund status at the
+            // 30-minute mark before falling back to the 24-hour stale-pending auto-fail.
+            ensureType($c->get(\OwnPay\Gateway\GatewayBridge::class), \OwnPay\Gateway\GatewayBridge::class),
+            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class),
+            ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class)
         );
     });
 

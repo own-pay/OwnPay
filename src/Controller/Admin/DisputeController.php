@@ -176,6 +176,83 @@ final class DisputeController
     }
 
     /**
+     * Post handler to open a new dispute for a transaction.
+     *
+     * Surfaces the previously-unreachable {@see DisputeService::open()} code path
+     * (issue #61) so admins can create disputes from the admin panel without
+     * requiring a manual database insert. Validates that the transaction exists
+     * and belongs to the active brand before opening the dispute.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
+    public function create(Request $req): Response
+    {
+        $this->brand->resolveFromRequest($req);
+        $mid = $this->brand->getActiveBrandId();
+
+        if ($mid === null) {
+            $this->session->flashError('Select a brand first.');
+            return Response::redirect('/admin/disputes');
+        }
+
+        $postData = $req->post();
+        if (!is_array($postData)) {
+            $postData = [];
+        }
+
+        $txnIdVal = $postData['transaction_id'] ?? '';
+        $txnId = is_numeric($txnIdVal) ? (int) $txnIdVal : 0;
+        $reasonVal = $postData['reason'] ?? '';
+        $reason = is_string($reasonVal) ? InputSanitizer::string(trim($reasonVal)) : '';
+        $amountVal = $postData['amount'] ?? '0';
+        $amount = (is_string($amountVal) || is_numeric($amountVal)) ? (string) $amountVal : '0';
+
+        if ($txnId <= 0 || $reason === '' || !is_numeric($amount)) {
+            $this->session->flashError('Transaction ID, reason, and a valid amount are required.');
+            return Response::redirect('/admin/disputes');
+        }
+
+        // Verify the transaction exists and belongs to the active brand before
+        // opening a dispute - prevents a brand admin from opening a dispute
+        // against another brand's transaction via direct ID guessing.
+        $transaction = $this->txnRepo->forTenant((int) $mid)->findScoped($txnId);
+        if ($transaction === null) {
+            $this->session->flashError('Transaction not found or does not belong to this brand.');
+            return Response::redirect('/admin/disputes');
+        }
+
+        try {
+            $this->disputeService->open((int) $mid, $txnId, $reason, $amount);
+
+            $db = $this->c->get(\OwnPay\Core\Database::class);
+            if ($db instanceof \OwnPay\Core\Database) {
+                $db->insert('op_audit_logs', [
+                    'merchant_id' => $mid,
+                    'user_id'     => $this->session->currentUser()['id'] ?? null,
+                    'action'      => 'dispute.open',
+                    'entity_type' => 'dispute',
+                    'entity_id'   => $txnId,
+                    'new_values'  => json_encode([
+                        'transaction_id' => $txnId,
+                        'reason'         => $reason,
+                        'amount'         => $amount,
+                    ]),
+                    'ip_address'  => $req->server('REMOTE_ADDR'),
+                    'user_agent'  => $req->server('HTTP_USER_AGENT'),
+                    'created_at'  => \OwnPay\Support\DateHelper::now(),
+                ]);
+            }
+
+            $this->session->flashSuccess('Dispute opened successfully.');
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to open dispute: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/disputes');
+    }
+
+    /**
      * Post handler to record dispute resolution status and description.
      *
      * @param Request $req The incoming HTTP request.

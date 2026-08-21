@@ -309,12 +309,27 @@ final class DevicePairingServiceTest extends TestCase
                 if (strpos($sql, 'op_merchant_users') !== false) {
                     return ['id' => 1];
                 }
+                if (strpos($sql, 'op_cache') !== false) {
+                    // Failure-counter lookup; default to no prior failures.
+                    return null;
+                }
                 return null;
             }
 
             public function transaction(callable $callback): mixed
             {
                 return $callback();
+            }
+
+            /**
+             * Override insert() so the OTP-failure-counter write path does
+             * not touch the uninitialized $pdo property (the mock has no
+             * real PDO connection - Database::$pdo is only set by init()).
+             */
+            public function insert(string $sql, array $params = []): string
+            {
+                $this->executed[] = compact('sql', 'params');
+                return '0';
             }
         };
 

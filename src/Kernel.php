@@ -105,6 +105,20 @@ final class Kernel
         $registerServices = require $rootDir . '/config/services.php';
         $registerServices($this->container);
 
+        // CORE-2: lock the security-critical services immediately after
+        // their bindings are registered in config/services.php. Once locked,
+        // any subsequent bind()/singleton()/instance()/forget() call for
+        // these abstracts throws RuntimeException - so a malicious plugin
+        // booting later in this method cannot replace Database, EventManager,
+        // AdminSession, FieldEncryptor, SettingsRepository, or PluginRegistry
+        // with a wrapper that exfiltrates data or forges auth state.
+        $this->container->lock(\OwnPay\Core\Database::class);
+        $this->container->lock(\OwnPay\Event\EventManager::class);
+        $this->container->lock(\OwnPay\Service\Admin\AdminSession::class);
+        $this->container->lock(\OwnPay\Security\FieldEncryptor::class);
+        $this->container->lock(\OwnPay\Repository\SettingsRepository::class);
+        $this->container->lock(\OwnPay\Plugin\PluginRegistry::class);
+
         try {
             if ($this->container->has(\OwnPay\Repository\SettingsRepository::class)) {
                 $settingsRepo = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
@@ -113,6 +127,21 @@ final class Kernel
                 }
             }
         } catch (\Throwable) {
+        }
+
+        // Wire a logger into EnvironmentService so DB persistence failures
+        // from EnvironmentService::set() surface in the application error
+        // log instead of being silently swallowed (issue #388).
+        try {
+            if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $envLogger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                if ($envLogger instanceof \OwnPay\Service\System\Logger) {
+                    \OwnPay\Service\System\EnvironmentService::setLogger($envLogger);
+                }
+            }
+        } catch (\Throwable) {
+            // Logger unavailable - EnvironmentService::set() will degrade to
+            // silent caching as before; not fatal.
         }
 
         try {
@@ -176,6 +205,15 @@ final class Kernel
                 $this->safeLog('Plugin boot error: ' . $e->getMessage(), 'error');
             }
         }
+
+        // CORE-2: freeze the container now that plugin boot is complete.
+        // Past this point, no new bind()/singleton()/instance()/forget()
+        // calls are permitted - route handlers, middleware, controllers,
+        // and any code holding a container reference cannot swap any service.
+        // Critical services were already individually locked above; this
+        // extends the immutability to ALL services for the rest of the
+        // request lifecycle.
+        $this->container->freeze();
 
         // 5. Load middleware config
         $this->middlewareConfig = require $rootDir . '/config/middleware.php';

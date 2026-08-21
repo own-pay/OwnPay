@@ -85,12 +85,29 @@ final class GatewayApiServiceWebhookEligibilityTest extends IntegrationTestCase
         $this->assertTrue($eligible);
     }
 
-    public function testPendingTransactionAllowedRegardlessOfGateway(): void
+    public function testPendingTransactionWithNonEmptySlugRejectsStaleGateway(): void
     {
+        // PAY-17 (issue #345): a pending transaction that still carries a non-empty
+        // gateway_slug must NOT be eligible for a webhook from a different gateway.
+        // Such a row was likely reverted from processing without clearing the slug;
+        // accepting a stale callback from the abandoned gateway would hijack the
+        // completion. (When the row IS reverted via reactivateForRetry() the slug is
+        // cleared to '' - that case is covered by the empty-slug test below.)
         $this->insertTransaction('zzwhelig-3', '11111111-2222-4333-8444-zzwhelig003', 'pending', 'bkash-api');
 
         $eligible = $this->service->isTransactionEligibleForWebhookCompletion('zzwhelig-3', $this->merchantId, 'nagad-api');
-        $this->assertTrue($eligible);
+        $this->assertFalse($eligible, 'pending row with non-empty gateway_slug must reject a stale gateway webhook');
+    }
+
+    public function testPendingTransactionWithEmptySlugAcceptsAnyGateway(): void
+    {
+        // PAY-17: truly unclaimed pending rows (empty gateway_slug, e.g. freshly
+        // created or reverted via reactivateForRetry which clears the slug) accept
+        // any gateway's webhook. This is the new "any gateway may complete" path.
+        $this->insertTransaction('zzwhelig-3b', '11111111-2222-4333-8444-zzwhelig03b', 'pending', '');
+
+        $eligible = $this->service->isTransactionEligibleForWebhookCompletion('zzwhelig-3b', $this->merchantId, 'nagad-api');
+        $this->assertTrue($eligible, 'pending row with empty gateway_slug must accept any gateway webhook');
     }
 
     public function testAlreadyCompletedTransactionRejectsAnyFurtherWebhook(): void

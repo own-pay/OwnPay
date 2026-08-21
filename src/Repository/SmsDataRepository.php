@@ -43,14 +43,59 @@ final class SmsDataRepository extends BaseRepository
      * from the same device, matching sender, and matching received timestamp
      * within a strict ±1 second tolerance window.
      *
+     * When a content fingerprint is supplied (issue #63), two messages with the
+     * same device/sender/timestamp but distinct content are treated as distinct
+     * events. Without the fingerprint the legacy behaviour is preserved so
+     * existing callers and tests continue to work. The fingerprint is derived
+     * from the encrypted payload before decryption, so it is available at the
+     * point of the dedup check.
+     *
      * @param string $deviceId The pairing identifier of the originating device.
      * @param string $sender The raw sender address or number.
      * @param string $receivedAt The date-time string of when the SMS was received.
+     * @param string|null $contentFingerprint Optional normalized hash of the SMS body or encrypted payload.
      * @return bool True if a matching duplicate is found, false otherwise.
      * @throws \LogicException If the active tenant context cannot be resolved.
      */
-    public function isDuplicate(string $deviceId, string $sender, string $receivedAt): bool
+    public function isDuplicate(string $deviceId, string $sender, string $receivedAt, ?string $contentFingerprint = null): bool
     {
+        // When a content fingerprint is provided, a duplicate requires the same
+        // fingerprint too. We perform a single EXISTS query that is satisfied
+        // only when an identical (device, sender, timestamp, content) row exists.
+        //
+        // SMS-1: Removed the `OR local_id = :lid` clause. The fingerprint is
+        // a 32-char MD5 hex string, but `local_id` is an INT column. MySQL
+        // coerces the hex string to an integer when comparing to an INT -
+        // because MD5 hex chars are 0-9a-f, any string starting with a-f
+        // (~87.5% of hashes) coerces to 0, turning the condition into
+        // `local_id = 0`. Any previously-stored row from the same device+
+        // sender within ±1s whose `local_id` was 0 (e.g. a buggy companion
+        // app that sends local_id: 0) would match - even when the SMS content
+        // was entirely different. The MD5(body) = :fp2 clause was also dead
+        // code: it compared the MD5 of a stored plaintext body to the MD5 of
+        // a new *encrypted* payload, which can never match. Both clauses are
+        // removed; dedup now relies solely on MD5(encrypted_raw) = :fp,
+        // which is the correct comparison (encrypted payload vs encrypted
+        // payload, both via MD5).
+        if ($contentFingerprint !== null && $contentFingerprint !== '') {
+            $row = $this->db->fetchOne(
+                "SELECT 1 AS hit FROM {$this->table}
+                 WHERE device_id = :did AND sender = :sender
+                   AND ABS(TIMESTAMPDIFF(SECOND, received_at, :received_at)) <= 1
+                   AND merchant_id = :mid
+                   AND MD5(encrypted_raw) = :fp
+                 LIMIT 1",
+                [
+                    'did'         => $deviceId,
+                    'sender'      => $sender,
+                    'received_at' => $receivedAt,
+                    'mid'         => $this->requireTenant(),
+                    'fp'          => $contentFingerprint,
+                ]
+            );
+            return $row !== null;
+        }
+
         $row = $this->db->fetchOne(
             "SELECT COUNT(*) as cnt FROM {$this->table}
              WHERE device_id = :did AND sender = :sender

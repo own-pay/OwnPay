@@ -123,7 +123,7 @@ final class SmsGatewayAddonTest extends IntegrationTestCase
         $this->assertSame('+8801700000000', $log['recipient']);
         $this->assertSame('sms', $log['channel']);
 
-        $expectedMessage = 'Hi John Doe, invoice INV-2026-001 of BDT 1500.00 is ready. Due date: 2026-06-15. Pay here: https://localhost/invoice/invoice_test_token_123';
+        $expectedMessage = 'Hi John Doe, invoice INV-****-001 of BDT ****.00 is ready. Due date: ****-06-15. Pay here: https://localhost/invoice/invoice_test_token_123';
         $this->assertSame($expectedMessage, $log['body']);
     }
 
@@ -161,6 +161,12 @@ final class SmsGatewayAddonTest extends IntegrationTestCase
         $log = $logs[0];
         $this->assertSame('+8801800000000', $log['recipient']);
 
+        // CommunicationService::sendSms() intentionally redacts runs of 4+
+        // digits from the persisted log body so that admin viewers cannot
+        // read live OTPs / amounts / transaction ids. The raw message is
+        // still delivered to the recipient; only the stored log is masked.
+        // Note: '500' and '789' are only 3 digits long, so they are NOT
+        // redacted by the /\d{4,}/ regex.
         $expectedMessage = 'Thank you Jane Doe, your payment of BDT 500.00 (Trx ID: TXN-SUCCESS-789) was successful!';
         $this->assertSame($expectedMessage, $log['body']);
     }

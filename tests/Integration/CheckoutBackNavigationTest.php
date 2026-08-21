@@ -73,9 +73,14 @@ final class CheckoutBackNavigationTest extends IntegrationTestCase
 
     private function insertTransaction(string $trxId, string $uuid, string $status, string $gateway = 'bkash-api', ?int $intentId = null): int
     {
+        // The 10-minute cooldown inside reactivateForRetry() (issue #338, PAY-10)
+        // means a freshly inserted `processing` row has updated_at = NOW() and is
+        // therefore NOT eligible for revert, which would make
+        // testProcessingTransactionShowsCheckoutPageNotStatus always fail.
+        // Back-date updated_at by 15 minutes so the revert path is exercised.
         $this->db->execute(
-            "INSERT INTO op_transactions (merchant_id, uuid, trx_id, payment_intent_id, gateway_slug, amount, net_amount, currency, method, status)
-             VALUES (:mid, :uuid, :trx, :pi, :gw, '100.00', '100.00', 'BDT', 'api', :status)",
+            "INSERT INTO op_transactions (merchant_id, uuid, trx_id, payment_intent_id, gateway_slug, amount, net_amount, currency, method, status, updated_at)
+             VALUES (:mid, :uuid, :trx, :pi, :gw, '100.00', '100.00', 'BDT', 'api', :status, DATE_SUB(NOW(6), INTERVAL 15 MINUTE))",
             ['mid' => $this->merchantId, 'uuid' => $uuid, 'trx' => $trxId, 'pi' => $intentId, 'gw' => $gateway, 'status' => $status]
         );
         $row = $this->db->fetchOne("SELECT id FROM op_transactions WHERE trx_id = :t", ['t' => $trxId]);
@@ -84,9 +89,12 @@ final class CheckoutBackNavigationTest extends IntegrationTestCase
 
     private function insertIntent(string $token, string $uuid, string $status): int
     {
+        // Back-date updated_at by 15 minutes so the cooldown predicate
+        // `updated_at < NOW() - INTERVAL 10 MINUTE` inside
+        // PaymentIntentRepository::reactivateForRetry() actually matches.
         $this->db->execute(
-            "INSERT INTO op_payment_intents (merchant_id, uuid, token, amount, currency, status, expires_at)
-             VALUES (:mid, :uuid, :token, '100.00', 'BDT', :status, DATE_ADD(NOW(6), INTERVAL 1 DAY))",
+            "INSERT INTO op_payment_intents (merchant_id, uuid, token, amount, currency, status, expires_at, updated_at)
+             VALUES (:mid, :uuid, :token, '100.00', 'BDT', :status, DATE_ADD(NOW(6), INTERVAL 1 DAY), DATE_SUB(NOW(6), INTERVAL 15 MINUTE))",
             ['mid' => $this->merchantId, 'uuid' => $uuid, 'token' => $token, 'status' => $status]
         );
         $row = $this->db->fetchOne("SELECT id FROM op_payment_intents WHERE token = :t", ['t' => $token]);

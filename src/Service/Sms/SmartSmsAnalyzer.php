@@ -254,7 +254,13 @@ PROMPT;
     /**
      * Validates SMS sender against whitelist rules.
      *
-     * Performs strict, case-sensitive string matching against values.
+     * Matching is **case-insensitive**: carriers send the same alpha sender id
+     * with inconsistent casing ("bKash" / "bkash" / "BKASH"), and the rest of
+     * the pipeline already normalizes for this (see
+     * {@see \OwnPay\Repository\SmsTemplateRepository::findBySender()} which
+     * uses `LOWER(...) = LOWER(...)`). A case-sensitive check here would tell
+     * an admin building a template that a sender is not whitelisted when the
+     * real production pipeline would have matched it fine (issue #68).
      *
      * @param string $sender The sender identity under validation.
      * @return bool True if permitted or if whitelist configurations are empty.
@@ -264,17 +270,64 @@ PROMPT;
         if (empty($this->senderWhitelist)) {
             return true;
         }
-        return in_array($sender, $this->senderWhitelist, strict: true);
+        $senderLower = mb_strtolower($sender, 'UTF-8');
+        foreach ($this->senderWhitelist as $allowed) {
+            if (mb_strtolower((string) $allowed, 'UTF-8') === $senderLower) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * Sanitizes regex patterns for display suggestions.
      *
+     * Strips the outer delimiters and the case-insensitive `/i` modifier (which
+     * the production parser auto-applies to undelimited fragments via
+     * {@see \OwnPay\Service\Sms\SmsRegexParser::ensureDelimiters()}) so the
+     * suggested fragment does not carry redundant flags. The Unicode `/u`
+     * modifier is preserved (issue #69) because ensureDelimiters() does NOT
+     * re-add it, and several built-in patterns rely on it for Bengali text
+     * (the ৳ symbol and Bengali keywords). Dropping it would silently
+     * downgrade Unicode-aware matching once the suggestion is saved.
+     *
+     * SMS-2: The previous implementation returned `$body . $keepU`, which
+     * produced an undelimited fragment like
+     * `(?:Tk\.?|TK)\s*([\d,]+(?:\.\d{1,2})?)u`. When the admin saved this
+     * suggestion verbatim, SmsRegexParser::ensureDelimiters() failed to
+     * detect it as already-delimited (the leading `(` is not a valid
+     * delimiter) and wrapped it as `/(?:Tk\.?|TK)\s*([\d,]+(?:\.\d{1,2})?)u/i`
+     * - turning the `u` into a literal body character and losing the /u
+     * Unicode modifier. The broken template passed syntax validation but
+     * never matched a real SMS.
+     *
+     * The fix returns a fully-delimited pattern including the /u modifier
+     * (e.g. `/(?:Tk\.?|TK)\s*([\d,]+(?:\.\d{1,2})?)/iu`) so ensureDelimiters()
+     * treats it as already-delimited and preserves the modifiers verbatim.
+     *
      * @param string $pattern The raw regex string.
-     * @return string Sanitized regex representation without outer delimiters or modifiers.
+     * @return string Fully-delimited regex with /u preserved when present.
      */
     private function patternToSuggestion(string $pattern): string
     {
-        return (string) preg_replace('/^\/(.*)\/[a-z]*$/u', '$1', $pattern);
+        // Capture the trailing modifier list (everything after the closing delimiter).
+        if (preg_match('/^\/.*\/([a-z]*)$/isu', $pattern, $m)) {
+            $modifiers = $m[1];
+            // Always preserve `u` (Unicode) and `i` (case-insensitive) since
+            // the SMS pipeline relies on both for Bengali + case-insensitive
+            // matching. Other modifiers (s, m, x) are preserved as-is.
+            $keepU = str_contains($modifiers, 'u') ? 'u' : '';
+            $keepI = str_contains($modifiers, 'i') ? 'i' : '';
+        } else {
+            $keepU = '';
+            $keepI = '';
+        }
+        $body = (string) preg_replace('/^\/(.*)\/[a-z]*$/u', '$1', $pattern);
+        // SMS-2: return a fully-delimited pattern so ensureDelimiters()
+        // recognises it as already-delimited and preserves the modifiers
+        // verbatim. Returning a bare body + 'u' suffix caused the 'u' to be
+        // treated as a literal body character once re-wrapped.
+        $modifiers = $keepI . $keepU;
+        return '/' . $body . '/' . $modifiers;
     }
 }

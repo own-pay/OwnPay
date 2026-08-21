@@ -85,6 +85,7 @@ return [
     'payment.transaction.failed'        => ['type' => 'action', 'location' => 'TransactionService'],
     'payment.transaction.cancelled'     => ['type' => 'action', 'location' => 'TransactionService'],
     'payment.refund.reconciliation_failed' => ['type' => 'action', 'location' => 'RefundReconciliationJob'],
+    'payment.refund.requires_verification' => ['type' => 'action', 'location' => 'RefundReconciliationJob'],
     'refund.created'                    => ['type' => 'action', 'location' => 'RefundController'],
     'transaction.status.before'         => ['type' => 'action', 'location' => 'TransactionController'],
     'transaction.status.changed'        => ['type' => 'action', 'location' => 'TransactionController'],

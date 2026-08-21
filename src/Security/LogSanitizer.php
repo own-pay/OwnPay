@@ -29,7 +29,13 @@ final class LogSanitizer
         'jwt', 'token', 'refresh_token',
         'credentials_enc', 'webhook_secret',
         'credit_card', 'card_number', 'cvv', 'cvc',
-        'ssn', 'social_security', 'authorization', 'signing_secret'
+        'ssn', 'social_security', 'authorization', 'signing_secret',
+        // 2FA / OTP / verification-code fields (SEC-17): previously these slipped
+        // through unredacted because none of them matched the suffix patterns
+        // in containsSensitiveKey() either. A live 6-digit OTP landing in a
+        // debug log is a credential disclosure.
+        'otp', 'mfa_code', 'verification_code', 'code', 'pin',
+        'auth_code', 'backup_code', 'recovery_code',
     ];
 
     /**
@@ -109,7 +115,21 @@ final class LogSanitizer
     }
 
     /**
-     * Sanitizes raw log messages to mask sensitive signatures such as Bearer tokens, JWTs, and API keys.
+     * Sanitizes raw log messages to mask sensitive signatures and PII.
+     *
+     * Masks (in order):
+     *   - Bearer tokens
+     *   - OwnPay-style API keys (op_<8>.<rest>)
+     *   - JWTs
+     *   - Email addresses
+     *   - Bangladeshi mobile phone numbers (01XXXXXXXXX / +8801XXXXXXXXX)
+     *   - Payment card numbers (13–19 digits, Luhn-validated to avoid
+     *     false-positives on non-card numeric IDs)
+     *
+     * This static method is the single source of truth for message-text
+     * sanitization and is called by Logger::log(). It does NOT perform
+     * strict-mode NID redaction because NID strictness depends on instance
+     * state - callers needing NID redaction use the instance sanitizeString().
      *
      * @param string $message The raw log message string.
      * @return string The sanitized log message.
@@ -123,31 +143,33 @@ final class LogSanitizer
         // Mask JWTs.
         $message = preg_replace('/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/', '[JWT_REDACTED]', $message) ?? $message;
 
+        // Redact email addresses.
+        $message = preg_replace('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', '[EMAIL_REDACTED]', $message) ?? $message;
+
+        // Redact Bangladeshi phone numbers (01XXXXXXXXX or +8801XXXXXXXXX).
+        $message = preg_replace('/(?:\+?88)?01[3-9]\d{8}/', '[PHONE_REDACTED]', $message) ?? $message;
+
+        // Redact Maestro/UnionPay 13-19 digit card patterns using Luhn checksum validation.
+        $message = preg_replace_callback('/\b(?:\d[ -]*?){13,19}\b/', function (array $match): string {
+            $digits = (string) preg_replace('/\D/', '', $match[0]);
+            return self::passesLuhn($digits) ? '[CARD_REDACTED]' : $match[0];
+        }, $message) ?? $message;
+
         return $message;
     }
 
     /**
-     * Non-static wrapper to sanitize a string payload, applying patterns for email, phone, and payment card detection.
+     * Non-static wrapper to sanitize a string payload.
      *
-     * Implements Luhn checksum validation to distinguish actual credit card numbers from general IDs.
+     * Delegates the heavy lifting (tokens, JWTs, emails, phones, cards) to the
+     * static sanitizeMessage() and additionally applies strict-mode NID
+     * redaction when the instance was constructed with strict=true.
      *
      * @param string $input The raw log text input.
      * @return string The sanitized log text.
      */
     public function sanitizeString(string $input): string
     {
-        // Redact email addresses.
-        $input = preg_replace('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', '[EMAIL_REDACTED]', $input) ?? $input;
-
-        // Redact phone numbers.
-        $input = preg_replace('/(?:\+?88)?01[3-9]\d{8}/', '[PHONE_REDACTED]', $input) ?? $input;
-
-        // Redact Maestro/UnionPay 13-19 digit card patterns using Luhn checksum validation.
-        $input = preg_replace_callback('/\b(?:\d[ -]*?){13,19}\b/', function (array $match): string {
-            $digits = (string) preg_replace('/\D/', '', $match[0]);
-            return self::passesLuhn($digits) ? '[CARD_REDACTED]' : $match[0];
-        }, $input) ?? $input;
-
         // Redact Bangladesh NID identifiers under strict-mode checks (13 or 17 digit numeric sequences).
         if ($this->strict) {
             $input = preg_replace('/\b\d{17}\b/', '[NID_REDACTED]', $input) ?? $input;
@@ -212,6 +234,16 @@ final class LogSanitizer
     {
         $patterns = ['_secret', '_key', '_token', '_hash'];
         foreach ($patterns as $pattern) {
+            if (str_contains($key, $pattern)) {
+                return true;
+            }
+        }
+        // Catch OTP/MFA/code substrings in compound keys (SEC-17):
+        // e.g. `sms_otp`, `device_pin`, `totp_code`, `user_pin_hash` (the
+        // `_hash` suffix already catches the last one, but `_otp`, `_code`,
+        // `_pin` need explicit coverage).
+        $codePatterns = ['_otp', '_code', '_pin', 'otp', 'mfa'];
+        foreach ($codePatterns as $pattern) {
             if (str_contains($key, $pattern)) {
                 return true;
             }

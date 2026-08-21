@@ -62,6 +62,43 @@ interface GatewayAdapterInterface
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array;
 
     /**
+     * Reports whether this adapter exposes a refund-status query API.
+     *
+     * Adapters that can synchronously confirm whether a previously-initiated
+     * refund succeeded, failed, or was never recorded at the gateway should
+     * override this to return true and implement getRefundStatus().
+     *
+     * Default is false so the reconciliation job knows to skip gateway probing
+     * for adapters that have no such API (in which case the existing 24-hour
+     * stale-pending backstop applies).
+     *
+     * @return bool True when getRefundStatus() is implemented and meaningful.
+     */
+    public function supportsRefundStatus(): bool;
+
+    /**
+     * Queries the gateway for the current status of a previously-initiated refund.
+     *
+     * Used by RefundReconciliationJob to reconcile refunds stuck in 'pending'
+     * status - typically because PHP crashed between the gateway call and the
+     * local status update. Adapters that do not support refund-status queries
+     * should leave the default null-returning stub in GatewayDefaults.
+     *
+     * The $gatewayRefundId is the value returned in the 'refund_id' field of
+     * refund() when the refund was first initiated. When that ID was never
+     * persisted locally, callers may also pass the original gateway_trx_id of
+     * the underlying transaction - adapters that can resolve refund status
+     * from the transaction ID should accept either form; adapters that cannot
+     * should return null.
+     *
+     * @param string $gatewayRefundId The gateway-side refund identifier (or transaction ID fallback).
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return string|null One of 'succeeded', 'failed', 'pending', 'not_found', or null when the
+     *                     status cannot be determined (unknown / API unavailable / unsupported).
+     */
+    public function getRefundStatus(string $gatewayRefundId, array $credentials): ?string;
+
+    /**
      * Checks whether the gateway adapter supports a specific capability or feature.
      *
      * @param string $feature Name of the capability (e.g., 'refund', 'subscription').

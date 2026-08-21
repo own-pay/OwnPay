@@ -146,6 +146,7 @@ final class SettingsController
                 'timer_enabled' => $brandSettings['timer_enabled'] ?? '0',
                 'timer_seconds' => $brandSettings['timer_seconds'] ?? '900',
                 'show_faq' => $brandSettings['show_faq'] ?? '0',
+                'auto_redirect_to_merchant' => $brandSettings['auto_redirect_to_merchant'] ?? '0',
                 'custom_css' => $brandSettings['custom_css'] ?? '',
                 'custom_js' => $brandSettings['custom_js'] ?? '',
             ];
@@ -548,6 +549,11 @@ final class SettingsController
                     $brandSettings['timer_seconds'] = is_scalar($timerSecondsVal) ? (string) $timerSecondsVal : '900';
                     
                     $brandSettings['show_faq'] = isset($data['show_faq']) && $data['show_faq'] === '1' ? '1' : '0';
+
+                    // Issue #71: auto-redirect toggle. When enabled, the success
+                    // page issues an immediate client-side redirect to the
+                    // merchant return URL instead of showing the invoice screen.
+                    $brandSettings['auto_redirect_to_merchant'] = isset($data['auto_redirect_to_merchant']) && $data['auto_redirect_to_merchant'] === '1' ? '1' : '0';
                     
                     $isSuperadmin = !empty($_SESSION['is_superadmin']);
                     if ($isSuperadmin) {
@@ -556,10 +562,25 @@ final class SettingsController
                         $customJsVal = $data['custom_js'] ?? ($brandSettings['custom_js'] ?? '');
                         $customJs = is_string($customJsVal) ? $customJsVal : '';
 
-                        $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
-                        $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', is_string($customCss) ? $customCss : '');
+                        // Sanitize brand-supplied CSS (issue #79). Even though
+                        // only superadmins can set this field, defense-in-depth
+                        // removes the well-known CSS-borne XSS vectors so a
+                        // compromised superadmin session cannot weaponize the
+                        // checkout page against customers.
+                        //
+                        // SECURITY (TMPL-4): brand-controlled custom_js is now
+                        // injected by checkout.js WITHOUT the page's CSP nonce,
+                        // so it is blocked by the browser's CSP
+                        // `script-src 'self' 'nonce-{$nonce}'` directive unless
+                        // the operator has explicitly opted in by adding
+                        // 'unsafe-inline' to script-src via the
+                        // 'checkout.csp.sources' filter hook. Saving custom_js
+                        // here is always allowed (and audit-logged below) so
+                        // the value is preserved for deployments that have
+                        // opted in, but it will not execute by default.
+                        $customCss = $this->sanitizeBrandCss($customCss);
 
-                        $brandSettings['custom_css'] = is_string($customCss) ? $customCss : '';
+                        $brandSettings['custom_css'] = $customCss;
                         $brandSettings['custom_js']  = $customJs;
                     }
                     break;
@@ -1151,6 +1172,17 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
+                // UI-2: Treat an empty smtp_password as "no change" so the
+                // password field can be left blank in the form (the template
+                // no longer echoes the current password into the page source).
+                // Only overwrite the stored password when a non-empty value
+                // is submitted.
+                if ($key === 'smtp_password') {
+                    $smtpVal = is_scalar($data[$key]) ? (string) $data[$key] : '';
+                    if ($smtpVal === '') {
+                        continue;
+                    }
+                }
                 $filtered[$key] = is_array($data[$key]) ? (json_encode($data[$key]) ?: '') : (is_scalar($data[$key]) ? (string) $data[$key] : '');
             }
         }
@@ -1748,5 +1780,75 @@ final class SettingsController
         }
 
         return Response::redirect('/admin/settings/language');
+    }
+
+    /**
+     * Sanitizes brand-supplied custom CSS for known XSS vectors (issue #79).
+     *
+     * Brand CSS is rendered into a `<style>` element on the customer-facing
+     * checkout page, so the attack surface is CSS-borne script execution
+     * rather than HTML injection. The following patterns are stripped:
+     *
+     *  - `expression(...)`: IE-only dynamic-expression XSS, still relevant
+     *    for very old browsers and corporate legacy estates.
+     *  - `behavior:` and `-moz-binding`: legacy IE/Firefox script-binding
+     *    properties that load external behavior files.
+     *  - `javascript:` URL scheme inside `url(...)` values: classic XSS vector
+     *    for CSS-driven navigation.
+     *  - `@import`: loading remote stylesheets opens an exfiltration and
+     *    script-injection channel via attacker-controlled `url()` values.
+     *  - `<script>` blocks: defense-in-depth in case the CSS is later
+     *    rendered into an HTML context (e.g. inline `<div style="...">`).
+     *
+     * This is intentionally a denylist - it catches the documented vectors
+     * without breaking legitimate CSS. New attack vectors are mitigated by
+     * the CSP nonce requirement on injected `<style>` elements (see
+     * `public/assets/js/checkout.js`).
+     *
+     * @param string $css Raw brand-supplied CSS.
+     * @return string Sanitized CSS with known XSS vectors removed.
+     */
+    private function sanitizeBrandCss(string $css): string
+    {
+        // Decode CSS hex-escape sequences before applying the denylist
+        // (audit THM-1). Browsers decode `\65` to `e`, `\6D` to `m`, `\73`
+        // to `s`, etc. before applying the rule, so an attacker can encode
+        // keyword characters (`expr\65ssion`, `b\65havior:`, `@i\6Dport`,
+        // `url(java\73cript:)`) to evade every regex below. Normalising the
+        // escapes first makes the denylist effective against encoded
+        // payloads. Only `\` + 1-6 hex digits (optionally followed by a
+        // single whitespace) is decoded; literal escapes like `\.` or `\:`
+        // (non-hex) are left untouched so legitimate CSS identifiers still
+        // survive. Null codepoints are stripped entirely (they break the
+        // regex matchers and have no legitimate use in brand CSS).
+        $css = (string) preg_replace_callback(
+            '/\\\\([0-9a-fA-F]{1,6})\s?/u',
+            static function (array $m): string {
+                $code = (int) hexdec($m[1]);
+                if ($code === 0 || $code > 0x10FFFF) {
+                    return '';
+                }
+                return mb_chr($code, 'UTF-8');
+            },
+            $css
+        );
+
+        // Strip legacy dynamic-expression / behavior-binding properties.
+        $css = (string) preg_replace('/expression\s*\(/i', '(', $css);
+        $css = (string) preg_replace('/-?behavior\s*:/i', 'x-behavior-disabled:', $css);
+        $css = (string) preg_replace('/-moz-binding\s*:/i', 'x-moz-binding-disabled:', $css);
+
+        // Neutralize javascript: URLs inside url(...) values.
+        $css = (string) preg_replace('/url\s*\(\s*["\']?\s*javascript\s*:/i', 'url(', $css);
+
+        // Block @import - remote stylesheets are an exfiltration + injection
+        // channel; brand CSS should be self-contained.
+        $css = (string) preg_replace('/@import\b[^;]*;?/i', '', $css);
+
+        // Defense-in-depth: strip any embedded <script> blocks in case the
+        // CSS is ever rendered into an HTML context.
+        $css = (string) preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', $css);
+
+        return $css;
     }
 }

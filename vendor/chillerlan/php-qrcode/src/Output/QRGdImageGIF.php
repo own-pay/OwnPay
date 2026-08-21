@@ -9,6 +9,7 @@
  *
  * @noinspection PhpComposerExtensionStubsInspection
  */
+declare(strict_types=1);
 
 namespace chillerlan\QRCode\Output;
 
@@ -21,13 +22,15 @@ use function imagegif;
  */
 class QRGdImageGIF extends QRGdImage{
 
-	public const MIME_TYPE = 'image/gif';
+	final public const MIME_TYPE = 'image/gif';
 
 	/**
-	 * @inheritDoc
+	 * @throws \chillerlan\QRCode\Output\QRCodeOutputException
 	 */
 	protected function renderImage():void{
-		imagegif($this->image);
+		if(imagegif(image: $this->image) === false){
+			throw new QRCodeOutputException('imagegif() error');
+		}
 	}
 
 }

@@ -126,14 +126,14 @@ final class PluginMigrator
                         );
                     });
                 } else {
-                    // Empty or unreadable down file — just delete the migration record
+                    // Empty or unreadable down file - just delete the migration record
                     $this->db->delete(
                         "DELETE FROM op_plugin_migrations WHERE plugin_slug = :slug AND migration = :mig",
                         ['slug' => $pluginSlug, 'mig' => $row['migration']]
                     );
                 }
             } else {
-                // No down file exists — just delete the migration record
+                // No down file exists - just delete the migration record
                 $this->db->delete(
                     "DELETE FROM op_plugin_migrations WHERE plugin_slug = :slug AND migration = :mig",
                     ['slug' => $pluginSlug, 'mig' => $row['migration']]

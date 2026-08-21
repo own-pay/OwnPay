@@ -1,6 +1,6 @@
 # OwnPay Stress & Load Testing Guide (k6)
 
-This directory contains the load testing configuration for **OwnPay**. The stress test script simulates real-world payment flows—including health checks, API payment initiation, and loading white-labeled checkout screens—under customizable concurrency targets.
+This directory contains the load testing configuration for **OwnPay**. The stress test script simulates real-world payment flows-including health checks, API payment initiation, and loading white-labeled checkout screens-under customizable concurrency targets.
 
 ---
 

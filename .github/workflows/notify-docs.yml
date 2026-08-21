@@ -1,7 +1,10 @@
-# Triggers the documentation sync in own-pay/ownpay-docs whenever
-# synced documentation files change on the main branch.
-name: Notify Docs Sync
-
+# This workflow is a reference template that should be added to the main own-pay/OwnPay repository.
+# It automatically triggers the documentation sync in own-pay/ownpay-docs whenever
+# synced files change in the main codebase's main branch.
+name: Notify Docs Sync Reference Template
+permissions:
+  contents: read
+  pull-requests: write
 on:
   push:
     branches: [main]
@@ -19,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger docs sync
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.DOCS_SYNC_TOKEN }}
           repository: own-pay/ownpay-docs

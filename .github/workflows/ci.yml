@@ -1,4 +1,4 @@
-# Continuous Integration — runs on every PR and push to dev/main.
+# Continuous Integration - runs on every PR and push to dev/main.
 # Enforces PHP linting, static analysis, unit tests, and frontend checks.
 name: CI
 
@@ -8,25 +8,39 @@ on:
   pull_request:
     branches: [main, dev]
 
+# Minimum permissions required for CI to read source and report statuses.
+# GitHub Advanced Security flagged the absence of this block on every job
+# in PR #120 - the default GITHUB_TOKEN otherwise grants contents:write,
+# pull-requests:write, etc.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ──────────────────────────────────────────────
-  # PHP Lint — parallel syntax check across all PHP files
+  # PHP Lint - parallel syntax check across all PHP files
   # ──────────────────────────────────────────────
   php-lint:
     name: PHP Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: none
+          # Extensions required by src/Plugin/PluginInstaller, src/Update/UpdateService,
+          # src/Update/BackupService and their tests. shivammathur/setup-php ships these
+          # by default on its ubuntu Docker image, but listing them explicitly makes
+          # the requirement self-documenting and resilient to image changes.
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -35,19 +49,22 @@ jobs:
         run: vendor/bin/parallel-lint src config modules templates/install public/index.php
 
   # ──────────────────────────────────────────────
-  # PHPStan — static analysis at level 9
+  # PHPStan - static analysis at level 9
   # ──────────────────────────────────────────────
   phpstan:
     name: PHPStan Analyse
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: none
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -56,11 +73,13 @@ jobs:
         run: vendor/bin/phpstan analyse --no-progress --error-format=github
 
   # ──────────────────────────────────────────────
-  # PHPUnit — unit + integration + feature tests
+  # PHPUnit - unit + integration + feature tests
   # ──────────────────────────────────────────────
   phpunit:
     name: PHPUnit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       mysql:
         image: mysql:8.0
@@ -75,13 +94,14 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: xdebug
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -89,25 +109,36 @@ jobs:
       - name: Initialize test database
         run: |
           mysql -h 127.0.0.1 -u root -proot ownpay_test < database/schema.sql
-        continue-on-error: true
+          for f in database/seeds/*.sql; do
+            mysql -h 127.0.0.1 -u root -proot ownpay_test < "$f"
+          done
 
       - name: Run PHPUnit
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: ownpay_test
+          DB_USER: root
+          DB_PASS: root
         run: vendor/bin/phpunit --colors=always
 
   # ──────────────────────────────────────────────
-  # Twig CS Fixer — template lint
+  # Twig CS Fixer - template lint
   # ──────────────────────────────────────────────
   twig-lint:
     name: Twig Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: none
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
@@ -116,16 +147,18 @@ jobs:
         run: vendor/bin/twig-cs-fixer lint templates
 
   # ──────────────────────────────────────────────
-  # Frontend Lint — ESLint + Stylelint
+  # Frontend Lint - ESLint + Stylelint
   # ──────────────────────────────────────────────
   frontend-lint:
     name: Frontend Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -137,16 +170,18 @@ jobs:
         run: npm run lint
 
   # ──────────────────────────────────────────────
-  # Frontend Tests — Vitest
+  # Frontend Tests - Vitest
   # ──────────────────────────────────────────────
   frontend-test:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -158,19 +193,22 @@ jobs:
         run: npm test
 
   # ──────────────────────────────────────────────
-  # Composer Audit — dependency vulnerability check
+  # Composer Audit - dependency vulnerability check
   # ──────────────────────────────────────────────
   composer-audit:
     name: Composer Audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           coverage: none
+          extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
