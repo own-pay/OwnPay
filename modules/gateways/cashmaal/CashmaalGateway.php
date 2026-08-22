@@ -172,7 +172,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
             $amountStr = is_scalar($amount) ? (string) $amount : '';
             $currencyStr = (string) $currency;
 
-            $nonceVal = $this->container->has('csp_nonce') ? $this->container->get('csp_nonce') : '';
+            $nonceVal = $this->container->has(\OwnPay\Security\CspNonce::class) ? (string) $this->container->get(\OwnPay\Security\CspNonce::class) : '';
             $nonceAttr = is_string($nonceVal) && $nonceVal !== '' ? ' nonce="' . htmlspecialchars($nonceVal, ENT_QUOTES, 'UTF-8') . '"' : '';
 
             echo '

@@ -43,7 +43,10 @@ final class SecurityHeadersMiddleware
         $nonce = base64_encode(random_bytes(16));
         $request->setAttribute('csp_nonce', $nonce);
 
-        $this->container->instance('csp_nonce', $nonce);
+        // Store nonce in the CspNonce singleton (registered before container freeze).
+        if ($this->container->has(\OwnPay\Security\CspNonce::class)) {
+            $this->container->get(\OwnPay\Security\CspNonce::class)->set($nonce);
+        }
 
         $response = $next($request);
 

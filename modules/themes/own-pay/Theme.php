@@ -57,7 +57,7 @@ final class Theme implements PluginInterface
         });
 
         $events->addAction('checkout.footer', function () use ($container): void {
-            $nonceVal = $container->has('csp_nonce') ? $container->get('csp_nonce') : '';
+            $nonceVal = $container->has(\OwnPay\Security\CspNonce::class) ? (string) $container->get(\OwnPay\Security\CspNonce::class) : '';
             $nonceAttr = is_string($nonceVal) && $nonceVal !== '' ? ' nonce="' . htmlspecialchars($nonceVal, ENT_QUOTES, 'UTF-8') . '"' : '';
             echo '<script' . $nonceAttr . ' src="/assets/js/op-fetch.js"></script>';
             echo '<script' . $nonceAttr . ' src="/assets/js/checkout.js"></script>';
