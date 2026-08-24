@@ -28,7 +28,7 @@ class Database
     /**
      * Configured application table prefix.
      */
-    private string $tablePrefix;
+    private string $tablePrefix = 'op_';
 
     /**
      * @var self|null The singleton instance used for testing/fallback context.
