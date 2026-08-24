@@ -101,7 +101,7 @@
 
 .ck-brand-logo {
     width: 48px; height: 48px; border-radius: var(--r-xl);
-    background: rgb(255 255 255 / 10%); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    background: rgb(255 255 255 / 10%); backdrop-filter: blur(8px);
     display: flex; align-items: center; justify-content: center;
     border: 1px solid rgb(255 255 255 / 8%);
 }
@@ -397,7 +397,6 @@
 .ck-popup-backdrop {
     position: absolute; inset: 0;
     background: rgb(8 13 26 / 55%); backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
 }
 
 .ck-popup-dialog {
@@ -509,7 +508,6 @@
 .ck-modal-backdrop {
     position: absolute; inset: 0;
     background: rgb(8 13 26 / 45%); backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
     opacity: 0; transition: opacity var(--modal-open-dur) var(--modal-ease);
 }
 
@@ -520,7 +518,6 @@
 .ck-modal-dialog {
     position: relative; z-index: 1;
     background: rgb(255 255 255 / 97%); backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
     border-radius: var(--r-shell); padding: 24px;
     max-width: 380px; width: 100%; box-shadow: var(--shadow-modal);
     transform: scale(var(--modal-scale)); opacity: 0;
@@ -609,7 +606,7 @@
 .ck-loading-overlay {
     position: fixed; inset: 0; background: rgb(15 23 42 / 70%);
     display: flex; align-items: center; justify-content: center;
-    z-index: 9999; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    z-index: 9999; backdrop-filter: blur(4px);
 }
 .ck-loading-content { text-align: center; color: #fff; }
 
