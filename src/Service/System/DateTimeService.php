@@ -40,7 +40,7 @@ final class DateTimeService
         string $dateFormat = 'Y-m-d',
         string $timeFormat = 'H:i:s'
     ) {
-        $this->timezone = $timezone ?? (getenv('APP_TIMEZONE') ?: 'UTC');
+        $this->timezone = $timezone ?? (getenv('APP_TIMEZONE') ?: 'Asia/Dhaka');
         $this->dateFormat = $dateFormat;
         $this->timeFormat = $timeFormat;
     }
@@ -143,7 +143,8 @@ final class DateTimeService
      */
     public static function getCurrentDatetime(string $format = 'Y-m-d H:i:s'): string
     {
-        $tz = getenv('APP_TIMEZONE') ?: 'UTC';
+        $timezoneValue = $_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE');
+        $tz = is_string($timezoneValue) && $timezoneValue !== '' ? $timezoneValue : 'Asia/Dhaka';
         return (new \DateTimeImmutable('now', new \DateTimeZone($tz)))->format($format);
     }
 }

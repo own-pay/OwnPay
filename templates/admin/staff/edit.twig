@@ -75,13 +75,9 @@
             </div>
             <div class="op-form-group">
                 <label>Permissions</label>
-                <div class="op-checkbox-grid">
-                    {% for perm in available_permissions %}
-                    <label class="op-checkbox-label">
-                        <input type="checkbox" name="permissions[]" value="{{ perm }}" {{ perm in (user.permissions ?? []) ? 'checked' : '' }}>
-                        {{ perm }}
-                    </label>
-                    {% endfor %}
+                <div class="op-alert op-alert-info">
+                    Permissions are inherited from the selected role. Manage role permissions from
+                    <a href="/admin/roles">Roles &amp; Permissions</a>.
                 </div>
             </div>
 

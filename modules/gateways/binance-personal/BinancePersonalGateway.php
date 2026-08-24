@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\BinancePersonal;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Binance Personal Address Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInterface
+final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -50,6 +51,56 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
             ['name' => 'bscscan_api_key', 'label' => 'BscScan API Key', 'type' => 'password', 'required' => false],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * This gateway has no provider account to authenticate against - it just displays a wallet
+     * address and later checks payment via BscScan. Validates the wallet address format, and
+     * if a BscScan API key is configured, verifies it against BscScan's free stats endpoint
+     * (the same host verify() uses for transaction lookups).
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $walletAddress = $this->getString($credentials['wallet_address'] ?? null);
+        if (!preg_match('/^0x[a-fA-F0-9]{40}$/', $walletAddress)) {
+            return ['success' => false, 'message' => 'The configured BSC Address is not a valid 0x... wallet address.'];
+        }
+
+        $apiKey = $this->getString($credentials['bscscan_api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => true, 'message' => 'Wallet address is valid. No BscScan API Key configured - transaction confirmation will run in simulated mode.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? 'https://api.bscscan.com/api' : 'https://api-testnet.bscscan.com/api';
+
+        $ch = curl_init($baseUrl . '?' . http_build_query([
+            'module' => 'stats',
+            'action' => 'bnbprice',
+            'apikey' => $apiKey,
+        ]));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach BscScan - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $status = is_array($data) && is_scalar($data['status'] ?? null) ? (string) $data['status'] : '';
+        if ($status === '1') {
+            return ['success' => true, 'message' => 'Wallet address is valid and the BscScan API Key authenticated successfully.'];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['result'] ?? null) ? (string) $data['result'] : 'BscScan rejected the provided API Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

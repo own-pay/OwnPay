@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\SslCommerz;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * SSLCommerz payment gateway adapter supporting Bangladesh localized and international payment routing.
  */
-final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterface
+final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -134,6 +135,69 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
      * @return array{redirect_url: string|null} payment response containing the redirect URL or raw HTML form.
      * @throws \RuntimeException If the session initiation request fails.
      */
+    /**
+     * Verifies store_id/store_passwd against SSLCommerz's session-init API. SSLCommerz has no
+     * separate "ping" endpoint - a session-init call with placeholder order data is the only way
+     * to validate credentials, and it doesn't move money (no card is ever entered; the unused
+     * session simply expires).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $storeId = is_scalar($credentials['store_id'] ?? null) ? (string) $credentials['store_id'] : '';
+        $storePasswd = is_scalar($credentials['store_passwd'] ?? null) ? (string) $credentials['store_passwd'] : '';
+        if ($storeId === '' || $storePasswd === '') {
+            return ['success' => false, 'message' => 'Enter Store ID and Store Password before testing the connection.'];
+        }
+        $mode = ($credentials['mode'] ?? 'sandbox') === 'live' ? 'live' : 'sandbox';
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $ch = curl_init($baseUrl . '/gwprocess/v4/api.php');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => [
+                'store_id'          => $storeId,
+                'store_passwd'      => $storePasswd,
+                'total_amount'      => '10',
+                'currency'          => 'BDT',
+                'tran_id'           => 'op_test_' . bin2hex(random_bytes(6)),
+                'success_url'       => 'https://example.com/success',
+                'fail_url'          => 'https://example.com/fail',
+                'cancel_url'        => 'https://example.com/cancel',
+                'cus_name'          => 'Test Customer',
+                'cus_email'         => 'customer@example.com',
+                'cus_phone'         => '01700000000',
+                'product_name'      => 'Connection Test',
+                'product_category'  => 'test',
+                'product_profile'   => 'general',
+                'shipping_method'   => 'NO',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach SSLCommerz - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'message' => 'SSLCommerz returned an unexpected response.'];
+        }
+
+        $status = is_scalar($data['status'] ?? null) ? (string) $data['status'] : '';
+        if ($status === 'SUCCESS') {
+            return ['success' => true, 'message' => "Connected successfully to SSLCommerz ({$mode} mode)."];
+        }
+
+        $failedReason = is_scalar($data['failedreason'] ?? null) ? (string) $data['failedreason'] : 'SSLCommerz rejected the provided credentials.';
+        return ['success' => false, 'message' => $failedReason];
+    }
+
     public function initiate(array $params, array $credentials): array
     {
         $baseUrl = ($credentials['mode'] ?? 'sandbox') === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
@@ -180,9 +244,9 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
         }
 
         $gatewayPageURL = $data['GatewayPageURL'] ?? null;
-        $gatewayPageURLStr = is_scalar($gatewayPageURL) ? (string) $gatewayPageURL : null;
+        $gatewayPageURLStr = is_scalar($gatewayPageURL) ? (string) $gatewayPageURL : '';
 
-        return ['redirect_url' => $gatewayPageURLStr];
+        return $gatewayPageURLStr !== '' ? ['redirect_url' => $gatewayPageURLStr] : [];
     }
 
     /**

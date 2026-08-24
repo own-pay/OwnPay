@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\PaypalCheckout;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * PayPal Checkout Gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInterface
+final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -67,6 +68,32 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
                 'required' => true
             ],
         ];
+    }
+
+    /**
+     * Verifies the configured Client ID/Secret authenticate against PayPal's real OAuth2 API by
+     * reusing the same getAccessToken() call initiate()/verify() rely on.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientIdRaw = $credentials['paypal_client_id'] ?? '';
+        $clientId = is_scalar($clientIdRaw) ? (string) $clientIdRaw : '';
+        $secretRaw = $credentials['paypal_secret'] ?? '';
+        $secret = is_scalar($secretRaw) ? (string) $secretRaw : '';
+        $modeRaw = $credentials['paypal_mode'] ?? 'sandbox';
+        $mode = is_scalar($modeRaw) ? (string) $modeRaw : 'sandbox';
+
+        if ($clientId === '' || $secret === '') {
+            return ['success' => false, 'message' => 'Enter the PayPal Client ID and Secret before testing the connection.'];
+        }
+
+        $accessToken = $this->getAccessToken($clientId, $secret, $mode);
+        return $accessToken !== null
+            ? ['success' => true, 'message' => "Connected successfully to PayPal ({$mode} mode)."]
+            : ['success' => false, 'message' => 'PayPal rejected the provided Client ID/Secret.'];
     }
 
     public function initiate(array $params, array $credentials): array

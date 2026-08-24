@@ -26,14 +26,23 @@
             <div class="st-row-divider"></div>
             <div class="st-row">
                 <span class="st-row-label">Transaction ID</span>
-                <span class="st-row-value">{{ txn.trx_id ?? '-' }}</span>
+                <span class="st-row-value st-row-value-wrap">{{ txn.trx_id ?? '-' }}</span>
             </div>
             <div class="st-row-divider"></div>
             <div class="st-row">
-                <span class="st-row-label">Gateway</span>
-                <span class="st-row-value">{{ txn.gateway_slug ?? 'OwnPay' }}</span>
+                <span class="st-row-label">{{ gateway_name ?? 'Gateway' }} Trx ID</span>
+                <span class="st-row-value st-row-value-wrap">{{ txn.gateway_trx_id ?? '-' }}</span>
             </div>
             <div class="st-row-divider"></div>
+            {% for refund in refunds|default([]) %}
+                {% if refund.status == 'completed' %}
+                <div class="st-row">
+                    <span class="st-row-label">{{ gateway_name ?? 'Gateway' }} Refund TRX ID</span>
+                    <span class="st-row-value st-row-value-wrap">{{ refund.gateway_refund_id ?? '-' }}</span>
+                </div>
+                <div class="st-row-divider"></div>
+                {% endif %}
+            {% endfor %}
             <div class="st-row">
                 <span class="st-row-label">Merchant</span>
                 <span class="st-row-value">{{ brand.name ?? 'OwnPay' }}</span>
@@ -63,6 +72,13 @@
 </div>
 
 <div class="st-footer">
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    Secured by <a href="/">{{ brand.name ?? 'OwnPay' }}</a> · 256-bit encryption
+    <div class="st-footer-secured">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        {{ brand.footer_text ?? 'Secured by OwnPay · 256-bit encryption' }}
+    </div>
+    {% if brand.show_powered_by|default('1') != '0' %}
+        <div class="st-footer-powered">
+            {{ ownpay_footer('', brand.powered_by_text ?? '', brand.powered_by_url ?? '')|raw }}
+        </div>
+    {% endif %}
 </div>

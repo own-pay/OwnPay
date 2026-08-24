@@ -125,6 +125,26 @@ final class GatewayApiService
                 'cancel_url'   => $params['cancel_url'] ?? '',
             ]);
 
+            // Persist the gateway's session/payment ID (e.g. bKash's paymentID, Stripe's checkout
+            // session id) so it's available later - some gateways' refund APIs require the original
+            // session id in addition to the settled transaction id (bKash does).
+            $sessionId = $result['session_id'] ?? null;
+            if (is_scalar($sessionId) && (string) $sessionId !== '') {
+                // The 'existing_txn' (checkout) flow only passes 'trx_id' in $transaction, not the
+                // numeric id - resolve it so the session id still gets persisted on that path too.
+                $txnIdForMeta = $transaction['id'] ?? null;
+                if (!is_scalar($txnIdForMeta)) {
+                    $trxIdForLookup = $transaction['trx_id'] ?? null;
+                    if (is_scalar($trxIdForLookup)) {
+                        $found = $this->transactions->findByTrxId($merchantId, (string) $trxIdForLookup);
+                        $txnIdForMeta = $found['id'] ?? null;
+                    }
+                }
+                if (is_scalar($txnIdForMeta)) {
+                    $this->transactions->updateMetadata((int) $txnIdForMeta, $merchantId, ['gateway_session_id' => (string) $sessionId]);
+                }
+            }
+
             $output = [
                 'success'      => true,
                 'transaction'  => $transaction,
@@ -172,7 +192,11 @@ final class GatewayApiService
         $verification = $this->bridge->verify($gatewaySlug, $merchantId, $callbackData);
 
         if (!$verification['success']) {
-            return ['success' => false, 'error' => 'Verification failed'];
+            $verificationError = $verification['error'] ?? 'Verification failed';
+            return [
+                'success' => false,
+                'error'   => is_scalar($verificationError) ? (string) $verificationError : 'Verification failed',
+            ];
         }
 
         $trxId = '';
@@ -193,13 +217,14 @@ final class GatewayApiService
         }
 
         $gwTrxId = $verification['gateway_trx_id'] ?? null;
+        $gwTrxIdStr = is_scalar($gwTrxId) && (string) $gwTrxId !== '' ? (string) $gwTrxId : null;
 
         $db = \OwnPay\Core\Database::getInstance();
         $transaction = null;
         $amountMismatch = false;
 
         try {
-            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, $gatewaySlug, &$transaction, &$amountMismatch) {
+            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $gwTrxIdStr, $verification, $gatewaySlug, &$transaction, &$amountMismatch) {
                 if ($trxId !== '') {
                     $transaction = $db->fetchOne(
                         "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
@@ -215,6 +240,38 @@ final class GatewayApiService
                 }
 
                 if ($transaction !== null) {
+                    // Reject if the gateway's own record of this payment (session/order metadata)
+                    // points to a DIFFERENT transaction than the one we're about to complete.
+                    // Without this, a customer could legitimately pay for transaction A and then
+                    // replay A's callback/redirect identifiers (e.g. a Stripe session_id, or any
+                    // other gateway's return param) against a second, same-amount 'processing'
+                    // transaction B to complete B for free off a single real payment.
+                    $verifiedTrxIdVal = $verification['trx_id'] ?? null;
+                    $verifiedTrxIdStr = is_scalar($verifiedTrxIdVal) ? (string) $verifiedTrxIdVal : '';
+                    $transactionTrxId = is_scalar($transaction['trx_id'] ?? null) ? (string) $transaction['trx_id'] : '';
+                    if ($verifiedTrxIdStr !== '' && $transactionTrxId !== '' && $verifiedTrxIdStr !== $transactionTrxId) {
+                        $transaction = null;
+                        return;
+                    }
+
+                    // Reject if this gateway transaction id has already completed a DIFFERENT
+                    // transaction. gateway_trx_id has no DB-level uniqueness constraint, so this
+                    // is the only guard against replaying one already-paid gateway reference
+                    // against multiple orders when the gateway doesn't echo back trx_id metadata
+                    // (the check above then has nothing to compare against).
+                    if ($gwTrxIdStr !== null) {
+                        $reused = $db->fetchOne(
+                            "SELECT id FROM op_transactions
+                             WHERE gateway_trx_id = :gtid AND merchant_id = :mid AND id != :id AND status = 'completed'
+                             LIMIT 1",
+                            ['gtid' => $gwTrxIdStr, 'mid' => $merchantId, 'id' => $transaction['id']]
+                        );
+                        if ($reused !== null) {
+                            $transaction = null;
+                            return;
+                        }
+                    }
+
                     $expectedVal = $transaction['amount'] ?? null;
                     $metaRaw = $transaction['metadata'] ?? null;
                     $meta = is_string($metaRaw) ? json_decode($metaRaw, true) : null;
@@ -241,12 +298,8 @@ final class GatewayApiService
                         $feeVal = $transaction['fee'] ?? '0.00';
                         $cur = $transaction['currency'] ?? 'BDT';
                         if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
-                            // Persist the gateway/provider transaction reference so SMS auto-verification
-                            // can use exact trx_id matching (issue #62). The verification payload from
-                            // the gateway adapter carries the canonical provider-side reference.
                             $this->persistProviderTrxId((int) $txnId, $merchantId, $gwTrxId, $transaction);
-
-                            $this->transactions->complete((int) $txnId, $merchantId);
+                            $this->transactions->complete((int) $txnId, $merchantId, $gwTrxIdStr);
 
                             // Record in ledger
                             $this->ledger->recordPaymentReceived(
@@ -313,26 +366,42 @@ final class GatewayApiService
     }
 
     /**
+     * Persists the gateway-side transaction reference for SMS auto-verification.
+     *
+     * @param int $transactionId The transaction primary key.
+     * @param int $merchantId The merchant/brand scope.
+     * @param mixed $gatewayTrxId The gateway-side reference returned by verification.
+     * @param array<string, mixed> $transaction The locked transaction row.
+     * @return void
+     */
+    private function persistProviderTrxId(int $transactionId, int $merchantId, mixed $gatewayTrxId, array $transaction): void
+    {
+        if (!is_string($gatewayTrxId) || $gatewayTrxId === '') {
+            return;
+        }
+
+        $existing = $transaction['provider_trx_id'] ?? null;
+        if (is_string($existing) && $existing !== '') {
+            return;
+        }
+
+        $db = \OwnPay\Core\Database::getInstance();
+        $db->execute(
+            "UPDATE op_transactions SET provider_trx_id = :ptid
+             WHERE id = :id AND merchant_id = :mid AND (provider_trx_id IS NULL OR provider_trx_id = '')",
+            ['ptid' => $gatewayTrxId, 'id' => $transactionId, 'mid' => $merchantId]
+        );
+    }
+
+    /**
      * Determines whether a webhook/callback is allowed to complete the given transaction.
      *
-     * `pending` transactions are eligible ONLY when their `gateway_slug` is empty/null
-     * (i.e. truly unclaimed - never had a gateway attempt recorded against them, OR
-     * was reverted back to `pending` by {@see TransactionRepository::reactivateForRetry()}
-     * which clears `gateway_slug` as part of the revert).
-     *
-     * A `pending` transaction with a NON-empty `gateway_slug` represents a row that
-     * was reverted from `processing` to `pending` WITHOUT clearing the slug (e.g. via
-     * a future code path that does not call reactivateForRetry, or via direct DB
-     * manipulation). In that case the callback's gateway must match the stored slug -
-     * a stale webhook from an abandoned gateway must not be allowed to hijack the
-     * completion. This closes the race window between SELECT and INSERT in the
-     * pre-PAY-10 reactivateForRetry path.
-     *
-     * Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
-     * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this
-     * prevents a late/stale webhook from a gateway the customer has since abandoned
-     * (e.g. went back to checkout and picked a different gateway) from completing the
-     * transaction under the wrong gateway's identity.
+     * `pending` transactions are always eligible (pre-existing behavior, unrelated to the guard
+     * below). Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
+     * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this prevents
+     * a late/stale webhook from a gateway the customer has since abandoned (e.g. went back to
+     * checkout and picked a different gateway) from completing the transaction under the wrong
+     * gateway's identity.
      *
      * @param array<string, mixed> $transaction The locked transaction row.
      * @param string $gatewaySlug The gateway that sent this callback (route-determined, not attacker-controlled).
@@ -344,48 +413,13 @@ final class GatewayApiService
         if (!in_array($status, ['pending', 'processing', 'callback_processing'], true)) {
             return false;
         }
-        $storedSlugVal = $transaction['gateway_slug'] ?? null;
-        $storedSlug = is_scalar($storedSlugVal) ? (string) $storedSlugVal : '';
+        $storedGateway = is_string($transaction['gateway_slug'] ?? null)
+            ? $transaction['gateway_slug']
+            : '';
         if ($status === 'pending') {
-            // Truly unclaimed (empty/null gateway_slug): accept any gateway's callback.
-            // Non-empty gateway_slug on a pending row: the callback must match the slug,
-            // because the row was likely reverted from processing without clearing the
-            // slug and a stale callback from the abandoned gateway must not hijack it.
-            return $storedSlug === '' || $storedSlug === $gatewaySlug;
+            return $storedGateway === '' || $storedGateway === $gatewaySlug;
         }
-        return $storedSlug === $gatewaySlug;
-    }
-
-    /**
-     * Persists the gateway-supplied transaction reference into op_transactions.provider_trx_id
-     * when it is not already populated.
-     *
-     * The column is the canonical source for exact-trx_id matching in SmsVerificationJob.
-     * We avoid overwriting an existing non-empty value to preserve the first authoritative
-     * reference (replays from gateways occasionally send a different format) and skip the
-     * write entirely when the candidate is empty or already matches the stored value, so
-     * the common path incurs no extra query.
-     *
-     * @param int $transactionId The transaction primary key.
-     * @param int $merchantId The merchant/brand scope.
-     * @param mixed $gatewayTrxId The gateway-side transaction reference returned by verification.
-     * @param array<string, mixed> $transaction The locked transaction row, used to skip redundant writes.
-     */
-    private function persistProviderTrxId(int $transactionId, int $merchantId, mixed $gatewayTrxId, array $transaction): void
-    {
-        if (!is_string($gatewayTrxId) || $gatewayTrxId === '') {
-            return;
-        }
-        $existing = $transaction['provider_trx_id'] ?? null;
-        if (is_string($existing) && $existing !== '') {
-            return;
-        }
-        $db = \OwnPay\Core\Database::getInstance();
-        $db->execute(
-            'UPDATE op_transactions SET provider_trx_id = :ptid
-             WHERE id = :id AND merchant_id = :mid AND (provider_trx_id IS NULL OR provider_trx_id = \'\')',
-            ['ptid' => $gatewayTrxId, 'id' => $transactionId, 'mid' => $merchantId]
-        );
+        return $storedGateway === $gatewaySlug;
     }
 
     /**

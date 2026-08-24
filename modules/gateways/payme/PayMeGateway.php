@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\PayMe;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * PayMe by HSBC Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class PayMeGateway implements PluginInterface, GatewayAdapterInterface
+final class PayMeGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -53,7 +54,10 @@ final class PayMeGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
-    public function initiate(array $params, array $credentials): array
+    /**
+     * @param array<string, mixed> $credentials
+     */
+    private function getAccessToken(array $credentials): string
     {
         $mode = $this->getString($credentials['mode'] ?? null);
         $authUrl = $mode === 'live'
@@ -62,7 +66,6 @@ final class PayMeGateway implements PluginInterface, GatewayAdapterInterface
 
         $clientId = $this->getString($credentials['client_id'] ?? null);
         $clientSecret = $this->getString($credentials['client_secret'] ?? null);
-        $signingKey = $this->getString($credentials['signing_key'] ?? null);
 
         $ch = curl_init($authUrl);
         curl_setopt_array($ch, [
@@ -78,10 +81,35 @@ final class PayMeGateway implements PluginInterface, GatewayAdapterInterface
         $response = curl_exec($ch);
         curl_close($ch);
         $data = json_decode((string) $response, true);
-        $token = '';
-        if (is_array($data)) {
-            $token = $this->getString($data['access_token'] ?? null);
+        return is_array($data) ? $this->getString($data['access_token'] ?? null) : '';
+    }
+
+    /**
+     * Verifies the configured Client ID/Secret authenticate against PayMe by HSBC's OAuth2 token
+     * endpoint - reuses the same call initiate() relies on to fetch its access token.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? null);
+        $clientSecret = $this->getString($credentials['client_secret'] ?? null);
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter the Client ID and Client Secret before testing the connection.'];
         }
+
+        $token = $this->getAccessToken($credentials);
+        return $token !== ''
+            ? ['success' => true, 'message' => 'Connected successfully to PayMe by HSBC.']
+            : ['success' => false, 'message' => 'PayMe by HSBC rejected the provided Client ID/Secret.'];
+    }
+
+    public function initiate(array $params, array $credentials): array
+    {
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $signingKey = $this->getString($credentials['signing_key'] ?? null);
+        $token = $this->getAccessToken($credentials);
 
         $url = $mode === 'live'
             ? 'https://api.payme.hsbc.com.hk/v1/paymentrequests'

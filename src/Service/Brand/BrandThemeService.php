@@ -80,6 +80,9 @@ final class BrandThemeService
                 'custom_js'      => '',
                 'footer_text'    => 'Secured by OwnPay · 256-bit encryption',
                 'show_powered_by'=> true,
+                'powered_by_text'=> '',
+                'powered_by_url' => '',
+                'show_faq'       => true,
             ];
         }
 
@@ -113,6 +116,9 @@ final class BrandThemeService
             'custom_js'      => $this->resolveVal($brandSettings, $merchantJsonSettings, 'custom_js', ''),
             'footer_text'    => $this->resolveVal($brandSettings, $merchantJsonSettings, 'footer_text', 'Secured by ' . (is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : 'OwnPay') . ' · 256-bit encryption'),
             'show_powered_by'=> (bool) ($brandSettings['show_powered_by'] ?? $merchantJsonSettings['show_powered_by'] ?? true),
+            'powered_by_text'=> $this->resolveVal($brandSettings, $merchantJsonSettings, 'powered_by_text', ''),
+            'powered_by_url' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'powered_by_url', ''),
+            'show_faq'       => (bool) ($brandSettings['show_faq'] ?? $merchantJsonSettings['show_faq'] ?? true),
             'language'       => $this->resolveVal($brandSettings, $merchantJsonSettings, 'language', ''),
             'checkout_success_msg' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'checkout_success_msg', ''),
             'checkout_pending_msg' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'checkout_pending_msg', ''),

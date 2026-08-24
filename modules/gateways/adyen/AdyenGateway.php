@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Adyen;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Adyen Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class AdyenGateway implements PluginInterface, GatewayAdapterInterface
+final class AdyenGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -52,6 +53,54 @@ final class AdyenGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'hmac_key', 'label' => 'HMAC Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['test' => 'test', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the API key/merchant account against Adyen's Checkout API paymentMethods
+     * endpoint - a free, read-only lookup of the merchant's enabled payment methods that
+     * requires valid auth but never creates a session or moves money.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $merchantAccount = $this->getString($credentials['merchant_account'] ?? null);
+        if ($apiKey === '' || $merchantAccount === '') {
+            return ['success' => false, 'message' => 'Enter API Key and Merchant Account before testing the connection.'];
+        }
+
+        $url = $mode === 'live'
+            ? 'https://checkout-live.adyenpayments.com/checkout/v71/paymentMethods'
+            : 'https://checkout-test.adyen.com/checkout/v71/paymentMethods';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'x-api-key: ' . $apiKey,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => (string) json_encode(['merchantAccount' => $merchantAccount]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Adyen - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Adyen (' . ($mode === 'live' ? 'live' : 'test') . ' mode).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Adyen rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

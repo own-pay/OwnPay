@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class FastSpringGateway implements PluginInterface, GatewayAdapterInterface
+final class FastSpringGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -237,6 +238,46 @@ final class FastSpringGateway implements PluginInterface, GatewayAdapterInterfac
         }
 
         return ['success' => false];
+    }
+
+    /**
+     * Verifies the API Username/Password authenticate against FastSpring's Accounts API
+     * (read-only, HTTP Basic Auth) without touching any order or session.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiUsername = $this->getString($credentials['api_username'] ?? '');
+        $apiPassword = $this->getString($credentials['api_password'] ?? '');
+        if ($apiUsername === '' || $apiPassword === '') {
+            return ['success' => false, 'message' => 'Enter the API Username and API Password before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.fastspring.com/accounts?limit=1');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $apiUsername . ':' . $apiPassword,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach FastSpring - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to FastSpring.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'FastSpring rejected the provided API Username/Password.'];
+        }
+        return ['success' => false, 'message' => 'FastSpring returned HTTP ' . $httpCode . '.'];
     }
 
     /**

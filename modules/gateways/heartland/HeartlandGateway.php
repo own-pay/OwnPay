@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class HeartlandGateway implements PluginInterface, GatewayAdapterInterface
+final class HeartlandGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -240,6 +241,50 @@ final class HeartlandGateway implements PluginInterface, GatewayAdapterInterface
     /**
      * Validates webhook signatures.
      */
+    /**
+     * Verifies the Secret API Key authenticates against Heartland Portico's charges API
+     * (Basic Auth, key as username) via a lightweight lookup - no charge is created.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Secret API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $mode === 'live'
+            ? 'https://api2.heartlandportico.com/v2/charges?limit=1'
+            : 'https://cert.api2.heartlandportico.com/v2/charges?limit=1';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $apiKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Heartland - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Heartland rejected the provided Secret API Key.'];
+        }
+        if ($httpCode >= 200 && $httpCode < 500) {
+            return ['success' => true, 'message' => 'Connected successfully to Heartland (' . $mode . ' mode).'];
+        }
+        return ['success' => false, 'message' => 'Heartland returned HTTP ' . $httpCode . '.'];
+    }
+
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $webhookHeader = 'X-Heartland-Signature';

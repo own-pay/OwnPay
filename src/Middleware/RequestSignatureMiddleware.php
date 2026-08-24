@@ -191,7 +191,7 @@ final class RequestSignatureMiddleware
         }
 
         // Fallback to env
-        $secretVal = getenv('WEBHOOK_SIGNING_SECRET') ?: null;
+        $secretVal = ($_ENV['WEBHOOK_SIGNING_SECRET'] ?? getenv('WEBHOOK_SIGNING_SECRET')) ?: null;
         $secret = is_string($secretVal) ? $secretVal : null;
         return $secret ?: null;
     }

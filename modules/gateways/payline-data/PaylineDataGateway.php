@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class PaylineDataGateway implements PluginInterface, GatewayAdapterInterface
+final class PaylineDataGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -108,6 +109,51 @@ final class PaylineDataGateway implements PluginInterface, GatewayAdapterInterfa
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the configured Merchant ID/API Secret Key authenticate against Payline Data's API
+     * by attempting a lookup with a dummy reference - reuses the same endpoint/auth style as
+     * initiate()/verify(). A structured API response (even a "not found") confirms the endpoint
+     * accepted the request; a network failure or auth-rejection status does not.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? null);
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($merchantId === '' || $apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant ID and API Secret Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = ($mode === 'live' ? 'https://api.payline.com' : 'https://sandbox.payline.com') . '/api/transactions/connection-test';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Basic ' . base64_encode($merchantId . ':' . $apiKey),
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Payline Data - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Payline Data rejected the provided Merchant ID/API Secret Key.'];
+        }
+        return ['success' => true, 'message' => "Reached Payline Data's API and credentials were accepted ({$mode} mode)."];
     }
 
     /**

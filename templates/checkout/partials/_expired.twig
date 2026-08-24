@@ -1,4 +1,5 @@
 {# ═══════ EXPIRED STATUS ═══════ #}
+{% set is_refunded = (status|default('') == 'refunded') %}
 <div class="st-card">
     <div class="st-header st-header-expired">
         <div class="st-icon-wrap">
@@ -10,10 +11,16 @@
         </div>
         <span class="st-badge st-badge-expired">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Expired
+            {{ is_refunded ? 'Refunded' : 'Expired' }}
         </span>
         <h1 class="st-title">{{ status_label ?? 'Payment Expired' }}</h1>
-        <p class="st-subtitle">This payment session has expired for security reasons. Please start a new payment if needed.</p>
+        <p class="st-subtitle">
+            {% if is_refunded %}
+                This transaction has been refunded. Below are the related refund details.
+            {% else %}
+                This payment session has expired for security reasons. Please start a new payment if needed.
+            {% endif %}
+        </p>
     </div>
 
     <div class="st-body">
@@ -23,6 +30,23 @@
                 <span class="st-row-label">Transaction ID</span>
                 <span class="st-row-value">{{ txn.trx_id }}</span>
             </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
+                <span class="st-row-label">{{ gateway_name ?? 'Gateway' }} TRX ID</span>
+                <span class="st-row-value st-row-value-wrap">{{ txn.gateway_trx_id ?? '-' }}</span>
+            </div>
+            {% if is_refunded %}
+                {% for refund in refunds|default([]) %}
+                    {% if refund.status == 'completed' %}
+                    <div class="st-row-divider"></div>
+                    <div class="st-row-divider"></div>
+                    <div class="st-row">
+                        <span class="st-row-label">{{ gateway_name ?? 'Gateway' }} Refund TRX ID</span>
+                        <span class="st-row-value st-row-value-wrap">{{ refund.gateway_refund_id ?? '-' }}</span>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
             <div class="st-row-divider"></div>
             {% endif %}
             {% if txn.amount is defined and txn.amount %}
@@ -39,7 +63,7 @@
             <div class="st-row-divider"></div>
             <div class="st-row">
                 <span class="st-row-label">Status</span>
-                <span class="st-row-value st-text-expired">Session expired</span>
+                <span class="st-row-value st-text-expired">{{ is_refunded ? 'Refunded' : 'Session expired' }}</span>
             </div>
         </div>
     </div>

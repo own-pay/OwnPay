@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Toss;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Toss Payments Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class TossGateway implements PluginInterface, GatewayAdapterInterface
+final class TossGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -49,6 +50,56 @@ final class TossGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'client_key', 'label' => 'Client Key', 'type' => 'text', 'required' => true],
             ['name' => 'secret_key', 'label' => 'Secret Key', 'type' => 'password', 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the secret key authenticates against Toss Payments' API. Reuses verify()'s own
+     * confirm-payment call with deliberately invalid IDs - Toss's error code distinguishes a bad
+     * key (UNAUTHORIZED_KEY) from a reached-and-authenticated request (any other error, since the
+     * dummy payment/order IDs don't exist). No real payment is created either way.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter a Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.tosspayments.com/v1/payments/confirm');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Basic ' . base64_encode($secretKey . ':'),
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'paymentKey' => 'op_connection_test',
+                'orderId'    => 'op_connection_test',
+                'amount'     => 1,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Toss Payments - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $code = is_array($data) && is_scalar($data['code'] ?? null) ? (string) $data['code'] : '';
+
+        if ($httpCode === 401 || $code === 'UNAUTHORIZED_KEY') {
+            $message = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Toss Payments rejected the provided credentials.';
+            return ['success' => false, 'message' => $message];
+        }
+
+        return ['success' => true, 'message' => 'Connected successfully to Toss Payments.'];
     }
 
     public function initiate(array $params, array $credentials): array

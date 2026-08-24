@@ -19,7 +19,7 @@ on:
   schedule:
     - cron: '33 14 * * 5'
 
-# Minimum permissions - CodeQL flagged the absence of this block.
+# Minimum permissions — CodeQL flagged the absence of this block.
 permissions:
   contents: read
 
@@ -38,7 +38,7 @@ jobs:
       # Scan code using project's configuration on https://semgrep.dev/manage
       #
       # Migrated from the deprecated returntocorp/semgrep-action to the
-      # Semgrep Native GitHub Action (semgrep/semgrep-action) - see
+      # Semgrep Native GitHub Action (semgrep/semgrep-action) — see
       # https://github.com/marketplace/actions/semgrep-action. The
       # returntocorp repository was officially deprecated and is no
       # longer receiving updates. Both actions wrap the same Docker
@@ -54,7 +54,7 @@ jobs:
 
       # Verify the SARIF file is present AND valid JSON before upload.
       # Semgrep may produce no SARIF on empty repos, missing tokens, or
-      # internal Semgrep errors - guarding here prevents the upload step
+      # internal Semgrep errors — guarding here prevents the upload step
       # from failing with "Invalid SARIF. JSON syntax error".
       - name: Verify SARIF file is valid
         id: verify_sarif
@@ -74,7 +74,7 @@ jobs:
           echo "valid=true" >> "$GITHUB_OUTPUT"
 
       # Upload SARIF file generated in previous step.
-      # CodeQL Action v4 is required - v3 is being deprecated in December 2026.
+      # CodeQL Action v4 is required — v3 is being deprecated in December 2026.
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v4
         with:

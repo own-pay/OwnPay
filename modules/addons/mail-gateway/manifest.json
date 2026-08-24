@@ -9,7 +9,7 @@
   "entrypoint": "Plugin.php",
   "namespace": "OwnPay\\Modules\\Addons\\MailGateway",
   "capabilities": [
-    "addon"
+    "communication"
   ],
   "requires": {
     "core": ">=0.1.0"

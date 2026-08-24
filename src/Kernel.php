@@ -93,8 +93,17 @@ final class Kernel
         $rootDir = dirname(__DIR__);
 
         // 1. Load .env
+        //
+        // Mutable, not immutable: this host runs one shared PHP-FPM pool across many
+        // unrelated sites, and worker processes are reused across requests from different
+        // apps. createImmutable() refuses to overwrite an env var that's already set in the
+        // process - so if a prior request (for a *different* site on the same worker) left
+        // its own APP_KEY/ENCRYPTION_KEY/etc. behind via putenv(), this app would silently
+        // inherit that foreign value instead of its own .env, causing sporadic decryption
+        // failures ("data may be tampered") that have nothing to do with real tampering.
+        // createMutable() makes this app's own .env always win for its own requests.
         if (class_exists(\Dotenv\Dotenv::class)) {
-            $dotenv = \Dotenv\Dotenv::createImmutable($rootDir);
+            $dotenv = \Dotenv\Dotenv::createMutable($rootDir);
             $dotenv->safeLoad();
         }
 
@@ -182,6 +191,28 @@ final class Kernel
                 $db = $this->container->get(\OwnPay\Core\Database::class);
                 if ($db instanceof \OwnPay\Core\Database) {
                     $this->ensureApiKeyLockedStatus($db);
+                }
+            }
+        } catch (\Throwable) {
+            // Graceful - column check just won't run this request (e.g. DB not ready/setup yet)
+        }
+
+        try {
+            if ($this->container->has(\OwnPay\Core\Database::class)) {
+                $db = $this->container->get(\OwnPay\Core\Database::class);
+                if ($db instanceof \OwnPay\Core\Database) {
+                    $this->ensureRefundFailureReasonColumn($db);
+                }
+            }
+        } catch (\Throwable) {
+            // Graceful - column check just won't run this request (e.g. DB not ready/setup yet)
+        }
+
+        try {
+            if ($this->container->has(\OwnPay\Core\Database::class)) {
+                $db = $this->container->get(\OwnPay\Core\Database::class);
+                if ($db instanceof \OwnPay\Core\Database) {
+                    $this->ensureRefundGatewayRefundIdColumn($db);
                 }
             }
         } catch (\Throwable) {
@@ -431,6 +462,36 @@ final class Kernel
         $col = $db->fetchOne("SHOW COLUMNS FROM op_api_keys LIKE 'status'");
         if (is_array($col) && isset($col['Type']) && is_string($col['Type']) && !str_contains($col['Type'], 'locked')) {
             $db->execute("ALTER TABLE op_api_keys MODIFY COLUMN status ENUM('active','locked','revoked') NOT NULL DEFAULT 'active'");
+        }
+    }
+
+    /**
+     * Adds the `failure_reason` column to `op_refunds` on already-installed instances that
+     * predate it, so a declined/errored gateway refund can record why. Fresh installs get it
+     * directly from schema.sql; this covers upgrades, following the same SHOW COLUMNS /
+     * ALTER TABLE pattern used for op_manual_gateways.payment_number above.
+     */
+    private function ensureRefundFailureReasonColumn(\OwnPay\Core\Database $db): void
+    {
+        $col = $db->fetchOne("SHOW COLUMNS FROM op_refunds LIKE 'failure_reason'");
+        if (!is_array($col)) {
+            $db->execute("ALTER TABLE op_refunds ADD COLUMN failure_reason VARCHAR(500) DEFAULT NULL AFTER status");
+        }
+    }
+
+    /**
+     * Adds the `gateway_refund_id` column to `op_refunds` on already-installed instances that
+     * predate it, so the gateway's own refund transaction ID (e.g. bKash's refundTrxID, Stripe's
+     * re_xxx) is recorded on completion instead of being discarded. Fresh installs get it directly
+     * from schema.sql; this covers upgrades, following the same SHOW COLUMNS / ALTER TABLE pattern
+     * used for op_refunds.failure_reason above.
+     */
+    private function ensureRefundGatewayRefundIdColumn(\OwnPay\Core\Database $db): void
+    {
+        $col = $db->fetchOne("SHOW COLUMNS FROM op_refunds LIKE 'gateway_refund_id'");
+        if (!is_array($col)) {
+            $db->execute("ALTER TABLE op_refunds ADD COLUMN gateway_refund_id VARCHAR(200) DEFAULT NULL AFTER failure_reason");
+            $db->execute("ALTER TABLE op_refunds ADD KEY idx_gateway_refund (gateway_refund_id)");
         }
     }
 

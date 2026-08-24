@@ -76,7 +76,7 @@ class FieldEncryptor
     public function __construct(?string $key = null)
     {
         if ($key !== null) {
-            // Caller supplied an explicit key - derive via HKDF, no legacy fallback.
+            // Caller supplied an explicit key — derive via HKDF, no legacy fallback.
             if ($key === '') {
                 throw new \RuntimeException('ENCRYPTION_KEY not configured');
             }

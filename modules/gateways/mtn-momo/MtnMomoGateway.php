@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\MtnMomo;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * MTN Mobile Money (MoMo) Collection API v1.0 Gateway Adapter.
  */
-final class MtnMomoGateway implements PluginInterface, GatewayAdapterInterface
+final class MtnMomoGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -131,6 +132,33 @@ final class MtnMomoGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         throw new \RuntimeException('MTN MoMo OAuth error: Failed to parse access token.');
+    }
+
+    /**
+     * Verifies the API User ID/Key/Subscription Key authenticate against MTN MoMo's Collection
+     * API OAuth token endpoint - the same call initiate() makes before ever requesting a
+     * payment, so this generates an access token without prompting any collection.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiUserId = $this->getString($credentials['api_user_id'] ?? '');
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        $subKey = $this->getString($credentials['subscription_key'] ?? '');
+        if ($apiUserId === '' || $apiKey === '' || $subKey === '') {
+            return ['success' => false, 'message' => 'Enter API User ID, API Key, and Subscription Key before testing the connection.'];
+        }
+
+        try {
+            $this->getAccessToken($credentials);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        return ['success' => true, 'message' => "Connected successfully to MTN Mobile Money ({$mode} mode)."];
     }
 
     public function initiate(array $params, array $credentials): array

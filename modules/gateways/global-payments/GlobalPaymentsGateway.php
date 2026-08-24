@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class GlobalPaymentsGateway implements PluginInterface, GatewayAdapterInterface
+final class GlobalPaymentsGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -242,6 +243,57 @@ final class GlobalPaymentsGateway implements PluginInterface, GatewayAdapterInte
     /**
      * Validates webhook signatures.
      */
+    /**
+     * Verifies the Merchant ID/Account ID/API Key authenticate against Global Payments' API by
+     * probing the transactions list endpoint - no charge is created.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $accountId = $this->getString($credentials['account_id'] ?? '');
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($merchantId === '' || $accountId === '' || $apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant ID, Account ID, and API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = ($mode === 'live'
+            ? 'https://api.globalpay.com/v2/transactions'
+            : 'https://api.sandbox.globalpay.com/v2/transactions') . '?page_size=1';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'X-GP-Version: 2021-03-22',
+                'Authorization: Bearer ' . $apiKey,
+                'X-Merchant-Id: ' . $merchantId,
+                'X-Account-Id: ' . $accountId,
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Global Payments - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Global Payments rejected the provided credentials.'];
+        }
+        if ($httpCode >= 200 && $httpCode < 500) {
+            return ['success' => true, 'message' => 'Connected successfully to Global Payments (' . $mode . ' mode).'];
+        }
+        return ['success' => false, 'message' => 'Global Payments returned HTTP ' . $httpCode . '.'];
+    }
+
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $webhookHeader = 'X-GP-Signature';

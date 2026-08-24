@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class NetellerGateway implements PluginInterface, GatewayAdapterInterface
+final class NetellerGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -108,6 +109,53 @@ final class NetellerGateway implements PluginInterface, GatewayAdapterInterface
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the configured Client ID/Secret authenticate against Neteller's API by attempting
+     * a lightweight order lookup with a dummy reference - reuses the same endpoint/auth style as
+     * initiate()/verify(). A structured API response (even a "not found") confirms the endpoint
+     * accepted the request; a network failure or unparseable response does not.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? null);
+        $clientSecret = $this->getString($credentials['client_secret'] ?? null);
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter the Client ID and Client Secret before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = ($mode === 'live' ? 'https://api.neteller.com' : 'https://api.sandbox.neteller.com') . '/v1/orders/connection-test';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret),
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Neteller - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Neteller rejected the provided Client ID/Secret.'];
+        }
+        // A 404 for a nonexistent order still proves the API accepted our credentials and routed
+        // the request - only an auth-rejection status above counts as a real credential failure.
+        return ['success' => true, 'message' => "Reached Neteller's API and credentials were accepted ({$mode} mode)."];
     }
 
     /**

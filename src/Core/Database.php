@@ -26,6 +26,11 @@ class Database
     private PDO $pdo;
 
     /**
+     * Configured application table prefix.
+     */
+    private string $tablePrefix = 'op_';
+
+    /**
      * @var self|null The singleton instance used for testing/fallback context.
      */
     private static ?self $instance = null;
@@ -49,10 +54,15 @@ class Database
      * Database constructor.
      *
      * @param PDO $pdo The underlying PDO connection.
+     * @param string $tablePrefix The configured application table prefix.
      */
-    public function __construct(PDO $pdo)
+    public function __construct(PDO $pdo, string $tablePrefix = 'op_')
     {
         $this->pdo = $pdo;
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $tablePrefix)) {
+            throw new \InvalidArgumentException('Invalid database table prefix.');
+        }
+        $this->tablePrefix = $tablePrefix;
     }
 
     /**
@@ -250,6 +260,7 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
+        $sql = $this->applyTablePrefix($sql);
         // DB-1: The db.query.before filter previously fired on EVERY query,
         // including core-originated queries against sensitive tables
         // (op_api_keys, op_users, op_merchant_users, op_password_resets,
@@ -356,6 +367,35 @@ class Database
         }
 
         return $stmt;
+    }
+
+    /**
+     * Rewrites core table identifiers from the canonical op_ prefix to the
+     * configured prefix. SQL values and comments are intentionally untouched.
+     *
+     * @param string $sql SQL statement containing canonical table identifiers.
+     * @return string SQL statement using the configured table prefix.
+     */
+    private function applyTablePrefix(string $sql): string
+    {
+        if ($this->tablePrefix === 'op_') {
+            return $sql;
+        }
+
+        $rewritten = preg_replace_callback(
+            '/(?P<q>`)(?P<name>op_[a-z_][a-z0-9_]*)\k<q>'
+            . '|(?P<pre>[\s(])(?P<bare>op_[a-z_][a-z0-9_]*)/i',
+            function (array $match): string {
+                if ($match['q'] !== '') {
+                    $name = $match['name'];
+                    return $match['q'] . $this->tablePrefix . substr($name, 3) . $match['q'];
+                }
+                return $match['pre'] . $this->tablePrefix . substr($match['bare'], 3);
+            },
+            $sql
+        );
+
+        return is_string($rewritten) ? $rewritten : $sql;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\BkashApi;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * bKash API gateway adapter implementing the tokenized checkout flow.
  */
-final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
+final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -262,12 +263,22 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
                 'gateway_trx_id' => '',
                 'amount'         => null,
                 'status'         => 'failed',
-                'error'          => 'bKash API verification failed: Invalid response',
+                'error'          => 'bKash API verification failed: Invalid response (' . substr(trim((string) $response), 0, 200) . ')',
             ];
         }
 
         $statusCode = isset($data['statusCode']) && is_scalar($data['statusCode']) ? (string) $data['statusCode'] : '';
         $trxStatus = isset($data['transactionStatus']) && is_scalar($data['transactionStatus']) ? (string) $data['transactionStatus'] : '';
+
+        if ($statusCode === '2062' && $paymentId !== '') {
+            $statusData = $this->queryPaymentStatus($baseUrl, $token, $appKey, $paymentId);
+            if (is_array($statusData)) {
+                $data = $statusData;
+                $statusCode = isset($data['statusCode']) && is_scalar($data['statusCode']) ? (string) $data['statusCode'] : '';
+                $trxStatus = isset($data['transactionStatus']) && is_scalar($data['transactionStatus']) ? (string) $data['transactionStatus'] : '';
+            }
+        }
+
         $success = $statusCode === '0000' && $trxStatus === 'Completed';
 
         $trxID = isset($data['trxID']) && is_scalar($data['trxID']) ? (string) $data['trxID'] : '';
@@ -278,7 +289,124 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             'gateway_trx_id' => $trxID,
             'amount'         => $amountVal,
             'status'         => $success ? 'completed' : 'failed',
+            'error'          => $success ? '' : sprintf(
+                'bKash execute rejected payment: statusCode=%s, statusMessage=%s, transactionStatus=%s',
+                $statusCode !== '' ? $statusCode : 'missing',
+                isset($data['statusMessage']) && is_scalar($data['statusMessage']) ? (string) $data['statusMessage'] : 'missing',
+                $trxStatus !== '' ? $trxStatus : 'missing'
+            ) . (isset($data['_diagnostic']) && is_scalar($data['_diagnostic']) ? ' response=' . (string) $data['_diagnostic'] : ''),
         ];
+    }
+
+    /**
+     * Retrieves the final bKash status after execute reports an already-completed payment.
+     *
+     * @param string $baseUrl bKash API base URL.
+     * @param string $token Authorization token.
+     * @param string $appKey Merchant app key.
+     * @param string $paymentId bKash payment ID.
+     * @return array<string, mixed>|null Decoded status response, or null on transport/JSON failure.
+     */
+    private function queryPaymentStatus(string $baseUrl, string $token, string $appKey, string $paymentId): ?array
+    {
+        $ch = curl_init($baseUrl . '/tokenized/checkout/payment/status');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: ' . $token,
+                'X-APP-Key: ' . $appKey,
+            ],
+            CURLOPT_POSTFIELDS => (string) json_encode(['paymentID' => $paymentId]),
+        ]);
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+        if ($response === false) {
+            return null;
+        }
+
+        $decoded = json_decode((string) $response, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $data = [];
+        foreach ($decoded as $key => $value) {
+            if (is_string($key)) {
+                $data[$key] = $value;
+            }
+        }
+        $data['_diagnostic'] = substr(trim((string) $response), 0, 300);
+        return $data;
+    }
+
+    /**
+     * Verifies the configured app key/secret/username/password actually authenticate against
+     * bKash's Token Grant API, without creating any checkout session or moving money.
+     *
+     * Calls the grant endpoint directly rather than reusing getToken() - the latter silently
+     * returns '' on failure (see its docblock: it's built for initiate()/verify()'s own error
+     * handling downstream), which would only ever report a generic failure here.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $appKey = is_scalar($credentials['app_key'] ?? null) ? (string) $credentials['app_key'] : '';
+        $appSecret = is_scalar($credentials['app_secret'] ?? null) ? (string) $credentials['app_secret'] : '';
+        $user = is_scalar($credentials['username'] ?? null) ? (string) $credentials['username'] : '';
+        $pass = is_scalar($credentials['password'] ?? null) ? (string) $credentials['password'] : '';
+
+        if ($appKey === '' || $appSecret === '' || $user === '' || $pass === '') {
+            return ['success' => false, 'message' => 'Enter App Key, App Secret, Username, and Password before testing the connection.'];
+        }
+
+        $mode = $credentials['mode'] ?? 'sandbox';
+        if ($mode === '1' || $mode === 1) {
+            $mode = 'live';
+        } elseif ($mode === '0' || $mode === 0) {
+            $mode = 'sandbox';
+        }
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $ch = curl_init($baseUrl . '/tokenized/checkout/token/grant');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'username: ' . $user,
+                'password: ' . $pass,
+            ],
+            CURLOPT_POSTFIELDS => (string) json_encode([
+                'app_key'    => $appKey,
+                'app_secret' => $appSecret,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach bKash - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $token = is_array($data) && is_scalar($data['id_token'] ?? null) ? (string) $data['id_token'] : '';
+
+        if ($token !== '') {
+            $modeStr = is_scalar($mode) ? (string) $mode : 'sandbox';
+            return ['success' => true, 'message' => "Connected successfully to bKash ({$modeStr} mode)."];
+        }
+
+        $statusMsg = is_array($data) && is_scalar($data['statusMessage'] ?? null) ? (string) $data['statusMessage'] : '';
+        $errorMsg = is_array($data) && is_scalar($data['msg'] ?? null) ? (string) $data['msg'] : '';
+        $message = $statusMsg !== '' ? $statusMsg : ($errorMsg !== '' ? $errorMsg : 'bKash rejected the provided credentials.');
+        return ['success' => false, 'message' => $message];
     }
 
     /**
@@ -290,9 +418,125 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
     public function supports(string $feature): bool
     {
         return match ($feature) {
-            'verification' => true,
+            'verification', 'refund' => true,
             default => false,
         };
+    }
+
+    /**
+     * Processes a payment refund via the bKash Tokenized Checkout Refund Transaction API.
+     *
+     * bKash's refund endpoint requires both the original checkout paymentID and the settled
+     * trxID (docs.bka.sh - "Refund Transaction"): {baseUrl}/tokenized/checkout/payment/refund.
+     * The paymentID is supplied via $credentials['_session_id'] - GatewayBridge::refund() stashes
+     * it there from the transaction's stored 'gateway_session_id' metadata (set during initiate()).
+     * Without it the call cannot succeed, since bKash has no way to resolve the payment otherwise.
+     *
+     * @param string $gatewayTrxId The bKash trxID from the original successful execute() call.
+     * @param string $amount Refund amount, as a decimal string with up to 2 places.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured credentials, plus
+     *                                          the transient '_session_id' (paymentID) key.
+     * @return array{success: bool, refund_id: string|null, error: string|null} Refund execution status.
+     */
+    public function refund(string $gatewayTrxId, string $amount, array $credentials): array
+    {
+        $sessionIdVal = $credentials['_session_id'] ?? '';
+        $paymentId = is_scalar($sessionIdVal) ? (string) $sessionIdVal : '';
+
+        if ($paymentId === '') {
+            return [
+                'success'   => false,
+                'refund_id' => null,
+                'error'     => 'bKash error: original paymentID is unknown for this transaction, cannot issue a refund.',
+            ];
+        }
+
+        if (empty($credentials['username']) || empty($credentials['password']) || empty($credentials['app_key']) || empty($credentials['app_secret'])) {
+            return [
+                'success'   => false,
+                'refund_id' => null,
+                'error'     => 'bKash error: Missing credentials. Please configure bKash in active gateways settings.',
+            ];
+        }
+
+        $mode = $credentials['mode'] ?? 'sandbox';
+        if ($mode === '1' || $mode === 1) {
+            $mode = 'live';
+        } elseif ($mode === '0' || $mode === 0) {
+            $mode = 'sandbox';
+        }
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        try {
+            $token = $this->getToken($baseUrl, $credentials);
+        } catch (\RuntimeException $e) {
+            return ['success' => false, 'refund_id' => null, 'error' => $e->getMessage()];
+        }
+
+        $appKeyRaw = $credentials['app_key'];
+        $appKey = is_scalar($appKeyRaw) ? (string) $appKeyRaw : '';
+
+        $ch = curl_init($baseUrl . '/tokenized/checkout/payment/refund');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+                'Authorization: ' . $token,
+                'X-APP-Key: ' . $appKey,
+            ],
+            CURLOPT_POSTFIELDS => (string) json_encode([
+                'paymentID' => $paymentId,
+                'trxID'     => $gatewayTrxId,
+                'amount'    => $amount,
+                'sku'       => 'refund',
+                'reason'    => 'Refund issued by merchant',
+            ]),
+        ]);
+
+        $response = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return [
+                'success'   => false,
+                'refund_id' => null,
+                'error'     => 'bKash API connection error: ' . ($err ?: 'Unknown'),
+            ];
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return [
+                'success'   => false,
+                'refund_id' => null,
+                'error'     => 'bKash error: Invalid API response payload.',
+            ];
+        }
+
+        $refundTrxIdVal = $data['refundTrxID'] ?? null;
+        $refundTrxId = is_scalar($refundTrxIdVal) && (string) $refundTrxIdVal !== '' ? (string) $refundTrxIdVal : null;
+
+        if ($refundTrxId === null) {
+            $errorCodeVal = $data['errorCode'] ?? null;
+            $errorMsgVal = $data['errorMessage'] ?? null;
+            $errorCode = is_scalar($errorCodeVal) ? (string) $errorCodeVal : '';
+            $errorMsg = is_scalar($errorMsgVal) && (string) $errorMsgVal !== '' ? (string) $errorMsgVal : 'Unknown error';
+            return [
+                'success'   => false,
+                'refund_id' => null,
+                'error'     => 'bKash error: ' . ($errorCode !== '' ? "[{$errorCode}] {$errorMsg}" : $errorMsg),
+            ];
+        }
+
+        return [
+            'success'   => true,
+            'refund_id' => $refundTrxId,
+            'error'     => null,
+        ];
     }
 
     /**

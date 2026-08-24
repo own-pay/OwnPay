@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace TwigCsFixer\Token;
 
 use Twig\Environment;
+use Twig\ExpressionParser\PrefixExpressionParserInterface;
 use Twig\Source;
 use TwigCsFixer\Environment\StubbedEnvironment;
 use TwigCsFixer\Exception\CannotTokenizeException;
-use TwigCsFixer\Report\ViolationId;
+use TwigCsFixer\Report\IgnoredViolationId;
 use Webmozart\Assert\Assert;
 
 /**
@@ -43,12 +44,17 @@ final class Tokenizer implements TokenizerInterface
     private const REGEX_DQ_STRING_PART = '/'.self::DQ_STRING_PATTERN.'/As';
     private const REGEX_DQ_STRING_DELIM = '/"/A';
 
-    private const PUNCTUATIONS = ['(', ')', '[', ']', '{', '}', ':', '.', ',', '|'];
+    private const PUNCTUATIONS = ['(', ')', '[', ']', '{', '}', ':', ','];
 
     /**
      * @var non-empty-string
      */
     private readonly string $operatorRegex;
+
+    /**
+     * @var list<string>
+     */
+    private readonly array $unaryAlphaOperators;
 
     private int $cursor = 0;
 
@@ -87,8 +93,7 @@ final class Tokenizer implements TokenizerInterface
 
     public function __construct(Environment $env)
     {
-        // Caching the regex.
-        $this->operatorRegex = $this->getOperatorRegex($env);
+        [$this->operatorRegex, $this->unaryAlphaOperators] = $this->precomputeOperators($env);
         $this->tokens = new Tokens();
     }
 
@@ -285,7 +290,7 @@ final class Tokenizer implements TokenizerInterface
         ++$this->currentExpressionStarter;
     }
 
-    private function pushToken(int|string $type, string $value = '', ?Token $relatedToken = null): Token
+    private function pushToken(string $type, string $value = '', ?Token $relatedToken = null): Token
     {
         $token = new Token(
             $type,
@@ -332,12 +337,6 @@ final class Tokenizer implements TokenizerInterface
             $this->lexWhitespace();
         } elseif (1 === preg_match("/^\r\n?|^\n/", $currentCode.$nextToken, $match)) {
             $this->lexEOL($match[0]);
-        } elseif ('.' === $currentCode && '.' === $nextToken && '.' === $next2Token) {
-            // NEXT_MAJOR: Should be an OPERATOR_TYPE like in Twig 3.21+
-            $this->lexSpread();
-        } elseif ('=' === $currentCode && '>' === $nextToken) {
-            // NEXT_MAJOR: Should be an OPERATOR_TYPE like in Twig 3.21+
-            $this->lexArrowFunction();
         } elseif (1 === preg_match($this->operatorRegex, $this->code, $match, 0, $this->cursor)) {
             $this->lexOperator($match[0]);
         } elseif (1 === preg_match(self::REGEX_NAME, $this->code, $match, 0, $this->cursor)) {
@@ -605,24 +604,10 @@ final class Tokenizer implements TokenizerInterface
         $this->lastEOL = $this->cursor;
     }
 
-    private function lexSpread(): void
-    {
-        $this->pushToken(Token::SPREAD_TYPE, '...');
-    }
-
-    private function lexArrowFunction(): void
-    {
-        $this->pushToken(Token::ARROW_TYPE, '=>');
-    }
-
     private function lexOperator(string $operator): void
     {
         if ('?' === $operator) {
-            $token = $this->pushToken(Token::OPERATOR_TYPE, $operator);
-            $this->bracketsAndTernary[] = $token;
-        } elseif (':' === $operator && $this->isInTernary()) {
-            $bracket = array_pop($this->bracketsAndTernary);
-            $this->pushToken(Token::OPERATOR_TYPE, $operator, $bracket);
+            $this->lexTernary($operator);
         } elseif ('=' === $operator) {
             if (
                 self::STATE_BLOCK !== $this->getState()
@@ -650,7 +635,51 @@ final class Tokenizer implements TokenizerInterface
 
             $this->pushToken(Token::OPERATOR_TYPE, $operator);
         } else {
-            $this->pushToken(Token::OPERATOR_TYPE, $operator);
+            $previousToken = $this->lastNonEmptyToken;
+            Assert::notNull($previousToken, 'An operator cannot be the first non empty token.');
+
+            $isUnary = $previousToken->isMatching([
+                // {{ 1 * -2 }}
+                Token::OPERATOR_TYPE,
+                // {{ -2 }}
+                Token::VAR_START_TYPE,
+                // {% if -2 ... %}
+                Token::BLOCK_NAME_TYPE,
+                // {{ foo ? -1 : -2 }}
+                Token::TERNARY_OPERATOR_TYPE,
+                // {{ string[:-1] }}
+                Token::UNARY_OPERATOR_TYPE,
+            ])
+            // {{ 1 + (-2) }}
+            || $previousToken->isMatching(Token::PUNCTUATION_TYPE, ['(', '[', ':', ',']);
+
+            // A word-based token that is not a known unary operator is a name used as a variable
+            // e.g. `{% for row in matches %}` where `matches` is the iterable, not the operator
+            if ($isUnary && ctype_alpha($operator[0]) && !\in_array($operator, $this->unaryAlphaOperators, true)) {
+                $this->lexName($operator);
+
+                return;
+            }
+
+            $this->pushToken(
+                $isUnary ? Token::UNARY_OPERATOR_TYPE : Token::OPERATOR_TYPE,
+                $operator,
+            );
+        }
+    }
+
+    private function lexTernary(string $operator): void
+    {
+        if ('?' === $operator) {
+            $token = $this->pushToken(Token::TERNARY_OPERATOR_TYPE, $operator);
+            $this->bracketsAndTernary[] = $token;
+        } elseif (':' === $operator) {
+            $ternary = array_pop($this->bracketsAndTernary);
+            $this->pushToken(Token::TERNARY_OPERATOR_TYPE, $operator, $ternary);
+        } else {
+            // @codeCoverageIgnoreStart
+            throw new \LogicException(\sprintf('Unexpected ternary operator "%s".', $operator));
+            // @codeCoverageIgnoreEnd
         }
     }
 
@@ -665,7 +694,7 @@ final class Tokenizer implements TokenizerInterface
 
             if ($lastNonEmptyToken->isMatching(Token::BLOCK_NAME_TYPE, 'macro')) {
                 $this->pushToken(Token::MACRO_NAME_TYPE, $name);
-            } elseif ($lastNonEmptyToken->isMatching(Token::PUNCTUATION_TYPE, '|')) {
+            } elseif ($lastNonEmptyToken->isMatching(Token::OPERATOR_TYPE, '|')) {
                 $this->pushToken(Token::FILTER_NAME_TYPE, $name);
             } elseif ($lastNonEmptyToken->isMatching(Token::OPERATOR_TYPE, ['is', 'is not'])) {
                 $this->pushToken(Token::TEST_NAME_TYPE, $name);
@@ -717,7 +746,7 @@ final class Tokenizer implements TokenizerInterface
         if ($this->isInTernary()) {
             if (':' === $currentCode) {
                 // This is a ternary instead
-                $this->lexOperator($currentCode);
+                $this->lexTernary($currentCode);
 
                 return;
             }
@@ -780,14 +809,16 @@ final class Tokenizer implements TokenizerInterface
     }
 
     /**
-     * @return non-empty-string
+     * @return array{non-empty-string, list<string>}
      */
-    private function getOperatorRegex(Environment $env): string
+    private function precomputeOperators(Environment $env): array
     {
         if (StubbedEnvironment::satisfiesTwigVersion(3, 21)) {
             $expressionParsers = [];
+            $unaryAlphaOperators = [];
             // @phpstan-ignore-next-line method.internal
             foreach ($env->getExpressionParsers() as $expressionParser) {
+                $isUnary = $expressionParser instanceof PrefixExpressionParserInterface;
                 foreach ([$expressionParser->getName(), ...$expressionParser->getAliases()] as $name) {
                     // Avoid conflict with PUNCTUATION_TYPE
                     if (\in_array($name, self::PUNCTUATIONS, true)) {
@@ -795,6 +826,10 @@ final class Tokenizer implements TokenizerInterface
                     }
 
                     $expressionParsers[] = $name;
+
+                    if ($isUnary && '' !== $name && ctype_alpha($name[0])) {
+                        $unaryAlphaOperators[] = $name;
+                    }
                 }
             }
         } else {
@@ -804,11 +839,12 @@ final class Tokenizer implements TokenizerInterface
             // @phpstan-ignore-next-line method.notFound, argument.type
             $binaryOperators = array_keys($env->getBinaryOperators());
             $expressionParsers = [...$unaryOperators, ...$binaryOperators];
+            $unaryAlphaOperators = array_values(array_filter($unaryOperators, static fn ($op) => \is_string($op) && '' !== $op && ctype_alpha($op[0])));
             // @codeCoverageIgnoreEnd
         }
 
         /** @var string[] $operators */
-        $operators = ['=', '?', '?:', '?.', ...$expressionParsers];
+        $operators = ['=', '.', '|', '?', '?:', '?.', '=>', '...', ...$expressionParsers];
         $lengthByOperator = [];
         foreach ($operators as $operator) {
             $lengthByOperator[$operator] = \strlen($operator);
@@ -835,7 +871,7 @@ final class Tokenizer implements TokenizerInterface
             $regex[] = $r;
         }
 
-        return '/'.implode('|', $regex).'/A';
+        return ['/'.implode('|', $regex).'/A', $unaryAlphaOperators];
     }
 
     private function extractIgnoredViolations(string $comment): void
@@ -867,7 +903,7 @@ final class Tokenizer implements TokenizerInterface
         };
 
         if ('' === $ignoredViolations) {
-            $this->tokens->addIgnoredViolation(ViolationId::fromString($ignoredViolations, $line));
+            $this->tokens->addIgnoredViolation(IgnoredViolationId::fromString($ignoredViolations, $line));
 
             return;
         }
@@ -877,7 +913,7 @@ final class Tokenizer implements TokenizerInterface
             if ('' === $ignoredViolation) {
                 continue;
             }
-            $this->tokens->addIgnoredViolation(ViolationId::fromString($ignoredViolation, $line));
+            $this->tokens->addIgnoredViolation(IgnoredViolationId::fromString($ignoredViolation, $line));
         }
     }
 }

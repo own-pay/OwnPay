@@ -4,15 +4,16 @@
 
 # --------------- Dependencies ---------------
 /node_modules/
-/vendor/php-parallel-lint/
-/vendor/symfony/polyfill-intl-grapheme/
-/vendor/twig/twig/
 
 # --------------- Environment ---------------
 .env
 .env.local
 .env.*.local
-.gitignore
+
+# Local PHP configuration must not be committed.
+php.ini
+php-*.ini
+/public/.user.ini
 
 # --------------- IDE / Editor ---------------
 .vscode/
@@ -30,6 +31,9 @@ desktop.ini
 # --------------- PHP Tooling ---------------
 /.phpunit.cache/
 .twig-cs-fixer.cache
+.php-cs-fixer.cache
+.phpunit.result.cache
+coverage/
 
 # --------------- JS Tooling ---------------
 .vitest/
@@ -62,21 +66,31 @@ Dockerfile
 
 
 # --------------- Storage Runtime Artifacts ---------------
-storage/logs/*.log
-storage/sessions/**
-storage/cache/**
-storage/backups/**
-storage/cron/*.lock
-storage/cron/*.running.lock
-storage/framework/**
-storage/temp/**
-storage/pdf/**
-storage/update.lock
-storage/.installed
-public/assets/uploads/**
-public/assets/img/**
+/storage/logs/*
+/storage/sessions/*
+/storage/cache/*
+/storage/backups/*
+/storage/languages/*
+/storage/cron/*
+/storage/framework/*
+/storage/temp/*
+/storage/pdf/*
+/storage/update.lock
+/storage/.installed
+/public/assets/uploads/*
+
+# Keep directory placeholders and access-control files in Git.
+!/storage/logs/.gitkeep
+!/storage/backups/.gitkeep
+!/storage/languages/.gitkeep
+!/storage/.htaccess
+!/public/assets/uploads/.gitkeep
+
+# Local server/tool configuration.
 .dockerignore
-storage/languages
+*.log
+*.pid
+*.tmp
 
 # --------------- Generated Reports ---------------
 audit_report.md

@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Trustly Payment Gateway Adapter.
  */
-final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface
+final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -78,6 +79,71 @@ final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface
     public function supportedCurrencies(): array
     {
         return ['EUR', 'SEK', 'NOK', 'DKK', 'GBP', 'PLN'];
+    }
+
+    /**
+     * Verifies username/password/private key authenticate against Trustly's real JSON-RPC API,
+     * using the exact same 'Deposit' method and signing (signData()) initiate() already uses -
+     * Trustly has no separate read-only ping method, so this creates a minimal, never-followed
+     * deposit request purely to exercise credential/signature validation. No money moves; the
+     * request is never completed by any customer.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $username = $this->getString($credentials['username'] ?? '');
+        $password = $this->getString($credentials['password'] ?? '');
+        if ($username === '' || $password === '') {
+            return ['success' => false, 'message' => 'Enter an API Username and API Password before testing the connection.'];
+        }
+        $privateKey = $this->getString($credentials['private_key'] ?? '');
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $mode === 'live' ? 'https://api.trustly.com/api/1' : 'https://test.trustly.com/api/1';
+
+        $uuid = 'op_connection_test_' . bin2hex(random_bytes(6));
+        $data = [
+            'Username'      => $username,
+            'Password'      => $password,
+            'EndMerchantID' => $username,
+            'MessageID'     => $uuid,
+            'Attributes'    => ['Currency' => 'EUR', 'Amount' => '1.00', 'Locale' => 'en_US'],
+        ];
+        $signature = $this->signData($data, $privateKey);
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'method'  => 'Deposit',
+                'uuid'    => $uuid,
+                'version' => '1.1',
+                'params'  => ['Signature' => $signature, 'UUID' => $uuid, 'Data' => $data],
+            ]),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Trustly - check the server\'s network connectivity.'];
+        }
+
+        $data2 = json_decode((string) $response, true);
+        if (is_array($data2) && isset($data2['error'])) {
+            $errMsg = is_array($data2['error']) && is_scalar($data2['error']['message'] ?? null)
+                ? (string) $data2['error']['message']
+                : 'Trustly rejected the provided credentials.';
+            return ['success' => false, 'message' => $errMsg];
+        }
+        if (is_array($data2) && isset($data2['result'])) {
+            return ['success' => true, 'message' => "Connected successfully to Trustly ({$mode} mode)."];
+        }
+
+        return ['success' => false, 'message' => 'Trustly returned an unexpected response.'];
     }
 
     public function initiate(array $params, array $credentials): array

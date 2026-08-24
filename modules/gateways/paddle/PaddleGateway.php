@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Paddle Payment Gateway Adapter (Paddle Billing API v3).
  */
-final class PaddleGateway implements PluginInterface, GatewayAdapterInterface
+final class PaddleGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -91,6 +92,46 @@ final class PaddleGateway implements PluginInterface, GatewayAdapterInterface
         return $mode === 'live'
             ? 'https://api.paddle.com'
             : 'https://sandbox-api.paddle.com';
+    }
+
+    /**
+     * Verifies the configured API Key authenticates against Paddle's real Billing API via
+     * GET /prices?per_page=1 - a free, read-only call that any valid key can make.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Paddle API Key before testing the connection.'];
+        }
+
+        $ch = curl_init($this->getBaseUrl($credentials) . '/prices?per_page=1');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Paddle - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            return ['success' => true, 'message' => "Connected successfully to Paddle ({$mode} mode)."];
+        }
+        $data = json_decode((string) $response, true);
+        $errData = $this->getArray($data, 'error');
+        $errMsg = $this->getString($errData['detail'] ?? null);
+        return ['success' => false, 'message' => $errMsg !== '' ? $errMsg : 'Paddle rejected the provided API Key.'];
     }
 
     public function initiate(array $params, array $credentials): array

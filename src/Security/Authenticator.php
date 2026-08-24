@@ -85,29 +85,16 @@ final class Authenticator
         }
 
         // Verify active lockout window to prevent brute-force attacks.
-        //
-        // Two counters are checked:
-        //   1. (email, IP) lockout - short-fuse per source IP. Catches a single
-        //      attacker hammering from one host.
-        //   2. (email-only) lockout - independent of IP. Caps total failures
-        //      against one account across ALL IPs, so an attacker rotating IPs
-        //      cannot get MAX_LOGIN_ATTEMPTS tries per IP with no global ceiling.
-        //      Threshold is 3x the per-IP threshold to keep NAT/shared-IP
-        //      legitimate users unaffected.
-        $maxAttempts = (int) (getenv('MAX_LOGIN_ATTEMPTS') ?: 5);
-        $window = (int) (getenv('LOCKOUT_DURATION') ?: 300);
+        $maxAttemptsValue = $_ENV['MAX_LOGIN_ATTEMPTS'] ?? getenv('MAX_LOGIN_ATTEMPTS');
+        $windowValue = $_ENV['LOCKOUT_DURATION'] ?? getenv('LOCKOUT_DURATION');
+        $maxAttempts = is_numeric($maxAttemptsValue) ? (int) $maxAttemptsValue : 5;
+        $window = is_numeric($windowValue) ? (int) $windowValue : 300;
+        $emailLockRemaining = $attempts->lockoutSecondsRemainingByEmail($email, $window, $maxAttempts * 3);
         $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);
-        $emailMaxAttempts = $maxAttempts * 3;
-        $lockRemainingEmail = $attempts->lockoutSecondsRemainingByEmail(
-            $email,
-            $window,
-            $emailMaxAttempts
-        );
-        $lockRemaining = max($lockRemaining, $lockRemainingEmail);
 
-        if ($lockRemaining > 0) {
+        if ($emailLockRemaining > 0 || $lockRemaining > 0) {
             $events->doAction('auth.login.failed', $email, $ip);
-            $minutes = (int) ceil($lockRemaining / 60);
+            $minutes = (int) ceil(max($emailLockRemaining, $lockRemaining) / 60);
             return [
                 'success' => false,
                 'error'   => "Account temporarily locked due to repeated failed attempts. Try again in about {$minutes} minute(s).",
@@ -223,16 +210,6 @@ final class Authenticator
                 $params = session_get_cookie_params();
                 $sessionName = session_name();
                 if (is_string($sessionName)) {
-                    // Use the PHP 7.3+ array form (SEC-20): the positional
-                    // setcookie() call omitted the `samesite` attribute. When
-                    // SessionMiddleware set the cookie with samesite => 'Lax'
-                    // (or 'None'), the expiry cookie had no SameSite attribute,
-                    // so some browsers did not delete the old cookie (the
-                    // attributes must match for the overwrite to take effect).
-                    // The session is destroyed server-side, so this is not a
-                    // live-session leak - but the stale cookie may be sent on
-                    // subsequent cross-site navigations until it naturally
-                    // expires.
                     setcookie($sessionName, '', [
                         'expires'  => time() - 42000,
                         'path'     => $params['path'],

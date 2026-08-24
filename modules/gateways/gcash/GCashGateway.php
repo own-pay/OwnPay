@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\GCash;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * GCash Wallet Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class GCashGateway implements PluginInterface, GatewayAdapterInterface
+final class GCashGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -157,6 +158,57 @@ final class GCashGateway implements PluginInterface, GatewayAdapterInterface
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
+    }
+
+    /**
+     * Verifies the Public API Key authenticates against Maya's (PayMaya) Checkout API by
+     * submitting a deliberately empty checkout request - Maya returns 401 for an invalid key vs
+     * a validation error for a recognized one, so either distinguishes the key's validity without
+     * creating a real checkout.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $publicKey = $this->getString($credentials['public_api_key'] ?? null);
+        if ($publicKey === '') {
+            return ['success' => false, 'message' => 'Enter the Public API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $url = $mode === 'live'
+            ? 'https://pg.maya.ph/checkout/v1/checkouts'
+            : 'https://pg-sandbox.paymaya.com/checkout/v1/checkouts';
+
+        $ch = curl_init($url);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Basic ' . base64_encode($publicKey . ':'),
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => '{}',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Maya/GCash - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401) {
+            return ['success' => false, 'message' => 'Maya/GCash rejected the provided Public API Key.'];
+        }
+        if ($httpCode >= 200 && $httpCode < 500) {
+            return ['success' => true, 'message' => 'Connected successfully to Maya/GCash (' . ($mode === 'live' ? 'live' : 'sandbox') . ' mode).'];
+        }
+        return ['success' => false, 'message' => 'Maya/GCash returned HTTP ' . $httpCode . '.'];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

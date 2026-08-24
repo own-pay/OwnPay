@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\PortWallet;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * PortWallet (PortPos) payment gateway adapter supporting BDT and major credit cards/wallets in Bangladesh.
  */
-final class PortWalletGateway implements PluginInterface, GatewayAdapterInterface
+final class PortWalletGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -302,5 +303,50 @@ final class PortWalletGateway implements PluginInterface, GatewayAdapterInterfac
     public function supportedCurrencies(): array
     {
         return ['BDT', 'USD'];
+    }
+
+    /**
+     * Verifies the configured App Key/Secret Key authenticate against PortWallet, without
+     * creating any payment - reuses the same IPN validation lookup as verify(), against a
+     * nonexistent invoice ID. An HTTP 401/403 means the credentials were rejected; anything
+     * else means the request authenticated (even if the invoice itself wasn't found).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $appKey = $this->getString($credentials['app_key'] ?? '');
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($appKey === '' || $secretKey === '') {
+            return ['success' => false, 'message' => 'Enter an App Key and Secret Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        $timestamp = time();
+        $authHash = md5($secretKey . (string) $timestamp);
+        $bearerToken = 'Bearer ' . base64_encode($appKey . ':' . $authHash);
+
+        $url = $baseUrl . '/payment/v2/invoice/ipn/OWNPAY-CONNECTION-TEST/1.00';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: ' . $bearerToken],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach PortWallet - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'PortWallet rejected the provided App Key/Secret Key.'];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to PortWallet ({$mode} mode)."];
     }
 }

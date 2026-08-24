@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Giropay Payment Gateway Adapter.
  */
-final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
+final class GiropayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -232,6 +233,58 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         return ['success' => false];
+    }
+
+    /**
+     * Verifies the Merchant ID/Project ID/Project Password authenticate against Giropay's
+     * transaction status API using a probe purpose id that won't match any real transaction -
+     * an auth-rejection error is distinguishable from a "transaction not found" error.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $projectId = $this->getString($credentials['project_id'] ?? '');
+        $projectPassword = $this->getString($credentials['project_password'] ?? '');
+        if ($merchantId === '' || $projectId === '' || $projectPassword === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant ID, Project ID, and Project Password before testing the connection.'];
+        }
+
+        $probeRef = 'op-test-connection-probe';
+        $hash = hash('sha256', $merchantId . $projectId . $probeRef . $projectPassword);
+
+        $ch = curl_init('https://api.giropay.de/v1/transaction/status');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'merchantId' => $merchantId,
+                'projectId'  => $projectId,
+                'reference'  => $probeRef,
+                'hash'       => $hash,
+            ]),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Giropay - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Giropay rejected the provided Merchant ID/Project ID/Project Password.'];
+        }
+        if ($httpCode >= 200 && $httpCode < 500) {
+            return ['success' => true, 'message' => 'Connected successfully to Giropay.'];
+        }
+        return ['success' => false, 'message' => 'Giropay returned HTTP ' . $httpCode . '.'];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

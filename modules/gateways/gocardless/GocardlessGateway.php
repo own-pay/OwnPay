@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Gocardless;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * GoCardless Gateway Adapter.
  */
-final class GocardlessGateway implements PluginInterface, GatewayAdapterInterface
+final class GocardlessGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -173,6 +174,52 @@ final class GocardlessGateway implements PluginInterface, GatewayAdapterInterfac
             'gateway_trx_id' => $billingRequestId,
             'status' => $success ? 'completed' : 'failed',
         ];
+    }
+
+    /**
+     * Verifies the Access Token authenticates against GoCardless's Creditors API (read-only)
+     * without creating any billing request.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $accessToken = is_scalar($credentials['access_token'] ?? null) ? (string) $credentials['access_token'] : '';
+        if ($accessToken === '') {
+            return ['success' => false, 'message' => 'Enter the Access Token before testing the connection.'];
+        }
+
+        $mode = is_scalar($credentials['mode'] ?? null) ? (string) $credentials['mode'] : 'sandbox';
+        $baseUrl = $mode === 'live'
+            ? 'https://api.gocardless.com'
+            : 'https://api-sandbox.gocardless.com';
+
+        $ch = curl_init($baseUrl . '/creditors');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $accessToken,
+                'GoCardless-Version: 2015-07-06',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach GoCardless - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to GoCardless (' . $mode . ' mode).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_array($data['error'] ?? null) && is_scalar($data['error']['message'] ?? null)
+            ? (string) $data['error']['message']
+            : 'GoCardless rejected the provided Access Token.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\BTCPay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * BTCPay Server Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class BTCPayGateway implements PluginInterface, GatewayAdapterInterface
+final class BTCPayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -149,5 +150,47 @@ final class BTCPayGateway implements PluginInterface, GatewayAdapterInterface
         $sigHeader = $this->getString($headers['Btcpay-Sig'] ?? $headers['btcpay-sig'] ?? null);
         $computedSig = 'sha256=' . hash_hmac('sha256', $rawBody, $webhookSecret);
         return hash_equals($computedSig, $sigHeader);
+    }
+
+    /**
+     * Verifies the Server URL/API Key/Store ID via BTCPay's Greenfield API store lookup - a
+     * read-only GET, no invoice created.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $storeId = $this->getString($credentials['store_id'] ?? null);
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        $serverUrl = rtrim($this->getString($credentials['server_url'] ?? null), '/');
+        if ($storeId === '' || $apiKey === '' || $serverUrl === '') {
+            return ['success' => false, 'message' => 'Enter BTCPay Server URL, API Key, and Store ID before testing the connection.'];
+        }
+
+        $ch = curl_init("{$serverUrl}/api/v1/stores/" . urlencode($storeId));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: token ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach the BTCPay Server - check the URL and the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data) && isset($data['id'])) {
+            $storeName = $this->getString($data['name'] ?? $storeId);
+            return ['success' => true, 'message' => "Connected successfully to BTCPay Server (store: {$storeName})."];
+        }
+
+        $errMsg = is_array($data) && isset($data['message']) && is_scalar($data['message'])
+            ? (string) $data['message']
+            : 'BTCPay Server rejected the provided API Key/Store ID.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

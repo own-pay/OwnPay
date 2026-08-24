@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Coinbase;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Coinbase Commerce Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class CoinbaseGateway implements PluginInterface, GatewayAdapterInterface
+final class CoinbaseGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -152,5 +153,46 @@ final class CoinbaseGateway implements PluginInterface, GatewayAdapterInterface
         $sigHeader = $this->getString($headers['X-Cc-Webhook-Signature'] ?? $headers['x-cc-webhook-signature'] ?? null);
         $computedSig = hash_hmac('sha256', $rawBody, $sharedSecret);
         return hash_equals($computedSig, $sigHeader);
+    }
+
+    /**
+     * Verifies the API Key by listing charges via Coinbase Commerce's real API - a read-only
+     * GET, no charge is created.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter an API Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.commerce.coinbase.com/charges');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'X-CC-Api-Key: ' . $apiKey,
+                'X-CC-Version: 2018-03-22',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Coinbase Commerce - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Coinbase Commerce.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errArr = $this->getArray($data, 'error');
+        $errMsg = $this->getString($errArr['message'] ?? '');
+        return ['success' => false, 'message' => $errMsg !== '' ? $errMsg : 'Coinbase Commerce rejected the provided API Key.'];
     }
 }

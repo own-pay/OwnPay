@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class FattmerchantGateway implements PluginInterface, GatewayAdapterInterface
+final class FattmerchantGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -240,6 +241,45 @@ final class FattmerchantGateway implements PluginInterface, GatewayAdapterInterf
     /**
      * Validates webhook signatures.
      */
+    /**
+     * Verifies the Secret Key authenticates against Stax/Fattmerchant's Merchant API
+     * (read-only GET) without creating any charge.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://apiprod.fattmerchant.com/v2/merchant');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Stax/Fattmerchant - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Stax/Fattmerchant.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Stax/Fattmerchant rejected the provided Secret Key.'];
+        }
+        return ['success' => false, 'message' => 'Stax/Fattmerchant returned HTTP ' . $httpCode . '.'];
+    }
+
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $webhookHeader = 'X-Fatt-Signature';

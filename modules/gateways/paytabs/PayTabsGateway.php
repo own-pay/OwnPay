@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * PayTabs Payment Gateway Adapter.
  */
-final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface
+final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -241,6 +242,62 @@ final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface
         // PayTabs webhook signature is checked using hash_hmac or signature validation
         // In simulation mode we return true. For production, we calculate HMAC-SHA256
         return true;
+    }
+
+    /**
+     * Verifies the configured Profile ID/Server Key authenticate against PayTabs, without
+     * creating any payment - queries a nonexistent transaction reference: a bad profile_id or
+     * server_key is rejected with an authentication error, while valid credentials return a
+     * normal "transaction not found" response instead.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $profileId = $this->getString($credentials['profile_id'] ?? '');
+        $serverKey = $this->getString($credentials['server_key'] ?? '');
+        if ($profileId === '' || $serverKey === '') {
+            return ['success' => false, 'message' => 'Enter a Profile ID and Server Key before testing the connection.'];
+        }
+
+        $endpoint = $this->getEndpoint($credentials) . '/payment/query';
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'profile_id' => (int) $profileId,
+                'tran_ref'   => 'OWNPAY-CONNECTION-TEST',
+            ]),
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: ' . $serverKey,
+                'Content-Type: application/json',
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach PayTabs - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'PayTabs rejected the provided Profile ID/Server Key.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data)) {
+            return ['success' => true, 'message' => 'Connected successfully to PayTabs.'];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'PayTabs rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function handleWebhook(WebhookPayload $payload): void

@@ -114,18 +114,28 @@ final class TransactionRepository extends BaseRepository
      * even when their application-level status pre-checks interleave.
      *
      * @param int $id Primary key identifier.
+     * @param string|null $gatewayTrxId The gateway's own transaction/reference ID for this
+     *                                  payment, when the caller has one. Only written when the
+     *                                  column is still empty, so it never overwrites a value set
+     *                                  another way (e.g. manual admin edit).
      * @return int Number of affected rows (0 when the transaction was already terminal).
      */
-    public function markCompletedIfNotTerminal(int $id): int
+    public function markCompletedIfNotTerminal(int $id, ?string $gatewayTrxId = null): int
     {
         [$placeholders, $params] = $this->terminalStatusPlaceholders();
         $params['completed_at'] = DateHelper::nowMicro();
         $params['id'] = $id;
         $params['mid'] = $this->requireTenant();
 
+        $gtidSet = '';
+        if ($gatewayTrxId !== null && $gatewayTrxId !== '') {
+            $gtidSet = ", gateway_trx_id = COALESCE(NULLIF(gateway_trx_id, ''), :gateway_trx_id)";
+            $params['gateway_trx_id'] = $gatewayTrxId;
+        }
+
         return $this->db->update(
             "UPDATE {$this->table}
-             SET status = 'completed', completed_at = :completed_at
+             SET status = 'completed', completed_at = :completed_at{$gtidSet}
              WHERE id = :id AND merchant_id = :mid AND status NOT IN ({$placeholders})",
             $params
         );
@@ -356,8 +366,17 @@ final class TransactionRepository extends BaseRepository
             $params['date_to'] = $filters['date_to'] . ' 23:59:59';
         }
 
-        return $this->db->fetchAll(
-            "SELECT t.*, c.name_enc as customer_name, COALESCE(g.name, t.gateway_slug) as gateway_name
+                return $this->db->fetchAll(
+                        "SELECT t.*, c.name_enc as customer_name, COALESCE(g.name, t.gateway_slug) as gateway_name,
+                                        (
+                                                SELECT r.gateway_refund_id
+                                                FROM op_refunds r
+                                                WHERE r.transaction_id = t.id
+                                                    AND r.merchant_id = t.merchant_id
+                                                    AND r.status = 'completed'
+                                                ORDER BY r.created_at DESC
+                                                LIMIT 1
+                                        ) as gateway_refund_id
              FROM {$this->table} t 
              LEFT JOIN op_customers c ON c.id = t.customer_id 
              LEFT JOIN op_gateways g ON g.slug = t.gateway_slug
@@ -417,7 +436,7 @@ final class TransactionRepository extends BaseRepository
              FROM op_transactions t
              LEFT JOIN op_customers c ON c.id = t.customer_id
              WHERE 1=1 {$merchantWhere}
-             ORDER BY t.created_at DESC LIMIT 10",
+             ORDER BY t.created_at DESC LIMIT 5",
             $params
         );
     }
@@ -770,13 +789,13 @@ final class TransactionRepository extends BaseRepository
     // --- Report/Export methods (for admin dashboard) ---
 
     /**
-     * Retrieves daily report breakdown by gateway for date range.
+     * Retrieves aggregated report data for a date range.
      *
      * @param int $merchantId Active brand/store identifier context.
      * @param string $from Starting date boundary.
      * @param string $to Ending date boundary.
      * @param string|null $gateway Optional gateway slug filter.
-     * @return array<int, array<string, mixed>> Report records list.
+    * @return array<string, mixed> Report aggregates grouped by status and gateway.
      */
     public function getReportData(?int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
@@ -793,21 +812,66 @@ final class TransactionRepository extends BaseRepository
             $params['gw'] = $gateway;
         }
 
-        return $this->db->fetchAll(
-            "SELECT
-                DATE(created_at) as date,
-                gateway_slug,
-                COUNT(*) as txn_count,
-                SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) as revenue,
-                SUM(CASE WHEN status='refunded' THEN amount ELSE 0 END) as refunds,
-                COUNT(CASE WHEN status='failed' THEN 1 END) as failed_count
+        $rows = $this->db->fetchAll(
+            "SELECT gateway_slug, status, COUNT(*) AS txn_count,
+                    COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) AS revenue,
+                    COALESCE(SUM(CASE WHEN status = 'completed' THEN fee ELSE 0 END), 0) AS fees
              FROM {$this->table}
              WHERE {$merchantWhere} created_at BETWEEN :from AND :to
                {$gatewayWhere}
-             GROUP BY DATE(created_at), gateway_slug
-             ORDER BY date DESC",
+             GROUP BY gateway_slug, status
+             ORDER BY gateway_slug, status",
             $params
         );
+
+        $totalRevenue = 0.0;
+        $totalFees = 0.0;
+        $totalTransactions = 0;
+        $byStatus = [];
+        $byGateway = [];
+
+        foreach ($rows as $row) {
+            $status = is_scalar($row['status'] ?? null) ? (string) $row['status'] : '';
+            $gatewaySlug = is_scalar($row['gateway_slug'] ?? null) ? (string) $row['gateway_slug'] : '';
+            $count = is_scalar($row['txn_count'] ?? null) ? (int) $row['txn_count'] : 0;
+            $revenue = is_numeric($row['revenue'] ?? null) ? (float) $row['revenue'] : 0.0;
+            $fees = is_numeric($row['fees'] ?? null) ? (float) $row['fees'] : 0.0;
+
+            $totalTransactions += $count;
+            $totalRevenue += $revenue;
+            $totalFees += $fees;
+
+            if (!isset($byStatus[$status])) {
+                $byStatus[$status] = ['status' => $status, 'count' => 0];
+            }
+            $byStatus[$status]['count'] += $count;
+
+            if (!isset($byGateway[$gatewaySlug])) {
+                $byGateway[$gatewaySlug] = [
+                    'name' => $gatewaySlug,
+                    'count' => 0,
+                    'revenue' => 0.0,
+                    'fees' => 0.0,
+                ];
+            }
+            $byGateway[$gatewaySlug]['count'] += $count;
+            $byGateway[$gatewaySlug]['revenue'] += $revenue;
+            $byGateway[$gatewaySlug]['fees'] += $fees;
+        }
+
+        return [
+            'total_revenue' => number_format($totalRevenue, 2, '.', ''),
+            'total_transactions' => $totalTransactions,
+            'avg_transaction' => number_format(
+                $totalTransactions > 0 ? $totalRevenue / $totalTransactions : 0.0,
+                2,
+                '.',
+                ''
+            ),
+            'total_fees' => number_format($totalFees, 2, '.', ''),
+            'by_status' => array_values($byStatus),
+            'by_gateway' => array_values($byGateway),
+        ];
     }
 
     /**

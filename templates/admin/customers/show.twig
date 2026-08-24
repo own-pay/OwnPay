@@ -34,7 +34,7 @@
                 <tbody>
                     {% for txn in transactions %}
                     <tr>
-                        <td data-label="Txn ID"><code>{{ txn.trx_id }}</code></td>
+                        <td data-label="Txn ID"><code>{{ txn.trx_id }}</code><br><small class="op-text-muted">Gateway: {{ txn.gateway_trx_id|default('-') }}</small></td>
                         <td data-label="Amount">{{ txn.currency }} {{ txn.amount }}</td>
                         <td data-label="Status"><span class="op-badge op-badge-{{ txn.status }}">{{ txn.status|capitalize }}</span></td>
                         <td data-label="Date">{{ txn.created_at|date("M d, Y H:i") }}</td>

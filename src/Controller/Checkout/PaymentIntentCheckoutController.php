@@ -283,9 +283,25 @@ final class PaymentIntentCheckoutController
             $gateways[$cat][] = $gw;
         }
 
+        $bridge = $this->c->has(\OwnPay\Gateway\GatewayBridge::class) ? $this->c->get(\OwnPay\Gateway\GatewayBridge::class) : null;
+        $bridge = $bridge instanceof \OwnPay\Gateway\GatewayBridge ? $bridge : null;
         foreach ($apiGateways as $gw) {
+            $gw = $this->applyGatewayDisplayOverride($gw);
             $slugVal = $gw['slug'] ?? '';
             $slug = is_string($slugVal) ? $slugVal : '';
+
+            // Gateways that would reject this amount outright (e.g. Stripe's per-currency floor)
+            // stay visible but disabled/faded with an explanatory note, instead of either being
+            // hidden entirely or letting the customer hit a raw API error after selecting one -
+            // see StripeGateway::minimumChargeAmount().
+            if ($bridge !== null) {
+                $minimum = $bridge->minimumChargeAmount($slug, $mid, $intentCurrency);
+                if ($minimum !== null && is_numeric($minimum) && is_numeric($intentAmount) && bccomp($intentAmount, $minimum, 8) < 0) {
+                    $gw['disabled'] = true;
+                    $gw['disabled_reason'] = sprintf('Amount is below the %s %s minimum for this gateway', $minimum, strtoupper($intentCurrency));
+                }
+            }
+
             $cat = $categoryMap[$slug] ?? 'global';
             if (!isset($gateways[$cat])) {
                 $cat = 'global';
@@ -470,7 +486,7 @@ final class PaymentIntentCheckoutController
             'brand'           => $brand,
             'items'           => $items,
             'faqs'            => $faqs,
-            'show_faq'        => $this->settings->get('checkout', 'show_faq', '1') === '1',
+            'show_faq'        => (bool) ($brand['show_faq'] ?? true),
             'config'          => $jsConfig,
             'checkout_hash'   => $checkoutHash,
             'manual_gateways' => json_encode($manualDetails, JSON_HEX_TAG | JSON_HEX_AMP),
@@ -928,17 +944,34 @@ final class PaymentIntentCheckoutController
             return Response::redirect("/checkout/intent/{$token}");
         }
 
-        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
+        // See CheckoutController::status() for why this triggers on any query params rather than
+        // a hardcoded param name - different gateways (bKash's paymentID, etc.) redirect back
+        // with different identifier params, and hardcoding one leaves every other gateway's
+        // successful payment stuck in 'processing' forever.
+        //
+        // Stripe is excluded: its redirect param (session_id) is customer-browser-suppliable, and
+        // StripeGateway::verify() only checks amount + gateway match before completing - it does
+        // NOT check that the session's own metadata.trx_id matches the transaction being
+        // completed, and gateway_trx_id has no uniqueness constraint. A customer could otherwise
+        // pay for one checkout and replay that session_id against a second, same-amount
+        // 'processing' checkout to complete it for free. Stripe must only ever complete via the
+        // signed, Stripe-initiated webhook, where the session referenced is never customer-chosen.
+        $reqQuery = $req->query();
+        $hasCallbackParams = is_array($reqQuery) && $reqQuery !== [];
+        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? $req->query('session_id') ?? '';
         $callbackPaymentId = is_string($callbackPaymentIdVal) ? $callbackPaymentIdVal : '';
         $callbackStatusVal = $req->query('status') ?? '';
         $callbackStatus = is_string($callbackStatusVal) ? $callbackStatusVal : '';
 
-        if ($callbackPaymentId !== '' && $intentStatus === 'processing') {
+        if ($hasCallbackParams && $intentStatus === 'processing') {
             // Retrieve corresponding active transaction context record.
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'processing' ORDER BY id DESC LIMIT 1",
                 ['pi' => $intentId, 'mid' => $mid]
             );
+            if (is_array($txn) && ($txn['gateway_slug'] ?? '') === 'stripe') {
+                $txn = null;
+            }
 
             if ($txn && $this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
                 $txnIdVal = $txn['id'] ?? 0;
@@ -958,8 +991,7 @@ final class PaymentIntentCheckoutController
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
-                        $reqQuery = $req->query();
-                        $callbackData = array_merge(is_array($reqQuery) ? $reqQuery : [], [
+                        $callbackData = array_merge($reqQuery, [
                             'paymentID' => $callbackPaymentId,
                             'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);

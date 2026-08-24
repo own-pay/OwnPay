@@ -13,8 +13,8 @@
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <img src="/assets/img/logo-light.svg" alt="OwnPay" class="op-logo-light" style="height: 32px; width: auto;">
-        <img src="/assets/img/logo-dark.svg" alt="OwnPay" class="op-logo-dark" style="height: 32px; width: auto;">
+        <img src="/assets/img/logo-light.svg?v=002" alt="OwnPay" class="op-logo-light" style="height: 32px; width: auto;">
+        <img src="/assets/img/logo-dark.svg?v=002" alt="OwnPay" class="op-logo-dark" style="height: 32px; width: auto;">
         <span class="ins-name">OwnPay <span>Setup</span></span>
     </div>
 </header>

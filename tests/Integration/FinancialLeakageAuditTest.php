@@ -99,7 +99,8 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
             $this->refundRepo,
             $this->transactionRepo,
             $this->bridge,
-            $this->ledgerService
+            $this->ledgerService,
+            $this->auditRepo
         );
 
         $merchant = $this->db->fetchOne("SELECT * FROM op_merchants WHERE id = 1 LIMIT 1");

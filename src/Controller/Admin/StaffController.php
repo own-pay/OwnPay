@@ -90,7 +90,7 @@ final class StaffController
         $this->brand->resolveFromRequest($req);
         $mid = $this->brand->getActiveBrandId();
 
-        if ($mid === null) {
+        if ($mid === null || $mid <= 0) {
             $this->session->flashError('Please select a specific brand to add staff to.');
             return Response::redirect('/admin/staff');
         }
@@ -101,7 +101,6 @@ final class StaffController
             return $this->renderAdminPage('admin/staff/edit.twig', [
                 'user' => null,
                 'roles' => $roles,
-                'available_permissions' => $this->getPermissions(),
                 'active_page' => 'staff',
             ]);
         }
@@ -138,6 +137,11 @@ final class StaffController
             }
         }
 
+        if ($roleId === null) {
+            $this->session->flashError('Create a role for this brand before adding staff.');
+            return Response::redirect('/admin/staff/create');
+        }
+
         // Validate required fields + password policy.
         // Audit fix STF-2: the previous implementation only enforced
         // strlen($password) < 8. Common passwords like 'password' and
@@ -161,6 +165,14 @@ final class StaffController
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $this->session->flashError('Enter a valid email address.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if ($this->userRepo->emailExists($email)) {
+            $this->session->flashError('An account with this email already exists.');
             return Response::redirect('/admin/staff/create');
         }
         if (strlen($password) < 12) {
@@ -268,7 +280,6 @@ final class StaffController
             return $this->renderAdminPage('admin/staff/edit.twig', [
                 'user' => $user,
                 'roles' => $roles,
-                'available_permissions' => $this->getPermissions(),
                 'active_page' => 'staff',
             ]);
         }
@@ -536,22 +547,6 @@ final class StaffController
             );
         }
         return [];
-    }
-
-    /**
-     * Resolve global static permissions whitelist.
-     *
-     * @return string[] The list of permissions.
-     */
-    private function getPermissions(): array
-    {
-        return [
-            'transactions.view', 'transactions.manage', 'invoices.view', 'invoices.manage',
-            'payment_links.view', 'payment_links.manage', 'customers.view', 'customers.manage',
-            'gateways.view', 'gateways.manage', 'staff.view', 'staff.manage',
-            'settings.view', 'settings.manage', 'reports.view', 'sms.view',
-            'devices.view', 'devices.manage', 'domains.view', 'domains.manage',
-        ];
     }
 
     /**

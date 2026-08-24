@@ -18,10 +18,11 @@ body{font-family:var(--font);background:var(--cloud);color:var(--ink);-webkit-fo
 /* Details */
 .st-body{background:var(--white);padding:0 32px 32px}
 .st-details{background:var(--snow);border-radius:18px;padding:6px}
-.st-row{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-radius:12px;transition:background .2s}
+.st-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:13px 18px;border-radius:12px;transition:background .2s}
 .st-row:hover{background:rgb(0 0 0 / 2%)}
 .st-row-label{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
-.st-row-value{font-size:13px;font-weight:700;color:var(--ink);font-family:var(--mono);text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-row-value{font-size:13px;font-weight:700;color:var(--ink);font-family:var(--mono);text-align:right;max-width:60%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:anywhere;word-break:break-word}
+.st-row-value-wrap{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .st-row-divider{height:1px;background:var(--cloud);margin:0 18px}
 
 /* Amount highlight */
@@ -35,7 +36,9 @@ body{font-family:var(--font);background:var(--cloud);color:var(--ink);-webkit-fo
 .st-btn-label{font-size:12px;font-weight:700;text-align:center;line-height:1.35}
 
 /* Footer */
-.st-footer{text-align:center;padding:20px;font-size:10px;color:var(--faint);display:flex;align-items:center;justify-content:center;gap:6px}
+.st-footer{text-align:center;padding:10px 20px;border-top:1px solid var(--cloud);font-size:9px;color:var(--faint);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0}
+.st-footer-secured{display:flex;align-items:center;justify-content:center;gap:6px}
+.st-footer-powered{font-size:10px;opacity:.8;overflow-wrap:anywhere;word-break:break-word}
 .st-footer a{color:var(--ink-4);text-decoration:none;font-weight:600}
 
 /* Status badge */

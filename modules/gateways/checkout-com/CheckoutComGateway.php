@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterface
+final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -322,6 +323,48 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
                 }
             }
         }
+    }
+
+    /**
+     * Verifies the Secret Key by listing configured webhooks - a real, read-only Checkout.com
+     * endpoint, no payment session created.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter a Secret API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $mode === 'live' ? 'https://api.checkout.com/webhooks' : 'https://api.sandbox.checkout.com/webhooks';
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $secretKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Checkout.com - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => "Connected successfully to Checkout.com ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && isset($data['error_type']) && is_scalar($data['error_type'])
+            ? (string) $data['error_type']
+            : 'Checkout.com rejected the provided Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**
