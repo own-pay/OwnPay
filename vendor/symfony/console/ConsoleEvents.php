@@ -15,7 +15,6 @@ use Symfony\Component\Console\Event\ConsoleCommandEvent;
 use Symfony\Component\Console\Event\ConsoleErrorEvent;
 use Symfony\Component\Console\Event\ConsoleSignalEvent;
 use Symfony\Component\Console\Event\ConsoleTerminateEvent;
-use Symfony\Component\Console\Event\QuestionAnsweredEvent;
 
 /**
  * Contains all events dispatched by an Application.
@@ -60,14 +59,6 @@ final class ConsoleEvents
     public const ERROR = 'console.error';
 
     /**
-     * The QUESTION_ANSWERED event allows you to validate user input
-     * using Symfony Validator constraints.
-     *
-     * @Event("Symfony\Component\Console\Event\QuestionAnsweredEvent")
-     */
-    public const QUESTION_ANSWERED = 'console.question_answered';
-
-    /**
      * Event aliases.
      *
      * These aliases can be consumed by RegisterListenersPass.
@@ -77,6 +68,5 @@ final class ConsoleEvents
         ConsoleErrorEvent::class => self::ERROR,
         ConsoleSignalEvent::class => self::SIGNAL,
         ConsoleTerminateEvent::class => self::TERMINATE,
-        QuestionAnsweredEvent::class => self::QUESTION_ANSWERED,
     ];
 }

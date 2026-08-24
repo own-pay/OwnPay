@@ -13,7 +13,6 @@ namespace Symfony\Component\Console\Question;
 
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Exception\LogicException;
-use Symfony\Component\Validator\Constraint;
 
 /**
  * Represents a Question.
@@ -40,15 +39,10 @@ class Question
     private bool $trimmable = true;
     private bool $multiline = false;
     private ?int $timeout = null;
-    /**
-     * @var Constraint[]
-     */
-    private array $constraints = [];
 
     /**
      * @param string                     $question The question to ask to the user
-     * @param string|bool|int|float|null $default  The default answer to return if the user enters nothing.
-     *                                             Object defaults set on InputArgument/InputOption are not propagated here.
+     * @param string|bool|int|float|null $default  The default answer to return if the user enters nothing
      */
     public function __construct(
         private string $question,
@@ -321,25 +315,5 @@ class Question
         $this->trimmable = $trimmable;
 
         return $this;
-    }
-
-    /**
-     * @param Constraint[] $constraints
-     *
-     * @return $this
-     */
-    public function setConstraints(array $constraints): static
-    {
-        $this->constraints = $constraints;
-
-        return $this;
-    }
-
-    /**
-     * @return Constraint[]
-     */
-    public function getConstraints(): array
-    {
-        return $this->constraints;
     }
 }

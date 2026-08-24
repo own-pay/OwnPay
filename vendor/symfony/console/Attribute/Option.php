@@ -14,26 +14,26 @@ namespace Symfony\Component\Console\Attribute;
 use Symfony\Component\Console\Attribute\Reflection\ReflectionMember;
 use Symfony\Component\Console\Completion\CompletionInput;
 use Symfony\Component\Console\Completion\Suggestion;
+use Symfony\Component\Console\Exception\InvalidOptionException;
 use Symfony\Component\Console\Exception\LogicException;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\String\UnicodeString;
 
 #[\Attribute(\Attribute::TARGET_PARAMETER | \Attribute::TARGET_PROPERTY)]
 class Option
 {
-    public const ALLOWED_UNION_TYPES = ['bool|string', 'bool|int', 'bool|float'];
-    public mixed $default = null;
-    public array|\Closure $suggestedValues;
+    private const ALLOWED_TYPES = ['string', 'bool', 'int', 'float', 'array'];
+    private const ALLOWED_UNION_TYPES = ['bool|string', 'bool|int', 'bool|float'];
 
+    private string|bool|int|float|array|null $default = null;
+    private array|\Closure $suggestedValues;
+    private ?int $mode = null;
     /**
-     * @internal
-     *
      * @var string|class-string<\BackedEnum>
      */
-    public string $typeName = '';
-    /** @internal */
-    public bool $allowNull = false;
-    private ?int $mode = null;
+    private string $typeName = '';
+    private bool $allowNull = false;
     private string $memberName = '';
     private string $sourceName = '';
 
@@ -71,8 +71,7 @@ class Option
         $name = $reflection->getName();
         $type = $reflection->getType();
 
-        // Variadic parameters implicitly default to an empty array
-        if (!$reflection->isVariadic() && !$reflection->hasDefaultValue()) {
+        if (!$reflection->hasDefaultValue()) {
             throw new LogicException(\sprintf('The option %s "$%s" of "%s" must declare a default value.', $self->memberName, $name, $self->sourceName));
         }
 
@@ -80,7 +79,7 @@ class Option
             $self->name = (new UnicodeString($name))->kebab();
         }
 
-        $self->default = $reflection->isVariadic() ? [] : $reflection->getDefaultValue();
+        $self->default = $reflection->getDefaultValue();
         $self->allowNull = $reflection->isNullable();
 
         if ($type instanceof \ReflectionUnionType) {
@@ -92,6 +91,11 @@ class Option
         }
 
         $self->typeName = $type->getName();
+        $isBackedEnum = is_subclass_of($self->typeName, \BackedEnum::class);
+
+        if (!\in_array($self->typeName, self::ALLOWED_TYPES, true) && !$isBackedEnum) {
+            throw new LogicException(\sprintf('The type "%s" on %s "$%s" of "%s" is not supported as a command option. Only "%s" types and BackedEnum are allowed.', $self->typeName, $self->memberName, $name, $self->sourceName, implode('", "', self::ALLOWED_TYPES)));
+        }
 
         if ('bool' === $self->typeName && $self->allowNull && \in_array($self->default, [true, false], true)) {
             throw new LogicException(\sprintf('The option %s "$%s" of "%s" must not be nullable when it has a default boolean value.', $self->memberName, $name, $self->sourceName));
@@ -106,7 +110,7 @@ class Option
             if (false !== $self->default) {
                 $self->mode |= InputOption::VALUE_NEGATABLE;
             }
-        } elseif ('array' === $self->typeName || $reflection->isVariadic()) {
+        } elseif ('array' === $self->typeName) {
             $self->mode = InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY;
         } else {
             $self->mode = InputOption::VALUE_REQUIRED;
@@ -116,7 +120,7 @@ class Option
             $self->suggestedValues = [$instance, $self->suggestedValues[1]];
         }
 
-        if (is_subclass_of($self->typeName, \BackedEnum::class) && !$self->suggestedValues) {
+        if ($isBackedEnum && !$self->suggestedValues) {
             $self->suggestedValues = array_column($self->typeName::cases(), 'value');
         }
 
@@ -132,6 +136,36 @@ class Option
         $suggestedValues = \is_callable($this->suggestedValues) ? ($this->suggestedValues)(...) : $this->suggestedValues;
 
         return new InputOption($this->name, $this->shortcut, $this->mode, $this->description, $default, $suggestedValues);
+    }
+
+    /**
+     * @internal
+     */
+    public function resolveValue(InputInterface $input): mixed
+    {
+        $value = $input->getOption($this->name);
+
+        if (null === $value && \in_array($this->typeName, self::ALLOWED_UNION_TYPES, true)) {
+            return true;
+        }
+
+        if (is_subclass_of($this->typeName, \BackedEnum::class) && (\is_string($value) || \is_int($value))) {
+            return $this->typeName::tryFrom($value) ?? throw InvalidOptionException::fromEnumValue($this->name, $value, $this->suggestedValues);
+        }
+
+        if ('array' === $this->typeName && $this->allowNull && [] === $value) {
+            return null;
+        }
+
+        if ('bool' !== $this->typeName) {
+            return $value;
+        }
+
+        if ($this->allowNull && null === $value) {
+            return null;
+        }
+
+        return $value ?? $this->default;
     }
 
     private function handleUnion(\ReflectionUnionType $type): self

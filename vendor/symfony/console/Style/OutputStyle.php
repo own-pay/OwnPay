@@ -80,7 +80,8 @@ abstract class OutputStyle implements OutputInterface, StyleInterface
 
     public function isSilent(): bool
     {
-        return $this->output->isSilent();
+        // @deprecated since Symfony 7.2, change to $this->output->isSilent() in 8.0
+        return method_exists($this->output, 'isSilent') ? $this->output->isSilent() : self::VERBOSITY_SILENT === $this->output->getVerbosity();
     }
 
     public function isQuiet(): bool

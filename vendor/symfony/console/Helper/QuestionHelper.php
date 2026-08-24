@@ -11,10 +11,7 @@
 
 namespace Symfony\Component\Console\Helper;
 
-use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Cursor;
-use Symfony\Component\Console\Event\QuestionAnsweredEvent;
-use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Exception\MissingInputException;
 use Symfony\Component\Console\Exception\RuntimeException;
 use Symfony\Component\Console\Formatter\OutputFormatter;
@@ -25,11 +22,8 @@ use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\ConsoleSectionOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
-use Symfony\Component\Console\Question\FileQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Terminal;
-use Symfony\Component\Validator\Validation;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function Symfony\Component\String\s;
 
@@ -42,11 +36,6 @@ class QuestionHelper extends Helper
 {
     private static bool $stty = true;
     private static bool $stdinIsInteractive;
-
-    public function __construct(
-        private ?EventDispatcherInterface $dispatcher = null,
-    ) {
-    }
 
     /**
      * Asks a question to the user.
@@ -68,10 +57,8 @@ class QuestionHelper extends Helper
         $inputStream = $input instanceof StreamableInputInterface ? $input->getStream() : null;
         $inputStream ??= \STDIN;
 
-        ProgressBar::pauseAll();
-
         try {
-            if (!$question->getValidator() && !$question->getConstraints()) {
+            if (!$question->getValidator()) {
                 return $this->doAsk($inputStream, $output, $question);
             }
 
@@ -86,8 +73,6 @@ class QuestionHelper extends Helper
             }
 
             return $fallbackOutput;
-        } finally {
-            ProgressBar::resumeAll();
         }
     }
 
@@ -113,12 +98,6 @@ class QuestionHelper extends Helper
      */
     private function doAsk($inputStream, OutputInterface $output, Question $question): mixed
     {
-        if ($question instanceof FileQuestion) {
-            $this->writePrompt($output, $question);
-
-            return (new FileInputHelper())->readFileInput($inputStream, $output, $question);
-        }
-
         $this->writePrompt($output, $question);
 
         $autocomplete = $question->getAutocompleterCallback();
@@ -257,8 +236,6 @@ class QuestionHelper extends Helper
      *
      * @param resource                  $inputStream
      * @param callable(string):string[] $autocomplete
-     *
-     * @param-immediately-invoked-callable $autocomplete
      */
     private function autocomplete(OutputInterface $output, Question $question, $inputStream, callable $autocomplete): string
     {
@@ -310,6 +287,18 @@ class QuestionHelper extends Helper
             } elseif ("\033" === $c) {
                 // Did we read an escape sequence?
                 $c .= fread($inputStream, 2);
+
+                // A CSI sequence ends with a byte in the 0x40-0x7E range, preceded by any number of
+                // parameter and intermediate bytes; consume them all so that none leaks into the answer
+                if ('[' === ($c[1] ?? '')) {
+                    while (($o = \ord($c[\strlen($c) - 1])) >= 0x20 && $o <= 0x3F) {
+                        if (!$next = fread($inputStream, 1)) {
+                            break;
+                        }
+
+                        $c .= $next;
+                    }
+                }
 
                 // A = Up Arrow. B = Down Arrow
                 if (isset($c[2]) && ('A' === $c[2] || 'B' === $c[2])) {
@@ -421,7 +410,7 @@ class QuestionHelper extends Helper
      */
     private function getHiddenResponse(OutputInterface $output, $inputStream, bool $trimmable = true): string
     {
-        if ('\\' === \DIRECTORY_SEPARATOR && $this->isInteractiveInput($inputStream)) {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
             $exe = __DIR__.'/../Resources/bin/hiddeninput.exe';
 
             // handle code running from a phar
@@ -431,7 +420,7 @@ class QuestionHelper extends Helper
                 $exe = $tmpExe;
             }
 
-            $sExec = (string) shell_exec('"'.$exe.'"');
+            $sExec = shell_exec('"'.$exe.'"');
             $value = $trimmable ? rtrim($sExec) : $sExec;
             $output->writeln('');
 
@@ -474,8 +463,6 @@ class QuestionHelper extends Helper
      *
      * @param callable $interviewer A callable that will ask for a question and return the result
      *
-     * @param-immediately-invoked-callable $interviewer
-     *
      * @throws \Exception In case the max number of attempts has been reached and no valid response has been given
      */
     private function validateAttempts(callable $interviewer, OutputInterface $output, Question $question): mixed
@@ -489,17 +476,7 @@ class QuestionHelper extends Helper
             }
 
             try {
-                $value = $interviewer();
-
-                if ($constraints = $question->getConstraints()) {
-                    $this->validateConstraints($value, $constraints);
-                }
-
-                if ($validator = $question->getValidator()) {
-                    return $validator($value);
-                }
-
-                return $value;
+                return $question->getValidator()($interviewer());
             } catch (MissingInputException $e) {
                 throw $error ?? $e;
             } catch (RuntimeException $e) {
@@ -509,27 +486,6 @@ class QuestionHelper extends Helper
         }
 
         throw $error;
-    }
-
-    private function validateConstraints(mixed $value, array $constraints): void
-    {
-        if ($this->dispatcher) {
-            $event = new QuestionAnsweredEvent($value, $constraints);
-            $this->dispatcher->dispatch($event, ConsoleEvents::QUESTION_ANSWERED);
-
-            if ($event->hasViolations()) {
-                throw new InvalidArgumentException($event->getViolations()[0]);
-            }
-
-            return;
-        }
-
-        $validator = Validation::createValidator();
-        $violations = $validator->validate($value, $constraints);
-
-        if (\count($violations) > 0) {
-            throw new InvalidArgumentException($violations[0]->getMessage());
-        }
     }
 
     private function isInteractiveInput($inputStream): bool

@@ -7,9 +7,7 @@ interfaces.
 Sponsor
 -------
 
-This package is looking for a [backer][1].
-
-Help Symfony by [sponsoring][3] its development!
+Help Symfony by [sponsoring][1] its development!
 
 Resources
 ---------
@@ -26,5 +24,4 @@ Credits
 `Resources/bin/hiddeninput.exe` is a third party binary provided within this
 component. Find sources and license at https://github.com/Seldaek/hidden-input.
 
-[1]: https://symfony.com/backers
-[3]: https://symfony.com/sponsor
+[1]: https://symfony.com/sponsor

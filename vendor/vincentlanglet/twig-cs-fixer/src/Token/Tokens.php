@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace TwigCsFixer\Token;
 
-use TwigCsFixer\Report\ViolationId;
+use TwigCsFixer\Report\IgnoredViolationId;
 
 final class Tokens
 {
@@ -24,7 +24,7 @@ final class Tokens
     private array $indexes = [];
 
     /**
-     * @var list<ViolationId>
+     * @var list<IgnoredViolationId>
      */
     private array $ignoredViolations = [];
 
@@ -98,9 +98,9 @@ final class Tokens
     }
 
     /**
-     * @param int|string|array<int|string> $type
+     * @param string|string[] $type
      */
-    public function findNext(int|string|array $type, int $start, ?int $end = null, bool $exclude = false): int|false
+    public function findNext(string|array $type, int $start, ?int $end = null, bool $exclude = false): int|false
     {
         $end ??= $this->tokenCount;
         for ($i = $start; $i < $end; ++$i) {
@@ -113,9 +113,9 @@ final class Tokens
     }
 
     /**
-     * @param int|string|array<int|string> $type
+     * @param string|string[] $type
      */
-    public function findPrevious(int|string|array $type, int $start, int $end = 0, bool $exclude = false): int|false
+    public function findPrevious(string|array $type, int $start, int $end = 0, bool $exclude = false): int|false
     {
         for ($i = $start; $i >= $end; --$i) {
             if ($exclude !== $this->get($i)->isMatching($type)) {
@@ -126,7 +126,7 @@ final class Tokens
         return false;
     }
 
-    public function addIgnoredViolation(ViolationId $violationId): self
+    public function addIgnoredViolation(IgnoredViolationId $violationId): self
     {
         if ($this->readOnly) {
             throw new \LogicException('Cannot add ignored violation because the tokens are in read-only mode.');
@@ -138,7 +138,7 @@ final class Tokens
     }
 
     /**
-     * @return list<ViolationId>
+     * @return list<IgnoredViolationId>
      */
     public function getIgnoredViolations(): array
     {

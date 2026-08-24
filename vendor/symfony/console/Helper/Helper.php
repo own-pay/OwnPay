@@ -41,18 +41,10 @@ abstract class Helper implements HelperInterface
     {
         $string ??= '';
 
-        if ('' === $string) {
-            return 0;
-        }
+        if (preg_match('//u', $string)) {
+            $string = preg_replace('/[\p{Cc}\x7F]++/u', '', $string, -1, $count);
 
-        // Fast path for ASCII-only strings (no multi-byte, no control chars except common ones)
-        if (!preg_match('/[^\x20-\x7E]/', $string)) {
-            return \strlen($string);
-        }
-
-        // Single PCRE call: returns null if string is not valid UTF-8
-        if (null !== $clean = preg_replace('/[\p{Cc}\x7F]++/u', '', $string, -1, $count)) {
-            return (new UnicodeString($clean))->width(false) + $count;
+            return (new UnicodeString($string))->width(false) + $count;
         }
 
         if (false === $encoding = mb_detect_encoding($string, null, true)) {
@@ -160,16 +152,10 @@ abstract class Helper implements HelperInterface
 
     public static function removeDecoration(OutputFormatterInterface $formatter, ?string $string): string
     {
-        $string ??= '';
-
-        if (!str_contains($string, '<') && !str_contains($string, "\033")) {
-            return $string;
-        }
-
         $isDecorated = $formatter->isDecorated();
         $formatter->setDecorated(false);
         // remove <...> formatting
-        $string = $formatter->format($string);
+        $string = $formatter->format($string ?? '');
         // remove already formatted characters
         $string = preg_replace("/\033\[[^m]*m/", '', $string ?? '');
         // remove terminal hyperlinks
