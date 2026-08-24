@@ -71,6 +71,7 @@ CREATE TABLE `op_merchant_users` (
   `username` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(255) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
+  `password_changed_at` DATETIME(6) DEFAULT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
   `avatar_path` VARCHAR(500) DEFAULT NULL,
   `totp_secret_enc` VARCHAR(500) DEFAULT NULL,
@@ -233,6 +234,8 @@ CREATE TABLE `op_customers` (
   `email_hash` VARCHAR(64) NOT NULL,
   `phone_enc` VARBINARY(512) DEFAULT NULL,
   `phone_hash` VARCHAR(64) DEFAULT NULL,
+  `address_enc` VARBINARY(1024) DEFAULT NULL,
+  `status` ENUM('active','deleted') NOT NULL DEFAULT 'active',
   `metadata` JSON DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -240,6 +243,7 @@ CREATE TABLE `op_customers` (
   UNIQUE KEY `uk_uuid` (`uuid`),
   UNIQUE KEY `uk_merchant_email` (`merchant_id`, `email_hash`),
   KEY `idx_merchant` (`merchant_id`),
+  KEY `idx_merchant_status` (`merchant_id`, `status`),
   KEY `idx_merchant_phone_hash` (`merchant_id`, `phone_hash`),
   CONSTRAINT `fk_cust_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -333,7 +337,7 @@ CREATE TABLE `op_refunds` (
   `uuid` CHAR(36) NOT NULL,
   `amount` DECIMAL(15,2) NOT NULL,
   `reason` VARCHAR(500) DEFAULT NULL,
-  `status` ENUM('pending','completed','failed') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','completed','failed','pending_verification') NOT NULL DEFAULT 'pending',
   `failure_reason` VARCHAR(500) DEFAULT NULL,
   `gateway_refund_id` VARCHAR(200) DEFAULT NULL,
   `processed_at` DATETIME(6) DEFAULT NULL,
@@ -523,6 +527,7 @@ CREATE TABLE `op_ledger_transactions` (
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_uuid` (`uuid`),
+  UNIQUE KEY `uk_merchant_ref` (`merchant_id`, `reference_type`, `reference_id`, `description`(255)),
   KEY `idx_merchant` (`merchant_id`),
   KEY `idx_ref` (`reference_type`, `reference_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -592,6 +597,7 @@ CREATE TABLE `op_audit_logs` (
   `ip_address` VARCHAR(45) DEFAULT NULL,
   `user_agent` VARCHAR(500) DEFAULT NULL,
   `signature` VARCHAR(64) DEFAULT NULL,
+  `prev_hash` VARCHAR(64) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_merchant_action` (`merchant_id`, `action`),
