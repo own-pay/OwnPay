@@ -293,13 +293,16 @@ final class MerchantUserRepository extends BaseRepository
         string $status = 'active',
         ?string $avatarPath = null
     ): string {
-        // Use provided roleId, or resolve Staff role for this merchant
+        // Use provided roleId, or resolve the brand's Staff role.
         if ($roleId === null) {
             $role = $this->db->fetchOne(
                 "SELECT id FROM op_roles WHERE merchant_id = :mid AND slug = 'staff' LIMIT 1",
                 ['mid' => $merchantId]
             );
-            $roleId = ($role && isset($role['id']) && is_scalar($role['id'])) ? (int) $role['id'] : 1;
+            if ($role === null || !isset($role['id']) || !is_scalar($role['id'])) {
+                throw new \RuntimeException('No Staff role is configured for this brand.');
+            }
+            $roleId = (int) $role['id'];
         }
 
         return $this->create([

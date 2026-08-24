@@ -90,7 +90,7 @@ final class StaffController
         $this->brand->resolveFromRequest($req);
         $mid = $this->brand->getActiveBrandId();
 
-        if ($mid === null) {
+        if ($mid === null || $mid <= 0) {
             $this->session->flashError('Please select a specific brand to add staff to.');
             return Response::redirect('/admin/staff');
         }
@@ -136,6 +136,11 @@ final class StaffController
                     break;
                 }
             }
+        }
+
+        if ($roleId === null) {
+            $this->session->flashError('Create a role for this brand before adding staff.');
+            return Response::redirect('/admin/staff/create');
         }
 
         // Validate required fields + password policy.
