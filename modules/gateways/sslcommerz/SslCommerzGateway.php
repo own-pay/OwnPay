@@ -244,9 +244,9 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
         }
 
         $gatewayPageURL = $data['GatewayPageURL'] ?? null;
-        $gatewayPageURLStr = is_scalar($gatewayPageURL) ? (string) $gatewayPageURL : null;
+        $gatewayPageURLStr = is_scalar($gatewayPageURL) ? (string) $gatewayPageURL : '';
 
-        return ['redirect_url' => $gatewayPageURLStr];
+        return $gatewayPageURLStr !== '' ? ['redirect_url' => $gatewayPageURLStr] : [];
     }
 
     /**

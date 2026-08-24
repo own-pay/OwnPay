@@ -328,9 +328,15 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface,
             return null;
         }
 
-        $data = json_decode((string) $response, true);
-        if (!is_array($data)) {
+        $decoded = json_decode((string) $response, true);
+        if (!is_array($decoded)) {
             return null;
+        }
+        $data = [];
+        foreach ($decoded as $key => $value) {
+            if (is_string($key)) {
+                $data[$key] = $value;
+            }
         }
         $data['_diagnostic'] = substr(trim((string) $response), 0, 300);
         return $data;

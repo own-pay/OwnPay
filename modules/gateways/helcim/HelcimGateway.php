@@ -111,6 +111,14 @@ final class HelcimGateway implements PluginInterface, GatewayAdapterInterface, T
         return [];
     }
 
+    public function testConnection(array $credentials): array
+    {
+        return [
+            'success' => false,
+            'message' => 'Helcim connection testing is not supported yet.',
+        ];
+    }
+
     /**
      * Initiates a payment process with the payment provider.
      */

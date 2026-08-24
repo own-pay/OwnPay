@@ -87,9 +87,8 @@ final class WiseGateway implements PluginInterface, GatewayAdapterInterface, Tes
         }
 
         $data = json_decode((string) $response, true);
-        $errMsg = is_array($data) && is_scalar($data['error'] ?? $data['message'] ?? null)
-            ? (string) ($data['error'] ?? $data['message'])
-            : 'Wise rejected the provided credentials.';
+        $error = is_array($data) ? ($data['error'] ?? $data['message'] ?? null) : null;
+        $errMsg = is_scalar($error) ? (string) $error : 'Wise rejected the provided credentials.';
         return ['success' => false, 'message' => $errMsg];
     }
 

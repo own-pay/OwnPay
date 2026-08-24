@@ -92,9 +92,10 @@ final class SquareGateway implements PluginInterface, GatewayAdapterInterface, T
         }
 
         $data = json_decode((string) $response, true);
-        $errMsg = is_array($data) && is_array($data['errors'][0] ?? null) && is_scalar($data['errors'][0]['detail'] ?? null)
-            ? (string) $data['errors'][0]['detail']
-            : 'Square rejected the provided credentials.';
+        $errors = is_array($data) && is_array($data['errors'] ?? null) ? $data['errors'] : [];
+        $firstError = isset($errors[0]) && is_array($errors[0]) ? $errors[0] : [];
+        $detail = $firstError['detail'] ?? null;
+        $errMsg = is_scalar($detail) ? (string) $detail : 'Square rejected the provided credentials.';
         return ['success' => false, 'message' => $errMsg];
     }
 

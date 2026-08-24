@@ -102,9 +102,10 @@ final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $data = json_decode((string) $response, true);
-        $errMsg = is_array($data) && is_array($data['errors'][0] ?? null) && is_scalar($data['errors'][0]['message'] ?? null)
-            ? (string) $data['errors'][0]['message']
-            : 'Worldline rejected the provided credentials.';
+        $errors = is_array($data) && is_array($data['errors'] ?? null) ? $data['errors'] : [];
+        $firstError = isset($errors[0]) && is_array($errors[0]) ? $errors[0] : [];
+        $message = $firstError['message'] ?? null;
+        $errMsg = is_scalar($message) ? (string) $message : 'Worldline rejected the provided credentials.';
         return ['success' => false, 'message' => $errMsg];
     }
 
