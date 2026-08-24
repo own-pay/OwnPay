@@ -168,6 +168,14 @@ final class StaffController
             $this->session->flashError('Name and email are required.');
             return Response::redirect('/admin/staff/create');
         }
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $this->session->flashError('Enter a valid email address.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if ($this->userRepo->emailExists($email)) {
+            $this->session->flashError('An account with this email already exists.');
+            return Response::redirect('/admin/staff/create');
+        }
         if (strlen($password) < 12) {
             $this->session->flashError('Password must be at least 12 characters.');
             return Response::redirect('/admin/staff/create');

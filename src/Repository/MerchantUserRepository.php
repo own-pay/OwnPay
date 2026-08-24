@@ -62,6 +62,24 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
+     * Checks whether an email is already assigned to an account.
+     *
+     * @param string $email The email address to check.
+     * @param int|null $excludeId Optional user ID to exclude during edits.
+     * @return bool True when the email is already in use.
+     */
+    public function emailExists(string $email, ?int $excludeId = null): bool
+    {
+        $where = 'email = :email';
+        $params = ['email' => $email];
+        if ($excludeId !== null) {
+            $where .= ' AND id <> :exclude_id';
+            $params['exclude_id'] = $excludeId;
+        }
+        return $this->db->exists($this->table, $where, $params);
+    }
+
+    /**
      * Finds an active user record by their email address for authentication checks.
      *
      * @param string $email The user's email address.
