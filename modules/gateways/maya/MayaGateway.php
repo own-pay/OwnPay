@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Maya;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Maya Wallet Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class MayaGateway implements PluginInterface, GatewayAdapterInterface
+final class MayaGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -98,6 +99,63 @@ final class MayaGateway implements PluginInterface, GatewayAdapterInterface
             'redirect_url' => $redirectUrl,
             'session_id'   => $sessionId,
         ];
+    }
+
+    /**
+     * Verifies the Secret API Key authenticates against Maya via HTTP Basic auth. Maya has no
+     * dedicated read-only ping endpoint, so this creates a minimal checkout (like initiate()
+     * does) using the secret key - it does not move money, since nothing is charged until a
+     * shopper actually completes the resulting redirect.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter the Secret API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $url = $mode === 'live'
+            ? 'https://pg.maya.ph/checkout/v1/checkouts'
+            : 'https://pg-sandbox.paymaya.com/checkout/v1/checkouts';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Basic ' . base64_encode($secretKey . ':'),
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'totalAmount' => ['value' => '1.00', 'currency' => 'PHP'],
+                'requestReferenceNumber' => 'test_connection_' . time(),
+                'redirectUrl' => [
+                    'success' => 'https://example.com/success',
+                    'failure' => 'https://example.com/failure',
+                    'cancel'  => 'https://example.com/cancel',
+                ],
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Maya - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Maya rejected the Secret API Key.'];
+        }
+
+        $modeLabel = $mode === 'live' ? 'live' : 'sandbox';
+        return ['success' => true, 'message' => "Connected successfully to Maya ({$modeLabel} mode)."];
     }
 
     public function verify(array $callbackData, array $credentials): array

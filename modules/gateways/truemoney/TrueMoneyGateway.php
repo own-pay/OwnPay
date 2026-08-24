@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\TrueMoney;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * TrueMoney payment gateway adapter using Omise hosted payment sources.
  */
-final class TrueMoneyGateway implements PluginInterface, GatewayAdapterInterface
+final class TrueMoneyGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -52,6 +53,44 @@ final class TrueMoneyGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'secret_key', 'label' => 'Omise Secret Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the underlying Omise secret key authenticates, via Omise's free, read-only
+     * account-info endpoint.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter an Omise Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init(self::API_URL . '/account');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Omise - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully via Omise (TrueMoney).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'Omise rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

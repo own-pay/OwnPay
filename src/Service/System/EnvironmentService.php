@@ -24,7 +24,7 @@ final class EnvironmentService
      */
     public static function mode(): string
     {
-        $env = getenv('APP_ENV');
+        $env = ($_ENV['APP_ENV'] ?? getenv('APP_ENV'));
         if ($env === false) {
             $env = $_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? 'production';
         }
@@ -68,7 +68,7 @@ final class EnvironmentService
      */
     public static function debugEnabled(): bool
     {
-        $env = getenv('APP_DEBUG');
+        $env = ($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG'));
         if ($env === false) {
             $env = $_ENV['APP_DEBUG'] ?? $_SERVER['APP_DEBUG'] ?? 'false';
         }
@@ -205,7 +205,7 @@ final class EnvironmentService
         }
 
         // System environment variable fallback
-        $env = getenv($key);
+        $env = ($_ENV[$key] ?? getenv($key));
         if ($env === false) {
             $env = $_ENV[$key] ?? $_SERVER[$key] ?? false;
         }

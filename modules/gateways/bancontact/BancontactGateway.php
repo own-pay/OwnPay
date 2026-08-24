@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Bancontact;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Bancontact Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class BancontactGateway implements PluginInterface, GatewayAdapterInterface
+final class BancontactGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -48,6 +49,43 @@ final class BancontactGateway implements PluginInterface, GatewayAdapterInterfac
         return [
             ['name' => 'api_key', 'label' => 'Mollie API Key', 'type' => 'password', 'required' => true],
         ];
+    }
+
+    /**
+     * This adapter processes Bancontact through Mollie (see initiate()) - verified the same way,
+     * via Mollie's free, read-only GET /v2/methods listing.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Mollie API Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.mollie.com/v2/methods');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Mollie - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            $mode = str_starts_with($apiKey, 'live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Mollie ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['detail'] ?? null) ? (string) $data['detail'] : 'Mollie rejected the provided API Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

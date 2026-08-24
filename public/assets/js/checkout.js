@@ -642,6 +642,10 @@
         } else if (action === "go-tab") {
             window.goT(target.getAttribute("data-tab-name"));
         } else if (action === "pick-gw") {
+            if (target.getAttribute("data-disabled") === "1") {
+                showCheckoutError(target.getAttribute("data-reason") || "This gateway isn't available for this amount.");
+                return;
+            }
             window.pickGW(
                 target,
                 target.getAttribute("data-tab"),

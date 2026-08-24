@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Mollie;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Mollie Payments Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class MollieGateway implements PluginInterface, GatewayAdapterInterface
+final class MollieGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -100,6 +101,45 @@ final class MollieGateway implements PluginInterface, GatewayAdapterInterface
             'redirect_url' => $checkoutUrl,
             'session_id'   => $sessionId,
         ];
+    }
+
+    /**
+     * Verifies the API Key authenticates against Mollie - GET /v2/methods is a free, read-only
+     * call that lists the account's enabled payment methods.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Mollie API Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.mollie.com/v2/methods');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Mollie - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $mode = str_starts_with($apiKey, 'live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Mollie ({$mode} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['detail'] ?? null) ? (string) $data['detail'] : 'Mollie rejected the provided API Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function verify(array $callbackData, array $credentials): array

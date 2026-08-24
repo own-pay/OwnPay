@@ -63,6 +63,7 @@
                         <th>Amount</th>
                         <th>Reason</th>
                         <th>Status</th>
+                        <th>Gateway Refund ID</th>
                         <th>Processed At</th>
                         <th>Date</th>
                     </tr>
@@ -87,9 +88,16 @@
                             <span class="op-text-sm op-text-muted">{{ ref.reason|default('-') }}</span>
                         </td>
                         <td data-label="Status">
-                            <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : 'danger') }}">
+                            <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : 'danger') }}"
+                                {% if ref.status == 'failed' and ref.failure_reason %}title="{{ ref.failure_reason }}"{% endif %}>
                                 {{ ref.status|capitalize }}
                             </span>
+                            {% if ref.status == 'failed' and ref.failure_reason %}
+                            <div class="op-text-xs op-text-danger op-mt-1">{{ ref.failure_reason }}</div>
+                            {% endif %}
+                        </td>
+                        <td data-label="Gateway Refund ID">
+                            <span class="op-text-monospace op-text-sm">{{ ref.gateway_refund_id|default('-') }}</span>
                         </td>
                         <td data-label="Processed" class="op-text-muted op-text-sm">
                             {{ ref.processed_at ? ref.processed_at|date("M d, Y H:i") : '-' }}
@@ -100,7 +108,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="op-empty">
+                        <td colspan="8" class="op-empty">
                             No refunds found for current filters.
                         </td>
                     </tr>

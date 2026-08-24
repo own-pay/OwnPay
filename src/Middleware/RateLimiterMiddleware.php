@@ -43,184 +43,7 @@ final class RateLimiterMiddleware
     public function handle(Request $request, callable $next): Response
     {
         try {
-            // 1. IP Whitelisting Check
-            $settingsRepo = null;
-            if ($this->container->has(\OwnPay\Repository\SettingsRepository::class)) {
-                $repo = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
-                if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
-                    $settingsRepo = $repo;
-                    $whitelistVal = $repo->get('general', 'rate_limit_whitelist_ips', '');
-                    $whitelistStr = is_string($whitelistVal) ? $whitelistVal : '';
-                    if ($this->isIpWhitelisted($request->ip(), $whitelistStr)) {
-                        return $next($request);
-                    }
-                }
-            }
-
-            $config = $this->container->get('config.app');
-            if (!is_array($config)) {
-                $config = [];
-            }
-            $path = '/' . trim($request->path(), '/');
-
-            // Dynamically load the admin login slug to ensure rate limits apply perfectly
-            $loginSlug = 'login';
-            $paths = $config['paths'] ?? null;
-            $root = is_array($paths) && isset($paths['root']) && is_string($paths['root']) ? $paths['root'] : dirname(__DIR__, 2);
-            $cacheFile = $root . '/storage/cache/login_slug.cache';
-            if (file_exists($cacheFile)) {
-                $cached = file_get_contents($cacheFile);
-                if ($cached !== false && preg_match('/^[a-z0-9\-]+$/', $cached)) {
-                    $loginSlug = $cached;
-                }
-            }
-
-            $isLoginRoute = (
-                $path === '/' . $loginSlug ||
-                $path === '/2fa' ||
-                $path === '/forgot-password' ||
-                $path === '/reset-password' ||
-                str_contains($path, '/login') ||
-                str_contains($path, '/2fa') ||
-                str_contains($path, '/forgot-password') ||
-                str_contains($path, '/reset-password') ||
-                $path === '/api/mobile/v1/devices'
-            );
-
-            // 2. Dynamic Rules Matching
-            $matchedRule = null;
-            if ($settingsRepo !== null) {
-                $rulesJsonVal = $settingsRepo->get('general', 'rate_limit_rules', '[]');
-                $rulesJson = is_string($rulesJsonVal) ? $rulesJsonVal : '[]';
-                $rules = json_decode($rulesJson, true);
-                if (is_array($rules)) {
-                    $method = $request->method();
-                    foreach ($rules as $rule) {
-                        if (!is_array($rule)) {
-                            continue;
-                        }
-                        $rulePathVal = $rule['path'] ?? '';
-                        $ruleMethodVal = $rule['method'] ?? 'ALL';
-                        $ruleLimitVal = $rule['limit'] ?? null;
-                        $ruleWindowVal = $rule['window'] ?? null;
-
-                        $rulePath = is_string($rulePathVal) ? $rulePathVal : '';
-                        $ruleMethod = is_string($ruleMethodVal) ? $ruleMethodVal : 'ALL';
-                        $ruleLimit = is_numeric($ruleLimitVal) ? (int) $ruleLimitVal : null;
-                        $ruleWindow = is_numeric($ruleWindowVal) ? (int) $ruleWindowVal : null;
-
-                        if ($rulePath === '' || $ruleLimit === null || $ruleWindow === null) {
-                            continue;
-                        }
-
-                        $methodMatched = false;
-                        if (strcasecmp($ruleMethod, 'ALL') === 0 || strcasecmp($ruleMethod, '*') === 0 || strcasecmp($ruleMethod, $method) === 0) {
-                            $methodMatched = true;
-                        }
-
-                        if (!$methodMatched) {
-                            continue;
-                        }
-
-                        $pathMatched = false;
-                        if ($rulePath === '*' || $rulePath === '/*') {
-                            $pathMatched = true;
-                        } else {
-                            $regex = preg_quote($rulePath, '#');
-                            $regex = str_replace('\*', '.*', $regex);
-                            if (preg_match('#^' . $regex . '$#i', $path)) {
-                                $pathMatched = true;
-                            }
-                        }
-
-                        if ($pathMatched) {
-                            $matchedRule = [
-                                'max' => $ruleLimit,
-                                'window' => $ruleWindow
-                            ];
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if ($matchedRule !== null) {
-                $limit = $matchedRule['max'];
-                $window = $matchedRule['window'];
-            } else {
-                $rateLimitConfig = $config['rate_limit'] ?? null;
-                $limitConfig = null;
-                if (is_array($rateLimitConfig)) {
-                    if ($isLoginRoute) {
-                        $limitConfig = $rateLimitConfig['login'] ?? null;
-                    } elseif (str_starts_with($path, '/api/')) {
-                        $limitConfig = $rateLimitConfig['api'] ?? null;
-                    } else {
-                        $limitConfig = $rateLimitConfig['global'] ?? null;
-                    }
-                }
-                if (!is_array($limitConfig)) {
-                    $limitConfig = $isLoginRoute ? ['max' => 5, 'window' => 300] : (str_starts_with($path, '/api/') ? ['max' => 60, 'window' => 60] : ['max' => 120, 'window' => 60]);
-                }
-
-                $limitVal = $limitConfig['max'] ?? 60;
-                $limit = is_scalar($limitVal) ? (int) $limitVal : 60;
-                $windowVal = $limitConfig['window'] ?? 60;
-                $window = is_scalar($windowVal) ? (int) $windowVal : 60;
-            }
-
-            $key = $this->buildKey($request);
-            $now = time();
-
-            $count = $this->incrementAndCount($key, $now, $window);
-
-            if ($count > $limit) {
-                // 3. Branded HTML Throttling UI Fallback
-                if (!$request->expectsJson()) {
-                    if ($this->container->has(\Twig\Environment::class)) {
-                        try {
-                            $twig = $this->container->get(\Twig\Environment::class);
-                            if ($twig instanceof \Twig\Environment) {
-                                $cspNonce = '';
-                                if ($this->container->has('csp_nonce')) {
-                                    $cspNonceVal = $this->container->get('csp_nonce');
-                                    $cspNonce = is_string($cspNonceVal) ? $cspNonceVal : '';
-                                }
-                                $html = $twig->render('error/429.twig', [
-                                    'retry_after' => $window,
-                                    'limit' => $limit,
-                                    'csp_nonce' => $cspNonce
-                                ]);
-                                return Response::html($html, 429)
-                                    ->withHeader('Retry-After', (string) $window)
-                                    ->withHeader('X-RateLimit-Limit', (string) $limit)
-                                    ->withHeader('X-RateLimit-Remaining', '0');
-                            }
-                        } catch (\Throwable) {
-                            // Fallback to ErrorPageRenderer
-                        }
-                    }
-                    $renderer = new \OwnPay\View\ErrorPageRenderer();
-                    return Response::html($renderer->rateLimitPage($window, $limit), 429)
-                        ->withHeader('Retry-After', (string) $window)
-                        ->withHeader('X-RateLimit-Limit', (string) $limit)
-                        ->withHeader('X-RateLimit-Remaining', '0');
-                }
-
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Rate limit exceeded. Try again later.',
-                ], 429)
-                    ->withHeader('Retry-After', (string) $window)
-                    ->withHeader('X-RateLimit-Limit', (string) $limit)
-                    ->withHeader('X-RateLimit-Remaining', '0');
-            }
-
-            $response = $next($request);
-            $response->withHeader('X-RateLimit-Limit', (string) $limit);
-            $response->withHeader('X-RateLimit-Remaining', (string) max(0, $limit - $count));
-
-            return $response;
+            $decision = $this->resolveDecision($request);
         } catch (\PDOException|\RuntimeException $e) {
             $this->logWarning('Rate limiter skipped: ' . $e->getMessage());
 
@@ -254,8 +77,215 @@ final class RateLimiterMiddleware
                 ], 503);
             }
 
+            // Fail-open: let the request proceed without rate limiting. This is outside the
+            // try/catch so a downstream exception here (e.g. from the actual route handler)
+            // propagates normally instead of being mislabeled as a rate-limiter failure and
+            // causing the request to be re-executed a second time.
             return $next($request);
         }
+
+        if ($decision['bypass']) {
+            return $next($request);
+        }
+
+        $limit = $decision['limit'];
+        $window = $decision['window'];
+        $count = $decision['count'];
+
+        if ($count > $limit) {
+            // 3. Branded HTML Throttling UI Fallback
+            if (!$request->expectsJson()) {
+                if ($this->container->has(\Twig\Environment::class)) {
+                    try {
+                        $twig = $this->container->get(\Twig\Environment::class);
+                        if ($twig instanceof \Twig\Environment) {
+                            $cspNonce = '';
+                            if ($this->container->has('csp_nonce')) {
+                                $cspNonceVal = $this->container->get('csp_nonce');
+                                $cspNonce = is_string($cspNonceVal) ? $cspNonceVal : '';
+                            }
+                            $html = $twig->render('error/429.twig', [
+                                'retry_after' => $window,
+                                'limit' => $limit,
+                                'csp_nonce' => $cspNonce
+                            ]);
+                            return Response::html($html, 429)
+                                ->withHeader('Retry-After', (string) $window)
+                                ->withHeader('X-RateLimit-Limit', (string) $limit)
+                                ->withHeader('X-RateLimit-Remaining', '0');
+                        }
+                    } catch (\Throwable) {
+                        // Fallback to ErrorPageRenderer
+                    }
+                }
+                $renderer = new \OwnPay\View\ErrorPageRenderer();
+                return Response::html($renderer->rateLimitPage($window, $limit), 429)
+                    ->withHeader('Retry-After', (string) $window)
+                    ->withHeader('X-RateLimit-Limit', (string) $limit)
+                    ->withHeader('X-RateLimit-Remaining', '0');
+            }
+
+            return Response::json([
+                'success' => false,
+                'message' => 'Rate limit exceeded. Try again later.',
+            ], 429)
+                ->withHeader('Retry-After', (string) $window)
+                ->withHeader('X-RateLimit-Limit', (string) $limit)
+                ->withHeader('X-RateLimit-Remaining', '0');
+        }
+
+        $response = $next($request);
+        $response->withHeader('X-RateLimit-Limit', (string) $limit);
+        $response->withHeader('X-RateLimit-Remaining', (string) max(0, $limit - $count));
+
+        return $response;
+    }
+
+    /**
+     * Determines the rate-limit decision for the request (whitelist bypass, or the
+     * limit/window/count to evaluate) without invoking the downstream handler.
+     *
+     * Kept separate from handle() so that only rate-limiter-internal failures (Redis/DB
+     * errors while computing the decision) are caught as "limiter skipped" - a downstream
+     * exception thrown by $next($request) must never be mistaken for one of these.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return array{bypass: true}|array{bypass: false, limit: int, window: int, count: int}
+     */
+    private function resolveDecision(Request $request): array
+    {
+        // 1. IP Whitelisting Check
+        $settingsRepo = null;
+        if ($this->container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $settingsRepo = $repo;
+                $whitelistVal = $repo->get('general', 'rate_limit_whitelist_ips', '');
+                $whitelistStr = is_string($whitelistVal) ? $whitelistVal : '';
+                if ($this->isIpWhitelisted($request->ip(), $whitelistStr)) {
+                    return ['bypass' => true];
+                }
+            }
+        }
+
+        $config = $this->container->get('config.app');
+        if (!is_array($config)) {
+            $config = [];
+        }
+        $path = '/' . trim($request->path(), '/');
+
+        // Dynamically load the admin login slug to ensure rate limits apply perfectly
+        $loginSlug = 'login';
+        $paths = $config['paths'] ?? null;
+        $root = is_array($paths) && isset($paths['root']) && is_string($paths['root']) ? $paths['root'] : dirname(__DIR__, 2);
+        $cacheFile = $root . '/storage/cache/login_slug.cache';
+        if (file_exists($cacheFile)) {
+            $cached = file_get_contents($cacheFile);
+            if ($cached !== false && preg_match('/^[a-z0-9\-]+$/', $cached)) {
+                $loginSlug = $cached;
+            }
+        }
+
+        $isLoginRoute = (
+            $path === '/' . $loginSlug ||
+            $path === '/2fa' ||
+            $path === '/forgot-password' ||
+            $path === '/reset-password' ||
+            str_contains($path, '/login') ||
+            str_contains($path, '/2fa') ||
+            str_contains($path, '/forgot-password') ||
+            str_contains($path, '/reset-password') ||
+            $path === '/api/mobile/v1/devices'
+        );
+
+        // 2. Dynamic Rules Matching
+        $matchedRule = null;
+        if ($settingsRepo !== null) {
+            $rulesJsonVal = $settingsRepo->get('general', 'rate_limit_rules', '[]');
+            $rulesJson = is_string($rulesJsonVal) ? $rulesJsonVal : '[]';
+            $rules = json_decode($rulesJson, true);
+            if (is_array($rules)) {
+                $method = $request->method();
+                foreach ($rules as $rule) {
+                    if (!is_array($rule)) {
+                        continue;
+                    }
+                    $rulePathVal = $rule['path'] ?? '';
+                    $ruleMethodVal = $rule['method'] ?? 'ALL';
+                    $ruleLimitVal = $rule['limit'] ?? null;
+                    $ruleWindowVal = $rule['window'] ?? null;
+
+                    $rulePath = is_string($rulePathVal) ? $rulePathVal : '';
+                    $ruleMethod = is_string($ruleMethodVal) ? $ruleMethodVal : 'ALL';
+                    $ruleLimit = is_numeric($ruleLimitVal) ? (int) $ruleLimitVal : null;
+                    $ruleWindow = is_numeric($ruleWindowVal) ? (int) $ruleWindowVal : null;
+
+                    if ($rulePath === '' || $ruleLimit === null || $ruleWindow === null) {
+                        continue;
+                    }
+
+                    $methodMatched = false;
+                    if (strcasecmp($ruleMethod, 'ALL') === 0 || strcasecmp($ruleMethod, '*') === 0 || strcasecmp($ruleMethod, $method) === 0) {
+                        $methodMatched = true;
+                    }
+
+                    if (!$methodMatched) {
+                        continue;
+                    }
+
+                    $pathMatched = false;
+                    if ($rulePath === '*' || $rulePath === '/*') {
+                        $pathMatched = true;
+                    } else {
+                        $regex = preg_quote($rulePath, '#');
+                        $regex = str_replace('\*', '.*', $regex);
+                        if (preg_match('#^' . $regex . '$#i', $path)) {
+                            $pathMatched = true;
+                        }
+                    }
+
+                    if ($pathMatched) {
+                        $matchedRule = [
+                            'max' => $ruleLimit,
+                            'window' => $ruleWindow
+                        ];
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($matchedRule !== null) {
+            $limit = $matchedRule['max'];
+            $window = $matchedRule['window'];
+        } else {
+            $rateLimitConfig = $config['rate_limit'] ?? null;
+            $limitConfig = null;
+            if (is_array($rateLimitConfig)) {
+                if ($isLoginRoute) {
+                    $limitConfig = $rateLimitConfig['login'] ?? null;
+                } elseif (str_starts_with($path, '/api/')) {
+                    $limitConfig = $rateLimitConfig['api'] ?? null;
+                } else {
+                    $limitConfig = $rateLimitConfig['global'] ?? null;
+                }
+            }
+            if (!is_array($limitConfig)) {
+                $limitConfig = $isLoginRoute ? ['max' => 5, 'window' => 300] : (str_starts_with($path, '/api/') ? ['max' => 60, 'window' => 60] : ['max' => 120, 'window' => 60]);
+            }
+
+            $limitVal = $limitConfig['max'] ?? 60;
+            $limit = is_scalar($limitVal) ? (int) $limitVal : 60;
+            $windowVal = $limitConfig['window'] ?? 60;
+            $window = is_scalar($windowVal) ? (int) $windowVal : 60;
+        }
+
+        $key = $this->buildKey($request);
+        $now = time();
+
+        $count = $this->incrementAndCount($key, $now, $window);
+
+        return ['bypass' => false, 'limit' => $limit, 'window' => $window, 'count' => $count];
     }
 
     /**

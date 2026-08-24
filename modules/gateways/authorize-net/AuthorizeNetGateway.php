@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Authorize.Net Payment Gateway Adapter (Hosted Payment Page API).
  */
-final class AuthorizeNetGateway implements PluginInterface, GatewayAdapterInterface
+final class AuthorizeNetGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -92,6 +93,66 @@ final class AuthorizeNetGateway implements PluginInterface, GatewayAdapterInterf
         return $mode === 'live'
             ? 'https://api.authorize.net/xml/v1/request.api'
             : 'https://apitest.authorize.net/xml/v1/request.api';
+    }
+
+    /**
+     * Verifies the API Login ID/Transaction Key using Authorize.Net's authenticateTestRequest -
+     * an API method that exists specifically to validate credentials without creating any
+     * transaction or hosted payment page session.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $loginId = $this->getString($credentials['api_login_id'] ?? '');
+        $transKey = $this->getString($credentials['transaction_key'] ?? '');
+        if ($loginId === '' || $transKey === '') {
+            return ['success' => false, 'message' => 'Enter API Login ID and Transaction Key before testing the connection.'];
+        }
+
+        $endpoint = $this->getEndpoint($credentials);
+        $payload = [
+            'authenticateTestRequest' => [
+                'merchantAuthentication' => [
+                    'name'           => $loginId,
+                    'transactionKey' => $transKey,
+                ],
+            ],
+        ];
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode($payload),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Authorize.Net - check the server\'s network connectivity.'];
+        }
+
+        $cleanResponse = preg_replace('/^\xEF\xBB\xBF/', '', (string) $response);
+        $data = json_decode((string) $cleanResponse, true);
+        $messages = is_array($data) ? $this->getArray($data, 'messages') : [];
+        $resultCode = $this->getString($messages['resultCode'] ?? null);
+
+        if ($resultCode === 'Ok') {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            return ['success' => true, 'message' => "Connected successfully to Authorize.Net ({$mode} mode)."];
+        }
+
+        $messageList = $this->getArray($messages, 'message');
+        $firstMessage = $this->getArray($messageList, 0);
+        $errText = $this->getString($firstMessage['text'] ?? null);
+        return ['success' => false, 'message' => $errText !== '' ? $errText : 'Authorize.Net rejected the provided credentials.'];
     }
 
     public function initiate(array $params, array $credentials): array

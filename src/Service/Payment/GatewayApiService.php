@@ -125,6 +125,26 @@ final class GatewayApiService
                 'cancel_url'   => $params['cancel_url'] ?? '',
             ]);
 
+            // Persist the gateway's session/payment ID (e.g. bKash's paymentID, Stripe's checkout
+            // session id) so it's available later - some gateways' refund APIs require the original
+            // session id in addition to the settled transaction id (bKash does).
+            $sessionId = $result['session_id'] ?? null;
+            if (is_scalar($sessionId) && (string) $sessionId !== '') {
+                // The 'existing_txn' (checkout) flow only passes 'trx_id' in $transaction, not the
+                // numeric id - resolve it so the session id still gets persisted on that path too.
+                $txnIdForMeta = $transaction['id'] ?? null;
+                if (!is_scalar($txnIdForMeta)) {
+                    $trxIdForLookup = $transaction['trx_id'] ?? null;
+                    if (is_scalar($trxIdForLookup)) {
+                        $found = $this->transactions->findByTrxId($merchantId, (string) $trxIdForLookup);
+                        $txnIdForMeta = $found['id'] ?? null;
+                    }
+                }
+                if (is_scalar($txnIdForMeta)) {
+                    $this->transactions->updateMetadata((int) $txnIdForMeta, $merchantId, ['gateway_session_id' => (string) $sessionId]);
+                }
+            }
+
             $output = [
                 'success'      => true,
                 'transaction'  => $transaction,
@@ -193,13 +213,14 @@ final class GatewayApiService
         }
 
         $gwTrxId = $verification['gateway_trx_id'] ?? null;
+        $gwTrxIdStr = is_scalar($gwTrxId) && (string) $gwTrxId !== '' ? (string) $gwTrxId : null;
 
         $db = \OwnPay\Core\Database::getInstance();
         $transaction = null;
         $amountMismatch = false;
 
         try {
-            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, $gatewaySlug, &$transaction, &$amountMismatch) {
+            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $gwTrxIdStr, $verification, $gatewaySlug, &$transaction, &$amountMismatch) {
                 if ($trxId !== '') {
                     $transaction = $db->fetchOne(
                         "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
@@ -215,6 +236,38 @@ final class GatewayApiService
                 }
 
                 if ($transaction !== null) {
+                    // Reject if the gateway's own record of this payment (session/order metadata)
+                    // points to a DIFFERENT transaction than the one we're about to complete.
+                    // Without this, a customer could legitimately pay for transaction A and then
+                    // replay A's callback/redirect identifiers (e.g. a Stripe session_id, or any
+                    // other gateway's return param) against a second, same-amount 'processing'
+                    // transaction B to complete B for free off a single real payment.
+                    $verifiedTrxIdVal = $verification['trx_id'] ?? null;
+                    $verifiedTrxIdStr = is_scalar($verifiedTrxIdVal) ? (string) $verifiedTrxIdVal : '';
+                    $transactionTrxId = is_scalar($transaction['trx_id'] ?? null) ? (string) $transaction['trx_id'] : '';
+                    if ($verifiedTrxIdStr !== '' && $transactionTrxId !== '' && $verifiedTrxIdStr !== $transactionTrxId) {
+                        $transaction = null;
+                        return;
+                    }
+
+                    // Reject if this gateway transaction id has already completed a DIFFERENT
+                    // transaction. gateway_trx_id has no DB-level uniqueness constraint, so this
+                    // is the only guard against replaying one already-paid gateway reference
+                    // against multiple orders when the gateway doesn't echo back trx_id metadata
+                    // (the check above then has nothing to compare against).
+                    if ($gwTrxIdStr !== null) {
+                        $reused = $db->fetchOne(
+                            "SELECT id FROM op_transactions
+                             WHERE gateway_trx_id = :gtid AND merchant_id = :mid AND id != :id AND status = 'completed'
+                             LIMIT 1",
+                            ['gtid' => $gwTrxIdStr, 'mid' => $merchantId, 'id' => $transaction['id']]
+                        );
+                        if ($reused !== null) {
+                            $transaction = null;
+                            return;
+                        }
+                    }
+
                     $expectedVal = $transaction['amount'] ?? null;
                     $metaRaw = $transaction['metadata'] ?? null;
                     $meta = is_string($metaRaw) ? json_decode($metaRaw, true) : null;
@@ -241,7 +294,7 @@ final class GatewayApiService
                         $feeVal = $transaction['fee'] ?? '0.00';
                         $cur = $transaction['currency'] ?? 'BDT';
                         if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
-                            $this->transactions->complete((int) $txnId, $merchantId);
+                            $this->transactions->complete((int) $txnId, $merchantId, $gwTrxIdStr);
 
                             // Record in ledger
                             $this->ledger->recordPaymentReceived(

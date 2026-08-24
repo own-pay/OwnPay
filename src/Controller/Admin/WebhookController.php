@@ -46,6 +46,10 @@ final class WebhookController
             throw new \RuntimeException('No active brand found.');
         }
 
+        if ($guard = $this->requireActiveBrand($mid, '/admin/developer#webhooks')) {
+            return $guard;
+        }
+
         $idVal = $req->post('id', '0');
         $id = is_numeric($idVal) ? (int)$idVal : 0;
 

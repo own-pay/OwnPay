@@ -306,6 +306,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/plugins/{slug}/restore', 'Admin\\PluginController@restore', 'admin');
     $router->get('/admin/plugins/{slug}/settings', 'Admin\\PluginController@settings', 'admin');
     $router->post('/admin/plugins/{slug}/settings', 'Admin\\PluginController@saveSettings', 'admin');
+    $router->post('/admin/plugins/{slug}/test-connection', 'Admin\\PluginController@testConnection', 'admin');
 
     $router->get('/admin/themes', 'Admin\\ThemeController@index', 'admin');
     $router->get('/admin/themes/install', 'Admin\\ThemeController@installForm', 'admin');

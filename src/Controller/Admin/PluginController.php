@@ -518,8 +518,10 @@ final class PluginController
         $settingsHtml = '';
         if ($instance !== null) {
             $isGateway = ($plugin['type'] ?? '') === 'gateway';
+            $displayValues = [];
             if ($isGateway) {
                 $currentValues = $this->readGatewayCredentials($slug, $brandId ?? 0);
+                $displayValues = $this->readGatewayDisplaySettings($slug, $brandId ?? 0);
             } else {
                 $settingsRepo = $this->c->get(SettingsRepository::class);
                 $currentValues = [];
@@ -530,7 +532,9 @@ final class PluginController
                 }
             }
             $action = "/admin/plugins/{$slug}/settings";
-            $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action);
+            $cspNonceVal = $this->c->has('csp_nonce') ? $this->c->get('csp_nonce') : '';
+            $cspNonce = is_string($cspNonceVal) ? $cspNonceVal : '';
+            $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action, $isGateway, $displayValues, $cspNonce);
         }
 
         $activePage = match ($plugin['type'] ?? 'plugin') {
@@ -595,7 +599,8 @@ final class PluginController
 
         if ($brandId !== null && $brandId > 0) {
             if ($isGateway) {
-                $this->saveGatewayCredentials($slug, $brandId, $settings, $passwordFields);
+                $displaySettings = $this->extractGatewayDisplaySettings($request, $slug, $brandId);
+                $this->saveGatewayCredentials($slug, $brandId, $settings, $passwordFields, $displaySettings);
             } else {
                 $this->mergeUnblankedPasswordFields($settings, $passwordFields, $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId));
                 $settingsRepo->bulkSetScoped("plugin.{$slug}", $settings, $brandId);
@@ -609,6 +614,53 @@ final class PluginController
 
         $this->session->flashSuccess('Settings saved.');
         return Response::redirect("/admin/plugins/{$slug}/settings");
+    }
+
+    /**
+     * Tests whether a gateway's credentials actually authenticate against its provider's API,
+     * without saving anything. Uses whatever is currently typed in the settings form for each
+     * field, falling back to the already-saved value for any field left blank - so testing never
+     * requires re-typing every secret first, but also reflects an in-progress edit immediately.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response JSON {success: bool, message: string}.
+     */
+    public function testConnection(Request $request): Response
+    {
+        $slug = (string) $request->param('slug');
+
+        $brandId = 0;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId() ?? 0;
+            }
+        }
+
+        $instance = $this->resolvePluginInstance($slug);
+        if (!$instance instanceof \OwnPay\Gateway\TestableConnectionInterface) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Connection testing isn\'t supported for this gateway yet.',
+            ]);
+        }
+
+        $submitted = $request->post('settings') ?? [];
+        if (!is_array($submitted)) {
+            $submitted = [];
+        }
+        $passwordFields = $this->passwordFieldNames($instance);
+        $existingCreds = $this->readGatewayCredentials($slug, $brandId);
+        $credentials = self::mergeGatewayFieldValues($existingCreds, $submitted, $passwordFields);
+
+        try {
+            $result = $instance->testConnection($credentials);
+        } catch (\Throwable $e) {
+            return Response::json(['success' => false, 'message' => 'Unexpected error: ' . $e->getMessage()]);
+        }
+
+        return Response::json(['success' => $result['success'], 'message' => $result['message']]);
     }
 
     /**
@@ -775,7 +827,16 @@ final class PluginController
         if (!$encryptor instanceof FieldEncryptor) {
             return [];
         }
-        $decoded = json_decode($encryptor->decrypt($encCreds), true);
+        try {
+            $decrypted = $encryptor->decrypt($encCreds);
+        } catch (\RuntimeException $e) {
+            // Stored ciphertext can't be decrypted with any known key (e.g. it was
+            // encrypted under a different key that's since rotated away or lost).
+            // Treat as "nothing to pre-fill" rather than blocking the whole settings
+            // page - the admin can still re-enter and re-save the credentials.
+            return [];
+        }
+        $decoded = json_decode($decrypted, true);
         if (!is_array($decoded)) {
             return [];
         }
@@ -789,6 +850,116 @@ final class PluginController
     }
 
     /**
+     * Reads the currently-stored display customization (display_name/display_logo overrides) for
+     * a gateway-type plugin under a brand. Unlike credentials, this lives in the gateway config's
+     * plaintext `settings` column - no decryption needed, since none of it is a secret.
+     *
+     * @param string $slug Gateway adapter slug.
+     * @param int $brandId Active brand/merchant ID.
+     * @return array<string, string> Currently-stored display_name/display_logo values, if set.
+     */
+    private function readGatewayDisplaySettings(string $slug, int $brandId): array
+    {
+        if ($brandId <= 0) {
+            return [];
+        }
+        $gwRepo = $this->c->get(GatewayRepository::class);
+        if (!$gwRepo instanceof GatewayRepository) {
+            return [];
+        }
+        $gw = $gwRepo->findBySlug($slug);
+        $gwId = is_numeric($gw['id'] ?? null) ? (int) $gw['id'] : 0;
+        if ($gwId <= 0) {
+            return [];
+        }
+        $gwConfigRepo = $this->c->get(GatewayConfigRepository::class);
+        if (!$gwConfigRepo instanceof GatewayConfigRepository) {
+            return [];
+        }
+        $existing = $gwConfigRepo->forTenant($brandId)->findForGateway($gwId);
+        $settingsRaw = is_array($existing) ? ($existing['settings'] ?? null) : null;
+        $decoded = is_string($settingsRaw) ? json_decode($settingsRaw, true) : null;
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $result = [];
+        foreach ($decoded as $k => $v) {
+            if (is_string($k) && is_scalar($v)) {
+                $result[$k] = (string) $v;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Builds the display_name/display_logo settings to persist from the current request, merged
+     * over whatever is already stored. A blank submitted name clears the override back to the
+     * gateway's default (unlike credential fields, blank here means "use default", not "keep
+     * unchanged"). A new logo upload replaces the stored path; the "remove custom logo" checkbox
+     * clears it; leaving both alone keeps whatever logo is already stored.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param string $slug Gateway adapter slug.
+     * @param int $brandId Active brand/merchant ID.
+     * @return array<string, string> The merged display settings to persist.
+     */
+    private function extractGatewayDisplaySettings(Request $request, string $slug, int $brandId): array
+    {
+        $displaySettings = $this->readGatewayDisplaySettings($slug, $brandId);
+
+        $displayPost = $request->post('display');
+        $customName = is_array($displayPost) && isset($displayPost['name']) && is_string($displayPost['name'])
+            ? trim($displayPost['name'])
+            : '';
+        if ($customName !== '') {
+            $displaySettings['display_name'] = $customName;
+        } else {
+            unset($displaySettings['display_name']);
+        }
+
+        $logoFile = $request->file('display_logo');
+        if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            try {
+                if (isset($logoFile['name'], $logoFile['tmp_name']) && is_string($logoFile['name']) && is_string($logoFile['tmp_name'])) {
+                    $fs = new \OwnPay\Service\System\FilesystemService();
+                    $displaySettings['display_logo'] = $fs->storePublicUpload($logoFile, 'gateways');
+                }
+            } catch (\Throwable $e) {
+                $this->session->flashError('Invalid file for gateway logo: ' . $e->getMessage());
+            }
+        } elseif ($request->post('remove_display_logo') === '1') {
+            unset($displaySettings['display_logo']);
+        }
+
+        return $displaySettings;
+    }
+
+    /**
+     * Merges freshly-submitted field values over an existing credential set, leaving a
+     * password-type field unchanged when submitted blank (its stored value already exists) -
+     * shared by saveGatewayCredentials() and testConnection() so "test with what's on screen,
+     * fall back to what's saved" behaves identically in both places.
+     *
+     * @param array<string, string> $existing Currently-stored values.
+     * @param array<string, mixed> $submitted Freshly-submitted form values.
+     * @param array<int, string> $passwordFields Field names declared with type 'password'.
+     * @return array<string, string> Merged values.
+     */
+    private static function mergeGatewayFieldValues(array $existing, array $submitted, array $passwordFields): array
+    {
+        $merged = $existing;
+        foreach ($submitted as $key => $value) {
+            $valueStr = is_scalar($value) ? (string) $value : '';
+            if ($valueStr === '' && in_array($key, $passwordFields, true)
+                && isset($existing[$key]) && $existing[$key] !== '') {
+                continue;
+            }
+            $merged[$key] = $valueStr;
+        }
+        return $merged;
+    }
+
+    /**
      * Encrypts and persists submitted settings as a gateway's credentials_enc payload.
      *
      * Payment gateway credentials (API keys, secrets, usernames, passwords) are never written
@@ -799,9 +970,12 @@ final class PluginController
      * @param int $brandId Active brand/merchant ID.
      * @param array<string, mixed> $settings Submitted settings fields.
      * @param array<int, string> $passwordFields Field names declared with type 'password'.
+     * @param array<string, string>|null $displaySettings Display name/logo override to persist
+     *                                    into the config's plaintext `settings` column, or null to
+     *                                    leave it untouched (e.g. when only credentials changed).
      * @return void
      */
-    private function saveGatewayCredentials(string $slug, int $brandId, array $settings, array $passwordFields): void
+    private function saveGatewayCredentials(string $slug, int $brandId, array $settings, array $passwordFields, ?array $displaySettings = null): void
     {
         $gwRepo = $this->c->get(GatewayRepository::class);
         if (!$gwRepo instanceof GatewayRepository) {
@@ -820,32 +994,27 @@ final class PluginController
         $existing = $scopedConfigRepo->findForGateway($gwId);
 
         $existingCreds = $this->readGatewayCredentials($slug, $brandId);
-        $merged = $existingCreds;
-        foreach ($settings as $key => $value) {
-            $valueStr = is_scalar($value) ? (string) $value : '';
-            if ($valueStr === '' && in_array($key, $passwordFields, true)
-                && isset($existingCreds[$key]) && $existingCreds[$key] !== '') {
-                continue;
-            }
-            $merged[$key] = $valueStr;
-        }
+        $merged = self::mergeGatewayFieldValues($existingCreds, $settings, $passwordFields);
 
         $encryptor = $this->c->get(FieldEncryptor::class);
         $encCreds = $encryptor instanceof FieldEncryptor ? $encryptor->encrypt(json_encode($merged) ?: '{}') : '';
 
+        $payload = [
+            'credentials_enc' => $encCreds,
+            'status'          => 'active',
+        ];
+        if ($displaySettings !== null) {
+            $payload['settings'] = json_encode($displaySettings) ?: '{}';
+        }
+
         if ($existing !== null) {
             $configId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
-            $scopedConfigRepo->updateScoped($configId, [
-                'credentials_enc' => $encCreds,
-                'status'          => 'active',
-            ]);
+            $scopedConfigRepo->updateScoped($configId, $payload);
         } else {
-            $scopedConfigRepo->createScoped([
-                'merchant_id'     => $brandId,
-                'gateway_id'      => $gwId,
-                'credentials_enc' => $encCreds,
-                'status'          => 'active',
-                'mode'            => 'sandbox',
+            $scopedConfigRepo->createScoped($payload + [
+                'merchant_id' => $brandId,
+                'gateway_id'  => $gwId,
+                'mode'        => 'sandbox',
             ]);
         }
     }

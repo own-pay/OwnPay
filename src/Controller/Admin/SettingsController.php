@@ -148,6 +148,9 @@ final class SettingsController
                 'show_faq' => $brandSettings['show_faq'] ?? '0',
                 'custom_css' => $brandSettings['custom_css'] ?? '',
                 'custom_js' => $brandSettings['custom_js'] ?? '',
+                'show_powered_by' => $brandSettings['show_powered_by'] ?? '1',
+                'powered_by_text' => $brandSettings['powered_by_text'] ?? '',
+                'powered_by_url'  => $brandSettings['powered_by_url'] ?? '',
             ];
             $theme = [
                 'primary_color' => $brandSettings['primary_color'] ?? '#0D9488',
@@ -367,7 +370,7 @@ final class SettingsController
 
         $queueObj = $this->c->get(\OwnPay\Queue\QueueInterface::class);
         $queueDriverStats = [
-            'driver' => getenv('QUEUE_DRIVER') ?: 'file',
+            'driver' => ($_ENV['QUEUE_DRIVER'] ?? getenv('QUEUE_DRIVER')) ?: 'file',
             'sizes' => [
                 'default'  => 0,
                 'webhooks' => 0,
@@ -548,7 +551,13 @@ final class SettingsController
                     $brandSettings['timer_seconds'] = is_scalar($timerSecondsVal) ? (string) $timerSecondsVal : '900';
                     
                     $brandSettings['show_faq'] = isset($data['show_faq']) && $data['show_faq'] === '1' ? '1' : '0';
-                    
+
+                    $brandSettings['show_powered_by'] = isset($data['show_powered_by']) && $data['show_powered_by'] === '1' ? '1' : '0';
+                    $poweredByTextVal = $data['powered_by_text'] ?? ($brandSettings['powered_by_text'] ?? '');
+                    $brandSettings['powered_by_text'] = \OwnPay\Service\System\InputSanitizer::string(is_string($poweredByTextVal) ? $poweredByTextVal : '');
+                    $poweredByUrlVal = $data['powered_by_url'] ?? ($brandSettings['powered_by_url'] ?? '');
+                    $brandSettings['powered_by_url'] = \OwnPay\Service\System\InputSanitizer::url(is_string($poweredByUrlVal) ? $poweredByUrlVal : '');
+
                     $isSuperadmin = !empty($_SESSION['is_superadmin']);
                     if ($isSuperadmin) {
                         $customCssVal = $data['custom_css'] ?? ($brandSettings['custom_css'] ?? '');

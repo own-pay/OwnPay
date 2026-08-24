@@ -809,6 +809,26 @@
                     </label>
                     <small class="op-text-muted op-d-block op-mt-1">Toggle the display of the FAQ help widget on the checkout page. FAQ questions can be defined in the FAQ tab.</small>
                 </div>
+                <div class="op-form-group op-mt-3">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="show_powered_by" value="1" {{ (checkout_settings.show_powered_by ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Show "Powered by OwnPay" Attribution</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggle the attribution line shown under the checkout footer text.</small>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Custom "Powered by" Text</label>
+                        <input type="text" name="powered_by_text" value="{{ checkout_settings.powered_by_text ?? '' }}" class="op-input" placeholder="Coder Zone BD">
+                        <small class="op-text-muted">Replaces "OwnPay" in the attribution above (shown bold). Leave blank to use the default.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>"Powered by" Link URL</label>
+                        <input type="url" name="powered_by_url" value="{{ checkout_settings.powered_by_url ?? '' }}" class="op-input" placeholder="https://coderzonebd.com">
+                        <small class="op-text-muted">Opens in a new tab when the custom text above is clicked. Leave blank for plain (non-clickable) text.</small>
+                    </div>
+                </div>
             </div>
         </div>
 

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\AmazonPay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Amazon Pay (Checkout v2) Gateway Adapter.
  */
-final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
+final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -49,6 +50,40 @@ final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'private_key', 'label' => 'Private Key (PEM)', 'type' => 'textarea', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['test' => 'test', 'live' => 'live'], 'required' => true],
             ['name' => 'region', 'label' => 'Region', 'type' => 'select', 'options' => ['us' => 'USA', 'eu' => 'Europe', 'jp' => 'Japan'], 'required' => true],
+        ];
+    }
+
+    /**
+     * Amazon Pay v2 requires every API request to be signed with the AMZN-PAY-RSASSA-PSS
+     * scheme (canonical request + RSA-PSS/SHA256 signature) - a scheme this adapter's own
+     * initiate() does not implement either, so there is no existing signing code here to
+     * reuse safely. Rather than fabricate an unverified signing implementation that could
+     * silently misreport success/failure, this validates what can be checked locally: that
+     * all required fields are present and the Private Key is a well-formed RSA PEM key.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? null);
+        $storeId = $this->getString($credentials['store_id'] ?? null);
+        $publicKeyId = $this->getString($credentials['public_key_id'] ?? null);
+        $privateKey = $this->getString($credentials['private_key'] ?? null);
+
+        if ($merchantId === '' || $storeId === '' || $publicKeyId === '' || $privateKey === '') {
+            return ['success' => false, 'message' => 'Enter Merchant ID, Store ID, Public Key ID, and Private Key before testing the connection.'];
+        }
+
+        if (openssl_pkey_get_private($privateKey) === false) {
+            return ['success' => false, 'message' => 'The configured Private Key is not a valid PEM RSA key.'];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Credentials are present and the Private Key is well-formed. Amazon Pay requires request-level '
+                . 'RSA-PSS signing that this integration does not yet verify live - please confirm the Public Key ID is '
+                . 'registered and active in Seller Central before going live.',
         ];
     }
 

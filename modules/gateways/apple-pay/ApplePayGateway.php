@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\ApplePay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -16,7 +17,7 @@ use OwnPay\Event\EventManager;
  * Implements standard checkout initiation, secure simulation callback redirect,
  * and verified double-entry bookkeeping support.
  */
-final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface
+final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -83,6 +84,47 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'webhook_secret', 'label' => 'Stripe Webhook Secret', 'type' => 'password', 'required' => false],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['test' => 'test', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * This adapter processes Apple Pay through Stripe (see initiate()) - when a Stripe Secret
+     * Key is configured, it's verified the same way StripeGateway does: a free, read-only
+     * GET /v1/balance call. Without a key, this gateway runs in simulated mode locally and has
+     * nothing external to test.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($secretKey === '') {
+            return ['success' => true, 'message' => 'No Stripe Secret Key configured - Apple Pay is running in local simulated-checkout mode, so there is nothing external to test.'];
+        }
+
+        $ch = curl_init('https://api.stripe.com/v1/balance');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Stripe - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            $mode = str_starts_with($secretKey, 'sk_live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Stripe ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_array($data['error'] ?? null) && is_scalar($data['error']['message'] ?? null)
+            ? (string) $data['error']['message']
+            : 'Stripe rejected the provided Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

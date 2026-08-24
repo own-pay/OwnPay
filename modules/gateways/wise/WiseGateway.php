@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Wise;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Wise Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class WiseGateway implements PluginInterface, GatewayAdapterInterface
+final class WiseGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -50,6 +51,46 @@ final class WiseGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'profile_id', 'label' => 'Profile ID', 'type' => 'text', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the API token authenticates against Wise's profiles API (read-only, no transfer
+     * created) - matches the base URL selection initiate() already uses per mode.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiToken = $this->getString($credentials['api_token'] ?? null);
+        if ($apiToken === '') {
+            return ['success' => false, 'message' => 'Enter an API Token before testing the connection.'];
+        }
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $baseUrl = $mode === 'live' ? 'https://api.wise.com' : 'https://api.sandbox.transferwise.tech';
+
+        $ch = curl_init("{$baseUrl}/v1/profiles");
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $apiToken],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Wise - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Wise (' . ($mode !== '' ? $mode : 'sandbox') . ' mode).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['error'] ?? $data['message'] ?? null)
+            ? (string) ($data['error'] ?? $data['message'])
+            : 'Wise rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

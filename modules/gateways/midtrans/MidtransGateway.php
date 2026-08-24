@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Midtrans Payment Gateway Adapter.
  */
-final class MidtransGateway implements PluginInterface, GatewayAdapterInterface
+final class MidtransGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -145,6 +146,56 @@ final class MidtransGateway implements PluginInterface, GatewayAdapterInterface
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
+    }
+
+    /**
+     * Verifies the Server Key authenticates against Midtrans, without creating any transaction.
+     * Uses the same status-lookup endpoint verify() uses, but for a random/nonexistent order id:
+     * Midtrans returns HTTP 401 for a bad Server Key, and HTTP 404 (order not found) for a valid
+     * key against an unknown order - both distinguishable and neither moves money.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $serverKey = $this->getString($credentials['server_key'] ?? '');
+        if ($serverKey === '') {
+            return ['success' => false, 'message' => 'Enter the Server Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $mode === 'live'
+            ? 'https://api.midtrans.com/v2/op-test-connection-' . uniqid() . '/status'
+            : 'https://api.sandbox.midtrans.com/v2/op-test-connection-' . uniqid() . '/status';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Failed to initialize the connection test request.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Basic ' . base64_encode($serverKey . ':'),
+                'Accept: application/json',
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Midtrans - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        if ($httpCode === 401) {
+            return ['success' => false, 'message' => 'Midtrans rejected the Server Key.'];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to Midtrans ({$mode} mode)."];
     }
 
     public function verify(array $callbackData, array $credentials): array

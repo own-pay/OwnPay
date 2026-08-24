@@ -518,7 +518,7 @@ final class Request
     {
         static $trusted = null;
         if ($trusted === null) {
-            $env = getenv('TRUSTED_PROXIES') ?: '';
+            $env = ($_ENV['TRUSTED_PROXIES'] ?? getenv('TRUSTED_PROXIES')) ?: '';
             $trusted = $env !== '' ? array_map('trim', explode(',', $env)) : [];
         }
 

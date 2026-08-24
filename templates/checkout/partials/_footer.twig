@@ -8,7 +8,7 @@
     </div>
     {% if brand.show_powered_by|default('1') != '0' %}
         <div class="ck-footer-attribution ck-footer-attribution-style">
-            {{ ownpay_footer()|raw }}
+            {{ ownpay_footer('', brand.powered_by_text ?? '', brand.powered_by_url ?? '')|raw }}
         </div>
     {% endif %}
 </div>

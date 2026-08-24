@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Opay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * OPay Cashier Checkout Gateway Adapter.
  */
-final class OpayGateway implements PluginInterface, GatewayAdapterInterface
+final class OpayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -81,6 +82,59 @@ final class OpayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'secret_key', 'label' => 'Secret Key (Webhook Signature key)', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the configured Merchant ID/Public Key authenticate against OPay's Cashier API by
+     * querying the status of a dummy (nonexistent) order reference - reuses the same base URL and
+     * Bearer/MerchantId header style as initiate(). OPay reports a structured "order not found"
+     * error for a valid key, versus an auth-rejection status for an invalid one.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $publicKey = $this->getString($credentials['public_key'] ?? '');
+        if ($merchantId === '' || $publicKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant ID and Public Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $ch = curl_init($baseUrl . '/api/v1/international/cashier/status');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode(['reference' => 'connection-test']),
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $publicKey,
+                'MerchantId: ' . $merchantId,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach OPay - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'OPay rejected the provided Merchant ID/Public Key.'];
+        }
+        $data = json_decode((string) $response, true);
+        if (is_array($data) && ($data['code'] ?? '') === '00000') {
+            return ['success' => false, 'message' => 'Unexpected: OPay reported the connection-test reference as a real order.'];
+        }
+        return ['success' => true, 'message' => "Reached the OPay API and credentials were accepted ({$mode} mode)."];
     }
 
     public function initiate(array $params, array $credentials): array

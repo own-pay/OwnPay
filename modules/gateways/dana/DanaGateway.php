@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Dana;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * DANA Wallet Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class DanaGateway implements PluginInterface, GatewayAdapterInterface
+final class DanaGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -145,5 +146,44 @@ final class DanaGateway implements PluginInterface, GatewayAdapterInterface
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         return true;
+    }
+
+    /**
+     * Verifies the Xendit Secret Key via Xendit's real /balance endpoint (this DANA integration
+     * is processed through Xendit) - a read-only GET, no charge is created.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter a Xendit Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.xendit.co/balance');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Xendit - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Xendit (DANA e-wallet).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && isset($data['message']) && is_scalar($data['message'])
+            ? (string) $data['message']
+            : 'Xendit rejected the provided Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

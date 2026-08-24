@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Afterpay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Afterpay (Clearpay) Gateway Adapter.
  */
-final class AfterpayGateway implements PluginInterface, GatewayAdapterInterface
+final class AfterpayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -47,6 +48,47 @@ final class AfterpayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'secret_key', 'label' => 'Secret Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the Merchant ID/Secret Key against Afterpay's read-only merchant account
+     * endpoint - confirms auth without creating a checkout.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $merchantId = $this->getString($credentials['merchant_id'] ?? null);
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($merchantId === '' || $secretKey === '') {
+            return ['success' => false, 'message' => 'Enter Merchant ID and Secret Key before testing the connection.'];
+        }
+
+        $baseUrl = $mode === 'live' ? 'https://global-api.afterpay.com' : 'https://global-api-sandbox.afterpay.com';
+
+        $ch = curl_init("{$baseUrl}/v2/merchant/account");
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $merchantId . ':' . $secretKey,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Afterpay - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Afterpay (' . ($mode === 'live' ? 'live' : 'sandbox') . ' mode).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Afterpay rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\OpenNode;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * OpenNode Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class OpenNodeGateway implements PluginInterface, GatewayAdapterInterface
+final class OpenNodeGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -49,6 +50,46 @@ final class OpenNodeGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'api_key', 'label' => 'API Key (Charge Permission)', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['dev' => 'dev', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the configured API Key authenticates against OpenNode's real API via
+     * GET /v1/account/balance - a free, read-only, account-scoped call that any valid key can make.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $url = $mode === 'live'
+            ? 'https://api.opennode.com/v1/account/balance'
+            : 'https://dev-api.opennode.com/v1/account/balance';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach OpenNode - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to OpenNode (' . ($mode === 'live' ? 'live' : 'dev') . ' mode).'];
+        }
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'OpenNode rejected the provided API Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

@@ -231,9 +231,25 @@ final class CheckoutController
             $gw['color'] = (is_array($colorsDecoded) && isset($colorsDecoded['primary']) && is_string($colorsDecoded['primary'])) ? $colorsDecoded['primary'] : '#0D9488';
             $gateways[$cat][] = array_merge($gw, ['mode' => 'manual']);
         }
+        $bridge = $this->c->has(\OwnPay\Gateway\GatewayBridge::class) ? $this->c->get(\OwnPay\Gateway\GatewayBridge::class) : null;
+        $bridge = $bridge instanceof \OwnPay\Gateway\GatewayBridge ? $bridge : null;
         foreach ($apiGateways as $gw) {
+            $gw = $this->applyGatewayDisplayOverride($gw);
             $gwSlugVal = $gw['slug'] ?? '';
             $gwSlug = is_string($gwSlugVal) ? $gwSlugVal : '';
+
+            // Gateways that would reject this amount outright (e.g. Stripe's per-currency floor)
+            // stay visible but disabled/faded with an explanatory note, instead of either being
+            // hidden entirely or letting the customer hit a raw API error after selecting one -
+            // see StripeGateway::minimumChargeAmount().
+            if ($bridge !== null) {
+                $minimum = $bridge->minimumChargeAmount($gwSlug, $mid, $txnCurrency);
+                if ($minimum !== null && is_numeric($minimum) && is_numeric($txnAmount) && bccomp($txnAmount, $minimum, 8) < 0) {
+                    $gw['disabled'] = true;
+                    $gw['disabled_reason'] = sprintf('Amount is below the %s %s minimum for this gateway', $minimum, strtoupper($txnCurrency));
+                }
+            }
+
             $cat = $categoryMap[$gwSlug] ?? 'global';
             if (!isset($gateways[$cat])) {
                 $cat = 'global';
@@ -318,7 +334,7 @@ final class CheckoutController
             'brand'           => $brand,
             'items'           => $items,
             'faqs'            => $faqs,
-            'show_faq'        => $this->settings->get('checkout', 'show_faq', '1') === '1',
+            'show_faq'        => (bool) ($brand['show_faq'] ?? true),
             'config'          => $this->buildJsConfig($txn, $brand, $manifests),
             'checkout_hash'   => $checkoutHash,
             'manual_gateways' => json_encode($manualDetails, JSON_HEX_TAG | JSON_HEX_AMP),
@@ -801,12 +817,35 @@ final class CheckoutController
         }
 
         // Redirect callback loop: execute final capture steps when external providers redirect.
-        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
+        //
+        // Different gateways append different identifier params to the redirect URL - bKash uses
+        // paymentID, others use token/orderToken/checkout_token/id/etc. Hardcoding one param name
+        // here means every gateway that doesn't use it gets stuck in 'processing' forever after a
+        // successful payment, since this block never runs and nothing else completes the
+        // transaction without a working webhook. Instead, treat ANY non-empty query string as a
+        // candidate callback: the specific identifier the gateway's own verify() needs is already
+        // present in $callbackData below via the full query param merge, so this trigger only
+        // needs to know "did the customer just land back here from the gateway", not which param
+        // name means that. A false trigger (e.g. a stray tracking param) just costs one wasted
+        // verify() call - handleCallback() releases the lease back to 'processing' when it can't
+        // resolve anything, so this is safe.
+        //
+        // Stripe is excluded: its redirect param (session_id) is customer-browser-suppliable, and
+        // StripeGateway::verify() only checks amount + gateway match before completing - it does
+        // NOT check that the session's own metadata.trx_id matches the transaction being
+        // completed, and gateway_trx_id has no uniqueness constraint. That means a customer could
+        // pay for one checkout and replay that session_id against a second, same-amount
+        // 'processing' checkout to complete it for free. Stripe must only ever complete via the
+        // signed, Stripe-initiated webhook, where the session referenced is never customer-chosen.
+        $txnGatewaySlug = is_array($txn) && is_string($txn['gateway_slug'] ?? null) ? $txn['gateway_slug'] : '';
+        $queryData = $req->query();
+        $hasCallbackParams = is_array($queryData) && $queryData !== [] && $txnGatewaySlug !== 'stripe';
+        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? $req->query('session_id') ?? '';
         $callbackPaymentId = is_string($callbackPaymentIdVal) ? $callbackPaymentIdVal : '';
         $callbackStatusVal = $req->query('status') ?? '';
         $callbackStatus = is_string($callbackStatusVal) ? $callbackStatusVal : '';
 
-        if ($callbackPaymentId !== '' && is_array($txn) && ($txn['status'] ?? '') === 'processing') {
+        if ($hasCallbackParams && is_array($txn) && ($txn['status'] ?? '') === 'processing') {
             $txnIdVal = $txn['id'] ?? 0;
             $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
             
@@ -829,8 +868,7 @@ final class CheckoutController
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
-                        $queryData = $req->query();
-                        $callbackData = array_merge(is_array($queryData) ? $queryData : [], [
+                        $callbackData = array_merge($queryData, [
                             'paymentID' => $callbackPaymentId,
                             'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);

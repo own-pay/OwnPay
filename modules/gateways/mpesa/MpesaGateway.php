@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Mpesa;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * M-Pesa Safaricom Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class MpesaGateway implements PluginInterface, GatewayAdapterInterface
+final class MpesaGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -125,6 +126,54 @@ final class MpesaGateway implements PluginInterface, GatewayAdapterInterface
             'redirect_url' => $params['redirect_url'] . '?merchant_request_id=' . $merchantRequestId,
             'session_id'   => $checkoutRequestId,
         ];
+    }
+
+    /**
+     * Verifies the Consumer Key/Secret authenticate against Safaricom's Daraja OAuth endpoint -
+     * the same call initiate() makes before ever touching STK Push, so this generates an access
+     * token without triggering any payment prompt.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $consumerKey = $this->getString($credentials['consumer_key'] ?? null);
+        $consumerSecret = $this->getString($credentials['consumer_secret'] ?? null);
+        if ($consumerKey === '' || $consumerSecret === '') {
+            return ['success' => false, 'message' => 'Enter Consumer Key and Consumer Secret before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $authUrl = $mode === 'live'
+            ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+            : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+
+        $ch = curl_init($authUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $consumerKey . ':' . $consumerSecret,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Safaricom Daraja - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $token = is_array($data) ? $this->getString($data['access_token'] ?? null) : '';
+
+        if ($httpCode === 200 && $token !== '') {
+            $modeLabel = $mode === 'live' ? 'live' : 'sandbox';
+            return ['success' => true, 'message' => "Connected successfully to M-Pesa ({$modeLabel} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['errorMessage'] ?? null) ? (string) $data['errorMessage'] : 'M-Pesa rejected the provided Consumer Key/Secret.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function verify(array $callbackData, array $credentials): array

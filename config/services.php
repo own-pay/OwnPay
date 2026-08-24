@@ -103,7 +103,7 @@ return static function (\OwnPay\Container $c): void {
         // max_connections exhaustion, brief refusals, dropped connections) retry
         // a few times with linear backoff before giving up, so a short spike does
         // not immediately surface as an error. Credential/schema errors fail fast.
-        $maxAttempts = max(1, (int) (getenv('DB_CONNECT_RETRIES') ?: 3));
+        $maxAttempts = max(1, (int) ($_ENV['DB_CONNECT_RETRIES'] ?? getenv('DB_CONNECT_RETRIES') ?: 3));
         $pdo = null;
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             try {
@@ -149,9 +149,9 @@ return static function (\OwnPay\Container $c): void {
         if ($driver === 'redis' && class_exists(\Redis::class)) {
             try {
                 return new \OwnPay\Cache\RedisCache(
-                    getenv('REDIS_HOST') ?: '127.0.0.1',
-                    (int) (getenv('REDIS_PORT') ?: 6379),
-                    getenv('REDIS_PREFIX') ?: 'op:'
+                    ($_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST')) ?: '127.0.0.1',
+                    (int) (($_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT')) ?: 6379),
+                    ($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX')) ?: 'op:'
                 );
             } catch (\Throwable) {
                 // Graceful fallback to file cache
@@ -170,9 +170,9 @@ return static function (\OwnPay\Container $c): void {
         if ($driver === 'redis' && class_exists(\Redis::class)) {
             try {
                 return new \OwnPay\Queue\RedisQueue(
-                    getenv('REDIS_HOST') ?: '127.0.0.1',
-                    (int) (getenv('REDIS_PORT') ?: 6379),
-                    getenv('REDIS_PREFIX') ?: 'op:queue:'
+                    ($_ENV['APP_NAME'] ?? getenv('REDIS_HOST')) ?: '127.0.0.1',
+                    (int) (($_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT')) ?: 6379),
+                    ($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX')) ?: 'op:queue:'
                 );
             } catch (\Throwable) {
                 // Graceful fallback to file queue
@@ -606,7 +606,8 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Repository\RefundRepository::class), \OwnPay\Repository\RefundRepository::class),
             ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class),
             ensureType($c->get(\OwnPay\Gateway\GatewayBridge::class), \OwnPay\Gateway\GatewayBridge::class),
-            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class)
+            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class),
+            ensureType($c->get(\OwnPay\Repository\AuditLogRepository::class), \OwnPay\Repository\AuditLogRepository::class)
         );
     });
 

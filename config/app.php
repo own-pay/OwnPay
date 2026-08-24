@@ -18,16 +18,16 @@ declare(strict_types=1);
  */
 return [
     // Identity parameters
-    'name'    => 'OwnPay',
+    'name' => ($_ENV['APP_NAME'] ?? getenv('APP_NAME')) ?: 'OwnPay',
     'version' => \OwnPay\Support\Version::CURRENT,
     'codename'=> 'Genesis',
 
     // Environment settings
-    'env'   => getenv('APP_ENV') ?: 'production',   
-    'debug' => filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+    'env'   => ($_ENV['APP_ENV'] ?? getenv('APP_ENV')) ?: 'production',
+    'debug' => filter_var(($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG')) ?: 'false', FILTER_VALIDATE_BOOLEAN),
 
     // System-wide timezone configuration
-    'timezone' => getenv('APP_TIMEZONE') ?: 'Asia/Dhaka',
+    'timezone' => ($_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE')) ?: 'Asia/Dhaka',
 
     // Relative system directory structures
     'paths' => [
@@ -89,6 +89,6 @@ return [
     ],
 
     // Engine drivers
-    'cache_driver' => getenv('CACHE_DRIVER') ?: 'file',
-    'queue_driver' => getenv('QUEUE_DRIVER') ?: 'file',
+    'cache_driver' => ($_ENV['CACHE_DRIVER'] ?? getenv('CACHE_DRIVER')) ?: 'file',
+    'queue_driver' => ($_ENV['QUEUE_DRIVER'] ?? getenv('QUEUE_DRIVER')) ?: 'file',
 ];

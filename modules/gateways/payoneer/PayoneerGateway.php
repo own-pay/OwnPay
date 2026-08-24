@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface
+final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -108,6 +109,52 @@ final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the configured Client ID/Secret authenticate against Payoneer's real OAuth2 API
+     * via POST /v2/oauth2/token (client_credentials grant) - a free, read-only auth call.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? null);
+        $clientSecret = $this->getString($credentials['client_secret'] ?? null);
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter the Payoneer Client ID and Client Secret before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $authUrl = $mode === 'live'
+            ? 'https://api.payoneer.com/v2/oauth2/token'
+            : 'https://api.sandbox.payoneer.com/v2/oauth2/token';
+
+        $ch = curl_init($authUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $clientId . ':' . $clientSecret,
+            CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials']),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Payoneer - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $token = is_array($data) ? $this->getString($data['access_token'] ?? null) : '';
+        if ($httpCode === 200 && $token !== '') {
+            return ['success' => true, 'message' => "Connected successfully to Payoneer ({$mode} mode)."];
+        }
+        $errMsg = is_array($data) && is_scalar($data['error_description'] ?? null) ? (string) $data['error_description'] : 'Payoneer rejected the provided Client ID/Secret.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

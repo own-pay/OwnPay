@@ -11,6 +11,7 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\TransactionRepository;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\AuditLogRepository;
+use OwnPay\Repository\RefundRepository;
 use OwnPay\Service\System\PaginationService;
 use OwnPay\Service\System\AuditService;
 use OwnPay\Event\EventManager;
@@ -64,6 +65,11 @@ final class TransactionController
     private \OwnPay\Core\Database $db;
 
     /**
+     * The refund repository.
+     */
+    private RefundRepository $refunds;
+
+    /**
      * TransactionController constructor.
      *
      * @param Container $c The dependency injection container.
@@ -73,6 +79,7 @@ final class TransactionController
      * @param AuditLogRepository $auditRepo The audit log repository.
      * @param EventManager $events The event manager instance.
      * @param AuditService $audit The audit service instance.
+     * @param RefundRepository $refunds The refund repository.
      */
     public function __construct(
         Container $c,
@@ -82,7 +89,8 @@ final class TransactionController
         AuditLogRepository $auditRepo,
         EventManager $events,
         AuditService $audit,
-        \OwnPay\Core\Database $db
+        \OwnPay\Core\Database $db,
+        RefundRepository $refunds
     ) {
         $this->c         = $c;
         $this->session   = $session;
@@ -92,6 +100,7 @@ final class TransactionController
         $this->events    = $events;
         $this->audit     = $audit;
         $this->db        = $db;
+        $this->refunds   = $refunds;
     }
 
     /**
@@ -222,11 +231,30 @@ final class TransactionController
 
         $smsData  = $this->smsRepo->listForTransaction($id);
         $auditLog = $this->auditRepo->listForEntity('transaction', $id);
+        $refundsRepo = $isGlobal ? $this->refunds->forAllTenants() : $this->refunds->forTenant($recordMid);
+        $refunds  = $refundsRepo->listFiltered(['transaction_id' => $id], 50, 0);
+
+        // Same accounting RefundService::create() itself enforces (pending + completed count
+        // against the limit) - shown here so the admin sees the real remaining refundable amount
+        // rather than the transaction's full original amount once a prior refund exists.
+        $totalRefundedRaw = $refundsRepo->getTotalRefundedAmount($id, $recordMid);
+        $totalRefunded = is_numeric($totalRefundedRaw) ? $totalRefundedRaw : '0.00';
+        $txnAmountVal = $txn['amount'] ?? '0.00';
+        $txnAmountStr = is_scalar($txnAmountVal) && is_numeric((string) $txnAmountVal) ? (string) $txnAmountVal : '0.00';
+        /** @var numeric-string $totalRefunded */
+        /** @var numeric-string $txnAmountStr */
+        $remainingRefundable = bcsub($txnAmountStr, $totalRefunded, 2);
+        if (bccomp($remainingRefundable, '0.00', 2) < 0) {
+            $remainingRefundable = '0.00';
+        }
 
         return $this->renderAdminPage('admin/transactions/edit.twig', [
-            'txn'         => $txn,
-            'sms_data'    => $smsData,
-            'audit_log'   => $auditLog,
+            'txn'                  => $txn,
+            'sms_data'             => $smsData,
+            'audit_log'            => $auditLog,
+            'refunds'              => $refunds,
+            'total_refunded'       => $totalRefunded,
+            'remaining_refundable' => $remainingRefundable,
             'active_page' => 'transactions',
         ]);
     }

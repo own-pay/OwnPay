@@ -96,7 +96,7 @@ final class CorsMiddleware
      */
     private function getAllowedOrigins(): array
     {
-        $env = getenv('CORS_ALLOWED_ORIGINS') ?: '';
+        $env = ($_ENV['CORS_ALLOWED_ORIGINS'] ?? getenv('CORS_ALLOWED_ORIGINS')) ?: '';
         if ($env === '') {
             return []; // No cross-origin allowed unless configured
         }

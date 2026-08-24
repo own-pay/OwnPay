@@ -326,6 +326,12 @@
     border-radius: 5px; letter-spacing: .5px; text-transform: uppercase;
 }
 
+.ck-gw-disabled {
+    opacity: .45; cursor: not-allowed;
+    filter: grayscale(.4);
+}
+.ck-gw-disabled:hover { transform: none; box-shadow: none; border-color: var(--cloud); }
+
 .ck-gw-ico {
     width: 36px; height: 36px; border-radius: var(--r-lg);
     display: flex; align-items: center; justify-content: center;

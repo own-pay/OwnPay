@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Bitpay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * BitPay Gateway Adapter.
  */
-final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
+final class BitpayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -182,5 +183,51 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
         // Completion always requires the backchannel invoice retrieval performed
         // in verify(), including the core amount match.
         return true;
+    }
+
+    /**
+     * Verifies the API token by resolving its facade via BitPay's /tokens endpoint - a
+     * read-only lookup, no invoice is created.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiToken = $this->getString($credentials['api_token'] ?? null);
+        if ($apiToken === '') {
+            return ['success' => false, 'message' => 'Enter an API Token before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $baseUrl = $mode === 'live' ? 'https://bitpay.com' : 'https://test.bitpay.com';
+
+        $ch = curl_init("{$baseUrl}/tokens?token=" . urlencode($apiToken));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['X-Accept-Version: 2.0.0'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach BitPay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $tokenData = $this->getArray($data, 'data');
+
+        if ($httpCode === 200 && $tokenData !== []) {
+            $firstToken = is_array($tokenData[0] ?? null) ? $tokenData[0] : [];
+            $facade = $this->getString($firstToken['facade'] ?? null, 'merchant');
+            return ['success' => true, 'message' => "Connected successfully to BitPay ({$mode} mode, {$facade} token)."];
+        }
+
+        $errMsg = is_array($data) && isset($data['error']) && is_scalar($data['error'])
+            ? (string) $data['error']
+            : 'BitPay rejected the provided API token.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

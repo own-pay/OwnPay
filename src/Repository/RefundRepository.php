@@ -28,7 +28,7 @@ final class RefundRepository extends BaseRepository
      */
     protected array $fillable = [
         'merchant_id', 'transaction_id', 'uuid', 'amount', 'reason',
-        'status', 'processed_at',
+        'status', 'failure_reason', 'gateway_refund_id', 'processed_at',
     ];
 
     /**

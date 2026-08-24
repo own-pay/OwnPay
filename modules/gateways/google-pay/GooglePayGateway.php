@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\GooglePay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -16,7 +17,7 @@ use OwnPay\Event\EventManager;
  * Implements standard checkout initiation, secure simulation callback redirect,
  * and verified double-entry bookkeeping support.
  */
-final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
+final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -246,6 +247,45 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
             $res['amount'] = bcdiv($amountTotalStr, '100', 2);
         }
         return $res;
+    }
+
+    /**
+     * Verifies the configured Stripe Secret Key (Google Pay here rides on Stripe Checkout)
+     * actually authenticates against Stripe, via a free, read-only balance lookup.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = is_scalar($credentials['secret_key'] ?? null) ? (string) $credentials['secret_key'] : '';
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter the Stripe Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.stripe.com/v1/balance');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Stripe - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            $mode = str_starts_with($secretKey, 'sk_live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Stripe ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_array($data['error'] ?? null) && is_scalar($data['error']['message'] ?? null)
+            ? (string) $data['error']['message']
+            : 'Stripe rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, Drop-in UI web components,
  * and server-to-server XML API card processing.
  */
-final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface
+final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -296,6 +297,58 @@ final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface
         $reference = $this->getString($data['bt_payload'] ?? null);
 
         // Braintree webhook parsing uses signature validation library
+    }
+
+    /**
+     * Verifies Merchant ID/Public Key/Private Key by requesting a client token directly (not via
+     * getClientToken(), which always falls back to a mock token on failure) - a read-only,
+     * no-charge call.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $publicKey = $this->getString($credentials['public_key'] ?? '');
+        $privateKey = $this->getString($credentials['private_key'] ?? '');
+        if ($merchantId === '' || $publicKey === '' || $privateKey === '') {
+            return ['success' => false, 'message' => 'Enter Merchant ID, Public Key, and Private Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $this->getBaseUrl($credentials) . '/client_token';
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $publicKey . ':' . $privateKey,
+            CURLOPT_POSTFIELDS     => '<client-token><version>2</version></client-token>',
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/xml',
+                'Accept: application/xml',
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Braintree - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 201) {
+            return ['success' => true, 'message' => "Connected successfully to Braintree ({$mode} mode)."];
+        }
+
+        $xml = @simplexml_load_string((string) $response);
+        $errMsg = ($xml !== false && isset($xml->message))
+            ? (string) $xml->message
+            : 'Braintree rejected the provided Merchant ID/Public Key/Private Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function supports(string $feature): bool

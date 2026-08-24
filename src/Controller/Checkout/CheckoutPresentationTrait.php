@@ -46,6 +46,37 @@ trait CheckoutPresentationTrait
     }
 
     /**
+     * Applies the merchant's admin-configured display name/logo override for an API gateway, if
+     * any is set. `$gw['settings']` is the gateway config's own plaintext `settings` JSON column
+     * (never encrypted, unlike credentials) - it's consumed and stripped here so raw settings
+     * never reach a Twig template.
+     *
+     * @param array<string, mixed> $gw Gateway row as returned by GatewayConfigRepository::listActiveForCheckout().
+     * @return array<string, mixed> The same row with 'name'/'logo' overridden when configured, 'settings' removed.
+     */
+    private function applyGatewayDisplayOverride(array $gw): array
+    {
+        $settingsRaw = $gw['settings'] ?? null;
+        unset($gw['settings']);
+        $settings = is_string($settingsRaw) ? json_decode($settingsRaw, true) : null;
+        if (!is_array($settings)) {
+            return $gw;
+        }
+
+        $customName = $settings['display_name'] ?? '';
+        if (is_string($customName) && trim($customName) !== '') {
+            $gw['name'] = $customName;
+        }
+
+        $customLogo = $settings['display_logo'] ?? '';
+        if (is_string($customLogo) && trim($customLogo) !== '') {
+            $gw['logo_path'] = $customLogo;
+        }
+
+        return $gw;
+    }
+
+    /**
      * Resolves theme styling configuration and brand visual assets for a merchant.
      *
      * Uses BrandThemeService for full white-label per-brand theming, falling back

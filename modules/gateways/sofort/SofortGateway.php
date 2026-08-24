@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Sofort (Klarna) Payment Gateway Adapter.
  */
-final class SofortGateway implements PluginInterface, GatewayAdapterInterface
+final class SofortGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -78,6 +79,59 @@ final class SofortGateway implements PluginInterface, GatewayAdapterInterface
     public function supportedCurrencies(): array
     {
         return ['EUR', 'CHF', 'GBP', 'PLN', 'HUF'];
+    }
+
+    /**
+     * Verifies customer_id/api_key authenticate against Sofort's XML API using a narrow,
+     * empty-result transaction query (read-only, no payment created).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $customerId = $this->getString($credentials['customer_id'] ?? '');
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($customerId === '' || $apiKey === '') {
+            return ['success' => false, 'message' => 'Enter Customer ID and API Key before testing the connection.'];
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8" ?>
+<transaction_request version="2">
+  <transaction_time_range>
+    <from>2099-01-01</from>
+    <to>2099-01-02</to>
+  </transaction_time_range>
+</transaction_request>';
+
+        $ch = curl_init('https://api.sofort.com/api/xml');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => $xml,
+            CURLOPT_USERPWD        => $customerId . ':' . $apiKey,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/xml; charset=UTF-8'],
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false || $response === '') {
+            return ['success' => false, 'message' => 'Could not reach Sofort - check the server\'s network connectivity.'];
+        }
+
+        try {
+            $xmlDoc = new \SimpleXMLElement((string) $response);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => 'Sofort returned an unexpected response.'];
+        }
+
+        if (isset($xmlDoc->errors->error)) {
+            $errMsg = (string) $xmlDoc->errors->error->message;
+            return ['success' => false, 'message' => $errMsg !== '' ? $errMsg : 'Sofort rejected the provided credentials.'];
+        }
+
+        return ['success' => true, 'message' => 'Connected successfully to Sofort.'];
     }
 
     public function initiate(array $params, array $credentials): array

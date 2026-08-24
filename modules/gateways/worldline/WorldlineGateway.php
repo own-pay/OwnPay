@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Worldline;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Worldline Connect Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
+final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -51,6 +52,60 @@ final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'merchant_id', 'label' => 'Merchant ID', 'type' => 'text', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the API key/secret authenticate against Worldline Connect's dedicated
+     * GET /services/testconnection endpoint - purpose-built by Worldline for exactly this, so no
+     * order/merchant data is touched. Reuses the same GCS v1HMAC signing scheme initiate() uses.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? null);
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        $apiSecret = $this->getString($credentials['api_secret'] ?? null);
+        if ($merchantId === '' || $apiKey === '' || $apiSecret === '') {
+            return ['success' => false, 'message' => 'Enter API Key, API Secret, and Merchant ID before testing the connection.'];
+        }
+        $mode = $this->getString($credentials['mode'] ?? null);
+
+        $urlPath = "/v1/{$merchantId}/services/testconnection";
+        $url = $mode === 'live'
+            ? "https://payment.worldline-solutions.com{$urlPath}"
+            : "https://payment.sandbox.worldline-solutions.com{$urlPath}";
+
+        $dateTime = gmdate('D, d M Y H:i:s T');
+        $message = "GET\n\n{$dateTime}\n{$urlPath}\n";
+        $computedSig = base64_encode(hash_hmac('sha256', $message, $apiSecret, true));
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Date: ' . $dateTime,
+                'Authorization: GCS v1HMAC:' . $apiKey . ':' . $computedSig,
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Worldline - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Worldline (' . ($mode !== '' ? $mode : 'sandbox') . ' mode).'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_array($data['errors'][0] ?? null) && is_scalar($data['errors'][0]['message'] ?? null)
+            ? (string) $data['errors'][0]['message']
+            : 'Worldline rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

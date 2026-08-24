@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Eps;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * EPS payment gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class EpsGateway implements PluginInterface, GatewayAdapterInterface
+final class EpsGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -222,6 +223,38 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             'status'         => $paid ? 'completed' : 'failed',
             'trx_id'         => $valueA,
         ];
+    }
+
+    /**
+     * Verifies the username/password/hash_key authenticate against EPS's Auth API by requesting
+     * a token, without creating any payment session.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $username = is_scalar($credentials['username'] ?? null) ? (string) $credentials['username'] : '';
+        $password = is_scalar($credentials['password'] ?? null) ? (string) $credentials['password'] : '';
+        $hashKey = is_scalar($credentials['hash_key'] ?? null) ? (string) $credentials['hash_key'] : '';
+        if ($username === '' || $password === '' || $hashKey === '') {
+            return ['success' => false, 'message' => 'Enter Username, Password, and Hash Key before testing the connection.'];
+        }
+
+        $mode = $credentials['store_mode'] ?? 'sandbox';
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        try {
+            $token = $this->getToken($baseUrl, $credentials);
+        } catch (\RuntimeException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        if ($token === '') {
+            return ['success' => false, 'message' => 'EPS rejected the provided credentials.'];
+        }
+        $modeStr = is_scalar($mode) ? (string) $mode : 'sandbox';
+        return ['success' => true, 'message' => "Connected successfully to EPS ({$modeStr} mode)."];
     }
 
     /** @param array<string, mixed> $credentials */

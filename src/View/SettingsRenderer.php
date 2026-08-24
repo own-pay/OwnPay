@@ -27,16 +27,23 @@ final class SettingsRenderer
      * @param \OwnPay\Plugin\PluginInterface $plugin The target plugin instance to extract fields from.
      * @param array<string, string> $currentValues The current saved setting values from storage.
      * @param string $action The target URL endpoint for the form post action.
+     * @param bool $isGateway Whether this plugin is a payment gateway - adds the Display
+     *                        Customization fields and Test Connection button when true.
+     * @param array<string, string> $displayValues Currently-stored display_name/display_logo overrides.
+     * @param string $cspNonce Per-request CSP nonce - required for any injected <script> tag to
+     *                         run at all, since admin pages send a strict `script-src 'nonce-...'`
+     *                         policy with no 'unsafe-inline'.
      * @return string The generated HTML form string.
      */
-    public static function render(PluginInterface $plugin, array $currentValues, string $action): string
+    public static function render(PluginInterface $plugin, array $currentValues, string $action, bool $isGateway = false, array $displayValues = [], string $cspNonce = ''): string
     {
         $fields = $plugin->fields();
-        if (empty($fields)) {
+        if (empty($fields) && !$isGateway) {
             return '<p class="op-settings-empty">This plugin has no configurable settings.</p>';
         }
 
-        $html = '<form method="POST" action="' . htmlspecialchars($action, ENT_QUOTES, 'UTF-8') . '" class="op-settings-form">';
+        $html = '<form method="POST" action="' . htmlspecialchars($action, ENT_QUOTES, 'UTF-8')
+            . '" class="op-settings-form" id="op-settings-form" enctype="multipart/form-data">';
         $csrfToken = \OwnPay\Security\SecurityHelpers::csrfToken();
         $html .= '<input type="hidden" name="_csrf_token" value="' . self::e($csrfToken) . '">';
 
@@ -92,15 +99,32 @@ final class SettingsRenderer
             $html .= '</div>';
         }
 
-        $html .= '<div class="op-form-actions">';
-        $html .= '<button type="submit" class="op-btn op-btn-primary">Save Settings</button>';
-        $html .= '</div>';
-        $html .= '</form>';
-
         $meta = get_class($plugin)::metadata();
         $slug = $meta['slug'];
+        $defaultName = $meta['name'];
+
+        if ($isGateway) {
+            $html .= self::renderDisplayCustomization($displayValues, $defaultName);
+        }
+
+        $html .= '<div class="op-form-actions">';
+        $html .= '<button type="submit" class="op-btn op-btn-primary">Save Settings</button>';
+        if ($isGateway) {
+            $html .= '<button type="button" class="op-btn op-btn-outline" id="op-test-connection-btn" '
+                . 'data-url="/admin/plugins/' . self::e($slug) . '/test-connection">Test Connection</button>';
+        }
+        $html .= '</div>';
+        if ($isGateway) {
+            $html .= '<div id="op-test-connection-result" class="op-test-connection-result" role="status"></div>';
+        }
+        $html .= '</form>';
+
+        if ($isGateway) {
+            $html .= self::injectTestConnectionScript($cspNonce);
+        }
+
         if ($slug === 'sms-gateway') {
-            $html .= self::injectSmsGatewayToggleScript();
+            $html .= self::injectSmsGatewayToggleScript($cspNonce);
         }
 
         return $html;
@@ -214,6 +238,96 @@ final class SettingsRenderer
     }
 
     /**
+     * Renders the "Display Customization" fields shown on every gateway's settings page: an
+     * optional name override (e.g. rename "Stripe" to "Card" on checkout) and an optional logo
+     * upload, submitted in the same form/POST as the credential fields. Blank means "use default".
+     *
+     * @param array<string, string> $displayValues Currently-stored display_name/display_logo values.
+     * @param string $defaultName The gateway's built-in default display name, shown as a hint.
+     * @return string The generated HTML markup.
+     */
+    private static function renderDisplayCustomization(array $displayValues, string $defaultName): string
+    {
+        $currentName = $displayValues['display_name'] ?? '';
+        $currentLogo = $displayValues['display_logo'] ?? '';
+
+        $html = '<hr class="op-settings-divider">';
+        $html .= '<h4 class="op-settings-subheading">Display Customization</h4>';
+        $html .= '<p class="op-field-help op-mb-2">Shown to customers on the checkout page. Leave blank to use the default.</p>';
+
+        $html .= '<div class="op-field-group">';
+        $html .= '<label for="display_name">Custom Name</label>';
+        $html .= '<input type="text" name="display[name]" id="display_name" value="' . self::e($currentName) . '" '
+            . 'placeholder="' . self::e($defaultName) . '" class="op-input">';
+        $html .= '</div>';
+
+        $html .= '<div class="op-field-group">';
+        $html .= '<label for="display_logo">Custom Logo</label>';
+        if ($currentLogo !== '') {
+            $html .= '<div class="op-current-logo-preview">'
+                . '<img src="' . self::e($currentLogo) . '" alt="" class="op-gw-logo-preview">'
+                . '<label class="op-toggle-label op-text-sm">'
+                . '<input type="checkbox" name="remove_display_logo" value="1"> Remove custom logo'
+                . '</label></div>';
+        }
+        $html .= '<input type="file" name="display_logo" id="display_logo" accept="image/*" class="op-input">';
+        $html .= '<small class="op-field-help">PNG, JPG, or SVG. Leave blank to keep the current logo.</small>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Injects the "Test Connection" button's client-side handler.
+     *
+     * Sends the form's CURRENT values (whatever the admin has typed, even if not yet saved) via
+     * the same multipart body as a normal submission - the server merges any blank field back to
+     * its already-saved value, so testing never requires re-typing every credential first.
+     *
+     * @param string $cspNonce Per-request CSP nonce - without it, admin pages' strict CSP
+     *                         (`script-src 'self' 'nonce-...'`, no 'unsafe-inline') silently
+     *                         blocks this whole block from ever running.
+     * @return string The inline HTML script block.
+     */
+    private static function injectTestConnectionScript(string $cspNonce): string
+    {
+        $nonceAttr = $cspNonce !== '' ? ' nonce="' . self::e($cspNonce) . '"' : '';
+        return '
+<script' . $nonceAttr . '>
+document.addEventListener("DOMContentLoaded", function() {
+    var btn = document.getElementById("op-test-connection-btn");
+    var form = document.getElementById("op-settings-form");
+    var resultEl = document.getElementById("op-test-connection-result");
+    if (!btn || !form || !resultEl) return;
+
+    btn.addEventListener("click", function() {
+        resultEl.className = "op-test-connection-result op-test-connection-pending";
+        resultEl.textContent = "Testing connection…";
+        btn.disabled = true;
+
+        fetch(btn.getAttribute("data-url"), {
+            method: "POST",
+            body: new FormData(form),
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                var ok = !!data.success;
+                resultEl.className = "op-test-connection-result " + (ok ? "op-test-connection-ok" : "op-test-connection-fail");
+                resultEl.textContent = (ok ? "✓ " : "✗ ") + (data.message || (ok ? "Connected." : "Connection failed."));
+            })
+            .catch(function() {
+                resultEl.className = "op-test-connection-result op-test-connection-fail";
+                resultEl.textContent = "✗ Could not reach the server. Please try again.";
+            })
+            .finally(function() { btn.disabled = false; });
+    });
+});
+</script>
+';
+    }
+
+    /**
      * Securely escapes content for inclusion in HTML attributes.
      *
      * Uses htmlspecialchars with ENT_QUOTES and UTF-8 encoding.
@@ -229,12 +343,16 @@ final class SettingsRenderer
     /**
      * Injects the dynamic client-side Javascript block to toggle provider field visibilities.
      *
+     * @param string $cspNonce Per-request CSP nonce - without it, admin pages' strict CSP
+     *                         (`script-src 'self' 'nonce-...'`, no 'unsafe-inline') silently
+     *                         blocks this whole block from ever running.
      * @return string The inline HTML script block.
      */
-    private static function injectSmsGatewayToggleScript(): string
+    private static function injectSmsGatewayToggleScript(string $cspNonce): string
     {
+        $nonceAttr = $cspNonce !== '' ? ' nonce="' . self::e($cspNonce) . '"' : '';
         return '
-<script>
+<script' . $nonceAttr . '>
 document.addEventListener("DOMContentLoaded", function() {
     var providerSelect = document.getElementById("setting_provider");
     if (!providerSelect) return;

@@ -17,6 +17,11 @@
                 <dt>Net</dt><dd>{{ txn.currency }} {{ txn.net_amount ?? txn.amount }}</dd>
                 <dt>Gateway</dt><dd>{{ txn.gateway_name }}</dd>
                 <dt>Gateway TRX</dt><dd><code>{{ txn.gateway_trx_id ?? '-' }}</code></dd>
+                {% for ref in refunds|default([]) %}
+                    {% if ref.status == 'completed' and ref.gateway_refund_id %}
+                    <dt>Gateway Refund TRX</dt><dd><code>{{ ref.gateway_refund_id }}</code></dd>
+                    {% endif %}
+                {% endfor %}
                 <dt>Created</dt><dd>{{ txn.created_at }}</dd>
                 <dt>Updated</dt><dd>{{ txn.updated_at ?? '-' }}</dd>
             </dl>
@@ -54,17 +59,23 @@
 </div>
 {% endif %}
 
-{% if txn.status == 'completed' %}
+{% if txn.status == 'completed' and remaining_refundable|default(txn.amount) > 0 %}
 <div class="op-card op-mt-4">
     <div class="op-card-header"><h3>Actions</h3></div>
     <div class="op-card-body">
         <h4 class="op-mb-2">Process Refund</h4>
+        {% if total_refunded|default('0.00') > 0 %}
+        <p class="op-text-sm op-text-muted op-mb-2">
+            Already refunded: <strong>{{ txn.currency }} {{ total_refunded }}</strong> ·
+            Remaining refundable: <strong>{{ txn.currency }} {{ remaining_refundable }}</strong>
+        </p>
+        {% endif %}
         <form method="POST" action="/admin/refunds" class="op-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="transaction_id" value="{{ txn.id }}">
             <div class="op-form-group">
                 <label>Refund Amount (Optional)</label>
-                <input type="number" step="0.01" min="0.01" max="{{ txn.amount }}" name="amount" class="op-input" placeholder="Leave empty for full remaining refund (Max: {{ txn.amount }})">
+                <input type="number" step="0.01" min="0.01" max="{{ remaining_refundable|default(txn.amount) }}" name="amount" class="op-input" placeholder="Leave empty for full remaining refund (Max: {{ remaining_refundable|default(txn.amount) }})">
             </div>
             <div class="op-form-group">
                 <label>Reason for Refund</label>

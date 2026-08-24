@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Billplz;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Billplz direct debit payment gateway adapter.
  */
-final class BillplzGateway implements PluginInterface, GatewayAdapterInterface
+final class BillplzGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -55,6 +56,50 @@ final class BillplzGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'collection_id', 'label' => 'Collection ID', 'type' => 'text', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the API Key/Collection ID against Billplz's read-only collection lookup
+     * endpoint - confirms both the key authenticates and the collection ID is valid.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        $collectionId = $this->getString($credentials['collection_id'] ?? '');
+        if ($apiKey === '' || $collectionId === '') {
+            return ['success' => false, 'message' => 'Enter API Key and Collection ID before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $ch = curl_init($baseUrl . '/api/v3/collections/' . urlencode($collectionId));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $apiKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Billplz - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => "Connected successfully to Billplz ({$mode} mode)."];
+        }
+        if ($httpCode === 401) {
+            return ['success' => false, 'message' => 'Billplz rejected the provided API Key.'];
+        }
+        if ($httpCode === 404) {
+            return ['success' => false, 'message' => 'API Key authenticated, but the Collection ID was not found.'];
+        }
+
+        return ['success' => false, 'message' => 'Unexpected response from Billplz (HTTP ' . $httpCode . ').'];
     }
 
     public function initiate(array $params, array $credentials): array

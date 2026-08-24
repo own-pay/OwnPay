@@ -392,7 +392,7 @@ final class Plugin implements PluginInterface
                 'is_amount_fixed' => 1,
             ]);
 
-            $baseUrl = getenv('APP_URL') ?: 'https://ownpay.test';
+            $baseUrl = ($_ENV['APP_URL'] ?? getenv('APP_URL')) ?: 'https://ownpay.test';
             $slugVal = $link['slug'] ?? '';
             $slug = is_string($slugVal) ? $slugVal : '';
             $checkoutUrl = $baseUrl . '/pay/' . $slug;
@@ -496,7 +496,7 @@ final class Plugin implements PluginInterface
                 ]
             ]);
 
-            $baseUrl = getenv('APP_URL') ?: 'https://ownpay.test';
+            $baseUrl = ($_ENV['APP_URL'] ?? getenv('APP_URL')) ?: 'https://ownpay.test';
             $tokenVal = $invoice['token'] ?? '';
             $token = is_string($tokenVal) ? $tokenVal : '';
             $checkoutUrl = $baseUrl . '/invoice/' . $token;

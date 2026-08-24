@@ -12,6 +12,7 @@ return array(
     'Twig\\' => array($vendorDir . '/twig/twig/src'),
     'TwigCsFixer\\' => array($vendorDir . '/vincentlanglet/twig-cs-fixer/src'),
     'Tests\\' => array($baseDir . '/tests'),
+    'Symfony\\Polyfill\\Php85\\' => array($vendorDir . '/symfony/polyfill-php85'),
     'Symfony\\Polyfill\\Php80\\' => array($vendorDir . '/symfony/polyfill-php80'),
     'Symfony\\Polyfill\\Mbstring\\' => array($vendorDir . '/symfony/polyfill-mbstring'),
     'Symfony\\Polyfill\\Intl\\Normalizer\\' => array($vendorDir . '/symfony/polyfill-intl-normalizer'),

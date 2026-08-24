@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class BillerGenieGateway implements PluginInterface, GatewayAdapterInterface
+final class BillerGenieGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -107,6 +108,51 @@ final class BillerGenieGateway implements PluginInterface, GatewayAdapterInterfa
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the API Key against a lightweight account-info lookup on the same host/auth
+     * pattern this adapter's own initiate()/verify() already use.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Biller Genie API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $mode === 'live'
+            ? 'https://api.billergenieapi.com/v1/account'
+            : 'https://sandbox.billergenieapi.com/v1/account';
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $apiKey,
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Biller Genie - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => "Connected successfully to Biller Genie ({$mode} mode)."];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Biller Genie rejected the provided API Key.'];
+        }
+
+        return ['success' => false, 'message' => 'Unexpected response from Biller Genie (HTTP ' . $httpCode . ').'];
     }
 
     /**

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Paystation;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * PayStation Gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class PaystationGateway implements PluginInterface, GatewayAdapterInterface
+final class PaystationGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -240,5 +241,56 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         return false;
+    }
+
+    /**
+     * Checks that the configured Merchant ID is recognized by PayStation, without creating any
+     * payment. PayStation has no dedicated account/auth-check endpoint, so this reuses the
+     * transaction-status lookup with a bogus invoice number: an unrecognized merchant_id is
+     * rejected outright, while a valid one returns a normal "not found" response for the
+     * nonexistent invoice - the difference between the two is what this checks for.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantIdRaw = $credentials['merchant_id'] ?? '';
+        $merchantId = is_scalar($merchantIdRaw) ? (string) $merchantIdRaw : '';
+        if ($merchantId === '') {
+            return ['success' => false, 'message' => 'Enter a Merchant ID before testing the connection.'];
+        }
+
+        $mode = $credentials['merchant_mode'] ?? 'sandbox';
+        $baseUrl = $mode === 'live' ? 'https://api.paystation.com.bd' : 'https://sandbox.paystation.com.bd';
+
+        $ch = curl_init($baseUrl . '/transaction-status');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HTTPHEADER     => ['merchantId: ' . $merchantId],
+            CURLOPT_POSTFIELDS     => ['invoice_number' => 'OWNPAY-CONNECTION-TEST'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach PayStation - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data)) {
+            $modeStr = is_scalar($mode) ? (string) $mode : 'sandbox';
+            return ['success' => true, 'message' => "Connected successfully to PayStation ({$modeStr} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'PayStation rejected the provided Merchant ID.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

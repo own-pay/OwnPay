@@ -114,18 +114,28 @@ final class TransactionRepository extends BaseRepository
      * even when their application-level status pre-checks interleave.
      *
      * @param int $id Primary key identifier.
+     * @param string|null $gatewayTrxId The gateway's own transaction/reference ID for this
+     *                                  payment, when the caller has one. Only written when the
+     *                                  column is still empty, so it never overwrites a value set
+     *                                  another way (e.g. manual admin edit).
      * @return int Number of affected rows (0 when the transaction was already terminal).
      */
-    public function markCompletedIfNotTerminal(int $id): int
+    public function markCompletedIfNotTerminal(int $id, ?string $gatewayTrxId = null): int
     {
         [$placeholders, $params] = $this->terminalStatusPlaceholders();
         $params['completed_at'] = DateHelper::nowMicro();
         $params['id'] = $id;
         $params['mid'] = $this->requireTenant();
 
+        $gtidSet = '';
+        if ($gatewayTrxId !== null && $gatewayTrxId !== '') {
+            $gtidSet = ", gateway_trx_id = COALESCE(NULLIF(gateway_trx_id, ''), :gateway_trx_id)";
+            $params['gateway_trx_id'] = $gatewayTrxId;
+        }
+
         return $this->db->update(
             "UPDATE {$this->table}
-             SET status = 'completed', completed_at = :completed_at
+             SET status = 'completed', completed_at = :completed_at{$gtidSet}
              WHERE id = :id AND merchant_id = :mid AND status NOT IN ({$placeholders})",
             $params
         );

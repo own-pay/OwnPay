@@ -123,12 +123,22 @@ final class RefundController
         $reason = is_string($reasonVal) ? trim($reasonVal) : '';
 
         try {
-            $this->refundService->create($mid, [
+            $refund = $this->refundService->create($mid, [
                 'transaction_id' => $txnId,
                 'amount'         => $amount,
                 'reason'         => $reason
             ]);
-            $this->session->flashSuccess('Refund processed successfully.');
+
+            $status = $refund['status'] ?? '';
+            if ($status === 'completed') {
+                $this->session->flashSuccess('Refund processed successfully.');
+            } else {
+                $failureReasonVal = $refund['failure_reason'] ?? null;
+                $failureReason = is_scalar($failureReasonVal) && (string) $failureReasonVal !== ''
+                    ? (string) $failureReasonVal
+                    : 'The gateway declined the refund.';
+                $this->session->flashError('Refund failed: ' . $failureReason);
+            }
         } catch (\Throwable $e) {
             $this->session->flashError('Refund failed: ' . $e->getMessage());
         }

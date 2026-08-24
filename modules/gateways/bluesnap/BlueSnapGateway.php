@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class BlueSnapGateway implements PluginInterface, GatewayAdapterInterface
+final class BlueSnapGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -295,6 +296,52 @@ final class BlueSnapGateway implements PluginInterface, GatewayAdapterInterface
                 }
             }
         }
+    }
+
+    /**
+     * Verifies the API Username/Password via HTTP Basic auth against BlueSnap's read-only
+     * payment methods listing endpoint.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiUser = $this->getString($credentials['api_username'] ?? '');
+        $apiPass = $this->getString($credentials['api_password'] ?? '');
+        if ($apiUser === '' || $apiPass === '') {
+            return ['success' => false, 'message' => 'Enter API Username and API Password before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? 'https://ws.bluesnap.com' : 'https://sandbox.bluesnap.com';
+
+        $ch = curl_init($baseUrl . '/services/2/paymentmethods');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $apiUser . ':' . $apiPass,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach BlueSnap - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => "Connected successfully to BlueSnap ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $messages = is_array($data) && is_array($data['message'] ?? null) ? $data['message'] : [];
+        $firstMessage = is_array($messages[0] ?? null) ? $messages[0] : [];
+        $errMsg = isset($firstMessage['description']) && is_scalar($firstMessage['description'])
+            ? (string) $firstMessage['description']
+            : 'BlueSnap rejected the provided API Username/Password.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

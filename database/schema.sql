@@ -334,11 +334,14 @@ CREATE TABLE `op_refunds` (
   `amount` DECIMAL(15,2) NOT NULL,
   `reason` VARCHAR(500) DEFAULT NULL,
   `status` ENUM('pending','completed','failed') NOT NULL DEFAULT 'pending',
+  `failure_reason` VARCHAR(500) DEFAULT NULL,
+  `gateway_refund_id` VARCHAR(200) DEFAULT NULL,
   `processed_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_uuid` (`uuid`),
   KEY `idx_txn` (`transaction_id`),
+  KEY `idx_gateway_refund` (`gateway_refund_id`),
   CONSTRAINT `fk_ref_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_ref_txn` FOREIGN KEY (`transaction_id`) REFERENCES `op_transactions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

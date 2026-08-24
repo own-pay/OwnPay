@@ -35,11 +35,11 @@ class FieldEncryptor
         $envKey = $_ENV['ENCRYPTION_KEY'] ?? $_ENV['APP_KEY'] ?? null;
         $envKeyStr = is_string($envKey) ? $envKey : '';
         if ($envKeyStr === '') {
-            $getenvKey = getenv('ENCRYPTION_KEY');
+            $getenvKey = $_ENV['ENCRYPTION_KEY'] ?? getenv('ENCRYPTION_KEY');
             $envKeyStr = is_string($getenvKey) ? $getenvKey : '';
         }
         if ($envKeyStr === '') {
-            $getAppKey = getenv('APP_KEY');
+            $getAppKey = $_ENV['APP_KEY'] ?? getenv('APP_KEY');
             $envKeyStr = is_string($getAppKey) ? $getAppKey : '';
         }
         $this->key = $key ?? $envKeyStr;
@@ -125,7 +125,7 @@ class FieldEncryptor
             $oldKeyRawVal = $_ENV['ENCRYPTION_KEY_OLD'] ?? null;
             $oldKeyRaw = is_string($oldKeyRawVal) ? $oldKeyRawVal : '';
             if ($oldKeyRaw === '') {
-                $getOldKey = getenv('ENCRYPTION_KEY_OLD');
+                $getOldKey = ($_ENV['ENCRYPTION_KEY_OLD'] ?? getenv('ENCRYPTION_KEY_OLD'));
                 $oldKeyRaw = is_string($getOldKey) ? $getOldKey : '';
             }
             if ($oldKeyRaw !== '') {

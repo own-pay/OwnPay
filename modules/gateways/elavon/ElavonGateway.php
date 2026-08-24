@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class ElavonGateway implements PluginInterface, GatewayAdapterInterface
+final class ElavonGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -237,6 +238,64 @@ final class ElavonGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         return ['success' => false];
+    }
+
+    /**
+     * Verifies the Merchant ID/User ID/PIN authenticate against Elavon's Converge API via a
+     * transaction-token request (ssl_transaction_type=ccgettoken) - mints an unused token,
+     * doesn't charge anything.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $userId = $this->getString($credentials['user_id'] ?? '');
+        $pin = $this->getString($credentials['pin'] ?? '');
+        if ($merchantId === '' || $userId === '' || $pin === '') {
+            return ['success' => false, 'message' => 'Enter Merchant ID, User ID, and User PIN before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = $mode === 'live'
+            ? 'https://api.convergepay.com/hosted-payments/transaction_token'
+            : 'https://api.demo.convergepay.com/hosted-payments/transaction_token';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'ssl_merchant_id'      => $merchantId,
+                'ssl_user_id'          => $userId,
+                'ssl_pin'              => $pin,
+                'ssl_transaction_type' => 'ccgettoken',
+            ]),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Elavon (Converge) - check the server\'s network connectivity.'];
+        }
+
+        $body = (string) $response;
+        $data = json_decode($body, true);
+        if (is_array($data) && isset($data['errorMessage'])) {
+            $msg = is_scalar($data['errorMessage']) ? (string) $data['errorMessage'] : 'Elavon rejected the provided credentials.';
+            return ['success' => false, 'message' => $msg];
+        }
+        if ($httpCode === 200 && trim($body) !== '') {
+            return ['success' => true, 'message' => 'Connected successfully to Elavon (Converge, ' . $mode . ' mode).'];
+        }
+        return ['success' => false, 'message' => 'Elavon rejected the provided credentials.'];
     }
 
     /**
