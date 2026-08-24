@@ -22,6 +22,7 @@
     {{ hook('admin.head')|raw }}
 </head>
 <body class="op-admin">
+    <a href="#op-main-content" class="op-skip-link">Skip to main content</a>
     <div class="op-layout">
         {% include 'admin/layout/sidebar.twig' %}
 
@@ -30,7 +31,7 @@
             {% include 'admin/layout/notification_panel.twig' %}
             <div class="op-notif-panel-backdrop" id="notif-backdrop"></div>
 
-            <main class="op-content t-panel-slide" data-open="false">
+            <main id="op-main-content" class="op-content t-panel-slide" data-open="false">
                 {% if flash_success is defined and flash_success %}
                 <div class="op-alert op-alert-success op-alert-dismissible">
                     {{ flash_success }}
@@ -53,7 +54,7 @@
 
     {% include 'admin/layout/modals.twig' %}
 
-    <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=048"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=049"></script>
     {{ enqueued_assets('script') }}
     <div id="op-page-scripts">{% block scripts %}{% endblock %}</div>
     {{ hook('admin.footer')|raw }}

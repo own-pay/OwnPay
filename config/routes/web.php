@@ -127,6 +127,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/disputes', 'Admin\\DisputeController@index', 'admin');
     $router->get('/admin/disputes/{id}', 'Admin\\DisputeController@show', 'admin');
     $router->post('/admin/disputes/{id}/resolve', 'Admin\\DisputeController@resolve', 'admin');
+    // Open a new dispute against a transaction (issue #61 - reachable create path).
+    $router->post('/admin/disputes/create', 'Admin\\DisputeController@create', 'admin');
 
     // Payment Links
     $router->get('/admin/payment-links', 'Admin\\PaymentLinkController@index', 'admin');
@@ -279,6 +281,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/activities/{id}/details', 'Admin\\ActivitiesController@details', 'admin');
     $router->get('/admin/audit-integrity', 'Admin\\AuditIntegrityController@scan', 'admin');
     $router->post('/admin/audit-integrity/scan', 'Admin\\AuditIntegrityController@scan', 'admin');
+    $router->post('/admin/audit-integrity/sign-legacy', 'Admin\\AuditIntegrityController@signLegacy', 'admin');
     $router->get('/admin/login-attempts', 'Admin\\LoginAttemptController@index', 'admin');
     $router->post('/admin/login-attempts/unlock', 'Admin\\LoginAttemptController@unlock', 'admin');
 
@@ -329,7 +332,12 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/balance-verification/run', 'Admin\\BalanceVerificationController@run', 'admin');
 
     // ─── Cron endpoint ─────────────────────────────────────────
-    $router->get('/cron/{secret}', 'Page\\CronController@run', 'cron');
+    // CRON-2: Removed the GET /cron/{secret} route. URL paths are recorded
+    // verbatim in web server access logs, proxy/CDN logs, browser history,
+    // and can leak via the Referer header - exposing the shared cron secret
+    // to any party with read access to those logs. All cron triggers must
+    // now use POST /cron with the secret in the X-Cron-Secret header or
+    // Authorization: Bearer header (both already supported by the controller).
     $router->post('/cron', 'Page\\CronController@run', 'cron');
 
     // ─── Unified Webhook Endpoint (dynamic, zero-core-mod) ──────

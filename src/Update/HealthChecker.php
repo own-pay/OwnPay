@@ -141,6 +141,10 @@ class HealthChecker
     /**
      * Verifies write access on local runtime cache and logging directories.
      *
+     * Each required directory must both exist and be writable; a missing
+     * directory previously produced a false-positive "ok" and the app would
+     * crash on the first write attempt (e.g. cache miss, log line).
+     *
      * @return array{ok: bool, error: ?string} Diagnostic result.
      */
     private function checkWritable(): array
@@ -149,8 +153,8 @@ class HealthChecker
         $dirs = ['storage', 'storage/cache', 'storage/logs'];
         foreach ($dirs as $dir) {
             $path = $root . '/' . $dir;
-            if (is_dir($path) && !is_writable($path)) {
-                return ['ok' => false, 'error' => "Not writable: {$dir}"];
+            if (!is_dir($path) || !is_writable($path)) {
+                return ['ok' => false, 'error' => "Missing or not writable: {$dir}"];
             }
         }
         return ['ok' => true, 'error' => null];

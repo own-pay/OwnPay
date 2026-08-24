@@ -158,7 +158,40 @@ final class PluginInstaller
             $zip->close();
             return $this->fail('Failed to create temp directory');
         }
-        $zip->extractTo($tempDir);
+
+        // Extract files individually, normalizing Windows-style backslash
+        // separators to forward slashes so directories are created correctly
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $rawName = $zip->getNameIndex($i);
+            if ($rawName === false) continue;
+
+            $normalizedName = str_replace('\\', '/', $rawName);
+            $targetPath = $tempDir . '/' . $normalizedName;
+
+            // Skip directory entries - mkdir will create them below
+            if (str_ends_with($normalizedName, '/')) {
+                @mkdir($targetPath, 0755, true);
+                continue;
+            }
+
+            // Ensure parent directory exists
+            $parentDir = dirname($targetPath);
+            if (!is_dir($parentDir)) {
+                @mkdir($parentDir, 0755, true);
+            }
+
+            // Extract the file content and write to the normalized path
+            $stream = $zip->getStream($rawName);
+            if ($stream !== false) {
+                $dest = fopen($targetPath, 'wb');
+                if ($dest !== false) {
+                    stream_copy_to_stream($stream, $dest);
+                    fclose($dest);
+                }
+                fclose($stream);
+            }
+        }
+
         $zip->close();
         return $tempDir;
     }
@@ -239,12 +272,36 @@ final class PluginInstaller
                     'error'            => "Plugin '{$manifest->slug}' already installed."
                 ];
             }
+
+            // Bug #10 fix: Preserve plugin storage directory across updates
+            $storageBackup = null;
+            $storageDir = $targetDir . '/storage';
+            if (is_dir($storageDir)) {
+                $storageBackup = sys_get_temp_dir() . '/op_storage_backup_' . $manifest->slug . '_' . bin2hex(random_bytes(4));
+                $this->copyDir($storageDir, $storageBackup);
+            }
+
             $this->removeDir($targetDir);
+
+            // Restore storage after removal
+            if ($storageBackup !== null) {
+                // The new plugin dir will be created below by rename/copyDir
+                // We'll restore storage after deployment
+            }
+        } else {
+            $storageBackup = null;
         }
 
         $pluginDir = $manifest->path;
         if (!rename($pluginDir, $targetDir)) {
             $this->copyDir($pluginDir, $targetDir);
+        }
+
+        // Bug #10 fix: Restore preserved storage after deployment
+        if ($storageBackup !== null && is_dir($storageBackup)) {
+            $newStorageDir = $targetDir . '/storage';
+            $this->copyDir($storageBackup, $newStorageDir);
+            $this->removeDir($storageBackup);
         }
 
         return ['success' => true, 'slug' => $manifest->slug];

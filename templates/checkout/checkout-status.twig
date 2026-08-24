@@ -2,12 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
-    <title>{{ status_label ?? (status|capitalize) }} — {{ brand.name ?? 'Own Pay' }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>{{ status_label ?? (status|capitalize) }} - {{ brand.name ?? 'Own Pay' }}</title>
+    <link rel="stylesheet" href="/assets/css/fonts.css?v=001">
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
     <link rel="stylesheet" href="/assets/css/reset.css?v=016">
     <link rel="stylesheet" href="/assets/css/animations.css?v=014">
@@ -27,8 +25,15 @@
             {% include 'checkout/partials/_expired.twig' %}
         {% endif %}
 
+        {% set show_redirect_block = false %}
         {% if is_intent is defined and is_intent and merchant_redirect_url is defined and merchant_redirect_url %}
-            <div id="countdown-wrapper" class="st-countdown-wrapper" data-redirect-url="{{ merchant_redirect_url }}" data-payment-id="{{ intent_payment_id }}" data-status="{{ intent_status }}">
+            {% set show_redirect_block = true %}
+        {% elseif auto_redirect is defined and auto_redirect and merchant_redirect_url is defined and merchant_redirect_url %}
+            {% set show_redirect_block = true %}
+        {% endif %}
+
+        {% if show_redirect_block %}
+            <div id="countdown-wrapper" class="st-countdown-wrapper" data-redirect-url="{{ merchant_redirect_url }}" data-payment-id="{{ intent_payment_id ?? txn.trx_id ?? '' }}" data-status="{{ intent_status ?? status }}">
                 <div class="st-countdown-container">
                     <svg width="28" height="28" viewBox="0 0 36 36" class="st-countdown-svg">
                         <circle cx="18" cy="18" r="16" fill="none" stroke="var(--cloud)" stroke-width="3.5"></circle>

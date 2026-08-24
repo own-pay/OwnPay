@@ -9,8 +9,35 @@
     </div>
     <div class="op-header-actions">
         <span class="op-text-muted op-text-sm">{{ total|default(0) }} total disputes</span>
+        <button type="button" class="op-btn op-btn-primary" onclick="document.getElementById('op-new-dispute-form').classList.toggle('op-d-none')">
+            Open Dispute
+        </button>
     </div>
 </div>
+
+{# Inline create-dispute form (issue #61): surfaces the previously-unreachable
+   DisputeService::open() code path so admins can open disputes without DB access. #}
+<form id="op-new-dispute-form" method="POST" action="/admin/disputes/create" class="op-card op-mb-4 op-d-none">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <div class="op-card-header"><h3>Open New Dispute</h3></div>
+    <div class="op-card-body op-grid op-grid-3">
+        <div class="op-form-group">
+            <label>Transaction ID</label>
+            <input type="number" name="transaction_id" class="op-input" required min="1" placeholder="e.g. 1024">
+        </div>
+        <div class="op-form-group">
+            <label>Reason</label>
+            <input type="text" name="reason" class="op-input" required maxlength="100" placeholder="e.g. chargeback">
+        </div>
+        <div class="op-form-group">
+            <label>Amount</label>
+            <input type="text" name="amount" class="op-input" required pattern="\d+(\.\d{1,2})?" placeholder="e.g. 99.50">
+        </div>
+    </div>
+    <div class="op-card-footer op-text-right">
+        <button type="submit" class="op-btn op-btn-success">Open Dispute</button>
+    </div>
+</form>
 
 {# -- Disputes Table ------------------------------------------ #}
 <div class="op-card">

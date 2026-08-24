@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Security\UrlValidator;
 use OwnPay\Service\Domain\DomainService;
 
 /**
@@ -87,13 +88,15 @@ final class DomainController
             $d['status_pill'] = self::computeStatusPill($d);
         }
 
-        // Use the configured APP_DOMAIN for the server-IP hint, not the
-        // attacker-controlled Host header (which would let a merchant-user drive
-        // gethostbyname() lookups against arbitrary domains).
+        // Use the configured APP_DOMAIN for the server-IP hint. The request
+        // Host header is attacker-controlled and must never drive
+        // gethostbyname() lookups (audit DOM-4). On misconfigured installs
+        // (APP_DOMAIN unset) we degrade to '127.0.0.1' rather than leaking
+        // through client input.
         $appDomainVal = $_ENV['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
         $serverHost = is_string($appDomainVal) && $appDomainVal !== ''
             ? $appDomainVal
-            : ($req->header('Host') ?: '127.0.0.1');
+            : '127.0.0.1';
         $serverHost = (string) (parse_url('https://' . $serverHost, PHP_URL_HOST) ?: '127.0.0.1');
 
         return $this->renderAdminPage('admin/domains/index.twig', [
@@ -138,7 +141,26 @@ final class DomainController
             $redirectUrl = null;
         }
 
-        $result = $this->domains->map($mid, $domain, $type, $redirectUrl);
+        // SECURITY (DOM-2): validate redirect_url before persisting. Without
+        // this check, a brand admin can set redirect_url to an external host
+        // (e.g. https://attacker.com) and 302-redirect every visitor of the
+        // brand's custom domain root to a phishing site. The validator accepts
+        // same-origin absolute URLs (http/https, host matches the configured
+        // custom domain) or relative paths starting with `/` (which can never
+        // escape the custom domain origin). External hosts, javascript:, data:,
+        // and protocol-relative `//host` values are rejected.
+        try {
+            $validatedRedirect = $this->validateRedirectUrl($redirectUrl, $domain);
+        } catch (\InvalidArgumentException $e) {
+            $errorMsg = $e->getMessage();
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => $errorMsg]);
+            }
+            $this->session->flashError($errorMsg);
+            return $this->redirectBack($req);
+        }
+
+        $result = $this->domains->map($mid, $domain, $type, $validatedRedirect);
 
         if ($req->isAjax()) {
             if (empty($result['success'])) {
@@ -326,6 +348,22 @@ final class DomainController
             $redirectUrl = null;
         }
 
+        // SECURITY (DOM-2): same redirect_url validation as store(). The
+        // configured custom domain is the same-origin host the redirect must
+        // stay within. Reject external hosts / dangerous schemes up-front so
+        // the stored value can never become an open-redirect sink.
+        $domainName = is_string($domainRecord['domain'] ?? null) ? (string) $domainRecord['domain'] : '';
+        try {
+            $validatedRedirect = $this->validateRedirectUrl($redirectUrl, $domainName);
+        } catch (\InvalidArgumentException $e) {
+            $errorMsg = $e->getMessage();
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => $errorMsg]);
+            }
+            $this->session->flashError($errorMsg);
+            return $this->redirectBack($req);
+        }
+
         $statusVal = $req->post('status', 'pending');
         $status = is_string($statusVal) && in_array($statusVal, ['active', 'pending', 'inactive'], true) ? $statusVal : 'pending';
 
@@ -337,7 +375,7 @@ final class DomainController
 
         $updateData = [
             'type'         => $type,
-            'redirect_url' => $redirectUrl,
+            'redirect_url' => $validatedRedirect,
             'status'       => $status,
             'dns_verified' => $dnsVerified,
         ];
@@ -518,6 +556,50 @@ final class DomainController
             'verification_token' => $domain['verification_token'] ?? null,
             'status_pill'        => self::computeStatusPill($domain),
         ];
+    }
+
+    /**
+     * Validates the redirect_url field for store()/update() (DOM-2).
+     *
+     * Returns:
+     *   - null  if the input is empty (no redirect configured - always valid).
+     *   - string (the validated value) if the input is a safe relative path
+     *     (`/checkout`, `/foo?bar=1`) or a same-origin absolute URL
+     *     (http/https whose host equals $allowedDomain or is a subdomain of it).
+     *
+     * Throws \InvalidArgumentException if the input is non-empty but fails
+     * validation (external host, dangerous scheme, protocol-relative `//host`,
+     * etc.). The caller is expected to catch it, flash an error, and abort the
+     * request without persisting.
+     *
+     * @param string|null $url The trimmed user-supplied redirect URL (null = empty).
+     * @param string $allowedDomain The custom domain being configured (same-origin constraint).
+     * @return string|null The validated URL, or null if input was empty.
+     * @throws \InvalidArgumentException When the URL is non-empty but invalid.
+     */
+    private function validateRedirectUrl(?string $url, string $allowedDomain): ?string
+    {
+        if ($url === null || $url === '') {
+            return null;
+        }
+
+        // Relative path: must start with `/` but not `//` (protocol-relative,
+        // resolves to https://host) or `/\` (backslash variant - some browsers
+        // normalize this to `//`).
+        if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_starts_with($url, '/\\')) {
+            return $url;
+        }
+
+        // Absolute URL: must be http/https and same-origin. UrlValidator rejects
+        // external hosts, javascript:, data:, userinfo, and any non-http(s) scheme.
+        if (UrlValidator::isValidRedirect($url, $allowedDomain)) {
+            return $url;
+        }
+
+        throw new \InvalidArgumentException(
+            'Redirect URL must be a relative path (e.g. /checkout) or an absolute URL on this domain (https://'
+            . $allowedDomain . '/path).'
+        );
     }
 
     /**

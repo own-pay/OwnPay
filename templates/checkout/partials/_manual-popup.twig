@@ -38,6 +38,14 @@
             <div id="mpStep2" class="ck-hidden">
                 <button type="button" data-action="go-mp-step" data-step="1" class="ck-popup-back-link">← {{ lang.back ?? 'Back' }}</button>
                 <form id="mpVerifyForm">
+                    {# Issue #344 (PAY-16): checkout_hash is the HMAC of
+                       (amount|currency|token) computed server-side and
+                       rendered into the page as #op-checkout-hash. The
+                       manualVerify endpoint now requires it to match, so a
+                       token leaked via screenshot/referrer/logs cannot be
+                       used to forge a verification submission. The JS submit
+                       handler copies this value into the form post. #}
+                    <input type="hidden" name="checkout_hash" value="{{ checkout_hash is defined ? checkout_hash : '' }}">
                     <div class="ck-popup-field">
                         <label>{{ lang.sender_number ?? 'Your sender number' }}</label>
                         <input type="text" name="sender_number" class="ck-popup-input" required placeholder="01XXXXXXXXX">

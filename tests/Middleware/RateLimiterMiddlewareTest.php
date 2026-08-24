@@ -11,7 +11,9 @@ use OwnPay\Http\Response;
 use OwnPay\Middleware\RateLimiterMiddleware;
 use OwnPay\Repository\SettingsRepository;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+#[AllowMockObjectsWithoutExpectations]
 final class RateLimiterMiddlewareTest extends TestCase
 {
     private Container $container;

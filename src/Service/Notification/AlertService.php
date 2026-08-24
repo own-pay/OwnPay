@@ -54,10 +54,14 @@ final class AlertService
      */
     public function getUnread(int $merchantId, int $limit = 20): array
     {
+        // Clamp limit to a reasonable maximum (API-13): without this a caller could
+        // pass PHP_INT_MAX and force MySQL to materialise an unbounded result set,
+        // exhausting process memory. Bound as a parameter instead of interpolating.
+        $limit = max(1, min($limit, 500));
         return $this->db->fetchAll(
             "SELECT * FROM op_alerts WHERE merchant_id = :mid AND status = 'unread'
-             ORDER BY created_at DESC LIMIT {$limit}",
-            ['mid' => $merchantId]
+             ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
         );
     }
 

@@ -685,22 +685,29 @@
         min-width: 0 !important;
         flex-shrink: 0 !important;
         white-space: nowrap !important;
-        padding: 8px 10px !important;
-        font-size: 0.75rem !important;
-        gap: 5px !important;
+        padding: 10px 14px !important;
+        font-size: 0.8125rem !important;
+        gap: 6px !important;
         border-radius: 8px 8px 0 0 !important;
         text-align: center !important;
         justify-content: center !important;
+        min-height: 40px !important;
+    }
+
+    .op-settings-layout .op-settings-sidebar .op-tab.active {
+        border-bottom: 2px solid var(--op-primary) !important;
+        color: var(--op-primary) !important;
+        font-weight: 600 !important;
     }
 
     .op-settings-layout .op-settings-sidebar .op-tab-icon {
-        width: 13px !important;
-        height: 13px !important;
+        width: 15px !important;
+        height: 15px !important;
     }
 
     .op-settings-layout .op-settings-sidebar .op-tab-icon svg {
-        width: 13px !important;
-        height: 13px !important;
+        width: 15px !important;
+        height: 15px !important;
     }
 
     /* Main content */

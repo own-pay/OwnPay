@@ -145,6 +145,13 @@ final class EnvironmentService
     private static ?SettingsRepository $settingsRepo = null;
 
     /**
+     * Optional logger used to surface persistence failures from set().
+     *
+     * @var Logger|null
+     */
+    private static ?Logger $logger = null;
+
+    /**
      * Initialises the environment service with the persistent database repository.
      *
      * Must be invoked during core system kernel initialization.
@@ -155,6 +162,22 @@ final class EnvironmentService
     public static function boot(SettingsRepository $repo): void
     {
         self::$settingsRepo = $repo;
+    }
+
+    /**
+     * Injects a logger used to surface DB persistence failures from set().
+     *
+     * Optional - if never called, persistence failures remain silent (the
+     * previous behaviour) and the in-memory cache still reflects the requested
+     * value so the app does not crash. When wired (typically by the Kernel
+     * during boot), failures are logged at ERROR level for operator visibility.
+     *
+     * @param Logger $logger Logger instance.
+     * @return void
+     */
+    public static function setLogger(Logger $logger): void
+    {
+        self::$logger = $logger;
     }
 
     /**
@@ -220,6 +243,15 @@ final class EnvironmentService
      * Updates both the local runtime memory cache and writes to the DB repository
      * or tests fallback DB table structures.
      *
+     * NOTE: the in-memory cache is updated BEFORE the DB write, and a DB write
+     * failure is logged via the injected Logger (if any) but does NOT propagate
+     * to the caller. The return value is the requested value (not a persistence
+     * status) to preserve backward compatibility with existing callers that
+     * chain set() into get(). Operators must monitor the application error log
+     * for "EnvironmentService::set persistence failed" entries to detect when
+     * the DB write path is degraded (e.g. DB down, schema drift); the app will
+     * continue to serve the cached value until the process restarts.
+     *
      * @param string $key Configuration key selector.
      * @param string $value Target setting content to persist.
      * @param string $brandId Scope identifier targeting the configuration update.
@@ -239,9 +271,30 @@ final class EnvironmentService
                 } else {
                     $repo->set('runtime', $key, $value);
                 }
-            } catch (\Throwable) {
-                // Database not available
+            } catch (\Throwable $e) {
+                // DB write failed - surface it via the logger (if wired) so
+                // operators can detect silent persistence degradation. The
+                // in-memory cache still holds the requested value so the
+                // current process keeps functioning; the value is lost on
+                // the next restart.
+                self::$logger?->error(
+                    'EnvironmentService::set persistence failed',
+                    [
+                        'key'      => $key,
+                        'brand_id' => $brandId,
+                        'error'    => $e->getMessage(),
+                    ]
+                );
             }
+        } else {
+            // No repo available at all (DB not booted) - same surface.
+            self::$logger?->error(
+                'EnvironmentService::set persistence skipped: repository unavailable',
+                [
+                    'key'      => $key,
+                    'brand_id' => $brandId,
+                ]
+            );
         }
 
         return $value;

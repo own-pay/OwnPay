@@ -27,8 +27,8 @@ final class TransactionRepository extends BaseRepository
     protected array $fillable = [
         'merchant_id', 'uuid', 'trx_id', 'payment_intent_id', 'customer_id',
         'gateway_slug', 'amount', 'fee', 'net_amount', 'currency',
-        'sender_account', 'reference', 'gateway_trx_id', 'ip_address', 'method',
-        'status', 'metadata', 'completed_at',
+        'sender_account', 'reference', 'gateway_trx_id', 'provider_trx_id',
+        'ip_address', 'method', 'status', 'metadata', 'completed_at',
     ];
 
     /**
@@ -468,7 +468,7 @@ final class TransactionRepository extends BaseRepository
             "SELECT t.*, m.name as merchant_name, m.id as merchant_id
              FROM {$this->table} t
              JOIN op_merchants m ON m.id = t.merchant_id
-             WHERE t.trx_id = :ref AND t.status IN ('pending','created')
+             WHERE t.trx_id = :ref AND t.status IN ('pending','created','processing')
              LIMIT 1",
             ['ref' => $trxId]
         );
@@ -509,17 +509,26 @@ final class TransactionRepository extends BaseRepository
     /**
      * Cancels a pending or created transaction by transaction ID code.
      *
-     * Public checkout callback helper; intentionally unscoped.
+     * REPO-6 (issue #461): Added required $merchantId parameter. The trx_id is a
+     * customer-facing identifier exposed in checkout URLs, email links, and
+     * receipts - anyone who obtains it could previously cancel ANY pending
+     * transaction across ALL tenants by calling this method. The merchant_id
+     * scope ensures only the owning merchant's rows are affected.
      *
      * @param string $trxId Unique transaction identifier.
+     * @param int $merchantId Owning merchant ID (required for tenant scoping).
      * @return void
+     * @throws \InvalidArgumentException When $merchantId <= 0.
      */
-    public function cancelByTrxId(string $trxId): void
+    public function cancelByTrxId(string $trxId, int $merchantId): void
     {
+        if ($merchantId <= 0) {
+            throw new \InvalidArgumentException('cancelByTrxId requires a positive merchant_id; got ' . $merchantId);
+        }
         $this->db->execute(
             "UPDATE {$this->table} SET status = 'cancelled', updated_at = NOW()
-             WHERE trx_id = :ref AND status IN ('pending','created')",
-            ['ref' => $trxId]
+             WHERE trx_id = :ref AND merchant_id = :mid AND status IN ('pending','created')",
+            ['ref' => $trxId, 'mid' => $merchantId]
         );
     }
 
@@ -530,15 +539,44 @@ final class TransactionRepository extends BaseRepository
      * ever undo an in-flight API-gateway redirect the customer abandoned, not a genuinely
      * finished or manually-verified transaction.
      *
+     * Issue #338 (PAY-10): the revert is now gated by a 10-minute cooldown from the last
+     * `updated_at` timestamp and additionally clears `gateway_slug`. The cooldown prevents
+     * a customer from reverting an in-flight payment that the gateway may still be processing
+     * (e.g. the customer hit "back" while the gateway was authorising) - in that window the
+     * gateway could still complete the original transaction and the customer would also pay
+     * via the second gateway they pick, doubling the charge. 10 minutes is long enough for
+     * any reasonable gateway round-trip to settle one way or the other; after it, an
+     * abandoned `processing` row is safe to reclaim.
+     *
+     * Clearing `gateway_slug` (to empty string, since the column is VARCHAR(60) NOT NULL)
+     * pairs with the tightened `isCompletionEligible()` check (issue #345, PAY-17): a stale
+     * callback from the abandoned gateway arrives with the old gateway slug, sees that the
+     * transaction's `gateway_slug` no longer matches, and is rejected - so the customer
+     * cannot be "completed" by a stale webhook from a gateway they explicitly abandoned.
+     *
+     * REPO-6 (issue #461): Added required $merchantId parameter. The trx_id is
+     * customer-facing and was previously unscoped - an attacker with a known trx_id
+     * could revert ANY merchant's processing transaction, causing double-charges.
+     *
      * @param string $trxId Unique transaction identifier.
-     * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     * @param int $merchantId Owning merchant ID (required for tenant scoping).
+     * @return bool True if a row was actually reverted, false if no matching `processing` row
+     *              existed (or it was too recent to safely revert per the cooldown).
+     * @throws \InvalidArgumentException When $merchantId <= 0.
      */
-    public function reactivateForRetry(string $trxId): bool
+    public function reactivateForRetry(string $trxId, int $merchantId): bool
     {
+        if ($merchantId <= 0) {
+            throw new \InvalidArgumentException('reactivateForRetry requires a positive merchant_id; got ' . $merchantId);
+        }
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
-             WHERE trx_id = :ref AND status = 'processing'",
-            ['ref' => $trxId]
+            "UPDATE {$this->table}
+             SET status = 'pending', gateway_slug = '', updated_at = NOW()
+             WHERE trx_id = :ref
+               AND merchant_id = :mid
+               AND status = 'processing'
+               AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
+            ['ref' => $trxId, 'mid' => $merchantId]
         );
         return $stmt->rowCount() > 0;
     }
@@ -548,15 +586,29 @@ final class TransactionRepository extends BaseRepository
      * intent ID instead of its own trx_id - used by the Payment Intent checkout flow, where the
      * customer-facing token belongs to the intent, not the transaction.
      *
+     * Inherits the 10-minute cooldown and `gateway_slug` clearing behaviour of
+     * {@see reactivateForRetry()} (issue #338, PAY-10).
+     *
+     * REPO-6 (issue #461): Added required $merchantId parameter for tenant scoping.
+     *
      * @param int $intentId Linked `op_payment_intents.id`.
+     * @param int $merchantId Owning merchant ID (required for tenant scoping).
      * @return bool True if a row was actually reverted, false if no matching `processing` row existed.
+     * @throws \InvalidArgumentException When $merchantId <= 0.
      */
-    public function reactivateForRetryByIntentId(int $intentId): bool
+    public function reactivateForRetryByIntentId(int $intentId, int $merchantId): bool
     {
+        if ($merchantId <= 0) {
+            throw new \InvalidArgumentException('reactivateForRetryByIntentId requires a positive merchant_id; got ' . $merchantId);
+        }
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET status = 'pending', updated_at = NOW()
-             WHERE payment_intent_id = :pi AND status = 'processing'",
-            ['pi' => $intentId]
+            "UPDATE {$this->table}
+             SET status = 'pending', gateway_slug = '', updated_at = NOW()
+             WHERE payment_intent_id = :pi
+               AND merchant_id = :mid
+               AND status = 'processing'
+               AND updated_at < (NOW() - INTERVAL 10 MINUTE)",
+            ['pi' => $intentId, 'mid' => $merchantId]
         );
         return $stmt->rowCount() > 0;
     }
@@ -564,27 +616,38 @@ final class TransactionRepository extends BaseRepository
     /**
      * Updates the gateway slug and status for a transaction.
      *
-     * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
+     * Scoped by merchant ID to prevent cross-tenant IDOR attacks.
+     *
+     * REPO-5: $merchantId default changed from 0 to -1 (sentinel for "unset")
+     * and the method now throws LogicException if no merchant scope is
+     * available. The previous default of 0 meant "bypass scoping" - a caller
+     * that forgot to pass $mid on a non-forTenant()'d repository instance
+     * silently mutated a transaction across all tenants. All current callers
+     * (CheckoutController, PaymentIntentCheckoutController) pass $mid
+     * explicitly, so the new guard is a no-op for them.
      *
      * @param int $id Primary key identifier.
      * @param string $gateway Gateway adapter slug name.
      * @param string $status Target transaction status string.
-     * @param int $merchantId Scoping merchant ID (0 to bypass scoping).
+     * @param int $merchantId Scoping merchant ID. -1 (default) falls back to
+     *                         the repository's tenantId; if neither is set,
+     *                         a LogicException is thrown.
      * @return void
+     * @throws \LogicException When $merchantId <= 0 and the repository has no tenant scope.
      */
-    public function setGatewayAndStatus(int $id, string $gateway, string $status, int $merchantId = 0): void
+    public function setGatewayAndStatus(int $id, string $gateway, string $status, int $merchantId = -1): void
     {
-        if ($merchantId > 0) {
-            $this->db->execute(
-                "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-                ['gw' => $gateway, 'st' => $status, 'id' => $id, 'mid' => $merchantId]
-            );
-        } else {
-            $this->db->execute(
-                "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW() WHERE id = :id",
-                ['gw' => $gateway, 'st' => $status, 'id' => $id]
+        $mid = $merchantId > 0 ? $merchantId : $this->tenantId;
+        if ($mid === null || $mid <= 0) {
+            throw new \LogicException(
+                'Merchant ID required for cross-tenant-safe mutation: setGatewayAndStatus'
+                . ' requires $merchantId or a forTenant()-scoped repository.'
             );
         }
+        $this->db->execute(
+            "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+            ['gw' => $gateway, 'st' => $status, 'id' => $id, 'mid' => $mid]
+        );
     }
 
     /**
@@ -615,28 +678,37 @@ final class TransactionRepository extends BaseRepository
     /**
      * Merges and updates JSON metadata on a transaction record.
      *
-     * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
+     * Scoped by merchant ID to prevent cross-tenant IDOR attacks.
+     *
+     * REPO-5: $merchantId default changed from 0 to -1 (sentinel for "unset")
+     * and the method now throws LogicException if no merchant scope is
+     * available. The previous default of 0 produced a confusing dual-mode
+     * behavior: the SELECT used $mid (falling back to tenantId) but the
+     * UPDATE was unscoped when $merchantId was 0, even if tenantId was set.
+     * Both paths now use the same $mid consistently, and the unscoped case
+     * is rejected outright.
      *
      * @param int $id Primary key identifier.
      * @param array<string, mixed> $metadata New key-value pairs to merge into metadata.
-     * @param int $merchantId Scoping merchant ID (0 to bypass scoping).
+     * @param int $merchantId Scoping merchant ID. -1 (default) falls back to
+     *                         the repository's tenantId; if neither is set,
+     *                         a LogicException is thrown.
      * @return void
+     * @throws \LogicException When $merchantId <= 0 and the repository has no tenant scope.
      */
-    public function updateMetadata(int $id, array $metadata, int $merchantId = 0): void
+    public function updateMetadata(int $id, array $metadata, int $merchantId = -1): void
     {
         $mid = $merchantId > 0 ? $merchantId : $this->tenantId;
-        $txn = null;
-        if ($mid !== null && $mid > 0) {
-            $txn = $this->db->fetchOne(
-                "SELECT metadata FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
-                ['id' => $id, 'mid' => $mid]
-            );
-        } else {
-            $txn = $this->db->fetchOne(
-                "SELECT metadata FROM {$this->table} WHERE id = :id LIMIT 1",
-                ['id' => $id]
+        if ($mid === null || $mid <= 0) {
+            throw new \LogicException(
+                'Merchant ID required for cross-tenant-safe mutation: updateMetadata'
+                . ' requires $merchantId or a forTenant()-scoped repository.'
             );
         }
+        $txn = $this->db->fetchOne(
+            "SELECT metadata FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
+            ['id' => $id, 'mid' => $mid]
+        );
 
         $existing = [];
         if ($txn !== null && isset($txn['metadata']) && is_string($txn['metadata']) && $txn['metadata'] !== '') {
@@ -648,45 +720,46 @@ final class TransactionRepository extends BaseRepository
 
         $merged = array_merge($existing, $metadata);
 
-        if ($merchantId > 0) {
-            $this->db->execute(
-                "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-                ['meta' => json_encode($merged), 'id' => $id, 'mid' => $merchantId]
-            );
-        } else {
-            $this->db->execute(
-                "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id",
-                ['meta' => json_encode($merged), 'id' => $id]
-            );
-        }
+        $this->db->execute(
+            "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+            ['meta' => json_encode($merged), 'id' => $id, 'mid' => $mid]
+        );
     }
 
     /**
      * Updates transaction status and merges metadata atomically.
      *
-     * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
+     * Scoped by merchant ID to prevent cross-tenant IDOR attacks.
+     *
+     * REPO-5: $merchantId default changed from 0 to -1 (sentinel for "unset")
+     * and the method now throws LogicException if no merchant scope is
+     * available. setStatusWithMeta is particularly dangerous because it can
+     * flip a transaction to 'completed', triggering ledger posting and
+     * customer notification. The previous default of 0 meant a caller that
+     * forgot $mid silently operated globally. All current callers pass $mid.
      *
      * @param int $id Primary key identifier.
      * @param string $status Target transaction status string.
      * @param array<string, mixed> $metadata New key-value pairs to merge into metadata.
-     * @param int $merchantId Scoping merchant ID (0 to bypass scoping).
+     * @param int $merchantId Scoping merchant ID. -1 (default) falls back to
+     *                         the repository's tenantId; if neither is set,
+     *                         a LogicException is thrown.
      * @return void
+     * @throws \LogicException When $merchantId <= 0 and the repository has no tenant scope.
      */
-    public function setStatusWithMeta(int $id, string $status, array $metadata, int $merchantId = 0): void
+    public function setStatusWithMeta(int $id, string $status, array $metadata, int $merchantId = -1): void
     {
         $mid = $merchantId > 0 ? $merchantId : $this->tenantId;
-        $txn = null;
-        if ($mid !== null && $mid > 0) {
-            $txn = $this->db->fetchOne(
-                "SELECT metadata FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
-                ['id' => $id, 'mid' => $mid]
-            );
-        } else {
-            $txn = $this->db->fetchOne(
-                "SELECT metadata FROM {$this->table} WHERE id = :id LIMIT 1",
-                ['id' => $id]
+        if ($mid === null || $mid <= 0) {
+            throw new \LogicException(
+                'Merchant ID required for cross-tenant-safe mutation: setStatusWithMeta'
+                . ' requires $merchantId or a forTenant()-scoped repository.'
             );
         }
+        $txn = $this->db->fetchOne(
+            "SELECT metadata FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
+            ['id' => $id, 'mid' => $mid]
+        );
 
         $existing = [];
         if ($txn !== null && isset($txn['metadata']) && is_string($txn['metadata']) && $txn['metadata'] !== '') {
@@ -698,17 +771,10 @@ final class TransactionRepository extends BaseRepository
 
         $merged = array_merge($existing, $metadata);
 
-        if ($merchantId > 0) {
-            $this->db->execute(
-                "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-                ['st' => $status, 'meta' => json_encode($merged), 'id' => $id, 'mid' => $merchantId]
-            );
-        } else {
-            $this->db->execute(
-                "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id",
-                ['st' => $status, 'meta' => json_encode($merged), 'id' => $id]
-            );
-        }
+        $this->db->execute(
+            "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+            ['st' => $status, 'meta' => json_encode($merged), 'id' => $id, 'mid' => $mid]
+        );
     }
 
     // --- Report/Export methods (for admin dashboard) ---
@@ -912,11 +978,33 @@ final class TransactionRepository extends BaseRepository
             );
         }
 
+        // Ambiguity guard for the null-timestamp branch (issue #64).
+        // Previously this branch returned ORDER BY created_at DESC LIMIT 1, which
+        // silently auto-completed the most recent pending transaction when
+        // multiple candidates shared the same amount and gateway. That is money-
+        // unsafe: the wrong customer's payment could be marked complete. We now
+        // refuse to auto-match when more than one candidate exists, mirroring the
+        // timestamped branch's "exactly one candidate" rule. A single candidate
+        // still matches so the legitimate unambiguous case continues to work.
+        $sqlCount = "SELECT COUNT(*) FROM {$this->table}
+                     WHERE merchant_id = :mid AND status = 'pending'
+                       AND amount = :amt AND gateway_slug = :gw";
+        $countVal = $this->db->fetchColumn($sqlCount, [
+            'mid' => $merchantId,
+            'amt' => $amount,
+            'gw'  => $gatewaySlug,
+        ]);
+        $count = is_scalar($countVal) ? (int) $countVal : 0;
+
+        if ($count !== 1) {
+            return null;
+        }
+
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table}
              WHERE merchant_id = :mid AND status = 'pending'
                AND amount = :amt AND gateway_slug = :gw
-             ORDER BY created_at DESC LIMIT 1",
+             LIMIT 1",
             ['mid' => $merchantId, 'amt' => $amount, 'gw' => $gatewaySlug]
         );
     }
@@ -965,11 +1053,27 @@ final class TransactionRepository extends BaseRepository
             );
         }
 
+        // Ambiguity guard for the null-timestamp branch (issue #64).
+        // Mirrors the scoped findPendingMatch fix: refuse to auto-match when
+        // more than one candidate exists. See findPendingMatch for rationale.
+        $sqlCount = "SELECT COUNT(*) FROM {$this->table}
+                     WHERE status = 'pending'
+                       AND amount = :amt AND gateway_slug = :gw";
+        $countVal = $this->db->fetchColumn($sqlCount, [
+            'amt' => $amount,
+            'gw'  => $gatewaySlug,
+        ]);
+        $count = is_scalar($countVal) ? (int) $countVal : 0;
+
+        if ($count !== 1) {
+            return null;
+        }
+
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table}
              WHERE status = 'pending'
                AND amount = :amt AND gateway_slug = :gw
-             ORDER BY created_at DESC LIMIT 1",
+             LIMIT 1",
             ['amt' => $amount, 'gw' => $gatewaySlug]
         );
     }

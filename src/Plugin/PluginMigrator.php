@@ -114,17 +114,31 @@ final class PluginMigrator
             if (file_exists($downFile)) {
                 $sql = file_get_contents($downFile);
                 if ($sql !== false && trim($sql) !== '') {
-                    $statements = array_filter(array_map('trim', explode(';', $sql)), fn(string $s) => $s !== '');
-                    foreach ($statements as $stmt) {
-                        $this->db->execute($stmt);
-                    }
+                    // Bug #8 fix: Wrap rollback in a transaction for atomicity
+                    $this->db->transaction(function () use ($sql, $pluginSlug, $row) {
+                        $statements = array_filter(array_map('trim', explode(';', $sql)), fn(string $s) => $s !== '');
+                        foreach ($statements as $stmt) {
+                            $this->db->execute($stmt);
+                        }
+                        $this->db->delete(
+                            "DELETE FROM op_plugin_migrations WHERE plugin_slug = :slug AND migration = :mig",
+                            ['slug' => $pluginSlug, 'mig' => $row['migration']]
+                        );
+                    });
+                } else {
+                    // Empty or unreadable down file - just delete the migration record
+                    $this->db->delete(
+                        "DELETE FROM op_plugin_migrations WHERE plugin_slug = :slug AND migration = :mig",
+                        ['slug' => $pluginSlug, 'mig' => $row['migration']]
+                    );
                 }
+            } else {
+                // No down file exists - just delete the migration record
+                $this->db->delete(
+                    "DELETE FROM op_plugin_migrations WHERE plugin_slug = :slug AND migration = :mig",
+                    ['slug' => $pluginSlug, 'mig' => $row['migration']]
+                );
             }
-
-            $this->db->delete(
-                "DELETE FROM op_plugin_migrations WHERE plugin_slug = :slug AND migration = :mig",
-                ['slug' => $pluginSlug, 'mig' => $row['migration']]
-            );
 
             $rolledBack[] = $row['migration'];
         }

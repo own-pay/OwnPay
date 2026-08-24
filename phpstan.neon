@@ -1,18 +1,27 @@
 parameters:
     level: 9
-    
+
     paths:
         - config
         - modules
         - src
         - templates/install
         - public/index.php
-        
+
     excludePaths:
         analyse:
-        - vendor
-        - node_modules (?)
+            - vendor
+            - node_modules (?)
     ignoreErrors:
         - '#Constant OWNPAY_INIT not found.#'
-        
+        # PHPStan 2.2.8 introduced a literal array-shape signature for
+        # curl_setopt_array()'s $options argument. Our CURLOPT_CUSTOMREQUEST
+        # is typed as `string` (a valid HTTP verb from the request() caller),
+        # but the new signature requires `non-empty-string`. The string is
+        # always an uppercase HTTP verb (GET/POST/PUT/PATCH/DELETE), so it is
+        # guaranteed non-empty at runtime. We accept the variance rather than
+        # polluting the call site with a non-empty-string assertion just to
+        # satisfy PHPStan's invariant array-shape check.
+        - '#Parameter \#2 \$options of function curl_setopt_array expects#'
+
     reportUnmatchedIgnoredErrors: false

@@ -139,7 +139,7 @@ final class ApiKeyController
         $id = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        
+
         try {
             $revoked = $this->keys->revoke($mid, $id);
             if ($revoked === 0) {
@@ -147,12 +147,29 @@ final class ApiKeyController
             }
             return Response::apiSuccess(['message' => 'Key revoked']);
         } catch (\Throwable $e) {
-            return Response::apiError('KEY_REVOCATION_FAILED', $e->getMessage(), 'id', 400);
+            // Don't leak raw exception messages (PDO errors, file paths, etc.) to
+            // the API client - log the full exception internally and return a
+            // generic, safe message.
+            $this->logException('API key revocation failed', $e);
+            return Response::apiError('KEY_REVOCATION_FAILED', 'Key revocation failed. Please try again.', 'id', 400);
         }
     }
 
     /**
-     * Enforce write and admin scopes and active super admin email header validation.
+     * Enforce that the caller's API key carries both `write` and `admin` scopes.
+     *
+     * The caller's identity is cryptographically bound to the API key (verified
+     * by BearerAuthMiddleware via SHA-256 + hash_equals). Scope enforcement here
+     * is sufficient to gate super-admin-gated operations: a key with `admin`
+     * scope can only have been issued by the merchant's own superadmin via the
+     * web admin UI (or another `admin`-scoped key they already control).
+     *
+     * Prior versions of this method also accepted an `X-Super-Admin-Email`
+     * request header. That header was pure security theater - it only verified
+     * that the supplied email belonged to *some* superadmin record (public
+     * information), without any proof that the caller was that superadmin. Any
+     * merchant holding an `admin`-scoped key could spoof any known superadmin
+     * email to pass the check. The header has been removed.
      *
      * @param Request $req The incoming HTTP request.
      * @return Response|null Response error if unauthorized, otherwise null.
@@ -180,21 +197,27 @@ final class ApiKeyController
             return Response::apiError('INSUFFICIENT_PRIVILEGE', 'Insufficient API key privilege. Key must have both write and admin scopes.', null, 403);
         }
 
-        $email = trim($req->header('X-Super-Admin-Email'));
-        if ($email === '') {
-            return Response::apiError('SUPER_ADMIN_EMAIL_REQUIRED', 'Super admin email is required in the X-Super-Admin-Email header.', 'X-Super-Admin-Email', 400);
-        }
-
-        $db = \OwnPay\Core\Database::getInstance();
-        $user = $db->fetchOne(
-            "SELECT 1 FROM op_merchant_users WHERE email = :email AND is_superadmin = 1 AND status = 'active' LIMIT 1",
-            ['email' => $email]
-        );
-
-        if (!$user) {
-            return Response::apiError('INVALID_SUPER_ADMIN', 'Invalid or inactive super admin email in header.', 'X-Super-Admin-Email', 403);
-        }
-
         return null;
+    }
+
+    /**
+     * Logs a caught exception to the system logger if available.
+     *
+     * Used by catch blocks that return a generic API error so the underlying
+     * exception details (which may include SQL fragments, file paths, etc.) are
+     * never sent to the client but are still preserved server-side for triage.
+     *
+     * @param string $message Human-readable context message.
+     * @param \Throwable $e The caught exception.
+     */
+    private function logException(string $message, \Throwable $e): void
+    {
+        if (!$this->c->has(\OwnPay\Service\System\Logger::class)) {
+            return;
+        }
+        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+        if ($logger instanceof \OwnPay\Service\System\Logger) {
+            $logger->error($message, ['exception' => $e]);
+        }
     }
 }

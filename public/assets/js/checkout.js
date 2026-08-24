@@ -58,13 +58,31 @@
             document.head.appendChild(style);
         }
 
-        // Inject Custom JS if present (CSP nonce required for security)
+        // Inject Custom JS if present.
+        //
+        // SECURITY (TMPL-4): brand-controlled custom_js is intentionally
+        // injected WITHOUT the page's CSP nonce. The checkout page CSP is
+        // `script-src 'self' 'nonce-{$nonce}'` (see
+        // SecurityHeadersMiddleware::handle()), so a nonce-less <script>
+        // tag is blocked by the browser unless the operator has explicitly
+        // opted in by adding 'unsafe-inline' to script-src via the
+        // 'checkout.csp.sources' filter hook (e.g. through a plugin).
+        //
+        // Previously the script carried the page's CSP nonce, which gave
+        // brand admins (or anyone who compromised a brand admin account)
+        // same-origin JavaScript execution on every customer checkout page
+        // for that brand - including pages where customers enter card
+        // numbers, OTPs, and MFS PINs. Such a script could exfiltrate form
+        // fields, redirect to phishing pages, or modify the payment amount
+        // before submission.
+        //
+        // By removing the nonce, custom_js is now blocked by default. To
+        // re-enable it for a specific deployment, the operator must
+        // explicitly add 'unsafe-inline' to script-src on checkout pages,
+        // which is a deliberate, auditable security tradeoff.
         var customJs = dataEl.getAttribute("data-custom-js");
-        if (customJs && nonce) {
-            // SECURITY: Only allow custom JS when CSP nonce is present
-            // This prevents execution if nonce is missing or compromised
+        if (customJs) {
             var script = document.createElement("script");
-            script.setAttribute("nonce", nonce);
             script.textContent = customJs;
             document.body.appendChild(script);
         }
@@ -96,7 +114,7 @@
         if (storedExpiry) {
             expiryTimestamp = Number(storedExpiry);
         } else {
-            // First visit — use server-calculated remaining, store expiry
+            // First visit - use server-calculated remaining, store expiry
             expiryTimestamp = Date.now() + serverRemaining * 1000;
             if (serverRemaining > 0) {
                 localStorage.setItem(storageKey, String(expiryTimestamp));

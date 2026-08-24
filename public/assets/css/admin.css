@@ -5,6 +5,31 @@
    Glassmorphic / Neo-Modern Design System
    ═══════════════════════════════════════════════════════ */
 
+/* Skip-to-content link: visually hidden until focused (WCAG 2.4.1) */
+.op-skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 8px 16px;
+  margin: 8px;
+  background: var(--op-primary, #0F97ED);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px;
+  transform: translateY(-150%);
+  transition: transform 0.2s ease;
+}
+
+.op-skip-link:focus,
+.op-skip-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  transform: translateY(0);
+}
+
 /* -- Admin-specific token overrides (LIGHT DEFAULT) -- */
 :root {
   --op-font: var(--font);
@@ -2500,6 +2525,13 @@ input[type="checkbox"]:focus-visible {
   color: var(--op-text-muted);
 }
 
+.op-date-picker-input:focus,
+.op-date-picker-input:focus-visible {
+  outline: none;
+  border-color: var(--op-primary);
+  box-shadow: 0 0 0 2px rgb(15 151 237 / 10%);
+}
+
 .op-date-picker-trigger {
   background: transparent;
   border: none;
@@ -2535,7 +2567,12 @@ input[type="checkbox"]:focus-visible {
   border-radius: 12px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
   padding: 16px;
-  z-index: 150;
+
+  /* Issue #72: raise above dropdowns (z-index 200), the notification panel
+     (z-index 300), and modal dialogs (z-index 200) so the date picker is
+     not clipped or hidden behind adjacent elements. Toasts (z-index 1000)
+     and full-screen overlays still render above the calendar when needed. */
+  z-index: 500;
   display: none;
   opacity: 0;
   visibility: hidden;
@@ -6239,45 +6276,60 @@ label.op-toggle-label {
     width: 100%;
   }
 
+  .op-card-body {
+    padding: 12px 14px;
+  }
+
   .op-card-body.op-p-0 {
     overflow: auto hidden;
   }
 
   .op-card-body.op-p-0 .op-table tbody td {
-    padding: 4px 0;
-    font-size: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
   .op-card-body.op-p-0 .op-table tbody td .op-btn-xs {
     padding: 6px 12px;
     font-size: 12px;
-    min-height: 34px;
+    min-height: 36px;
     border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .op-btn {
     padding: 8px 16px;
     font-size: 13px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .op-input {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: 14px;
+    min-height: 40px;
   }
 
   .op-filter-btn {
     padding: 8px 14px;
     font-size: 13px;
+    min-height: 38px;
   }
 
   .op-custom-dropdown-btn {
     padding: 8px 12px;
     font-size: 13px;
+    min-height: 40px;
   }
 
   .op-modal-dialog {
     margin: 12px;
     border-radius: 10px;
+    max-width: calc(100vw - 24px);
   }
 
   .op-modal-header,
@@ -6289,25 +6341,23 @@ label.op-toggle-label {
   .op-navbar-search {
     width: 140px;
   }
-}
 
-@media (max-width: 600px) {
   .op-stats-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
   }
 
   .op-stat-card {
-    padding: 10px;
+    padding: 12px;
     gap: 8px;
   }
 
   .op-stat-value {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
   }
 
   .op-stat-label {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
 
   .op-pill {
@@ -6315,90 +6365,14 @@ label.op-toggle-label {
   }
 
   .op-pill-title {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .op-pill-toggle,
   .op-pill-input {
-    font-size: 11px;
+    font-size: 12px;
     padding: 6px 10px;
-  }
-
-  .op-content {
-    padding: 12px;
-    padding-top: 0;
-  }
-
-  .op-page-header h1 {
-    font-size: 18px;
-  }
-
-  .op-card {
-    border-radius: 8px;
-  }
-
-  .op-card-header {
-    padding: 12px 14px;
-  }
-
-  .op-card-body {
-    padding: 12px 14px;
-  }
-
-  .op-card-body.op-p-0 {
-    overflow: auto hidden;
-  }
-
-  .op-card-body.op-p-0 .op-table tbody td {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
-
-  .op-card-body.op-p-0 .op-table tbody td .op-btn-xs {
-    padding: 6px 12px;
-    font-size: 12px;
-    min-height: 34px;
-    border-radius: 8px;
-  }
-
-  .op-btn {
-    padding: 7px 14px;
-    font-size: 12px;
-  }
-
-  .op-input {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .op-filter-btn {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-
-  .op-custom-dropdown-btn {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .op-modal-dialog {
-    margin: 8px;
-    border-radius: 8px;
-  }
-
-  .op-modal-header,
-  .op-modal-body,
-  .op-modal-footer {
-    padding: 12px 14px;
-  }
-
-  .op-page-header {
-    margin-top: 8px;
-    margin-bottom: 4px;
-  }
-
-  .op-page-header h1 {
-    font-size: 16px;
+    min-height: 36px;
   }
 }
 

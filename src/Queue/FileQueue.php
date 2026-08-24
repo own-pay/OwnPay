@@ -60,7 +60,19 @@ final class FileQueue implements QueueInterface
         $filename = sprintf('%010d_%s.json', $availableAt, $jobId);
         $filepath = $dir . DIRECTORY_SEPARATOR . $filename;
 
-        file_put_contents($filepath, json_encode($job, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+        $json = json_encode($job, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if (!is_string($json)) {
+            throw new \InvalidArgumentException('FileQueue payload not JSON-encodable for queue ' . $queue);
+        }
+
+        $written = file_put_contents($filepath, $json, LOCK_EX);
+        if ($written === false) {
+            // Disk full, directory not writable, or other I/O failure. Surface
+            // the failure to the caller instead of returning a valid-looking
+            // $jobId pointing at a file that was never created - that would
+            // silently lose the job.
+            throw new \RuntimeException("FileQueue push failed for queue {$queue} at {$filepath}");
+        }
 
         return $jobId;
     }

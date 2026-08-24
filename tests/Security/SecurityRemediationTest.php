@@ -416,6 +416,21 @@ PHP;
         $container = new Container();
 
         $db = $this->createMock(Database::class);
+        // isOwnerActive() -> PluginRegistry::isPluginActive(slug, brandId=null)
+        // -> PluginRepository::findBySlug(slug) -> Database::fetchOne(...).
+        // The mock must return an active 'mock-plugin' row so the listener
+        // is allowed to run and the SQL-sandbox check actually fires.
+        $db->method('fetchOne')->willReturn(['slug' => 'mock-plugin', 'status' => 'active']);
+        // When a prior test leaves $_SESSION['active_brand_id'] populated
+        // (common in full-suite runs - DeviceLiveStatusTest, etc. all seed
+        // it), BrandContext::getActiveBrandId() returns that stale id and
+        // isPluginActive takes the brand-scoped branch, which calls
+        // fetchAll() instead of fetchOne(). Without an active row from
+        // fetchAll() the plugin looks inactive, the filter is skipped, and
+        // the expected RuntimeException never fires. Returning an active
+        // row from fetchAll() makes the test robust against leftover
+        // session state without depending on test execution order.
+        $db->method('fetchAll')->willReturn([['slug' => 'mock-plugin', 'status' => 'active']]);
         $repo = new PluginRepository($db);
         $registry = new PluginRegistry($repo);
 
@@ -426,6 +441,13 @@ PHP;
         $registry->registerLoaded('mock-plugin', $pluginMock, $manifest, $sandbox);
 
         $container->instance(PluginRegistry::class, $registry);
+        // BrandContext is consulted by EventManager::isOwnerActive(); without
+        // an explicit instance the container would try to autowire it from
+        // the abstract Database mock, which has no real PDO and would throw
+        // inside the session-status branch. Provide a real BrandContext
+        // bound to the same mock DB so getActiveBrandId() returns null
+        // (no active session) and isPluginActive() is called with brandId=null.
+        $container->instance(BrandContext::class, new BrandContext($db));
 
         $events = new EventManager();
         $events->setContainer($container);
