@@ -25,6 +25,7 @@ return [
     // Environment settings
     'env'   => ($_ENV['APP_ENV'] ?? getenv('APP_ENV')) ?: 'production',
     'debug' => filter_var(($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG')) ?: 'false', FILTER_VALIDATE_BOOLEAN),
+    'url'   => ($_ENV['APP_URL'] ?? getenv('APP_URL')) ?: '',
 
     // System-wide timezone configuration
     'timezone' => ($_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE')) ?: 'Asia/Dhaka',
