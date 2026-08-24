@@ -103,7 +103,8 @@ return static function (\OwnPay\Container $c): void {
         // max_connections exhaustion, brief refusals, dropped connections) retry
         // a few times with linear backoff before giving up, so a short spike does
         // not immediately surface as an error. Credential/schema errors fail fast.
-        $maxAttempts = max(1, (int) ($_ENV['DB_CONNECT_RETRIES'] ?? getenv('DB_CONNECT_RETRIES') ?: 3));
+        $retryValue = $_ENV['DB_CONNECT_RETRIES'] ?? getenv('DB_CONNECT_RETRIES');
+        $maxAttempts = max(1, is_numeric($retryValue) ? (int) $retryValue : 3);
         $pdo = null;
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             try {
@@ -148,10 +149,19 @@ return static function (\OwnPay\Container $c): void {
         $driver = $appCfg['cache_driver'] ?? 'file';
         if ($driver === 'redis' && class_exists(\Redis::class)) {
             try {
+                $redisHost = $_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST');
+                $redisPort = $_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT');
+                $redisPrefix = $_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX');
+                $redisPassword = $_ENV['REDIS_PASSWORD'] ?? getenv('REDIS_PASSWORD');
+                $redisUsername = $_ENV['REDIS_USERNAME'] ?? getenv('REDIS_USERNAME');
+                $redisDatabase = $_ENV['REDIS_DB'] ?? getenv('REDIS_DB');
                 return new \OwnPay\Cache\RedisCache(
-                    ($_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST')) ?: '127.0.0.1',
-                    (int) (($_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT')) ?: 6379),
-                    ($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX')) ?: 'op:'
+                    is_string($redisHost) && $redisHost !== '' ? $redisHost : '127.0.0.1',
+                    is_numeric($redisPort) ? (int) $redisPort : 6379,
+                    is_string($redisPrefix) && $redisPrefix !== '' ? $redisPrefix : 'op:',
+                    is_string($redisPassword) && $redisPassword !== '' ? $redisPassword : null,
+                    is_string($redisUsername) && $redisUsername !== '' ? $redisUsername : null,
+                    is_numeric($redisDatabase) ? (int) $redisDatabase : 0
                 );
             } catch (\Throwable) {
                 // Graceful fallback to file cache
@@ -169,10 +179,13 @@ return static function (\OwnPay\Container $c): void {
         $driver = $appCfg['queue_driver'] ?? 'file';
         if ($driver === 'redis' && class_exists(\Redis::class)) {
             try {
+                $redisHost = $_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST');
+                $redisPort = $_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT');
+                $redisPrefix = $_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX');
                 return new \OwnPay\Queue\RedisQueue(
-                    ($_ENV['APP_NAME'] ?? getenv('REDIS_HOST')) ?: '127.0.0.1',
-                    (int) (($_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT')) ?: 6379),
-                    ($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX')) ?: 'op:queue:'
+                    is_string($redisHost) && $redisHost !== '' ? $redisHost : '127.0.0.1',
+                    is_numeric($redisPort) ? (int) $redisPort : 6379,
+                    is_string($redisPrefix) && $redisPrefix !== '' ? $redisPrefix : 'op:queue:'
                 );
             } catch (\Throwable) {
                 // Graceful fallback to file queue
@@ -623,7 +636,8 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\DisputeService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\DisputeService {
         return new \OwnPay\Service\Payment\DisputeService(
             ensureType($c->get(\OwnPay\Repository\DisputeRepository::class), \OwnPay\Repository\DisputeRepository::class),
-            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class)
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class)
         );
     });
 
