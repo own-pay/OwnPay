@@ -175,7 +175,7 @@
     // Webhook form modal pre-population.
     // The webhook payload is passed via a `data-wh` attribute (HTML-attr-escaped
     // JSON with JSON_HEX_TAG|AMP|APOS|QUOT) rather than an inline onclick that
-    // interpolated raw JSON into a single-quoted JS string — the latter allowed
+    // interpolated raw JSON into a single-quoted JS string - the latter allowed
     // a webhook URL/secret containing `'` to break out of the attribute and
     // inject arbitrary HTML (attribute-injection XSS). The delegated listener
     // below runs alongside admin.js's modal opener; both fire on the same
@@ -222,7 +222,7 @@
         }
         try {
             window.prepareWebhookForm(JSON.parse(raw));
-        } catch (err) {
+        } catch {
             // Malformed JSON should never happen (server-controlled), but
             // fail closed to Add mode instead of leaking raw text into the
             // form fields.

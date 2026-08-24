@@ -324,7 +324,7 @@ final class DevicePairingServiceTest extends TestCase
             /**
              * Override insert() so the OTP-failure-counter write path does
              * not touch the uninitialized $pdo property (the mock has no
-             * real PDO connection — Database::$pdo is only set by init()).
+             * real PDO connection - Database::$pdo is only set by init()).
              */
             public function insert(string $sql, array $params = []): string
             {

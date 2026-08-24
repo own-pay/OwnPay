@@ -267,7 +267,7 @@ class BackupService
      * instead of leaving the database in a half-restored, inconsistent state.
      *
      * Note: MySQL DDL statements (CREATE/ALTER/DROP TABLE, etc.) implicitly
-     * commit and therefore CANNOT be rolled back — this is a MySQL engine
+     * commit and therefore CANNOT be rolled back - this is a MySQL engine
      * limitation, not a code limitation. DML statements (INSERT/UPDATE/DELETE)
      * WILL roll back. A DDL failure mid-restore still aborts the loop so the
      * caller is informed; subsequent DML statements are not applied.

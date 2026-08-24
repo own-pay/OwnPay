@@ -108,7 +108,7 @@ final class Kernel
         // CORE-2: lock the security-critical services immediately after
         // their bindings are registered in config/services.php. Once locked,
         // any subsequent bind()/singleton()/instance()/forget() call for
-        // these abstracts throws RuntimeException — so a malicious plugin
+        // these abstracts throws RuntimeException - so a malicious plugin
         // booting later in this method cannot replace Database, EventManager,
         // AdminSession, FieldEncryptor, SettingsRepository, or PluginRegistry
         // with a wrapper that exfiltrates data or forges auth state.
@@ -140,7 +140,7 @@ final class Kernel
                 }
             }
         } catch (\Throwable) {
-            // Logger unavailable — EnvironmentService::set() will degrade to
+            // Logger unavailable - EnvironmentService::set() will degrade to
             // silent caching as before; not fatal.
         }
 
@@ -208,7 +208,7 @@ final class Kernel
 
         // CORE-2: freeze the container now that plugin boot is complete.
         // Past this point, no new bind()/singleton()/instance()/forget()
-        // calls are permitted — route handlers, middleware, controllers,
+        // calls are permitted - route handlers, middleware, controllers,
         // and any code holding a container reference cannot swap any service.
         // Critical services were already individually locked above; this
         // extends the immutability to ALL services for the rest of the

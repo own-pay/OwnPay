@@ -30,7 +30,7 @@ final class ReconciliationService
         // previous implementation filtered to status = 'completed' only, which
         // excluded fully-refunded transactions. When a transaction's last
         // refund landed, RefundService (or WebhookInboundProcessor) flipped it
-        // from 'completed' to 'refunded' — so its net_amount was removed from
+        // from 'completed' to 'refunded' - so its net_amount was removed from
         // txnTotal. But the refund amount was still included in refundTotal
         // (the refund query has no status filter on the parent txn). Result:
         // expected_balance = 0 - fullRefundNet = -fullRefundNet, while the
@@ -40,8 +40,8 @@ final class ReconciliationService
         //
         // Treating 'refunded' as a terminal state of a captured payment (not
         // "never captured") means its net_amount should remain in the
-        // captured total. The schema already reflects this — a 'refunded'
-        // txn has a non-null captured_at and a non-zero net_amount — so
+        // captured total. The schema already reflects this - a 'refunded'
+        // txn has a non-null captured_at and a non-zero net_amount - so
         // including it in the SUM is the correct model.
         $txnRow = $this->db->fetchOne(
             "SELECT COALESCE(SUM(net_amount), 0) as total

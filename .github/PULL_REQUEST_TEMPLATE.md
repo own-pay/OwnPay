@@ -1,48 +1,90 @@
-# Pull Request Template
+# Pull Request
 
 > [!IMPORTANT]
-> **Branch Rule**:
-> Ensure that your Pull Request targets the **`dev` branch**. Pull requests targeting the `main` branch directly **will be automatically closed and rejected**.
+> **Branch Rule**: Pull Requests MUST target the **`dev`** branch. PRs targeting `main` directly are automatically rejected.
 
-## Description
-Please include a summary of the changes and the related issue. Please also include relevant motivation and context. List any dependencies that are required for this change.
+---
 
-Fixes # (issue)
+## 📝 Summary of Changes
 
-## Type of Change
-Please check options that are relevant.
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation Update
+<!-- Provide a clear, concise overview of what this pull request changes or introduces. -->
 
-## 🎨 Design / UI Changes
-*(If applicable, please attach screenshots or screen recordings showcasing the visual differences)*
+**Related Issue / Discussion**: Fixes #<!-- issue number --> (or Resolves #)
 
-## 🧪 How Has This Been Tested?
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce.
-- [ ] Automated Unit Tests (`vendor/bin/phpunit`)
-- [ ] Static Analysis Check (`vendor/bin/phpstan analyse`)
-- [ ] Manual verification in local environment
+---
 
-**Test Configuration**:
-* OwnPay Version:
-* PHP Version:
-* Database:
-* Environment:
+## 🏷️ Type of Change
 
-## Checklist:
-- [ ] My PR targets the **`dev` branch** and not the `main` branch.
-- [ ] My code follows the [PSR-12 coding standards](https://github.com/own-pay/OwnPay/blob/main/CONTRIBUTING.md).
-- [ ] I have declared `declare(strict_types=1);` at the top of all new PHP files.
-- [ ] I have resolved dependencies via the DI container where applicable.
-- [ ] I have scoped brand-specific reads via `TenantScope` and writes via `BrandContext::getWriteMerchantId()`.
-- [ ] All new database tables/columns use the `op_` prefix and follow the column naming conventions.
-- [ ] My forms use the canonical `_csrf_token` retrieved via `\OwnPay\Security\SecurityHelpers::csrfToken()`.
-- [ ] I have performed a self-review of my code and run linting checks (`php -l`).
-- [ ] I have made corresponding changes to the documentation (if applicable).
-- [ ] New and existing unit tests pass locally with my changes.
-- [ ] I have checked my code and corrected any misspellings.
+<!-- Please select all options that apply: -->
 
-## ⚖️ License
-- [ ] I agree that my contributions will be licensed under the **AGPL-3.0 License**.
+- [ ] 🐛 **Bug fix** (non-breaking change fixing an issue)
+- [ ] ✨ **New feature** (non-breaking change adding functionality)
+- [ ] 🔌 **Payment Gateway / Adapter** (new or updated gateway plugin)
+- [ ] 🔒 **Security fix or hardening** (patching a vulnerability or tightening controls)
+- [ ] ⚡ **Performance improvement** (optimizing queries, caching, asset payloads)
+- [ ] 🎨 **UI / UX improvement** (Twig styling, responsive design, accessibility)
+- [ ] 📖 **Documentation / Translation** (updating guides, API specs, language packs)
+- [ ] 🧹 **Refactoring / Maintenance** (code cleanup, typing, dependency upgrades)
+- [ ] 💥 **Breaking change** (fix or feature requiring migration or breaking existing contracts)
+
+---
+
+## 🏛️ Architectural & Security Checklist
+
+<!-- Please confirm all core architectural invariants are respected: -->
+
+- [ ] **Target Branch**: My PR targets the `dev` branch.
+- [ ] **Strict Typing**: All new or modified PHP files include `declare(strict_types=1);` as the first statement.
+- [ ] **Dependency Injection**: Dependencies are resolved via PSR-11 constructor autowiring (`src/Container/`).
+- [ ] **Multi-Brand Scoping**:
+  - Scoped database queries use `$repo->forTenant($merchantId)`.
+  - Scoped writes use `BrandContext::getWriteMerchantId()`.
+- [ ] **Database Standards**:
+  - All tables use the `op_` prefix.
+  - Column conventions followed (`two_factor_enabled`, `decimal_places`, `base_currency`, etc.).
+  - Hot query filters use generated stored columns where applicable.
+- [ ] **Double-Entry Ledger Integrity**:
+  - All financial events post via `LedgerService::postEntries()`.
+  - Financial math uses BCMath (`bcadd`, `bcsub`, `bcmul`, `bcdiv`, `bccomp`) with string types, never floats.
+- [ ] **Security & White-Label**:
+  - Dynamic URLs use `DomainUrlService` (no hardcoded hostnames).
+  - Admin routes are shielded under master `APP_DOMAIN`.
+  - Forms include valid CSRF tokens via `SecurityHelpers::csrfToken()`.
+  - All SQL queries use prepared statements with parameter binding (no raw string interpolation).
+  - Twig templates rely on auto-escaping (no untrusted `|raw` filters).
+  - Gateway plugins adhere to the AST `PluginSandbox` security constraints.
+
+---
+
+## 🧪 Testing & Verification
+
+<!-- How did you verify these changes? -->
+
+### Automated Quality Checks
+- [ ] `composer test` (PHPUnit unit and integration tests pass)
+- [ ] `composer analyse` (PHPStan passes at level 9 with 0 errors)
+- [ ] `composer lint` (Twig, ESLint, and Stylelint pass with 0 errors)
+
+### Manual Verification Details
+- **Environment**: PHP 8.3 / MySQL 8.0 / Nginx (or Laragon / Docker)
+- **Steps executed**:
+  1. 
+  2. 
+  3. 
+
+---
+
+## 🎨 UI / Visual Changes (If Applicable)
+
+<!-- If this PR changes any frontend templates or UI, attach Before & After screenshots or recordings. -->
+
+| Before | After |
+| :--- | :--- |
+| *(image or N/A)* | *(image or N/A)* |
+
+---
+
+## 📜 Contributor License Agreement & DCO
+
+- [ ] I agree that my contributions will be licensed under the **GNU AGPL-3.0 License**.
+- [ ] I certify that my commits contain a **Developer Certificate of Origin (DCO)** sign-off (`git commit -s`).

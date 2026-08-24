@@ -1605,12 +1605,12 @@
 </form>
 
 <!-- Add Currency Modal -->
-<div class="op-modal" id="add-currency-modal" hidden>
+<div class="op-modal" id="add-currency-modal" role="dialog" aria-modal="true" aria-labelledby="add-currency-modal-title" hidden>
     <div class="op-modal-backdrop close-currency-modal-trigger"></div>
     <div class="op-modal-dialog">
         <div class="op-modal-header">
-            <h3>Add New Currency</h3>
-            <button type="button" class="op-modal-close close-currency-modal-trigger">&times;</button>
+            <h3 id="add-currency-modal-title">Add New Currency</h3>
+            <button type="button" class="op-modal-close close-currency-modal-trigger" aria-label="Close modal">&times;</button>
         </div>
         <form method="POST" action="/admin/currencies/update">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

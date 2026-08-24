@@ -148,7 +148,7 @@ final class ApiKeyController
             return Response::apiSuccess(['message' => 'Key revoked']);
         } catch (\Throwable $e) {
             // Don't leak raw exception messages (PDO errors, file paths, etc.) to
-            // the API client — log the full exception internally and return a
+            // the API client - log the full exception internally and return a
             // generic, safe message.
             $this->logException('API key revocation failed', $e);
             return Response::apiError('KEY_REVOCATION_FAILED', 'Key revocation failed. Please try again.', 'id', 400);
@@ -165,7 +165,7 @@ final class ApiKeyController
      * web admin UI (or another `admin`-scoped key they already control).
      *
      * Prior versions of this method also accepted an `X-Super-Admin-Email`
-     * request header. That header was pure security theater — it only verified
+     * request header. That header was pure security theater - it only verified
      * that the supplied email belonged to *some* superadmin record (public
      * information), without any proof that the caller was that superadmin. Any
      * merchant holding an `admin`-scoped key could spoof any known superadmin

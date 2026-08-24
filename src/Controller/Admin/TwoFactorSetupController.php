@@ -86,8 +86,8 @@ final class TwoFactorSetupController
             // Security (audit finding UI-3 / issue #274): render the QR code
             // server-side via chillerlan/php-qrcode (already a composer dep)
             // and pass ONLY the resulting data URI to the template. The raw
-            // otpauth:// URI — which contains the TOTP shared secret in
-            // cleartext — must NEVER be sent to a third-party service or
+            // otpauth:// URI - which contains the TOTP shared secret in
+            // cleartext - must NEVER be sent to a third-party service or
             // exposed to the template layer, where a future template change
             // could accidentally render it. The previous implementation loaded
             // the QR image from https://api.qrserver.com/v1/create-qr-code/
@@ -110,7 +110,7 @@ final class TwoFactorSetupController
      * Renders an otpauth:// URI as an inline SVG data URI using chillerlan/php-qrcode.
      *
      * The returned string is a `data:image/svg+xml;base64,...` URI that can be
-     * used directly as an <img src> attribute. No network request is made —
+     * used directly as an <img src> attribute. No network request is made -
      * the QR code is rendered entirely server-side, so the TOTP secret never
      * leaves the OwnPay server.
      *

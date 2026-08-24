@@ -3,7 +3,7 @@
 -- stuck in 'pending' for >24h by setting status='failed'. If the gateway
 -- actually processed the refund but the process died before reconcile, the
 -- customer got their money back but the merchant's withheld balance was
--- released — leading to a double refund if the merchant retried.
+-- released - leading to a double refund if the merchant retried.
 --
 -- The job now sets status='pending_verification' instead, which preserves the
 -- balance hold and surfaces the refund for explicit admin review.

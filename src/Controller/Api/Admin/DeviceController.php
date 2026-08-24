@@ -78,7 +78,7 @@ final class DeviceController
             return Response::apiSuccess(['message' => 'Device revoked successfully']);
         } catch (\Throwable $e) {
             // Don't leak raw exception messages (PDO errors, file paths, etc.) to
-            // the API client — log the full exception internally and return a
+            // the API client - log the full exception internally and return a
             // generic, safe message.
             $this->logException('Device revocation failed', $e, ['device_uuid' => $deviceUuid, 'merchant_id' => $mid]);
             return Response::apiError('DEVICE_REVOCATION_FAILED', 'Device revocation failed. Please try again.', 'id', 400);

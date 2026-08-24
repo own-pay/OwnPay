@@ -108,7 +108,7 @@ final class LoginAttemptRepository extends BaseRepository
      *
      * This is a per-email counter independent of the (email, IP) lockout above.
      * It exists because an attacker rotating IPs otherwise gets MAX_LOGIN_ATTEMPTS
-     * tries per IP per email — with no global cap on the email itself. A legitimate
+     * tries per IP per email - with no global cap on the email itself. A legitimate
      * user behind a NAT (shared IP) would not trigger this counter any faster than
      * the per-(email, IP) counter, so a higher threshold (3x the per-IP threshold
      * by default in the Authenticator caller) keeps NAT users unaffected while

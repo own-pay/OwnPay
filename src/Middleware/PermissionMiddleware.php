@@ -63,7 +63,7 @@ final class PermissionMiddleware
             // a non-superadmin brand-A staff member visits a public checkout
             // URL for brand B (on the master domain, where DomainMiddleware
             // does not set the merchant_id request attribute), their session's
-            // active_brand_id is silently overwritten to brand B — and every
+            // active_brand_id is silently overwritten to brand B - and every
             // subsequent /admin/* request is then scoped to brand B, leaking
             // cross-brand data.
             //
@@ -291,7 +291,7 @@ final class PermissionMiddleware
 
         // SEC-5: Treat every non-safe HTTP method as state-changing. The
         // previous implementation only upgraded .view -> .manage for POST,
-        // which left PUT/PATCH/DELETE authorized at .view level — a user
+        // which left PUT/PATCH/DELETE authorized at .view level - a user
         // granted only read-only access to a resource could DELETE or PUT it.
         // RFC 9110 §9.2.1 defines GET/HEAD/OPTIONS as "safe" (no state
         // change); every other method is treated as state-changing here.

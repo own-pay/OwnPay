@@ -117,7 +117,7 @@ final class PasswordResetRepository extends BaseRepository
             return null;
         }
 
-        // Atomic claim — this is the concurrency arbiter. If a parallel
+        // Atomic claim - this is the concurrency arbiter. If a parallel
         // request has already claimed this row, our UPDATE matches 0 rows
         // and we treat the token as consumed.
         $stmt = $this->db->execute(

@@ -89,7 +89,7 @@ final class NotificationController
         // Audit fix DEV-5: acknowledgeIds() now requires a non-empty device
         // UUID and throws InvalidArgumentException on empty input. Reject the
         // request explicitly here with a 400 instead of letting the exception
-        // bubble up as a 500 — the caller (paired companion device) should
+        // bubble up as a 500 - the caller (paired companion device) should
         // never send an ack without a resolved device_id, but if it does we
         // want a clear, actionable error rather than a stack trace.
         if ($did === '') {

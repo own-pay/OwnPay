@@ -6,7 +6,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [0.2.0] — 2026-07-07
+## [0.2.0] - 2026-07-07
 
 ### Added
 
@@ -53,11 +53,11 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [0.1.0] — 2026-06-30
+## [0.1.0] - 2026-06-30
 
 > **Initial public release.** OwnPay is a self-hosted, enterprise-grade, open-source payment
 > gateway platform built on PHP 8.3+. A single owner operates the full system; multiple
-> brands (stores) run under isolated custom domains — each with its own gateways, ledger,
+> brands (stores) run under isolated custom domains - each with its own gateways, ledger,
 > customers, and visual identity.
 
 [0.2.0]: https://github.com/own-pay/ownpay/releases/tag/v0.2.0

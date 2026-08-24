@@ -141,7 +141,7 @@ final class DomainControllerAjaxResponseTest extends IntegrationTestCase
         $this->activateBrand();
 
         // The redirect_url must be same-origin with the seeded domain
-        // ('zz-ajax-test-99991.example.com') — DOM-2 audit fix tightened
+        // ('zz-ajax-test-99991.example.com') - DOM-2 audit fix tightened
         // validateRedirectUrl() to reject any external host, so the original
         // 'https://example.com/x' would now fail validation and the response
         // would be success=false instead of the expected fresh domain state.

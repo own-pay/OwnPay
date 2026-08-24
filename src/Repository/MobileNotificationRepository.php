@@ -168,7 +168,7 @@ final class MobileNotificationRepository extends BaseRepository
      *
      * Audit fix DEV-5: the previous signature defaulted $deviceUuid to '' and
      * silently skipped the device_uuid WHERE clause when the caller passed
-     * nothing — letting any device in a merchant scope ack any notification
+     * nothing - letting any device in a merchant scope ack any notification
      * owned by any other device in the same merchant. $deviceUuid is now
      * required; an empty string throws InvalidArgumentException so callers can
      * never silently degrade into the less-secure unscoped mode.
@@ -186,7 +186,7 @@ final class MobileNotificationRepository extends BaseRepository
             // in the merchant scope to ack any notification owned by any other
             // device in the same merchant (IDOR). Refuse instead of silently
             // dropping the scoping clause.
-            throw new \InvalidArgumentException('deviceUuid is required for acknowledgeIds() — empty value would skip the device-scoped WHERE clause.');
+            throw new \InvalidArgumentException('deviceUuid is required for acknowledgeIds() - empty value would skip the device-scoped WHERE clause.');
         }
         if (empty($ids)) {
             return 0;

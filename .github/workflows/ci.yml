@@ -1,4 +1,4 @@
-# Continuous Integration — runs on every PR and push to dev/main.
+# Continuous Integration - runs on every PR and push to dev/main.
 # Enforces PHP linting, static analysis, unit tests, and frontend checks.
 name: CI
 
@@ -10,7 +10,7 @@ on:
 
 # Minimum permissions required for CI to read source and report statuses.
 # GitHub Advanced Security flagged the absence of this block on every job
-# in PR #120 — the default GITHUB_TOKEN otherwise grants contents:write,
+# in PR #120 - the default GITHUB_TOKEN otherwise grants contents:write,
 # pull-requests:write, etc.
 permissions:
   contents: read
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   # ──────────────────────────────────────────────
-  # PHP Lint — parallel syntax check across all PHP files
+  # PHP Lint - parallel syntax check across all PHP files
   # ──────────────────────────────────────────────
   php-lint:
     name: PHP Lint
@@ -49,7 +49,7 @@ jobs:
         run: vendor/bin/parallel-lint src config modules templates/install public/index.php
 
   # ──────────────────────────────────────────────
-  # PHPStan — static analysis at level 9
+  # PHPStan - static analysis at level 9
   # ──────────────────────────────────────────────
   phpstan:
     name: PHPStan Analyse
@@ -73,7 +73,7 @@ jobs:
         run: vendor/bin/phpstan analyse --no-progress --error-format=github
 
   # ──────────────────────────────────────────────
-  # PHPUnit — unit + integration + feature tests
+  # PHPUnit - unit + integration + feature tests
   # ──────────────────────────────────────────────
   phpunit:
     name: PHPUnit Tests
@@ -123,7 +123,7 @@ jobs:
         run: vendor/bin/phpunit --colors=always
 
   # ──────────────────────────────────────────────
-  # Twig CS Fixer — template lint
+  # Twig CS Fixer - template lint
   # ──────────────────────────────────────────────
   twig-lint:
     name: Twig Lint
@@ -147,7 +147,7 @@ jobs:
         run: vendor/bin/twig-cs-fixer lint templates
 
   # ──────────────────────────────────────────────
-  # Frontend Lint — ESLint + Stylelint
+  # Frontend Lint - ESLint + Stylelint
   # ──────────────────────────────────────────────
   frontend-lint:
     name: Frontend Lint
@@ -170,7 +170,7 @@ jobs:
         run: npm run lint
 
   # ──────────────────────────────────────────────
-  # Frontend Tests — Vitest
+  # Frontend Tests - Vitest
   # ──────────────────────────────────────────────
   frontend-test:
     name: Frontend Tests
@@ -193,7 +193,7 @@ jobs:
         run: npm test
 
   # ──────────────────────────────────────────────
-  # Composer Audit — dependency vulnerability check
+  # Composer Audit - dependency vulnerability check
   # ──────────────────────────────────────────────
   composer-audit:
     name: Composer Audit

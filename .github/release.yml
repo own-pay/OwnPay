@@ -1,0 +1,43 @@
+# GitHub Automatic Release Notes Configuration
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  categories:
+    - title: "🚀 Features & Enhancements"
+      labels:
+        - enhancement
+        - feature
+    - title: "🔌 Payment Gateways & Plugins"
+      labels:
+        - gateway
+        - plugin
+        - gateway-request
+    - title: "🐛 Bug Fixes & Improvements"
+      labels:
+        - bug
+        - fix
+    - title: "🔒 Security Hardening & Patches"
+      labels:
+        - security
+    - title: "⚡ Performance & Scalability"
+      labels:
+        - performance
+    - title: "🎨 UI/UX & Design"
+      labels:
+        - ui
+        - design
+        - frontend
+    - title: "📖 Documentation & Translations"
+      labels:
+        - documentation
+        - i18n
+        - translation
+    - title: "🧹 Refactoring & Maintenance"
+      labels:
+        - refactor
+        - maintenance
+        - dependencies
+        - chore
+        - github-actions
+        - php
+        - javascript

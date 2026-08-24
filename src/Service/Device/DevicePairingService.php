@@ -23,7 +23,7 @@ final class DevicePairingService
      * source IP is locked out of further pairing attempts.
      *
      * Audit fix DEV-6: a 6-digit OTP has 1,000,000 possible values and a
-     * 5-minute validity window — without rate limiting an attacker could
+     * 5-minute validity window - without rate limiting an attacker could
      * brute-force the OTP by submitting hundreds of guesses per second.
      * Locking after 5 failures reduces the brute-force surface to 5 guesses
      * per 5-minute window per source IP, which is computationally infeasible
@@ -35,7 +35,7 @@ final class DevicePairingService
      * Lockout window for failed OTP attempts, in seconds.
      *
      * Matches the OTP validity window (5 minutes) so a locked-out attacker
-     * must wait for the OTP itself to expire before they can retry — at which
+     * must wait for the OTP itself to expire before they can retry - at which
      * point the admin would have generated a fresh OTP anyway.
      */
     private const int OTP_LOCKOUT_TTL = 300;
@@ -181,7 +181,7 @@ final class DevicePairingService
         // automatically when op_cache.expires_at < NOW().
         if ($this->readFailedAttempts($db, $cacheKey) >= self::MAX_OTP_ATTEMPTS) {
             // Burn any matching OTP row so the admin is forced to generate a
-            // new one — defence in depth, in case the attacker happens to
+            // new one - defence in depth, in case the attacker happens to
             // submit the right OTP just as the lock kicks in.
             $this->burnMatchingOtp($db, $otp);
             return ['valid' => false, 'error' => 'OTP_LOCKED'];
@@ -223,7 +223,7 @@ final class DevicePairingService
             return ['valid' => false, 'error' => 'Invalid or expired OTP'];
         }
 
-        // Success — clear the failure counter so a legitimate user who fat-
+        // Success - clear the failure counter so a legitimate user who fat-
         // fingered the OTP once doesn't accumulate a partial lockout across
         // successful pairings.
         $this->clearFailedAttempts($db, $cacheKey);
@@ -308,7 +308,7 @@ final class DevicePairingService
      *
      * Called after a successful OTP validation so a legitimate user who fat-
      * fingered the OTP once doesn't accumulate a partial lockout across
-     * successful pairings. Best-effort — a cache-cleanup failure must not
+     * successful pairings. Best-effort - a cache-cleanup failure must not
      * block the successful pairing path.
      *
      * @param \OwnPay\Core\Database $db The database connection.
@@ -333,11 +333,11 @@ final class DevicePairingService
      * Defence-in-depth: when the per-IP rate limit fires, we also burn the
      * matching OTP row (if any) so the admin is forced to generate a fresh
      * one. This prevents an attacker who has the right OTP but is locked out
-     * from completing the pairing once the lock expires — they would need to
+     * from completing the pairing once the lock expires - they would need to
      * obtain a brand new OTP from the admin.
      *
      * Silently does nothing if the supplied OTP does not hash to a valid row
-     * (the common case — the attacker is brute-forcing random 6-digit codes).
+     * (the common case - the attacker is brute-forcing random 6-digit codes).
      *
      * @param \OwnPay\Core\Database $db The database connection.
      * @param string $otp The plain OTP code to match against stored hashes.

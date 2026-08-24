@@ -75,7 +75,7 @@ final class CspReportController
     public function handle(Request $req): Response
     {
         // 1. Validate Content-Type. CSP reports are submitted by browsers with a
-        //    very limited set of media types — rejecting anything else stops
+        //    very limited set of media types - rejecting anything else stops
         //    generic JSON / form abuse.
         $contentType = strtolower(trim($req->header('Content-Type', '')));
         // Strip any parameters (e.g. "; charset=utf-8") before matching.

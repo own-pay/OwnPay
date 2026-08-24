@@ -81,7 +81,7 @@ final class LedgerRepository extends BaseRepository
             // to a brand-new (merchant, currency) combination can both observe "no row"
             // and both attempt INSERT against the UNIQUE KEY uk_merchant_name_currency
             // (database/schema.sql). The losing INSERT raises a duplicate-key PDOException
-            // (SQLSTATE 23000 / MySQL errno 1062) — re-SELECT the now-existing row and
+            // (SQLSTATE 23000 / MySQL errno 1062) - re-SELECT the now-existing row and
             // return it instead of letting the failure roll back the entire ledger post.
             $errno = isset($e->errorInfo[1]) ? (int) $e->errorInfo[1] : 0;
             $sqlstate = isset($e->errorInfo[0]) ? (string) $e->errorInfo[0] : '';
@@ -109,7 +109,7 @@ final class LedgerRepository extends BaseRepository
      * REPO-4: uses findScoped() instead of the inherited find() so the
      * SELECT is restricted by merchant_id when the repository has been
      * scoped via forTenant(). The previous call to find() bypassed the
-     * TenantScope filter entirely — a caller that supplied another
+     * TenantScope filter entirely - a caller that supplied another
      * merchant's $accountId could read that merchant's balance (and
      * the 'type' column via adjustBalance()) even on a forTenant()'d
      * repository instance.

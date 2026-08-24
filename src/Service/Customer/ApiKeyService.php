@@ -34,7 +34,7 @@ final class ApiKeyService
      *
      * Enforced as a defense-in-depth measure: even if a caller forgets to pass $expiresAt,
      * a stolen key cannot live indefinitely. Callers may still pass an explicit shorter
-     * expiration, but not a longer one — see generate().
+     * expiration, but not a longer one - see generate().
      */
     private const int MAX_KEY_LIFETIME_SECONDS = 86400 * 365;
 
@@ -92,7 +92,7 @@ final class ApiKeyService
 
         $parsed = strtotime($expiresAt);
         if ($parsed === false) {
-            // Unparseable input — fail safe to the default max lifetime.
+            // Unparseable input - fail safe to the default max lifetime.
             return $this->normalizeDatetime($maxTimestamp);
         }
 

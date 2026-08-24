@@ -30,7 +30,7 @@ class UpdateService
      *
      * Exposed as a protected static property (instead of a private const) so
      * the test harness can substitute a test-only key pair without needing
-     * the production private key — see TestableUpdateService in
+     * the production private key - see TestableUpdateService in
      * tests/Unit/UpdateServiceTest.php.
      *
      * @var string
@@ -245,19 +245,19 @@ EOT;
         // UPD-3: Disable PHP's max_execution_time for the duration of the
         // update pipeline. The pipeline downloads a ZIP (cURL timeout 300s),
         // verifies SHA-256 + RSA signature, extracts the ZIP, runs DB
-        // migrations, clears cache, and runs health checks — a process that
+        // migrations, clears cache, and runs health checks - a process that
         // can easily exceed 60-120 seconds. Without this, PHP's
         // max_execution_time (default 30s, often 60s on managed hosts) fires
         // during migration execution and kills the process mid-transaction.
         // The finally block releases the file lock, but the catch (\Throwable)
         // block does NOT run for a fatal "Maximum execution time exceeded"
-        // error in PHP's non-deferred shutdown path — so maintenance mode is
+        // error in PHP's non-deferred shutdown path - so maintenance mode is
         // NOT exited and the rollback is NOT triggered, leaving the system in
         // a partially-applied state.
         if (function_exists('set_time_limit')) {
             @set_time_limit(0);
         }
-        // Also raise the memory limit — migrations can be memory-intensive.
+        // Also raise the memory limit - migrations can be memory-intensive.
         if (function_exists('ini_set')) {
             @ini_set('memory_limit', '512M');
         }
@@ -544,8 +544,8 @@ EOT;
      * directory (mode 0700) rather than the shared system temp dir, and is
      * immediately chmod'd to 0600 so co-located users on the host cannot read
      * the downloaded app source ZIP while it sits on disk between download and
-     * extraction. The file is removed by extractPackage()'s finally block —
-     * even on extraction failure — so no copy of the package is left behind.
+     * extraction. The file is removed by extractPackage()'s finally block -
+     * even on extraction failure - so no copy of the package is left behind.
      *
      * @param string $url Secure update download URL.
      * @return string Path to the temporary zip package.

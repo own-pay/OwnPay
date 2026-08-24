@@ -44,12 +44,12 @@
 </div>
 
 {# -- Add Domain Wizard Modal ------------------------------------ #}
-<div class="op-modal" id="add-domain-modal" hidden>
+<div class="op-modal" id="add-domain-modal" role="dialog" aria-modal="true" aria-labelledby="add-domain-modal-title" hidden>
     <div class="op-modal-backdrop" data-close-modal="add-domain-modal"></div>
     <div class="op-modal-dialog">
         <div class="op-modal-header">
-            <h3>Add Custom Domain</h3>
-            <button class="op-modal-close" type="button" data-close-modal="add-domain-modal">×</button>
+            <h3 id="add-domain-modal-title">Add Custom Domain</h3>
+            <button class="op-modal-close" type="button" data-close-modal="add-domain-modal" aria-label="Close modal">×</button>
         </div>
 
         <div class="op-wizard-progress">

@@ -41,7 +41,7 @@ final class ImageService
         $src = $this->createFromFile($inputPath, $info[2]);
 
         if ($ratio >= 1.0) {
-            // Target is larger or equal — do not upsample, but still
+            // Target is larger or equal - do not upsample, but still
             // re-encode through GD so EXIF metadata (GPS, camera, PII) is
             // stripped from the output. Previously this branch used copy()
             // which preserved the source bytes verbatim, including EXIF.

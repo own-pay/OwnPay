@@ -562,7 +562,7 @@ final class DomainController
      * Validates the redirect_url field for store()/update() (DOM-2).
      *
      * Returns:
-     *   - null  if the input is empty (no redirect configured — always valid).
+     *   - null  if the input is empty (no redirect configured - always valid).
      *   - string (the validated value) if the input is a safe relative path
      *     (`/checkout`, `/foo?bar=1`) or a same-origin absolute URL
      *     (http/https whose host equals $allowedDomain or is a subdomain of it).
@@ -584,7 +584,7 @@ final class DomainController
         }
 
         // Relative path: must start with `/` but not `//` (protocol-relative,
-        // resolves to https://host) or `/\` (backslash variant — some browsers
+        // resolves to https://host) or `/\` (backslash variant - some browsers
         // normalize this to `//`).
         if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_starts_with($url, '/\\')) {
             return $url;

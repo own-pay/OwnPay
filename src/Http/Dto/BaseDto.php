@@ -48,7 +48,7 @@ abstract class BaseDto
                     $typeName = ($type instanceof \ReflectionNamedType ? $type->getName() : 'mixed');
                     if ($typeName === 'int') {
                         // Strict int coercion (API-18): previously (int) $value silently
-                        // turned "abc" into 0 and "1; DROP TABLE" into 1 — masking bad
+                        // turned "abc" into 0 and "1; DROP TABLE" into 1 - masking bad
                         // input as valid integers. Accept ints, integer-valued strings,
                         // and numeric floats; reject everything else.
                         if (is_int($value)) {
