@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Controller\Admin;
 
 use OwnPay\Container;
+use OwnPay\Event\EventManager;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\RefundRepository;
@@ -23,6 +24,7 @@ final class RefundController
     private AdminSession $session;
     private RefundRepository $refunds;
     private RefundService $refundService;
+    private EventManager $events;
 
     /**
      * RefundController constructor.
@@ -31,12 +33,14 @@ final class RefundController
         Container $c,
         AdminSession $session,
         RefundRepository $refunds,
-        RefundService $refundService
+        RefundService $refundService,
+        EventManager $events
     ) {
         $this->c = $c;
         $this->session = $session;
         $this->refunds = $refunds;
         $this->refundService = $refundService;
+        $this->events = $events;
     }
 
     /**
@@ -81,8 +85,12 @@ final class RefundController
         $total = $scopedRepo->countScoped($extraWhere, $params);
         $pagination = PaginationService::calculate($page, 25, $total);
 
-        $results = $scopedRepo->paginateScoped($page, 25, $extraWhere, $params, 'id DESC');
-        $refundsList = $results['items'] ?? [];
+        $refundsList = $scopedRepo->listFiltered([
+            'status'    => $status,
+            'q'         => $q,
+            'date_from' => '',
+            'date_to'   => '',
+        ], 25, $pagination['offset']);
 
         return $this->renderAdminPage('admin/refunds/index.twig', [
             'refunds'     => $refundsList,
@@ -128,6 +136,8 @@ final class RefundController
                 'amount'         => $amount,
                 'reason'         => $reason
             ]);
+
+            $this->events->doAction('refund.created', $refund);
 
             $status = $refund['status'] ?? '';
             if ($status === 'completed') {

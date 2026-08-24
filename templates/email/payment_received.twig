@@ -12,9 +12,10 @@ body{margin:0;padding:0;background:#f4f4f7;font-family:'Outfit',-apple-system,sa
 .footer{text-align:center;font-size:11px;color:#A8B0C8;padding:16px}
 </style></head>
 <body><div class="wrap"><div class="card">
-    <div class="logo"><img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}"></div>
+    <div class="logo"><img src="{{ app_url }}{{ app_logo_light }}" alt="{{ app_name ?? 'OwnPay' }}"></div>
     <h2 style="margin:0 0 8px;font-size:18px">Payment Received</h2>
     <p class="meta">Transaction {{ trx_id }} has been completed.</p>
+    <p class="meta">{{ gateway_name ?? gateway ?? 'Gateway' }} TRX ID: {{ gateway_trx_id ?? 'N/A' }}</p>
     <div class="divider"></div>
     <p class="amount">{{ currency_symbol ?? '৳' }}{{ amount }}</p>
     <p class="meta">{{ currency ?? 'BDT' }} · {{ gateway ?? 'N/A' }}</p>

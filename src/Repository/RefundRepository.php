@@ -66,7 +66,7 @@ final class RefundRepository extends BaseRepository
     /**
      * Counts the total refunds matching specific filters under the active tenant.
      *
-     * @param array{status?: string, trx_id?: string, transaction_id?: int|string, date_from?: string, date_to?: string} $filters Filtering criteria.
+    * @param array{status?: string, q?: string, trx_id?: string, transaction_id?: int|string, date_from?: string, date_to?: string} $filters Filtering criteria.
      * @return int Matching records count.
      */
     public function countFiltered(array $filters): int
@@ -86,6 +86,10 @@ final class RefundRepository extends BaseRepository
         if (!empty($filters['transaction_id'])) {
             $where .= " AND r.transaction_id = :txn_id";
             $params['txn_id'] = $filters['transaction_id'];
+        }
+        if (!empty($filters['q'])) {
+            $where .= " AND (r.reason LIKE :q OR r.uuid LIKE :q)";
+            $params['q'] = '%' . $filters['q'] . '%';
         }
         if (!empty($filters['trx_id'])) {
             $where .= " AND t.trx_id = :trx_id";
@@ -110,7 +114,7 @@ final class RefundRepository extends BaseRepository
     /**
      * Lists refunds matching specific filters with sorting and pagination, scoped by active tenant.
      *
-     * @param array{status?: string, trx_id?: string, transaction_id?: int|string, date_from?: string, date_to?: string} $filters Filtering criteria.
+    * @param array{status?: string, q?: string, trx_id?: string, transaction_id?: int|string, date_from?: string, date_to?: string} $filters Filtering criteria.
      * @param int $limit Maximum records to return.
      * @param int $offset Records offset.
      * @return array<int, array<string, mixed>> List of matching refund rows.
@@ -132,6 +136,10 @@ final class RefundRepository extends BaseRepository
         if (!empty($filters['transaction_id'])) {
             $where .= " AND r.transaction_id = :txn_id";
             $params['txn_id'] = $filters['transaction_id'];
+        }
+        if (!empty($filters['q'])) {
+            $where .= " AND (r.reason LIKE :q OR r.uuid LIKE :q)";
+            $params['q'] = '%' . $filters['q'] . '%';
         }
         if (!empty($filters['trx_id'])) {
             $where .= " AND t.trx_id = :trx_id";

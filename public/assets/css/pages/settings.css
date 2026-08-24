@@ -5,6 +5,22 @@
     display: none !important;
 }
 
+#app-logo-light-upload-form,
+#app-logo-dark-upload-form,
+#app-logo-light-file-input,
+#app-logo-dark-file-input {
+    display: none !important;
+}
+
+.op-application-logo-preview {
+    display: block;
+    max-width: 220px;
+    max-height: 64px;
+    margin-bottom: 12px;
+    object-fit: contain;
+    object-position: left center;
+}
+
 .op-currency-table-container {
     max-height: 400px;
     overflow-y: auto;

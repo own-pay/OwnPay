@@ -16,10 +16,10 @@
                 <dt>Fee</dt><dd>{{ txn.currency }} {{ txn.fee ?? '0.00' }}</dd>
                 <dt>Net</dt><dd>{{ txn.currency }} {{ txn.net_amount ?? txn.amount }}</dd>
                 <dt>Gateway</dt><dd>{{ txn.gateway_name }}</dd>
-                <dt>Gateway TRX</dt><dd><code>{{ txn.gateway_trx_id ?? '-' }}</code></dd>
+                <dt>{{ txn.gateway_name ?? 'Gateway' }} TRX ID</dt><dd><code>{{ txn.gateway_trx_id ?? '-' }}</code></dd>
                 {% for ref in refunds|default([]) %}
-                    {% if ref.status == 'completed' and ref.gateway_refund_id %}
-                    <dt>Gateway Refund TRX</dt><dd><code>{{ ref.gateway_refund_id }}</code></dd>
+                    {% if ref.gateway_refund_id %}
+                    <dt>{{ txn.gateway_name ?? 'Gateway' }} Refund TRX ID</dt><dd><code>{{ ref.gateway_refund_id }}</code></dd>
                     {% endif %}
                 {% endfor %}
                 <dt>Created</dt><dd>{{ txn.created_at }}</dd>

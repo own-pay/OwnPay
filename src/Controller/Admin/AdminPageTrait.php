@@ -85,6 +85,7 @@ trait AdminPageTrait
                 $data['settings_logo']  = $sr->get('branding', 'site_logo', '');
                 $data['site_favicon']   = $sr->get('branding', 'site_favicon', '');
                 $data['site_title']     = $sr->get('branding', 'admin_panel_title', $appName);
+                $data['footer_text']    = $sr->get('general', 'footer_text', '');
             }
         }
 
@@ -302,6 +303,10 @@ trait AdminPageTrait
 
         // 3. Map & Combine
         $notifs = [];
+        $userId = $this->session->userId() ?? 0;
+        $readScope = 'admin_notifications_read_at_' . $userId . '_' . ($merchantId ?? 'all');
+        $readAtValue = $this->session->get($readScope, 0);
+        $readAt = is_numeric($readAtValue) ? (int) $readAtValue : 0;
         foreach ($txs as $tx) {
             $createdAt = is_string($tx['created_at'] ?? null) ? $tx['created_at'] : '';
             $status = is_scalar($tx['status'] ?? null) ? (string)$tx['status'] : 'pending';
@@ -319,7 +324,7 @@ trait AdminPageTrait
                     'title' => 'Payment Received',
                     'message' => $currency . ' ' . $amount . ' from ' . $sender . ' via ' . $gw,
                     'time' => $this->formatRelativeTime($relativeTime),
-                    'read' => false,
+                    'read' => strtotime($createdAt) <= $readAt,
                     'icon' => 'payment',
                     'timestamp' => strtotime($createdAt),
                 ];
@@ -330,7 +335,7 @@ trait AdminPageTrait
                     'title' => 'Payment Failed',
                     'message' => $currency . ' ' . $amount . ' from ' . $sender . ' via ' . $gw . ' failed',
                     'time' => $this->formatRelativeTime($relativeTime),
-                    'read' => false,
+                    'read' => strtotime($createdAt) <= $readAt,
                     'icon' => 'failed',
                     'timestamp' => strtotime($createdAt),
                 ];
@@ -350,7 +355,7 @@ trait AdminPageTrait
                 'title' => 'Dispute Opened',
                 'message' => 'Dispute opened: ' . $reason . ' (' . $amount . ')',
                 'time' => $this->formatRelativeTime($relativeTime),
-                'read' => false,
+                'read' => strtotime($createdAt) <= $readAt,
                 'icon' => 'dispute',
                 'timestamp' => strtotime($createdAt),
             ];

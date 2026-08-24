@@ -29,6 +29,11 @@
             </div>
             <div class="st-row-divider"></div>
             <div class="st-row">
+                <span class="st-row-label">{{ gateway_name ?? 'Gateway' }} TRX ID</span>
+                <span class="st-row-value st-row-value-wrap">{{ txn.gateway_trx_id ?? '-' }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
                 <span class="st-row-label">Merchant</span>
                 <span class="st-row-value">{{ brand.name ?? 'OwnPay' }}</span>
             </div>

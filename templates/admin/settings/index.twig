@@ -1,7 +1,7 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Settings - {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=018">
+    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=020">
 {% endblock %}
 {% block content %}
 <div class="op-page-header">
@@ -176,7 +176,7 @@
     </aside>
     <div class="op-settings-main">
 
-<form method="POST" action="/admin/settings/save" class="op-form">
+<form method="POST" action="/admin/settings/save" class="op-form" enctype="multipart/form-data">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="_tab" id="active-tab-input" value="{{ default_tab ?? 'general' }}">
 
@@ -216,6 +216,26 @@
                     <label>Footer Text</label>
                     <input type="text" name="footer_text" value="{{ settings.footer_text ?? '' }}" class="op-input" placeholder="© 2026 Your Company. All rights reserved.">
                     <small class="op-text-muted">Global copyright or branding text shown at the bottom of public portal pages.</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Application Logo - Light Theme</label>
+                        {% if branding.app_logo_light is defined and branding.app_logo_light %}<img src="{{ branding.app_logo_light }}" alt="Light theme application logo" class="op-upload-preview-img op-application-logo-preview">{% endif %}
+                        <div class="op-upload-zone" id="app-logo-light-drop-zone">
+                            <div class="op-upload-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                            <div class="op-upload-text"><strong>Click to upload</strong> or drag and drop<br>PNG, SVG, JPEG, WebP</div>
+                        </div>
+                        <small class="op-text-muted">Used on light-theme interfaces and emails.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Application Logo - Dark Theme</label>
+                        {% if branding.app_logo_dark is defined and branding.app_logo_dark %}<img src="{{ branding.app_logo_dark }}" alt="Dark theme application logo" class="op-upload-preview-img op-application-logo-preview">{% endif %}
+                        <div class="op-upload-zone" id="app-logo-dark-drop-zone">
+                            <div class="op-upload-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                            <div class="op-upload-text"><strong>Click to upload</strong> or drag and drop<br>PNG, SVG, JPEG, WebP</div>
+                        </div>
+                        <small class="op-text-muted">Used on dark-theme interfaces.</small>
+                    </div>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
@@ -657,17 +677,17 @@
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>SMTP Password</label>
-                        <input type="password" name="smtp_pass" value="{{ settings.smtp_pass ?? '' }}" class="op-input">
+                        <input type="password" name="smtp_password" value="" class="op-input" autocomplete="new-password">
                         <small class="op-text-muted">The password credential used to authenticate with your SMTP mail server.</small>
                     </div>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>SMTP Encryption</label>
-                        <select name="smtp_secure" class="op-input">
-                            <option value="" {{ (settings.smtp_secure ?? '') == '' ? 'selected' : '' }}>None</option>
-                            <option value="ssl" {{ (settings.smtp_secure ?? '') == 'ssl' ? 'selected' : '' }}>SSL</option>
-                            <option value="tls" {{ (settings.smtp_secure ?? '') == 'tls' ? 'selected' : '' }}>TLS</option>
+                        <select name="smtp_encryption" class="op-input">
+                            <option value="none" {{ (settings.smtp_encryption ?? 'tls') == 'none' ? 'selected' : '' }}>None</option>
+                            <option value="ssl" {{ (settings.smtp_encryption ?? 'tls') == 'ssl' ? 'selected' : '' }}>SSL</option>
+                            <option value="tls" {{ (settings.smtp_encryption ?? 'tls') == 'tls' ? 'selected' : '' }}>TLS</option>
                         </select>
                         <small class="op-text-muted">The transport layer security protocol (TLS recommended, SSL, or None).</small>
                     </div>
@@ -1601,6 +1621,16 @@
     <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" class="op-hidden">
 </form>
 
+<form id="app-logo-light-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" class="op-hidden">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="file" name="app_logo_light" accept="image/*" id="app-logo-light-file-input" class="op-hidden">
+</form>
+
+<form id="app-logo-dark-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" class="op-hidden">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="file" name="app_logo_dark" accept="image/*" id="app-logo-dark-file-input" class="op-hidden">
+</form>
+
     {% if not is_brand_view %}
     <form id="currency-toggle-form" method="POST" action="" class="op-hidden">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -1660,6 +1690,6 @@
 
 {% endblock %}
 {% block scripts %}
-<script nonce="{{ csp_nonce }}" src="/assets/js/pages/settings.js"></script>
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/settings.js?v=004"></script>
 {% endblock %}
 

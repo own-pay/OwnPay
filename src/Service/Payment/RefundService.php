@@ -344,6 +344,13 @@ final class RefundService
             );
         }
 
+        $transaction = $this->transactions->forTenant($merchantId)->findScoped($txnId);
+        if (is_array($transaction)) {
+            $refund['transaction_trx_id'] = $transaction['trx_id'] ?? null;
+            $refund['gateway_trx_id'] = $transaction['gateway_trx_id'] ?? null;
+            $refund['gateway_name'] = $transaction['gateway_name'] ?? ($transaction['gateway_slug'] ?? null);
+        }
+
         return $refund;
     }
 

@@ -155,14 +155,31 @@
     var notifMarkRead = document.getElementById("notif-mark-read");
     if (notifMarkRead) {
         notifMarkRead.addEventListener("click", function () {
-            document.querySelectorAll(".op-notif-unread").forEach(function (item) {
-                item.classList.remove("op-notif-unread");
+            notifMarkRead.disabled = true;
+            fetch("/admin/notifications/mark-all-read", {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-Token": window.OP_CSRF || ""
+                }
+            }).then(function (response) {
+                if (!response.ok) { throw new Error("Notification update failed"); }
+                return response.json();
+            }).then(function (result) {
+                if (!result.success) { throw new Error("Notification update failed"); }
+                document.querySelectorAll(".op-notif-unread").forEach(function (item) {
+                    item.classList.remove("op-notif-unread");
+                });
+                document.querySelectorAll(".op-notif-dot").forEach(function (dot) {
+                    dot.remove();
+                });
+                var badge = document.querySelector(".op-badge-dot");
+                if (badge) { badge.style.display = "none"; }
+            }).catch(function () {
+                // Keep the unread state when the server could not persist the action.
+            }).finally(function () {
+                notifMarkRead.disabled = false;
             });
-            document.querySelectorAll(".op-notif-dot").forEach(function (dot) {
-                dot.remove();
-            });
-            var badge = document.querySelector(".op-badge-dot");
-            if (badge) { badge.style.display = "none"; }
         });
     }
 

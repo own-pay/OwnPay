@@ -9,6 +9,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\System\AuditService;
+use OwnPay\View\FragmentRenderer;
 
 /**
  * Class SettingsController
@@ -50,6 +51,8 @@ final class SettingsController
      */
     private AuditService $audit;
 
+    private FragmentRenderer $renderer;
+
     /**
      * SettingsController constructor.
      *
@@ -59,13 +62,14 @@ final class SettingsController
      * @param \OwnPay\Repository\SettingsRepository $settingsRepo The settings repository.
      * @param AuditService                          $audit        The application audit logging service.
      */
-    public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo, AuditService $audit)
+    public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo, AuditService $audit, FragmentRenderer $renderer)
     {
         $this->c = $c;
         $this->session = $session;
         $this->events = $events;
         $this->settingsRepo = $settingsRepo;
         $this->audit = $audit;
+        $this->renderer = $renderer;
     }
 
     /**
@@ -173,6 +177,15 @@ final class SettingsController
             $inherited   = [];
             $settings    = $this->settingsRepo->getGroup('general');
             $branding    = $this->settingsRepo->getGroup('branding');
+            $mailSettings = $this->settingsRepo->getGroup('plugin.mail-gateway');
+            foreach (['smtp_host', 'smtp_port', 'smtp_encryption'] as $mailKey) {
+                if (isset($mailSettings[$mailKey])) {
+                    $settings[$mailKey] = $mailSettings[$mailKey];
+                }
+            }
+            if (isset($mailSettings['smtp_user'])) {
+                $settings['smtp_username'] = $mailSettings['smtp_user'];
+            }
             $landing     = $this->settingsRepo->getGroup('landing');
             $checkout    = $this->settingsRepo->getGroup('checkout');
             $theme       = $this->settingsRepo->getGroup('theme');
@@ -634,6 +647,7 @@ final class SettingsController
                 break;
 
             default:
+                $this->saveApplicationLogos($req);
                 $this->saveGeneral($data);
                 break;
         }
@@ -648,6 +662,71 @@ final class SettingsController
         }
 
         return Response::redirect('/admin/settings/' . $tab);
+    }
+
+    /**
+     * Sends a test message through the configured email provider.
+     *
+     * @param Request $req The incoming test request.
+     * @return Response JSON delivery result.
+     */
+    public function testEmail(Request $req): Response
+    {
+        $targetVal = $req->post('to', '');
+        $target = is_string($targetVal) ? trim($targetVal) : '';
+        if ($target === '' || filter_var($target, FILTER_VALIDATE_EMAIL) === false) {
+            return Response::json(['success' => false, 'error' => 'Enter a valid test recipient email address.'], 422);
+        }
+
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            return Response::json(['success' => false, 'error' => 'Brand context unavailable.'], 500);
+        }
+        $brand->resolveFromRequest($req);
+        $merchantId = $brand->getActiveBrandId();
+        if ($merchantId === null) {
+            return Response::json(['success' => false, 'error' => 'Merchant context unavailable.'], 500);
+        }
+
+        $comm = $this->c->get(\OwnPay\Service\Communication\CommunicationService::class);
+        if (!$comm instanceof \OwnPay\Service\Communication\CommunicationService) {
+            return Response::json(['success' => false, 'error' => 'Email service unavailable.'], 500);
+        }
+
+        $html = $this->renderer->render('email/smtp_test.twig', [
+            'recipient' => $target,
+            'sent_at'   => date('Y-m-d H:i:s T'),
+        ]);
+
+        $result = $comm->sendEmail($merchantId, [
+            'to'      => $target,
+            'subject' => 'OwnPay email configuration test',
+            'body'    => 'This is a test email from OwnPay.',
+            'html'    => $html,
+        ]);
+
+        return Response::json($result, $result['success'] ? 200 : 502);
+    }
+
+    /**
+     * Persists the current notification scope's read timestamp.
+     *
+     * @param Request $req The incoming request.
+     * @return Response JSON acknowledgement.
+     */
+    public function markNotificationsRead(Request $req): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            return Response::json(['success' => false], 500);
+        }
+        $brand->resolveFromRequest($req);
+        $scope = $brand->getActiveBrandId();
+        $userId = $this->session->userId() ?? 0;
+        $scopeKey = 'admin_notifications_read_at_' . $userId . '_' . ($scope ?? 'all');
+        $this->session->set($scopeKey, time());
+
+        return Response::json(['success' => true]);
     }
 
     /**
@@ -738,7 +817,7 @@ final class SettingsController
             return Response::redirect('/admin/settings/branding');
         }
 
-        foreach (['site_logo', 'site_favicon'] as $field) {
+        foreach (['site_logo', 'site_favicon', 'app_logo_light', 'app_logo_dark'] as $field) {
             $file = $req->file($field);
             if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
                 continue;
@@ -746,7 +825,7 @@ final class SettingsController
 
             try {
                 if (isset($file['name'], $file['tmp_name']) && is_string($file['name']) && is_string($file['tmp_name'])) {
-                    $path = $fs->storePublicUpload($file, 'branding');
+                    $path = $fs->storePublicUpload($file, in_array($field, ['app_logo_light', 'app_logo_dark'], true) ? 'app-logos' : 'branding');
                     $this->settingsRepo->set('branding', $field, $path);
                     $saved[$field] = $path;
                 }
@@ -1166,6 +1245,43 @@ final class SettingsController
 
         $this->settingsRepo->bulkSet('general', $filtered);
 
+        if (isset($data['smtp_host'], $data['smtp_port'], $data['smtp_encryption'], $data['mail_from_email'], $data['mail_from_name'])) {
+            $smtpHost = is_scalar($data['smtp_host']) ? trim((string) $data['smtp_host']) : '';
+            $smtpPort = is_scalar($data['smtp_port']) ? (int) $data['smtp_port'] : 0;
+            $smtpEncryption = is_scalar($data['smtp_encryption']) ? (string) $data['smtp_encryption'] : '';
+            $fromEmail = is_scalar($data['mail_from_email']) ? trim((string) $data['mail_from_email']) : '';
+            $fromName = is_scalar($data['mail_from_name']) ? trim((string) $data['mail_from_name']) : '';
+
+            if ($smtpHost === '' || $smtpPort < 1 || $smtpPort > 65535) {
+                throw new \InvalidArgumentException('SMTP host and a valid port are required.');
+            }
+            if (!in_array($smtpEncryption, ['tls', 'ssl', 'none'], true)) {
+                throw new \InvalidArgumentException('Unsupported SMTP encryption.');
+            }
+            if (filter_var($fromEmail, FILTER_VALIDATE_EMAIL) === false) {
+                throw new \InvalidArgumentException('A valid sender email address is required.');
+            }
+
+            $mailSettings = [
+                'provider'         => 'smtp',
+                'smtp_host'        => $smtpHost,
+                'smtp_port'        => (string) $smtpPort,
+                'smtp_encryption'  => $smtpEncryption,
+                'from_email'       => $fromEmail,
+                'from_name'        => $fromName,
+                'enabled'          => '1',
+            ];
+            $passwordVal = $data['smtp_password'] ?? '';
+            if (is_scalar($passwordVal) && (string) $passwordVal !== '') {
+                $mailSettings['smtp_password'] = (string) $passwordVal;
+            }
+            $usernameVal = $data['smtp_username'] ?? '';
+            $mailSettings['smtp_user'] = is_scalar($usernameVal) ? (string) $usernameVal : '';
+            foreach ($mailSettings as $key => $value) {
+                $this->settingsRepo->set('plugin.mail-gateway', $key, $value);
+            }
+        }
+
         // Save Admin Login URL Slug to landing group if present (as it was moved to Security tab)
         if (isset($data['admin_login_slug'])) {
             $slug = is_scalar($data['admin_login_slug']) ? (string) $data['admin_login_slug'] : 'login';
@@ -1204,6 +1320,28 @@ final class SettingsController
             ], JSON_THROW_ON_ERROR));
         } elseif (file_exists($lockFile)) {
             @unlink($lockFile);
+        }
+    }
+
+    /**
+     * Stores optional global light/dark application logos submitted with General settings.
+     *
+     * @param Request $req The multipart settings request.
+     * @return void
+     */
+    private function saveApplicationLogos(Request $req): void
+    {
+        $fs = new \OwnPay\Service\System\FilesystemService();
+        foreach (['app_logo_light', 'app_logo_dark'] as $field) {
+            $file = $req->file($field);
+            if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            if (!isset($file['name'], $file['tmp_name']) || !is_string($file['name']) || !is_string($file['tmp_name'])) {
+                throw new \InvalidArgumentException("Invalid file for {$field}.");
+            }
+            $path = $fs->storePublicUpload($file, 'app-logos');
+            $this->settingsRepo->set('branding', $field, $path);
         }
     }
 

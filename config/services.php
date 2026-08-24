@@ -251,6 +251,15 @@ return static function (\OwnPay\Container $c): void {
         });
         $appName = $_ENV['APP_NAME'] ?? 'OwnPay';
         $twig->addGlobal('app_name', is_string($appName) ? $appName : 'OwnPay');
+        $appUrlRaw = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
+        $appUrl = is_string($appUrlRaw) ? rtrim($appUrlRaw, '/') : '';
+        $twig->addGlobal('app_url', $appUrl);
+        $settingsRepository = $c->get(\OwnPay\Repository\SettingsRepository::class);
+        $brandingSettings = $settingsRepository instanceof \OwnPay\Repository\SettingsRepository
+            ? $settingsRepository->getGroup('branding')
+            : [];
+        $twig->addGlobal('app_logo_light', $brandingSettings['app_logo_light'] ?? '/assets/img/logo-light.svg?v=002');
+        $twig->addGlobal('app_logo_dark', $brandingSettings['app_logo_dark'] ?? '/assets/img/logo-dark.svg?v=002');
         // i18n dynamic translation setup
         $twig->addFunction(new \Twig\TwigFunction('__', function (string $key, array $replace = []) use ($c): string {
             $trans = $c->get(\OwnPay\Service\System\TranslationService::class);
@@ -657,7 +666,8 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
         return new \OwnPay\Service\Payment\PaymentCompletionListener(
             ensureType($c->get(\OwnPay\Repository\InvoiceRepository::class), \OwnPay\Repository\InvoiceRepository::class),
-            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class)
+            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class),
+            ensureType($c->get(\OwnPay\Repository\PaymentIntentRepository::class), \OwnPay\Repository\PaymentIntentRepository::class)
         );
     });
 
@@ -679,7 +689,9 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Service\Communication\CommunicationService::class), \OwnPay\Service\Communication\CommunicationService::class),
             ensureType($c->get(\OwnPay\View\FragmentRenderer::class), \OwnPay\View\FragmentRenderer::class),
             ensureType($c->get(\OwnPay\Service\Domain\DomainUrlService::class), \OwnPay\Service\Domain\DomainUrlService::class),
-            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+            ensureType($c->get(\OwnPay\Repository\ApiKeyRepository::class), \OwnPay\Repository\ApiKeyRepository::class),
+            ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class)
         );
     });
 

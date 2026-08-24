@@ -112,7 +112,14 @@ final class CheckoutController
         $txn = $this->txnRepo->findActiveForCheckout($ref);
 
         if ($txn === null) {
-            return $this->renderStatus($ref, 'expired');
+            // When a checkout token is no longer in an active state, show its actual
+            // terminal/current status (completed/refunded/failed/etc.) instead of
+            // always forcing the expired view.
+            $anyTxn = $this->txnRepo->findAnyByTrxId($ref);
+            $currentStatus = (is_array($anyTxn) && is_string($anyTxn['status'] ?? null) && $anyTxn['status'] !== '')
+                ? $anyTxn['status']
+                : 'expired';
+            return $this->renderStatus($ref, $currentStatus);
         }
 
         $midVal = $txn['merchant_id'] ?? 0;
@@ -397,6 +404,20 @@ final class CheckoutController
             }
         }
 
+        $refunds = [];
+        if (is_array($txn) && isset($txn['id']) && is_scalar($txn['id'])) {
+            $refunds = \OwnPay\Core\Database::getInstance()->fetchAll(
+                'SELECT r.id, r.uuid, r.amount, r.status, r.gateway_refund_id,
+                        t.trx_id AS transaction_trx_id,
+                        t.gateway_trx_id AS transaction_gateway_trx_id
+                 FROM op_refunds r
+                 LEFT JOIN op_transactions t ON t.id = r.transaction_id
+                 WHERE r.transaction_id = :transaction_id AND r.merchant_id = :merchant_id
+                 ORDER BY r.created_at ASC',
+                ['transaction_id' => (int) $txn['id'], 'merchant_id' => $mid]
+            );
+        }
+
         // Issue #71: auto-redirect to merchant after successful payment.
         // When the brand setting is enabled, expose the merchant return URL
         // so the checkout-status template can run the same countdown + redirect
@@ -430,6 +451,7 @@ final class CheckoutController
         return $this->renderThemed($tplName, $brandId, [
             'txn'          => $txn ?? ['trx_id' => $ref],
             'gateway_name' => $gatewayName,
+            'refunds'      => $refunds,
             'status'       => $status ?: (is_array($txn) && is_string($txn['status'] ?? null) ? $txn['status'] : 'expired'),
             'status_label' => $this->statusLabel($status),
             'brand'        => $brand,

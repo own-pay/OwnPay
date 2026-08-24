@@ -790,6 +790,8 @@ final class InstallerController
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
+                ['branding', 'app_logo_light',  '/assets/img/logo-light.svg?v=002', 'string'],
+                ['branding', 'app_logo_dark',   '/assets/img/logo-dark.svg?v=002',  'string'],
                 ['branding', 'primary_color',   '#6366f1',               'string'],
                 ['branding', 'footer_text',     "\u00a9 2025 {$appName}",  'string'],
                 ['mail',     'driver',          'smtp',                    'string'],

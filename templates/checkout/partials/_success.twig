@@ -34,6 +34,15 @@
                 <span class="st-row-value st-row-value-wrap">{{ txn.gateway_trx_id ?? '-' }}</span>
             </div>
             <div class="st-row-divider"></div>
+            {% for refund in refunds|default([]) %}
+                {% if refund.status == 'completed' %}
+                <div class="st-row">
+                    <span class="st-row-label">{{ gateway_name ?? 'Gateway' }} Refund TRX ID</span>
+                    <span class="st-row-value st-row-value-wrap">{{ refund.gateway_refund_id ?? '-' }}</span>
+                </div>
+                <div class="st-row-divider"></div>
+                {% endif %}
+            {% endfor %}
             <div class="st-row">
                 <span class="st-row-label">Merchant</span>
                 <span class="st-row-value">{{ brand.name ?? 'OwnPay' }}</span>

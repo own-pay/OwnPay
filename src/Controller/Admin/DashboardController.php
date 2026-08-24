@@ -121,7 +121,7 @@ final class DashboardController
             return Response::redirect('/admin/setup-wizard');
         }
 
-        $range = $req->query('range', 'today');
+        $range = $req->query('range', '30d');
 
         $dateFilter = match ($range) {
             'today' => "AND DATE(created_at) = CURDATE()",
@@ -203,12 +203,13 @@ final class DashboardController
 
         $todayCount = is_scalar($todayStats['cnt'] ?? null) ? (int)$todayStats['cnt'] : 0;
         $todayVol = is_scalar($todayStats['vol'] ?? null) ? (float)$todayStats['vol'] : 0.0;
+        $yesterdayCount = is_scalar($yesterdayStats['cnt'] ?? null) ? (int)$yesterdayStats['cnt'] : 0;
         $yesterdayVol = is_scalar($yesterdayStats['vol'] ?? null) ? (float)$yesterdayStats['vol'] : 0.0;
 
         $todayTrendVal = 0.0;
-        if ($yesterdayVol > 0) {
-            $todayTrendVal = (($todayVol - $yesterdayVol) / $yesterdayVol) * 100;
-        } elseif ($todayVol > 0) {
+        if ($yesterdayCount > 0) {
+            $todayTrendVal = (($todayCount - $yesterdayCount) / $yesterdayCount) * 100;
+        } elseif ($todayCount > 0) {
             $todayTrendVal = 100.0;
         }
         $todayTrendPercent = ($todayTrendVal >= 0 ? '+' : '') . number_format($todayTrendVal, 1) . '%';
@@ -268,6 +269,8 @@ final class DashboardController
         }
         $customerTrendPercent = ($customerTrendVal >= 0 ? '+' : '') . number_format($customerTrendVal, 1) . '%';
 
+        $statsArray['customer_count'] = $c30Count;
+
         // Monthly Revenue Target & Gauge
         $monthlyRevenueTarget = (float) $settingsRepo->get('general', 'monthly_revenue_target', '10000.00');
         if ($monthlyRevenueTarget <= 0) {
@@ -294,16 +297,18 @@ final class DashboardController
         }
 
         // 3. Construct Chart.js datasets
-        // Today chart: hourly blocks
+        // Today chart: fixed four-hour blocks within today's calendar day.
         $todayLabels = [];
         $todayData = [];
-        for ($i = 23; $i >= 0; $i -= 4) {
-            $hour = (int) date('H', strtotime("-{$i} hours"));
-            $todayLabels[] = sprintf('%02d:00', $hour);
+        $todayStart = date('Y-m-d 00:00:00');
+        for ($block = 0; $block < 6; $block++) {
+            $startTimestamp = strtotime($todayStart . " +{$block} hours") ?: time();
+            $endTimestamp = strtotime($todayStart . ' +' . (($block + 1) * 4 - 1) . ' hours 59 minutes 59 seconds') ?: time();
+            $todayLabels[] = date('H:00', $startTimestamp);
             
             $hParams = $queryParams;
-            $hParams['start'] = date('Y-m-d H:00:00', strtotime("-{$i} hours"));
-            $hParams['end'] = date('Y-m-d H:59:59', strtotime("-{$i} hours"));
+            $hParams['start'] = date('Y-m-d H:00:00', $startTimestamp);
+            $hParams['end'] = date('Y-m-d H:59:59', $endTimestamp);
             
             $val = $db->fetchColumn(
                 "SELECT COALESCE(SUM(amount), 0) FROM op_transactions 
@@ -378,11 +383,11 @@ final class DashboardController
         // Construct the dashboard object expected by the new UI
         $dashboardData = [
             'total_revenue'   => is_scalar($statsArray['total_revenue'] ?? null) ? (string)$statsArray['total_revenue'] : '0.00',
-            'revenue_trend'   => $revenueTrendPercent . ' vs last month',
+            'revenue_trend'   => $revenueTrendPercent . ' vs previous 30 days',
             'completed_count' => is_scalar($statsArray['completed_count'] ?? null) ? (int)$statsArray['completed_count'] : 0,
             'pending_count'   => is_scalar($statsArray['pending_count'] ?? null) ? (int)$statsArray['pending_count'] : 0,
-            'customer_count'  => is_scalar($statsArray['customer_count'] ?? null) ? (int)$statsArray['customer_count'] : 0,
-            'customer_trend'  => $customerTrendPercent . ' vs last month',
+            'customer_count'  => (int) $statsArray['customer_count'],
+            'customer_trend'  => $customerTrendPercent . ' vs previous 30 days',
             'gateway_message' => 'All Systems Operational',
             'chart_tabs'      => ['Daily', 'Weekly', 'Monthly'],
             'active_tab'      => 'Weekly',

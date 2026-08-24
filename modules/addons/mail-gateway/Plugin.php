@@ -7,13 +7,14 @@ use OwnPay\Container;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
+use OwnPay\Service\Communication\MailProviderInterface;
 
 /**
  * Mail Gateway Addon - SMTP, Mailgun, SendGrid.
  * Hooks into mail.send to dispatch emails.
  * senior-security: Secrets from settings, TLS enforced, no PII in logs.
  */
-final class Plugin implements PluginInterface
+final class Plugin implements PluginInterface, MailProviderInterface
 {
     /** @var array<string, string> */
     private array $settings = [];
@@ -32,7 +33,7 @@ final class Plugin implements PluginInterface
 
     public function capabilities(): array
     {
-        return [Capability::ADDON];
+        return [Capability::COMMUNICATION];
     }
 
     public function register(EventManager $events, Container $container): void
@@ -155,10 +156,7 @@ final class Plugin implements PluginInterface
     }
 
     /**
-     * @param array{to: string, subject: string, template?: string, body?: string, data?: array} $payload
-     */
-    /**
-     * @param array{to: string, subject: string, template?: string, body?: string, data?: array<string, mixed>} $payload
+        * @param array{to: string, subject: string, template?: string, body?: string, html?: string, data?: array<string, mixed>} $payload
      * @return array<string, mixed>
      */
     public function send(array $payload): array
@@ -171,7 +169,7 @@ final class Plugin implements PluginInterface
         $subject = $payload['subject'];
         if ($to === '' || $subject === '') return ['success' => false, 'error' => 'Missing to/subject'];
 
-        $body = $payload['body'] ?? '';
+        $body = $payload['html'] ?? ($payload['body'] ?? '');
         $provider = $this->settings['provider'] ?? 'smtp';
 
         try {
@@ -183,6 +181,11 @@ final class Plugin implements PluginInterface
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    public function slug(): string
+    {
+        return 'mail-gateway';
     }
 
     /** @return array<string, mixed> */

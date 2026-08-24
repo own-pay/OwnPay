@@ -29,7 +29,7 @@
                 <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 19L19 5M19 5v10M19 5H9"/></svg>
                 {{ dashboard.payments_trend_percent }}
             </span>
-            <span class="dash-kpi-context">vs last 30 days</span>
+            <span class="dash-kpi-context">vs previous 30 days</span>
         </div>
     </div>
 
@@ -38,11 +38,11 @@
         <p class="dash-kpi-title">Total Revenue</p>
         <h3 class="dash-kpi-value">{{ dashboard.total_revenue }}</h3>
         <div class="dash-kpi-footer">
-            <span class="dash-trend-down">
-                <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 5L5 19M5 19V9M5 19h10"/></svg>
+            <span class="{{ dashboard.revenue_trend_percent starts with '-' ? 'dash-trend-down' : 'dash-trend-up' }}">
+                <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="{{ dashboard.revenue_trend_percent starts with '-' ? 'M19 5L5 19M5 19V9M5 19h10' : 'M5 19L19 5M19 5v10M19 5H9' }}"/></svg>
                 {{ dashboard.revenue_trend_percent }}
             </span>
-            <span class="dash-kpi-context">vs last 30 days</span>
+            <span class="dash-kpi-context">vs previous 30 days</span>
         </div>
     </div>
 
@@ -51,11 +51,11 @@
         <p class="dash-kpi-title">New Customers</p>
         <h3 class="dash-kpi-value">{{ dashboard.customer_count|number_format }}</h3>
         <div class="dash-kpi-footer">
-            <span class="dash-trend-up">
+            <span class="{{ dashboard.today_trend_percent starts with '-' ? 'dash-trend-down' : 'dash-trend-up' }}">
                 <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 19L19 5M19 5v10M19 5H9"/></svg>
                 {{ dashboard.customer_trend_percent }}
             </span>
-            <span class="dash-kpi-context">vs last 30 days</span>
+            <span class="dash-kpi-context">vs yesterday</span>
         </div>
     </div>
 
@@ -68,7 +68,7 @@
                 <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 19L19 5M19 5v10M19 5H9"/></svg>
                 {{ dashboard.today_trend_percent }}
             </span>
-            <span class="dash-kpi-context">vs last 30 days</span>
+            <span class="dash-kpi-context">vs previous 30 days</span>
         </div>
     </div>
 </div>

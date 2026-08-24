@@ -24,6 +24,7 @@
         <h3>{{ lang.payment_info ?? 'Payment Information' }}</h3>
         <div class="ck-info-list">
             <div><span>{{ lang.transaction_ref ?? 'Reference' }}</span><code>{{ txn.trx_id }}</code></div>
+            <div><span>{{ gateway_name ?? (txn.gateway_slug|default('Gateway')) }} TRX ID</span><code>{{ txn.gateway_trx_id ?? '-' }}</code></div>
             <div><span>{{ lang.amount ?? 'Amount' }}</span><span>{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span></div>
             <div><span>{{ lang.merchant ?? 'Merchant' }}</span><span>{{ brand.name }}</span></div>
         </div>
