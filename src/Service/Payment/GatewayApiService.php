@@ -298,6 +298,7 @@ final class GatewayApiService
                         $feeVal = $transaction['fee'] ?? '0.00';
                         $cur = $transaction['currency'] ?? 'BDT';
                         if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
+                            $this->persistProviderTrxId((int) $txnId, $merchantId, $gwTrxId, $transaction);
                             $this->transactions->complete((int) $txnId, $merchantId, $gwTrxIdStr);
 
                             // Record in ledger
@@ -362,6 +363,34 @@ final class GatewayApiService
             return true;
         }
         return $this->isCompletionEligible($transaction, $gatewaySlug);
+    }
+
+    /**
+     * Persists the gateway-side transaction reference for SMS auto-verification.
+     *
+     * @param int $transactionId The transaction primary key.
+     * @param int $merchantId The merchant/brand scope.
+     * @param mixed $gatewayTrxId The gateway-side reference returned by verification.
+     * @param array<string, mixed> $transaction The locked transaction row.
+     * @return void
+     */
+    private function persistProviderTrxId(int $transactionId, int $merchantId, mixed $gatewayTrxId, array $transaction): void
+    {
+        if (!is_string($gatewayTrxId) || $gatewayTrxId === '') {
+            return;
+        }
+
+        $existing = $transaction['provider_trx_id'] ?? null;
+        if (is_string($existing) && $existing !== '') {
+            return;
+        }
+
+        $db = \OwnPay\Core\Database::getInstance();
+        $db->execute(
+            "UPDATE op_transactions SET provider_trx_id = :ptid
+             WHERE id = :id AND merchant_id = :mid AND (provider_trx_id IS NULL OR provider_trx_id = '')",
+            ['ptid' => $gatewayTrxId, 'id' => $transactionId, 'mid' => $merchantId]
+        );
     }
 
     /**

@@ -89,11 +89,12 @@ final class Authenticator
         $windowValue = $_ENV['LOCKOUT_DURATION'] ?? getenv('LOCKOUT_DURATION');
         $maxAttempts = is_numeric($maxAttemptsValue) ? (int) $maxAttemptsValue : 5;
         $window = is_numeric($windowValue) ? (int) $windowValue : 300;
+        $emailLockRemaining = $attempts->lockoutSecondsRemainingByEmail($email, $window, $maxAttempts * 3);
         $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);
 
-        if ($lockRemaining > 0) {
+        if ($emailLockRemaining > 0 || $lockRemaining > 0) {
             $events->doAction('auth.login.failed', $email, $ip);
-            $minutes = (int) ceil($lockRemaining / 60);
+            $minutes = (int) ceil(max($emailLockRemaining, $lockRemaining) / 60);
             return [
                 'success' => false,
                 'error'   => "Account temporarily locked due to repeated failed attempts. Try again in about {$minutes} minute(s).",
@@ -209,10 +210,14 @@ final class Authenticator
                 $params = session_get_cookie_params();
                 $sessionName = session_name();
                 if (is_string($sessionName)) {
-                    setcookie($sessionName, '', time() - 42000,
-                        $params['path'], $params['domain'],
-                        $params['secure'], $params['httponly']
-                    );
+                    setcookie($sessionName, '', [
+                        'expires'  => time() - 42000,
+                        'path'     => $params['path'],
+                        'domain'   => $params['domain'],
+                        'secure'   => $params['secure'],
+                        'httponly' => $params['httponly'],
+                        'samesite' => $params['samesite'],
+                    ]);
                 }
             }
             session_destroy();

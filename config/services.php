@@ -561,6 +561,10 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Security\FieldEncryptor();
     });
 
+    $c->singleton(\OwnPay\Security\CspNonce::class, static function (): \OwnPay\Security\CspNonce {
+        return new \OwnPay\Security\CspNonce();
+    });
+
     // --- Auth Services
     $c->singleton(\OwnPay\Service\Auth\JwtService::class, static function (): \OwnPay\Service\Auth\JwtService {
         $secret = is_string($s = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET')) ? $s : null;
@@ -645,11 +649,30 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    $c->singleton(\OwnPay\Service\Payment\WebhookService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\WebhookService {
+        return new \OwnPay\Service\Payment\WebhookService(
+            ensureType($c->get(\OwnPay\Repository\WebhookRepository::class), \OwnPay\Repository\WebhookRepository::class),
+            ensureType($c->get(\OwnPay\Repository\CommLogRepository::class), \OwnPay\Repository\CommLogRepository::class),
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Repository\WebhookEventRepository::class), \OwnPay\Repository\WebhookEventRepository::class)
+        );
+    });
+
+    $c->singleton(\OwnPay\Service\Payment\WebhookAutoDispatchListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\WebhookAutoDispatchListener {
+        return new \OwnPay\Service\Payment\WebhookAutoDispatchListener(
+            ensureType($c->get(\OwnPay\Service\Payment\WebhookService::class), \OwnPay\Service\Payment\WebhookService::class)
+        );
+    });
+
     $c->singleton(\OwnPay\Service\Payment\IdempotencyService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\IdempotencyService {
         return new \OwnPay\Service\Payment\IdempotencyService(
             ensureType($c->get(\OwnPay\Repository\IdempotencyRepository::class), \OwnPay\Repository\IdempotencyRepository::class)
         );
     });
+
+    $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
+    $listener = ensureType($c->get(\OwnPay\Service\Payment\WebhookAutoDispatchListener::class), \OwnPay\Service\Payment\WebhookAutoDispatchListener::class);
+    $events->addAction('payment.transaction.completed', [$listener, 'onTransactionCompleted']);
 
 
     $c->singleton(\OwnPay\Service\Payment\PaymentService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentService {
