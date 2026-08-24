@@ -100,5 +100,6 @@ phpunit_output.txt
 # --------------- Misc ---------------
 *.pem
 .phpunit.result.cache
+install.sh
 /update/
 /.superpowers/
