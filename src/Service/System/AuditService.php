@@ -98,7 +98,7 @@ final class AuditService
      *
      * Surfaces "legacy unsigned rows" as a separate category for the
      * integrity-scan UI so the operator can review them before explicitly
-     * signing — instead of scan() silently blessing them.
+     * signing - instead of scan() silently blessing them.
      *
      * @return int Number of rows where signature IS NULL.
      */

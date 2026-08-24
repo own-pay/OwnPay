@@ -1,6 +1,10 @@
 <footer class="op-footer">
     <div class="op-footer-left">
+        {% if footer_text|default('')|trim %}
+        <span>{{ footer_text }}</span>
+        {% else %}
         <span>&copy; {{ "now"|date("Y") }} {{ app_name ?? 'OwnPay' }}. All rights reserved.</span>
+        {% endif %}
     </div>
     <div class="op-footer-right">
         <a href="https://github.com/own-pay/ownpay" target="_blank" rel="noopener" class="op-footer-icon-btn" title="GitHub">

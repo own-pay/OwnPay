@@ -112,7 +112,7 @@ final class ApiKeyController
         // admin-scoped key would let them self-elevate to full admin-api
         // control without their role actually holding the underlying
         // permissions (devices.manage, sms.manage, etc.).
-        // Restrict the 'admin' scope to superadmins only — the same guard that
+        // Restrict the 'admin' scope to superadmins only - the same guard that
         // RolesController::update() applies via $_SESSION['is_superadmin'].
         // Non-superadmins can still mint read/write keys for routine work.
         // See audit finding CUS-5 / issue #198.

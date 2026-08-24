@@ -288,7 +288,7 @@ final class Request
      * only inspects $_POST (because PHP's $_POST parser leaves $_POST empty
      * when the body is not actually form-urlencoded). Empty Content-Type,
      * application/json, application/csp-report, application/reports+json, and
-     * any other non-form content type still parse as before — preserving
+     * any other non-form content type still parse as before - preserving
      * legitimate JSON API requests, CSP violation reports, and existing test
      * fixtures that send a JSON body without setting CONTENT_TYPE.
      *
@@ -467,7 +467,7 @@ final class Request
 
         if ($this->isTrustedProxy($remoteAddr)) {
             // SEC-3: Walk the X-Forwarded-For chain right-to-left and return
-            // the rightmost IP that is NOT a trusted proxy — that is the IP
+            // the rightmost IP that is NOT a trusted proxy - that is the IP
             // set by the last trusted proxy in the chain, i.e. the real
             // client as seen by our trusted edge.
             //
@@ -488,11 +488,11 @@ final class Request
                 for ($i = count($ips) - 1; $i >= 0; $i--) {
                     $candidate = $ips[$i];
                     if (filter_var($candidate, FILTER_VALIDATE_IP) === false) {
-                        // Skip malformed entries — they cannot be the real
+                        // Skip malformed entries - they cannot be the real
                         // client IP and may be injection attempts.
                         continue;
                     }
-                    // Skip trusted-proxy entries in the chain — the real
+                    // Skip trusted-proxy entries in the chain - the real
                     // client is the first non-trusted IP we encounter
                     // walking right-to-left.
                     if ($this->isTrustedProxy($candidate)) {
@@ -506,7 +506,7 @@ final class Request
             }
 
             // Fallback: X-Real-IP (single IP, set by Nginx to the immediate
-            // upstream peer — also trustworthy when REMOTE_ADDR is a trusted
+            // upstream peer - also trustworthy when REMOTE_ADDR is a trusted
             // proxy).
             $realIp = $this->server('HTTP_X_REAL_IP');
             if ($realIp !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
@@ -591,7 +591,8 @@ final class Request
     {
         static $trusted = null;
         if ($trusted === null) {
-            $env = getenv('TRUSTED_PROXIES') ?: '';
+            $envValue = $_ENV['TRUSTED_PROXIES'] ?? getenv('TRUSTED_PROXIES');
+            $env = is_string($envValue) ? $envValue : '';
             $trusted = $env !== '' ? array_map('trim', explode(',', $env)) : [];
         }
 

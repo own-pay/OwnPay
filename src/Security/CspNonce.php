@@ -24,6 +24,11 @@ final class CspNonce
         return $this->nonce;
     }
 
+    /**
+     * String representation for template interpolation.
+     *
+     * @return string
+     */
     public function __toString(): string
     {
         return $this->nonce;

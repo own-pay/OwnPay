@@ -297,7 +297,7 @@ PROMPT;
      * suggestion verbatim, SmsRegexParser::ensureDelimiters() failed to
      * detect it as already-delimited (the leading `(` is not a valid
      * delimiter) and wrapped it as `/(?:Tk\.?|TK)\s*([\d,]+(?:\.\d{1,2})?)u/i`
-     * — turning the `u` into a literal body character and losing the /u
+     * - turning the `u` into a literal body character and losing the /u
      * Unicode modifier. The broken template passed syntax validation but
      * never matched a real SMS.
      *

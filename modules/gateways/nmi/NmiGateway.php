@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class NmiGateway implements PluginInterface, GatewayAdapterInterface
+final class NmiGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -107,6 +108,53 @@ final class NmiGateway implements PluginInterface, GatewayAdapterInterface
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the configured Security Key authenticates against NMI's real Direct Post API
+     * (secure.nmi.com/api/transact.php). Sends `type=validate` with no card data - NMI validates
+     * the security_key first and responds with "Authentication Failed" if it's wrong, or asks for
+     * the (intentionally omitted) card fields if it's right. This never touches a real card.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $securityKey = $this->getString($credentials['security_key'] ?? null);
+        if ($securityKey === '') {
+            return ['success' => false, 'message' => 'Enter the Security Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://secure.nmi.com/api/transact.php');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'security_key' => $securityKey,
+                'type'         => 'validate',
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false || $response === '') {
+            return ['success' => false, 'message' => 'Could not reach NMI - check the server\'s network connectivity.'];
+        }
+
+        parse_str((string) $response, $parsed);
+        $responseText = is_scalar($parsed['responsetext'] ?? null) ? (string) $parsed['responsetext'] : '';
+        $responseCode = is_scalar($parsed['response'] ?? null) ? (string) $parsed['response'] : '';
+
+        if (stripos($responseText, 'Authentication Failed') !== false || $responseCode === '3') {
+            return ['success' => false, 'message' => $responseText !== '' ? $responseText : 'NMI rejected the provided Security Key.'];
+        }
+
+        return ['success' => true, 'message' => 'Connected successfully to NMI.'];
     }
 
     /**

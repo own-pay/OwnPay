@@ -254,12 +254,12 @@ final class PasswordResetServiceTest extends IntegrationTestCase
         $this->tokens->createToken($this->userId, $hash);
         $before = $this->currentHash();
 
-        // First claim wins — simulates the winner of the race.
+        // First claim wins - simulates the winner of the race.
         $first = $this->tokens->claimByHash($hash);
         $this->assertNotNull($first, 'First claim must succeed');
         $this->assertSame($this->userId, (int) $first['user_id']);
 
-        // Second claim loses — token already consumed by the first claim.
+        // Second claim loses - token already consumed by the first claim.
         $second = $this->tokens->claimByHash($hash);
         $this->assertNull($second, 'Second claim must fail (token already consumed)');
 
@@ -273,11 +273,11 @@ final class PasswordResetServiceTest extends IntegrationTestCase
 
     /**
      * Verifies that a failed resetPassword() (e.g. password too short) does
-     * NOT consume the token — the user can retry with the same link using a
+     * NOT consume the token - the user can retry with the same link using a
      * valid password. This is the fail-open guarantee that complements the
      * fail-closed atomic-claim guarantee above.
      *
-     * Credit: Nahid Hasan (responsible disclosure — motivated this contract
+     * Credit: Nahid Hasan (responsible disclosure - motivated this contract
      * being made explicit in the test suite).
      */
     public function testRejectedPasswordDoesNotConsumeToken(): void
@@ -286,13 +286,13 @@ final class PasswordResetServiceTest extends IntegrationTestCase
         $hash = hash('sha256', $token);
         $this->tokens->createToken($this->userId, $hash);
 
-        // Failed attempt — password too short.
+        // Failed attempt - password too short.
         $this->assertFalse($this->service->resetPassword($token, 'short', 'short')['success']);
 
         // Token must still be usable.
         $this->assertSame(1, $this->countValidTokens(), 'token survives a rejected attempt');
 
-        // Now a valid attempt must succeed — proving the token was not consumed.
+        // Now a valid attempt must succeed - proving the token was not consumed.
         $result = $this->service->resetPassword($token, 'ValidNewPass1', 'ValidNewPass1');
         $this->assertTrue($result['success'], 'token remains usable after a rejected attempt');
         $this->assertSame(0, $this->countValidTokens(), 'token consumed by the successful attempt');

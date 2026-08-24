@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Kushki Payment Gateway Adapter.
  */
-final class KushkiGateway implements PluginInterface, GatewayAdapterInterface
+final class KushkiGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -168,6 +169,68 @@ final class KushkiGateway implements PluginInterface, GatewayAdapterInterface
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
+    }
+
+    /**
+     * Verifies the Private Merchant ID authenticates against Kushki's Checkout API. Kushki has
+     * no dedicated read-only account endpoint, so this creates a minimal checkout session (like
+     * initiate() does) - it does not move money, since nothing is charged until a shopper
+     * actually completes the resulting redirect.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $privateId = $this->getString($credentials['private_merchant_id'] ?? '');
+        $publicId = $this->getString($credentials['public_merchant_id'] ?? '');
+        if ($privateId === '' || $publicId === '') {
+            return ['success' => false, 'message' => 'Enter Private Merchant ID and Public Merchant ID before testing the connection.'];
+        }
+
+        $endpoint = $this->getEndpoint($credentials, '/checkout/v1/sessions');
+        $payload = [
+            'amount' => [
+                'subtotalIva'  => 0.00,
+                'subtotalIva0' => 1.00,
+                'iva'          => 0.00,
+                'ice'          => 0.00,
+                'interest'     => 0.00,
+                'currency'     => 'USD',
+            ],
+            'redirectUrl' => 'https://example.com/return',
+        ];
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Failed to initialize the connection test request.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode($payload),
+            CURLOPT_HTTPHEADER     => [
+                'Private-Merchant-Id: ' . $privateId,
+                'Content-Type: application/json',
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Kushki - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Kushki rejected the Private Merchant ID.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        return ['success' => true, 'message' => "Connected successfully to Kushki ({$mode} mode)."];
     }
 
     public function verify(array $callbackData, array $credentials): array

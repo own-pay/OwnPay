@@ -324,7 +324,7 @@ final class WebhookDispatcher
                 /** @phpstan-ignore nullCoalesce.offset */
                 $configuredDelay = self::RETRY_DELAYS[$attempt - 1] ?? 60;
                 // API-2: Actually honor the backoff. The previous implementation
-                // logged "delay=60s" but never slept — all 3 attempts fired in
+                // logged "delay=60s" but never slept - all 3 attempts fired in
                 // rapid succession, defeating the entire purpose of exponential
                 // backoff and giving operators a false sense that backoff was
                 // working.
@@ -333,8 +333,8 @@ final class WebhookDispatcher
                 // HTTP request thread and a proper async retry queue (cron
                 // worker draining op_webhook_events.next_retry_at) is the
                 // long-term fix. To avoid tying up the request thread for the
-                // full configured 60/300/1800s — which would exceed PHP's
-                // max_execution_time on most installs — we cap the synchronous
+                // full configured 60/300/1800s - which would exceed PHP's
+                // max_execution_time on most installs - we cap the synchronous
                 // sleep at self::SYNC_RETRY_CAP seconds. Operators who need the
                 // full backoff schedule should wire the dispatcher to a
                 // background queue (the existing WebhookEventController DLQ

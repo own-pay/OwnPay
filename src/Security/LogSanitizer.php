@@ -129,7 +129,7 @@ final class LogSanitizer
      * This static method is the single source of truth for message-text
      * sanitization and is called by Logger::log(). It does NOT perform
      * strict-mode NID redaction because NID strictness depends on instance
-     * state — callers needing NID redaction use the instance sanitizeString().
+     * state - callers needing NID redaction use the instance sanitizeString().
      *
      * @param string $message The raw log message string.
      * @return string The sanitized log message.

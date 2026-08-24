@@ -381,4 +381,59 @@ describe('admin.js', () => {
       expect(reinjected.getAttribute('nonce')).toBe('TRUSTED_NONCE');
     });
   });
+
+  describe('Modal Focus and Accessibility', () => {
+    beforeEach(() => {
+      document.body.innerHTML = `
+        <button id="trigger-btn" data-open-modal="test-modal">Open Modal</button>
+        <div class="op-modal" id="test-modal" role="dialog" aria-modal="true" hidden>
+          <div class="op-modal-dialog">
+            <button type="button" class="op-modal-close" data-close-modal="test-modal">Close</button>
+            <input type="text" id="modal-input" />
+            <button type="button" id="modal-save">Save</button>
+          </div>
+        </div>
+      `;
+    });
+
+    it('should open modal and capture opener element', () => {
+      const trigger = document.getElementById('trigger-btn');
+      const modal = document.getElementById('test-modal');
+
+      trigger.focus();
+      expect(document.activeElement).toBe(trigger);
+
+      window.openModal('test-modal');
+      expect(modal.hidden).toBe(false);
+      expect(modal._opener).toBe(trigger);
+    });
+
+    it('should restore focus to opener on closeModal', () => {
+      const trigger = document.getElementById('trigger-btn');
+      const modal = document.getElementById('test-modal');
+
+      trigger.focus();
+      window.openModal('test-modal');
+      expect(modal.hidden).toBe(false);
+
+      window.closeModal('test-modal');
+      expect(modal.hidden).toBe(true);
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it('should close topmost modal on Escape key', () => {
+      const trigger = document.getElementById('trigger-btn');
+      const modal = document.getElementById('test-modal');
+
+      trigger.focus();
+      window.openModal('test-modal');
+      expect(modal.hidden).toBe(false);
+
+      const escEvent = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+      document.dispatchEvent(escEvent);
+
+      expect(modal.hidden).toBe(true);
+      expect(document.activeElement).toBe(trigger);
+    });
+  });
 });

@@ -1,489 +1,254 @@
-# OwnPay Feature Reference
+# OwnPay - Complete Feature & Capability Reference
 
-Complete reference of every capability built into OwnPay. For architectural deep-dives, see [ARCHITECTURE.md](ARCHITECTURE.md). For the REST API schema, see [docs.ownpay.org](https://docs.ownpay.org). For guides and tutorials, see [learn.ownpay.org](https://learn.ownpay.org).
+> **The definitive directory of all built-in features, architectural capabilities, and platform mechanics in OwnPay.**
 
----
-
-## 🏆 Flagship — Sovereign White-Label Architecture
-
-> **OwnPay is the first self-hosted payment platform to implement a full white-label, multi-brand, custom-domain checkout architecture on a single installation.**
->
-> No other self-hosted payment gateway does this.
-
-Here is exactly what it means:
-
-- **One server, one installation** — owned by one super-admin.
-- **Multiple brands** — create unlimited stores (brands). Each is a fully isolated entity with its own custom domain, logo, name, color scheme, gateways, customers, ledgers, and staff.
-- **Custom domain per brand** — map `pay.yourbrand.com` to a brand. OwnPay verifies ownership via a DNS TXT record (`_ownpay-verification.{domain}`) and confirms routing via A-record check, then activates the domain.
-- **Invisible infrastructure** — when a customer reaches checkout, they land on `pay.yourbrand.com`. They see the brand's logo, name, and colors. There is no mention of OwnPay, no shared domain, no "powered by" indicator unless the brand explicitly adds one.
-- **Admin panel stays private** — the admin dashboard is only accessible on the master installation domain. Custom brand domains return 404 for all `/admin/*` paths.
-- **Complete data isolation** — every customer record, transaction, ledger entry, gateway credential, and webhook secret is scoped per brand via `merchant_id` in the database. Zero data bleed between brands.
-- **Brand-aware URLs** — all checkout URLs, gateway callback URLs, and webhook endpoints are automatically built using the brand's custom domain via `DomainUrlService`. The installation domain never leaks into customer-facing flows.
-
-**The result:** One server. Multiple brands. Each brand is a complete, independent, fully custom-branded payment gateway — invisible to each other and invisible to OwnPay.
+OwnPay is a self-hosted, sovereign payment orchestration platform engineered in modern PHP 8.3+. It gives merchants complete ownership over their payment checkout pipelines, custom domains, customer data, and accounting ledgers without relying on third-party SaaS middle-tier platforms.
 
 ---
 
-## 1. Multi-Brand Management
+## 📑 Feature Navigation Directory
 
-| Feature | Description |
-|:---|:---|
-| Unlimited brands | Create any number of brands, each with name, slug, email, logo, timezone, and currency |
-| Brand switching | Super-admin switches brand context from a single dashboard |
-| Brand isolation | All data strictly scoped per brand by `merchant_id`; no cross-brand access possible |
-| Per-brand settings | Brand-specific config overrides system defaults (JSON key-value) |
-| Brand deactivation | Suspend a brand without data loss |
-
----
-
-## 2. Custom Domain & White-Label Pipeline
-
-| Feature | Description |
-|:---|:---|
-| Custom domain mapping | Register any domain against a brand in `op_domains` |
-| DNS TXT verification | `_ownpay-verification.{domain}` TXT record proves domain ownership |
-| A-record check | Confirms domain routes to the OwnPay server before activation |
-| Automated DNS re-check | `DnsVerificationJob` cron re-checks pending/broken domains on a schedule |
-| Domain middleware | Every request resolves `HTTP_HOST` against active domains, injects brand context |
-| Admin path blocking | `/admin/*` paths return 404 on all custom brand domains |
-| Brand URL builder | `DomainUrlService` builds all checkout, callback, and redirect URLs using the brand's domain |
-| Domain cache | In-memory cache avoids repeated DB lookups within a request cycle |
+1. [Sovereign White-Label & Custom Domain Engine](#1-sovereign-white-label--custom-domain-engine)
+2. [Multi-Brand / Multi-Store Management](#2-multi-brand--multi-store-management)
+3. [Payment Gateway & Plugin Architecture](#3-payment-gateway--plugin-architecture)
+4. [Checkout Experiences & UI Modules](#4-checkout-experiences--ui-modules)
+5. [Double-Entry Accounting & GAAP Ledger](#5-double-entry-accounting--gaap-ledger)
+6. [Payment Intents & Atomic State Machine](#6-payment-intents--atomic-state-machine)
+7. [Mobile Companion App & SMS Engine](#7-mobile-companion-app--sms-engine)
+8. [Enterprise Security & Cryptography](#8-enterprise-security--cryptography)
+9. [Staff Management & Granular RBAC](#9-staff-management--granular-rbac)
+10. [Developer REST APIs & Webhook Dispatcher](#10-developer-rest-apis--webhook-dispatcher)
+11. [Customer Management & PII Data Lifecycle](#11-customer-management--pii-data-lifecycle)
+12. [Invoicing Engine & Dynamic Line Items](#12-invoicing-engine--dynamic-line-items)
+13. [Multi-Currency & Real-Time Exchange Rates](#13-multi-currency--real-time-exchange-rates)
+14. [Disaster Recovery, Backups & Self-Updater](#14-disaster-recovery-backups--self-updater)
+15. [Internationalization (i18n) & Localization](#15-internationalization-i18n--localization)
+16. [Theme Customization & Brand Styling](#16-theme-customization--brand-styling)
+17. [Background Queue & Rate Limiting Engine](#17-background-queue--rate-limiting-engine)
+18. [Diagnostic Telemetry, Audit Logs & Health Monitoring](#18-diagnostic-telemetry-audit-logs--health-monitoring)
 
 ---
 
-## 3. Brand Theming & Customization
+## 1. Sovereign White-Label & Custom Domain Engine
 
-| Feature | Description |
-|:---|:---|
-| Logo & favicon | Per-brand logo and favicon (uploaded via admin) |
-| Primary & accent colors | Per-brand hex color values applied to the checkout UI |
-| Custom CSS | Inject arbitrary CSS into checkout pages per brand |
-| Custom JavaScript | Inject arbitrary JS into checkout pages per brand |
-| Support email | Per-brand customer-facing support address on checkout pages |
-| Footer text | Custom footer text on all public-facing brand pages |
-| Theme plugins | Install visual theme plugins to replace the default checkout skin per brand |
-| Hierarchical fallback | Brand value → merchant value → system default |
+OwnPay allows a single server installation to host unlimited independent brands, each operating under its own fully isolated custom domain.
 
----
-
-## 4. Payment Gateway System
-
-| Feature | Description |
-|:---|:---|
-| 123 built-in gateways | Covers global cards (Stripe, Adyen, Braintree, Authorize.net, Square, Worldpay, Cybersource, Checkout.com, Shift4, NMI, Moneris), wallets (Apple Pay, Google Pay, Alipay, PayPal), mobile financial services (bKash, Nagad, M-Pesa, MTN MoMo, GCash, Dana, GrabPay, PhonePe), buy-now-pay-later (Klarna), crypto (Coinbase Commerce, BTCPay, Bitpay), regional platforms (Razorpay, Cashfree, CCAvenue, PayU, Flutterwave, Paystack, MyFatoorah, Midtrans, Xendit, Rapyd, dLocal, Mercado Pago, Tap, Toss, Trustly, Przelewy24, Neteller, Skrill, Wise, GoCardless, 2checkout, Amazon Pay, and more) |
-| Plugin-based architecture | Every gateway lives in `modules/gateways/{slug}/`; add providers without touching core |
-| Manual gateways | Custom offline methods (bank transfer, cash, mobile money) with configurable fields |
-| Per-brand activation | Enable different gateways per brand with separate credential sets |
-| Encrypted credentials | Gateway API keys stored AES-256-GCM encrypted at rest |
-| `GatewayAdapterInterface` | Standard contract: `initiate`, `verify`, `verifyWebhook`, `refund`, `supports`, `supportedCurrencies` |
-| `GatewayDefaults` trait | No-op defaults so adapters only implement what they support |
-| Express checkout | Pre-filled quick payment submission |
+| Capability | Technical Mechanism | Benefit |
+| :--- | :--- | :--- |
+| **Custom Domain Mapping** | Resolves `HTTP_HOST` in `DomainMiddleware` against `op_domains` records. | Brand-specific checkout URLs (e.g. `pay.mystore.com`). |
+| **Automated DNS Verification** | Verifies ownership via `_ownpay-verification.{domain}` TXT and A-records. | Prevents domain hijacking and misrouting. |
+| **Dynamic URL Construction** | `DomainUrlService` constructs checkout, webhook, and status URLs dynamically. | Primary server domain is never exposed to customers. |
+| **Private Admin Hardening** | `DomainMiddleware` throws a hard **404 Not Found** for `/admin/*` on custom domains. | Admin dashboard is strictly restricted to master `APP_DOMAIN`. |
+| **Dynamic Frame Ancestors** | Scopes CSP `frame-ancestors` to DNS-verified merchant domains. | Blocks clickjacking while allowing safe embedded checkouts. |
 
 ---
 
-## 5. Payment Processing
+## 2. Multi-Brand / Multi-Store Management
 
-| Feature | Description |
-|:---|:---|
-| Payment intents | Atomic payment requests with a unique token, amount, currency, expiry, and metadata |
-| Intent lifecycle | `pending → processing → completed / failed / cancelled / expired` |
-| Token-based checkout | Checkout URL contains only a secure token; amount and gateway details never exposed in URL |
-| Intent expiry | Cron auto-marks stale intents as expired and fires hooks |
-| Multi-currency checkout | Customer can pay in any enabled currency |
-| Auto currency conversion | If a gateway supports only specific currencies, the intent amount is converted automatically |
-| Conversion audit trail | Original amount, converted amount, and exchange rate logged on the transaction record |
-| Status polling | `GET /checkout/{token}/status` AJAX endpoint for real-time status updates |
-| Manual verification | SMS or offline gateway transactions verified manually by admin |
+OwnPay is a **single-owner, multi-brand platform** (NOT a public SaaS). One super-administrator manages multiple internal stores with zero cross-brand data leakage.
+
+| Capability | Technical Mechanism | Benefit |
+| :--- | :--- | :--- |
+| **Tenant Scoping** | `TenantScope` repository trait scopes all database CRUD operations via `merchant_id`. | Mathematical isolation across brands in a shared database. |
+| **The "All Brands" Platform Scope** | Reserved `is_platform = 1` merchant row (`__platform__`) resolved via `BrandContext::getPlatformId()`. | Clean ownership for platform-wide API keys and global ledger accounts. |
+| **Single-Click Brand Switcher** | Super-admins switch active brand contexts seamlessly from the admin header. | Manage multiple distinct business entities from a single pane of glass. |
+| **Per-Brand Configuration** | Scoped settings in `op_system_settings` with fallback to platform defaults. | Brand-level currency, timezone, logo, and fee overrides. |
 
 ---
 
-## 6. Transaction Management
+## 3. Payment Gateway & Plugin Architecture
 
-| Feature | Description |
-|:---|:---|
-| Immutable transaction record | Every payment creates a permanent record with OwnPay trx_id, gateway trx_id, amounts, fees, and status |
-| 13 statuses | `pending`, `created`, `processing`, `callback_processing`, `completed`, `failed`, `cancelled`, `expired`, `refunded`, `disputed`, `awaiting_verification`, `pending_review` |
-| Admin status override | Super-admin can manually adjust transaction status with full audit trail |
-| Transaction filters | Filter by status, gateway, date range, amount, customer |
-| CSV export | Export filtered transaction sets for accounting |
-| Fee tracking | `amount`, `fee`, and `net_amount` all stored separately per transaction |
+Modular, sandboxed plugin system hosting 123+ payment providers and unlimited custom manual gateways.
 
----
-
-## 7. Refunds
-
-| Feature | Description |
-|:---|:---|
-| Partial refunds | Issue any amount up to the original transaction value |
-| Full refunds | One-click full refund routed to the original gateway |
-| Refund lifecycle | `pending → completed / failed` |
-| Gateway routing | Refund sent to the same gateway that processed the original payment |
-| Refund reconciliation | `RefundReconciliationJob` cron syncs refund status from gateway APIs |
-| Audit trail | Reason, actor, and timestamps stored per refund |
-| Ledger posting | Refund auto-posted as balanced debit/credit in the double-entry ledger |
+| Capability | Technical Mechanism | Benefit |
+| :--- | :--- | :--- |
+| **123+ Built-In Gateways** | Global cards (Stripe, Adyen, Braintree, Square, Checkout.com), wallets (Apple Pay, Google Pay, PayPal), mobile money (bKash, Nagad, M-Pesa), crypto (Coinbase, BTCPay), and regional gateways. | Accept payments globally with zero code changes. |
+| **Manual / Offline Gateways** | Dynamic forms in `op_manual_gateways` (Bank Transfer, Cash, Agent Cash-in). | Collect manual payments with customizable proof-of-payment fields. |
+| **`GatewayAdapterInterface`** | Standard contract: `initiate()`, `verify()`, `verifyWebhook()`, `refund()`. | Rapid development of new custom gateway adapters. |
+| **Plugin Sandbox Verification** | AST token parser (`PluginSandbox`) blocks `eval`, `shell_exec`, backticks, and direct SQL. | Protects the host server from malicious or vulnerable plugins. |
+| **AES-256-GCM Credential Vault** | Gateway API keys and secrets stored encrypted at rest via `FieldEncryptor`. | Full compliance with PCI-DSS storage requirements. |
 
 ---
 
-## 8. Invoicing
+## 4. Checkout Experiences & UI Modules
 
-| Feature | Description |
-|:---|:---|
-| Numbered invoices | Line-item invoices (description, quantity, unit price) with auto-calculated subtotal, tax, discount, and total |
-| Customer linking | Optional customer reference on each invoice |
-| Invoice checkout | Customer pays via public URL at `/invoice/{token}` |
-| Status tracking | `draft → sent → paid / overdue / cancelled` |
-| Due date & notes | Configurable due date, internal notes, and unique invoice number per merchant |
+Conversion-optimized, mobile-first checkout screens designed to wow customers and maximize payment completion.
 
----
-
-## 9. Payment Links
-
-| Feature | Description |
-|:---|:---|
-| Reusable shareable links | Create URLs for recurring or product payments |
-| Custom slug | Memorable URL path (e.g., `/pay/annual-subscription`) |
-| Fixed or variable amount | Set exact amount or let customer choose within min/max bounds |
-| Custom fields | Collect name, email, account ID, or any data before payment |
-| Usage limits | Cap total accepted payments (link auto-expires after N uses) |
-| Expiration date | Optional date after which the link no longer accepts payment |
-| Per-link redirect | Custom success and cancellation redirect URLs per link |
+| Capability | Technical Mechanism | Benefit |
+| :--- | :--- | :--- |
+| **Hosted Checkout** | `/checkout/intent/{token}` standalone, branded checkout screen. | Frictionless payments with instant gateway selection. |
+| **Popup / Modal Checkout** | Embeddable JavaScript modal (`admin.js` / `checkout.js`). | Seamless payment flow without navigating away from the merchant store. |
+| **Sharable Payment Links** | Single-use or multi-use payment links (`op_payment_links`) with usage caps. | Collect payments via social media, chat, or direct messaging. |
+| **WCAG 2.2 Accessibility** | Full ARIA dialog semantics, focus capture, focus restoration, and keyboard traps. | Fully compliant and accessible for all users and assistive devices. |
+| **Mobile Zoom & Ergonomics** | Minimum 40px touch targets and full user pinch-to-zoom support (WCAG 1.4.4). | Flawless user experience across iOS and Android devices. |
 
 ---
 
-## 10. Customer Management
+## 5. Double-Entry Accounting & GAAP Ledger
 
-| Feature | Description |
-|:---|:---|
-| Customer records | UUID, encrypted name, email, phone, metadata |
-| PII encryption | Customer fields encrypted AES-256-GCM at rest; email and phone stored as hash for lookup |
-| Brand isolation | Each customer belongs to exactly one brand; no cross-brand access |
-| Customer history | View all transactions, invoices, and payment links for a customer |
-| REST API access | Create, fetch, and list customers via the Merchant API |
-| Deduplication | Email/phone hash prevents creating duplicate customer records |
+Bank-grade financial bookkeeping guaranteeing that every single cent is mathematically accounted for.
 
----
-
-## 11. Double-Entry Ledger & Accounting
-
-| Feature | Description |
-|:---|:---|
-| GAAP double-entry | Every financial event posts balanced debit/credit pairs |
-| Standard directionality | Assets & Expenses debit (+); Liabilities, Equity & Revenue credit (+) |
-| Account types | Asset, Liability, Equity, Revenue, Expense |
-| Multi-currency accounts | Separate ledger accounts per currency per brand |
-| Automatic posting | Payments, refunds, and fees auto-posted on completion |
-| Trial balance | Verify total debits equal total credits at any point |
-| Ledger history | Query all entries per account with date-range filters |
-| Balance verification | `BalanceVerificationJob` cron cross-checks ledger vs gateway balances |
-| bcmath precision | All monetary math uses bcmath strings — never floats |
+| Capability | Technical Mechanism | Benefit |
+| :--- | :--- | :--- |
+| **Triple-Table Architecture** | Segregated `op_ledger_accounts`, `op_ledger_transactions`, `op_ledger_entries`. | Pure immutable ledger without overwriting balances. |
+| **Debit === Credit Invariant** | Checked with BCMath (`bccomp()`) at 4-decimal precision on decimal strings. | Zero floating-point rounding errors and zero unbalanced books. |
+| **GAAP Directionality** | Standard asset, liability, equity, expense, and revenue direction rules. | Direct compatibility with enterprise ERP and accounting standards. |
+| **Transaction Mutex Locking** | `SELECT ... FOR UPDATE` row locks on `(merchant_id, reference_type, reference_id, description)`. | Completely eliminates double-posting on webhook retries. |
+| **Automated Fee Proration** | Refunds calculate and reverse exact collected platform fee ratios. | Accurate fee reversals during partial or full refunds. |
 
 ---
 
-## 12. Fee Rules
+## 6. Payment Intents & Atomic State Machine
 
-| Feature | Description |
-|:---|:---|
-| Flat fees | Fixed amount per transaction |
-| Percentage fees | Percentage of transaction value |
-| Tiered fees | Different rates per amount bracket |
-| Min/max caps | Set a minimum or maximum fee amount |
-| Scoping | Per brand, per gateway, or system-wide fallback |
-| Automatic application | `FeeService` applies rules during payment before ledger posting |
+Deterministic state transitions preventing payment race conditions and double charges.
 
----
-
-## 13. Currency & Exchange Rates
-
-| Feature | Description |
-|:---|:---|
-| 180+ currencies | Enable/disable world currencies per brand |
-| Exchange rate table | `op_exchange_rates`: base, target, rate, source, updated_at |
-| Manual rate entry | Admin sets rates manually |
-| Auto-sync | `CurrencyUpdateJob` fetches live rates on a schedule |
+| State | Transition Trigger | Verification Rule |
+| :--- | :--- | :--- |
+| **`pending`** | Initial payment request created. | Generates cryptographically unique 32-byte intent token. |
+| **`processing`** | Customer redirects to selected gateway. | Locks intent to specific gateway adapter slug. |
+| **`completed`** | Gateway confirms payment via webhook/return. | Verified via signature/checksum and books double-entry ledger entry. |
+| **`failed`** | Gateway rejects payment. | Logs error reason and permits customer retry. |
+| **`expired`** | Intent exceeds configured TTL window. | Automatically marked expired by background cron job. |
+| **`refunded`** | Full or partial refund approved. | Reverses ledger balance and updates invoice status. |
 
 ---
 
-## 14. Webhooks
+## 7. Mobile Companion App & SMS Engine
 
-| Feature | Description |
-|:---|:---|
-| Merchant webhook endpoints | Register URLs to receive real-time payment events |
-| Event subscriptions | Subscribe each webhook endpoint to specific event types |
-| HMAC-SHA256 signing | Each delivery signed with merchant's secret; receiver validates |
-| Delivery tracking | Status, response code, duration, and error per delivery attempt |
-| Retry with backoff | Failed webhooks retried with exponential backoff by `WebhookRetryJob` |
-| Dead letter queue | Permanently failed webhooks queued for manual replay |
-| Manual replay | Admin can replay any failed webhook delivery |
-| Inbound deduplication | Gateway callbacks deduplicated by payload hash (idempotent processing) |
-| Unified inbound handler | Single `POST /webhook/{gateway}` endpoint handles all 123 gateway callbacks |
+Autonomous offline payment settlement via companion Android application and regex SMS parser.
+
+| Capability | Technical Mechanism | Benefit |
+| :--- | :--- | :--- |
+| **Hardware-Pinned Pairing** | Cryptographic 6-digit OTP pairing with rate limits and UUID binding. | Secure mobile companion synchronization. |
+| **Two-Tier JWT Auth** | 1-day `typ=access` and 30-day `typ=refresh` tokens with device binding. | Safe mobile communication without storing raw passwords. |
+| **Autonomous SMS Parsing** | Regex pattern engine (`SmsParserService`) extracts amount, TrxID, and sender. | Automatic match and settlement of P2P mobile money transfers. |
+| **Duplicate Deduplication** | Content fingerprinting and ±1s timestamp matching. | Rejects duplicate carrier SMS notifications instantly. |
 
 ---
 
-## 15. Disputes & Chargebacks
+## 8. Enterprise Security & Cryptography
 
-| Feature | Description |
-|:---|:---|
-| Dispute lifecycle | `open → under_review → won / lost → closed` |
-| Evidence upload | Attach documents and screenshots as dispute evidence |
-| Resolution tracking | Who resolved it, when, and the outcome |
-| Transaction link | Every dispute tied to the originating transaction |
-| Ledger adjustment | Financial impact posted on resolution |
+Defense-in-depth system hardening meeting ISO-27001 and PCI-DSS static coding standards.
 
----
-
-## 16. Audit & Compliance
-
-| Feature | Description |
-|:---|:---|
-| Immutable audit log | Every action logged with actor, entity, old/new values, IP, and timestamp |
-| Cryptographic signing | Each log entry signed to detect post-creation tampering |
-| Integrity scanner | Admin can run a scan to detect any modified log entries |
-| Activity tracking | Login/logout history, permission changes, config updates |
-| PII masking | Emails and phone numbers masked in all log output |
+| Control | Implementation | Protection |
+| :--- | :--- | :--- |
+| **PII Encryption** | AES-256-GCM authenticated encryption (`FieldEncryptor.php`). | Protects customer phone numbers, addresses, and API credentials. |
+| **Password Hashing** | Argon2id with automatic memory/time cost upgrades (`Authenticator.php`). | Resistance to GPU-based password cracking. |
+| **Atomic Password Resets** | Single-transaction atomic consumption with SHA-256 token hashing. | Closes TOCTOU race conditions and revokes active API keys. |
+| **Container Immutability** | Individual service locking followed by global `$container->freeze()`. | Blocks runtime service hijacking or malicious plugin injection. |
+| **Replay-Proof Webhooks** | 300-second timestamp freshness window + SHA-256 body hash nonce caching. | Eliminates webhook replay attacks. |
+| **Tamper-Evident Audit Trail** | HMAC-SHA256 forward hash chains (`prev_hash`) in `op_audit_logs`. | Immediate detection if an attacker alters or deletes audit rows. |
 
 ---
 
-## 17. Authentication & Access Control
+## 9. Staff Management & Granular RBAC
 
-| Feature | Description |
-|:---|:---|
-| Email/password login | Standard credential-based admin login |
-| Configurable login slug | Admin login URL slug configurable for obscurity |
-| Two-factor authentication | TOTP (RFC 6238) via authenticator app; per-staff enable/disable |
-| Password reset | Token-based email link for forgotten passwords |
-| Login attempt tracking | Failed logins logged per IP for rate-limiting and audits |
-| Session management | Sessions in `op_sessions` with IP, user ID, last-activity |
-| Bearer API keys | Scoped keys (read / write / admin) with last-used tracking and revocation |
-| JWT (mobile) | JSON Web Tokens issued after device pairing, with refresh support |
-| RBAC | Custom roles per brand with granular permission assignment |
-| Staff management | Create staff with role assignment per brand; suspend/activate accounts |
-| IP allowlist | Optional IP-based access restriction for admin routes |
+Role-based access control allowing super-administrators to delegate brand management safely.
+
+| Capability | Technical Mechanism |
+| :--- | :--- |
+| **Granular Roles** | Custom roles stored in `op_roles` with fine-grained permission assignments (`op_role_permissions`). |
+| **Brand Assignment** | Staff members are assigned to specific `merchant_id` contexts; blocked from unauthorized brands. |
+| **Method Upgrading** | `PermissionMiddleware` automatically upgrades required permission from `.view` to `.manage` on state-changing HTTP verbs (`POST`, `PUT`, `PATCH`, `DELETE`). |
+| **Cross-Brand Session Guard** | Resets session active brand to home brand if a staff user attempts cross-brand URL traversal. |
 
 ---
 
-## 18. Mobile Companion App API
+## 10. Developer REST APIs & Webhook Dispatcher
 
-| Feature | Description |
-|:---|:---|
-| OTP device pairing | Admin generates OTP; device exchanges it for JWT + AES session key |
-| Multiple devices | Staff can pair phone and tablet simultaneously |
-| Device management | View, revoke, or bulk-revoke paired devices from admin |
-| Heartbeat | Devices send periodic heartbeat; server tracks online/offline status |
-| Mobile dashboard | Today's revenue, pending transactions, recent payment summary |
-| Push notifications | Server pushes `transaction.completed`, `refund.issued`, `dispute.filed` events to devices |
-| Notification acknowledgement | Device marks notifications read; server tracks unread count |
-| Token refresh | JWT refresh endpoint extends sessions without re-pairing |
-| SMS privacy filter | Config rules tell the app which SMS senders/keywords to ignore |
+Developer-first API suite allowing seamless integration with any website, app, or backend service.
 
----
-
-## 19. SMS-Based Payment Verification
-
-| Feature | Description |
-|:---|:---|
-| Mobile SMS forwarding | Paired mobile device forwards incoming SMS to `POST /api/mobile/v1/sms` |
-| Regex parser | Per-gateway regex template extracts amount, sender, and trx ID from SMS body |
-| Heuristic parser | Fallback AI-pattern parser when regex doesn't match |
-| Smart analyzer | Combines regex + heuristic with confidence scoring |
-| Transaction matching | Parsed SMS auto-linked to pending transaction by amount and timestamp |
-| Payment confirmation | Matched SMS marks the pending manual gateway payment as complete |
-| SMS log | `op_sms_data` stores all parsed SMS with match status |
-| SMS template editor | Admin UI to create, test, and manage per-gateway regex templates |
-| Regex tester | Test a regex pattern against a sample SMS body without processing a real payment |
+| Endpoint Group | Functionality |
+| :--- | :--- |
+| **Payment Intents API** | `POST /api/v1/payment-intents` (create, retrieve, cancel payment intents). |
+| **Transactions API** | `GET /api/v1/transactions` (query, filter, and paginate transaction history). |
+| **Invoices API** | `POST /api/v1/invoices` (create, update, send, and void customer invoices). |
+| **Refunds API** | `POST /api/v1/refunds` (process partial and full refunds with ledger proration). |
+| **Webhook Delivery** | Asynchronous HMAC-SHA256 signed event delivery (`payment.completed`, `refund.created`, etc.). |
+| **Developer Console** | Admin testing tool to generate signatures, test payloads, and inspect logs. |
 
 ---
 
-## 20. Plugin System
+## 11. Customer Management & PII Data Lifecycle
 
-| Feature | Description |
-|:---|:---|
-| Plugin types | Gateway, Theme, Addon |
-| Manifest-based discovery | Each plugin declares metadata, capabilities, and hooks in `manifest.json` |
-| Static code audit | Source scanned for dangerous calls (`exec`, `shell_exec`, `eval`, `passthru`, raw PDO) before loading |
-| Sandboxed execution | Plugin runtime isolated; exceptions caught and logged without crashing the system |
-| Manual installation | Admin uploads ZIP; system extracts, validates, and installs |
-| Per-brand activation | Enable plugins globally or only for specific brands |
-| Plugin migrations | Plugins can include database migrations run on install |
-| Settings UI | Each plugin registers its own settings page under `/admin/plugins/{slug}/settings` |
-| Hook integration | Plugins register `doAction` / `applyFilter` callbacks via manifest |
-| Uninstall with cleanup | Removes plugin files, data, and migrations on uninstall |
+Full customer relationship records scoped per brand with encrypted personal data.
+
+- **Customer Profiles**: Name, email, phone, billing address, and transaction summary.
+- **Payment History**: Real-time aggregation of lifetime value, successful payments, and refunds.
+- **PII Lifecycle Protection**: Customer data fields are encrypted at rest; exports sanitize sensitive information.
 
 ---
 
-## 21. Event Hook System
+## 12. Invoicing Engine & Dynamic Line Items
 
-| Feature | Description |
-|:---|:---|
-| Actions (`doAction`) | Fire events; plugins and addons listen and react |
-| Filters (`applyFilter`) | Transform values in-flight (e.g., modify payment amount, alter checkout output) |
-| Built-in events | `system.boot`, `system.shutdown`, `payment.intent.created`, `payment.intent.expired`, `payment.completed`, `payment.failed`, `refund.created`, `dispute.created`, `customer.created`, `domain.mapped`, `domain.verified`, `domain.removed` |
-| Plugin registration | Hooks declared in plugin manifest or registered programmatically |
+Built-in professional invoice generator and payment collection system.
 
-Full hook reference: [learn.ownpay.org/hooks-reference](https://learn.ownpay.org/hooks-reference)
+- **Dynamic Line Items**: Dynamic subtotal, tax, discount, and grand total calculations via BCMath.
+- **Hosted Invoice Views**: Direct customer view (`/invoice/{uuid}`) with instant payment buttons.
+- **PDF Generation & Email**: Transactional email dispatch with branded HTML summaries.
 
 ---
 
-## 22. Scheduled Jobs (Cron)
+## 13. Multi-Currency & Real-Time Exchange Rates
 
-| Job | Purpose |
-|:---|:---|
-| `WebhookRetryJob` | Retry failed outbound webhook deliveries with exponential backoff |
-| `QueueWorkerJob` | Process background job queue (emails, exports, bulk operations) |
-| `BalanceVerificationJob` | Cross-check ledger balances against gateway-reported balances |
-| `CurrencyUpdateJob` | Fetch and update live exchange rates |
-| `SmsVerificationJob` | Process pending SMS verifications for manual gateways |
-| `RefundReconciliationJob` | Sync refund status from gateway APIs |
-| `DnsVerificationJob` | Re-check DNS records for pending custom domains |
-| `UpdateCheckJob` | Poll for new OwnPay releases |
-| `SystemUpdateJob` | Auto-apply update if configured |
+Native global currency engine with dynamic exchange rate conversions.
 
-Triggered by `GET /cron/{secret}`. Individual jobs can also be run manually from the admin settings panel.
+- **ISO-4217 Currency Support**: 160+ world currencies with configurable decimal places.
+- **Dynamic Exchange Rate Sync**: Automated background cron updating exchange rates via live feeds.
+- **Transparent Conversion Audit**: Logs original currency, conversion rate, and settled currency on transaction records.
 
 ---
 
-## 23. Background Job Queue
+## 14. Disaster Recovery, Backups & Self-Updater
 
-| Feature | Description |
-|:---|:---|
-| Async processing | Push long-running tasks to queue (emails, exports, webhook sends) |
-| Storage backends | File-based (default) or Redis |
-| Retry with backoff | Configurable max attempts with exponential delay between retries |
-| Scheduled jobs | Set `available_at` to delay job execution |
-| Error logging | Exceptions logged per attempt without dropping the job |
+Zero-downtime maintenance, automated backup generators, and signed system self-updaters.
+
+- **Single-Click Backups**: Compresses database DDL/data and configuration into encrypted zip archives.
+- **Cryptographically Signed Updates**: Self-updater validates packages against OwnPay official public RSA keys.
+- **Instant Maintenance Mode**: Emits standard HTTP 503 responses with `Retry-After` headers and bypass allowances.
 
 ---
 
-## 24. Internationalization (i18n)
+## 15. Internationalization (i18n) & Localization
 
-| Feature | Description |
-|:---|:---|
-| Full admin panel i18n | Every admin UI string is translatable |
-| Full checkout i18n | Customer-facing checkout pages fully translatable |
-| Dot-notation keys | Flat JSON format (`menu.dashboard`, `common.actions.save`) |
-| Placeholder support | Dynamic values via `:name`, `:amount` syntax |
-| Per-staff language | Staff set their own language preference |
-| System default language | Admin sets the fallback language for all sessions |
-| Translation import | Upload flat or nested JSON file; system auto-flattens nested keys |
-| Translation editor | Inline admin UI to edit strings key-by-key |
-| Filesystem cache | Compiled to `storage/languages/{code}.json` for fast loads |
-| English fallback | Missing keys fall back to `config/languages/en.json` |
+Complete translation engine supporting multi-lingual admin panels and checkout screens.
+
+- **Dynamic Translation Editor**: Manage language strings directly from the admin panel.
+- **Fallback Hierarchy**: Custom brand translation -> Language pack -> English system default.
+- **RTL & Unicode Ready**: Full UTF-8 support for Arabic, Bengali, Cyrillic, and Asian scripts.
 
 ---
 
-## 25. Security
+## 16. Theme Customization & Brand Styling
 
-| Feature | Description |
-|:---|:---|
-| AES-256-GCM encryption | Customer PII and gateway credentials encrypted at rest |
-| Argon2id passwords | Staff and admin passwords hashed with Argon2id |
-| bcrypt fallback | Legacy bcrypt support for upgrade compatibility |
-| CSRF protection | Per-session CSRF tokens; all POST/PUT/DELETE require a valid token |
-| Content Security Policy | Per-request nonce; strict policy blocks unauthorized inline scripts |
-| HSTS | HTTP Strict Transport Security header enforced |
-| X-Frame-Options | `DENY` — prevents clickjacking |
-| X-Content-Type-Options | `nosniff` — prevents MIME sniffing |
-| Referrer-Policy | Limits referrer information leakage |
-| SSRF protection | `UrlValidator` resolves and pins webhook URLs to validated public IPs; redirect-following blocked |
-| Rate limiting | Per-route, per-IP sliding window; 429 with `Retry-After` header |
-| Login throttling | Strict bucket for login, password reset, and OTP endpoints |
-| Hash-based PII search | Email/phone stored as hash; lookups never require decryption |
-| Log sanitization | `LogSanitizer` strips passwords, tokens, and card data from all log output |
-| SQL injection prevention | Prepared statements with parameter binding throughout |
-| XSS prevention | Twig autoescaping always on; `|raw` only on trusted content |
+Complete visual control over checkout screens and public pages.
+
+- **CSS Design Tokens**: Centralized variables for colors, border radius, typography, and shadows.
+- **Per-Brand Custom CSS / JS**: Inject custom styles or analytics tags per brand.
+- **Theme Plugins**: Drop-in theme packages in `modules/themes/` extending default Twig templates.
 
 ---
 
-## 26. Self-Update Engine
+## 17. Background Queue & Rate Limiting Engine
 
-| Feature | Description |
-|:---|:---|
-| Version tracking | Current version in config; `op_update_history` logs all applied updates |
-| Update manifest | Polls update server for available release metadata |
-| Pre-update backup | Automatic database + file backup before applying any update |
-| SHA-256 + RSA verification | Download verified by checksum and RSA signature before extraction |
-| Zip-slip guard | Extraction blocks path traversal attacks in release archives |
-| Schema migrations | DB changes in the release applied automatically |
-| Rollback | Restores from backup if verification fails |
-| Maintenance mode | System enters maintenance during update; exits automatically on success |
-| Manual + auto modes | Admin triggers manually or enables auto-update via cron |
+High-performance task queue and sliding-window protection.
+
+- **Redis & File-Based Queues**: Robust job dispatching with automatic retries and dead-letter handling.
+- **Sliding-Window Rate Limiter**: IP and route-specific limits protecting auth endpoints from brute-force attacks.
+- **Fail-Closed Security**: Rate limiter fails closed on state-changing requests if Redis/DB is unavailable.
 
 ---
 
-## 27. System Settings
+## 18. Diagnostic Telemetry, Audit Logs & Health Monitoring
 
-| Category | Settings |
-|:---|:---|
-| General | App name, timezone, base currency, maintenance mode |
-| Branding | Logo, favicon, company name, footer text, support email |
-| Theme | Primary color, accent color, custom CSS, custom JS |
-| Mail | SMTP driver, host, port, from address, reply-to, templates |
-| SMS | SMS provider, sender ID |
-| Payment | Default gateway, payment timeout, fee defaults |
-| Developer | API rate limits, webhook limits, test key generation |
-| Language | Default language, translation management |
-| Cache | Clear all caches |
-| Database | Optimize tables |
-| Logs | Archive and clean old logs |
+Comprehensive developer tools and observability infrastructure.
+
+- **System Health Monitor**: Real-time diagnostics checking PHP extensions, permissions, database, and Redis.
+- **Tamper-Evident Audit Viewer**: Interactive audit trail viewer highlighting integrity status in real time.
+- **Balance Verification Tool**: Real-time reconciliation comparing transaction sums against ledger balances.
 
 ---
 
-## 28. Developer Tools
+## 💡 Summary
 
-| Feature | Description |
-|:---|:---|
-| Developer hub | Admin UI at `/admin/developer` for API and webhook tooling |
-| Webhook tester | Send test payloads to merchant webhook endpoints from admin |
-| API key management | Generate, list, and revoke API keys |
-| Rate limit display | View current API rate limit configuration |
-| Webhook delivery logs | Inspect delivery attempts, response codes, and errors |
-| Health check endpoint | `GET /api/v1/health` — confirms database, cache, and queue status |
-| CSP violation reporting | Collect and log Content Security Policy violations |
-| Custom login slug | Set admin login URL to any custom slug |
-
----
-
-## 29. Installation
-
-| Feature | Description |
-|:---|:---|
-| Web-based installer | Multi-step `/install` wizard — no CLI or SSH required |
-| Database connection test | Tests connection before importing schema |
-| Schema import | Creates all 48 tables automatically |
-| Admin account creation | Creates super-admin during install |
-| Key generation | Generates `APP_KEY`, `ENCRYPTION_KEY`, and `JWT_SECRET` |
-| Install lock | Writes `storage/.installed` to prevent re-running the wizard |
-| Shared hosting support | No SSH or Composer required — `vendor/` bundled in release archives |
-
----
-
-## 30. REST API Surface
-
-Three independent API layers, each with distinct authentication:
-
-| Layer | Prefix | Auth |
-|:---|:---|:---|
-| Merchant API | `/api/v1/*` | Bearer API key (read / write scopes) |
-| Mobile Companion API | `/api/mobile/v1/*` | JWT (after device pairing) |
-| Admin API | `/api/admin/v1/*` | Bearer API key (admin scope) |
-
-Full API schema and request/response examples: **[docs.ownpay.org](https://docs.ownpay.org)**
-
----
-
-## Platform at a Glance
-
-| Metric | Value |
-|:---|:---|
-| Built-in payment gateways | 123 |
-| Database tables | 48 |
-| REST API endpoints | 37+ |
-| Web routes | 120+ |
-| Scheduled jobs | 9 |
-| Middleware components | 16 |
-| Supported currencies | 180+ |
-| PHP required | 8.3+ |
-| License | AGPL-3.0 |
-
----
-
-*For contribution guidelines, see [CONTRIBUTING.md](../CONTRIBUTING.md). For security reporting, see [SECURITY.md](../SECURITY.md). For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).*
+OwnPay combines the flexibility of an open-source self-hosted tool with the architectural rigor, financial integrity, and security standards of a multi-million-dollar fintech platform.

@@ -14,12 +14,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.0",
     "eslint-plugin-jsonc": "^3.4.1",
     "globals": "^17.9.0",
     "jsdom": "^30.0.1",
     "stylelint": "^17.14.1",
     "stylelint-config-standard": "^40.0.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

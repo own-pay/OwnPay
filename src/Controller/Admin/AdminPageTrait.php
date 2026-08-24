@@ -85,6 +85,7 @@ trait AdminPageTrait
                 $data['settings_logo']  = $sr->get('branding', 'site_logo', '');
                 $data['site_favicon']   = $sr->get('branding', 'site_favicon', '');
                 $data['site_title']     = $sr->get('branding', 'admin_panel_title', $appName);
+                $data['footer_text']    = $sr->get('general', 'footer_text', '');
             }
         }
 
@@ -121,39 +122,52 @@ trait AdminPageTrait
             }
         }
 
-        // Resolve documentation URL based on active page or route
-        //
-        // * TODO: Need to proparly map admin routes to documentation URLs in a single place.
-        // * the https://learn.ownpay.org guide website is also not proparly documented.
-        // * TODO: Need to fix the documentation website.
-        // * Check https://github.com/own-pay/OwnPay-Documentation
-        //
-        $activePage = $data['active_page'] ?? '';
+        // Contextual Documentation URL Mapping:
+        // Maps the active administrative view or feature domain to its corresponding
+        // section in the official OwnPay Documentation (https://ownpay.org/docs).
+        // If an unmapped page is accessed, gracefully falls back to the documentation index.
+        $activePage = is_string($data['active_page'] ?? null) ? (string) $data['active_page'] : '';
         $docMap = [
-            'dashboard'         => 'dashboard',
-            'transactions'      => 'payments',
-            'refunds'           => 'refunds',
-            'invoices'          => 'invoices',
-            'payment_links'     => 'payment-links',
-            'disputes'          => 'disputes',
-            'customers'         => 'customers',
-            'gateways'          => 'gateways',
-            'staff'             => 'staff',
-            'brands'            => 'brands',
-            'settings'          => 'settings',
-            'api_keys'          => 'api-keys',
-            'sms_center'        => 'sms',
-            'sms-data'          => 'sms',
-            'devices'           => 'devices',
-            'plugins'           => 'plugins',
-            'themes'            => 'themes',
-            'reports'           => 'reports',
-            'activities'        => 'audit',
-            'audit_log'         => 'audit',
-            'my_account'        => 'account',
+            'dashboard'            => 'dashboard',
+            'transactions'         => 'payments',
+            'payment-intents'      => 'payments',
+            'refunds'              => 'refunds',
+            'invoices'             => 'invoices',
+            'payment_links'        => 'payment-links',
+            'payment-links'        => 'payment-links',
+            'disputes'             => 'disputes',
+            'customers'            => 'customers',
+            'gateways'             => 'gateways',
+            'fee-rules'            => 'gateways',
+            'staff'                => 'staff',
+            'roles'                => 'roles',
+            'brands'               => 'brands',
+            'domains'              => 'domains',
+            'settings'             => 'settings',
+            'developer'            => 'developers',
+            'api_keys'             => 'api-keys',
+            'api-keys'             => 'api-keys',
+            'webhooks'             => 'webhooks',
+            'webhook_events'       => 'webhooks',
+            'gateway_webhooks'     => 'webhooks',
+            'sms_center'           => 'sms',
+            'sms-center'           => 'sms',
+            'sms-data'             => 'sms',
+            'devices'              => 'devices',
+            'push-logs'            => 'devices',
+            'plugins'              => 'plugins',
+            'themes'               => 'themes',
+            'appearance'           => 'themes',
+            'reports'              => 'reports',
+            'ledger'               => 'reports',
+            'activities'           => 'audit',
+            'audit_log'            => 'audit',
+            'my_account'           => 'account',
+            'profile'              => 'account',
+            'system-update'        => 'system',
         ];
-        $docPath = $docMap[is_string($activePage) ? $activePage : ''] ?? '';
-        $data['doc_url'] = 'https://learn.ownpay.org/user-guide' . ($docPath !== '' ? '/' . $docPath : '');
+        $docPath = $docMap[$activePage] ?? '';
+        $data['doc_url'] = 'https://ownpay.org/docs' . ($docPath !== '' ? '/' . $docPath : '');
 
         $registry = $c->has('admin.renderer_registry') ? $c->get('admin.renderer_registry') : null;
         if (!$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
@@ -289,6 +303,10 @@ trait AdminPageTrait
 
         // 3. Map & Combine
         $notifs = [];
+        $userId = $this->session->userId() ?? 0;
+        $readScope = 'admin_notifications_read_at_' . $userId . '_' . ($merchantId ?? 'all');
+        $readAtValue = $this->session->get($readScope, 0);
+        $readAt = is_numeric($readAtValue) ? (int) $readAtValue : 0;
         foreach ($txs as $tx) {
             $createdAt = is_string($tx['created_at'] ?? null) ? $tx['created_at'] : '';
             $status = is_scalar($tx['status'] ?? null) ? (string)$tx['status'] : 'pending';
@@ -306,7 +324,7 @@ trait AdminPageTrait
                     'title' => 'Payment Received',
                     'message' => $currency . ' ' . $amount . ' from ' . $sender . ' via ' . $gw,
                     'time' => $this->formatRelativeTime($relativeTime),
-                    'read' => false,
+                    'read' => strtotime($createdAt) <= $readAt,
                     'icon' => 'payment',
                     'timestamp' => strtotime($createdAt),
                 ];
@@ -317,7 +335,7 @@ trait AdminPageTrait
                     'title' => 'Payment Failed',
                     'message' => $currency . ' ' . $amount . ' from ' . $sender . ' via ' . $gw . ' failed',
                     'time' => $this->formatRelativeTime($relativeTime),
-                    'read' => false,
+                    'read' => strtotime($createdAt) <= $readAt,
                     'icon' => 'failed',
                     'timestamp' => strtotime($createdAt),
                 ];
@@ -337,7 +355,7 @@ trait AdminPageTrait
                 'title' => 'Dispute Opened',
                 'message' => 'Dispute opened: ' . $reason . ' (' . $amount . ')',
                 'time' => $this->formatRelativeTime($relativeTime),
-                'read' => false,
+                'read' => strtotime($createdAt) <= $readAt,
                 'icon' => 'dispute',
                 'timestamp' => strtotime($createdAt),
             ];

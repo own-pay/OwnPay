@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class Shift4Gateway implements PluginInterface, GatewayAdapterInterface
+final class Shift4Gateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -295,6 +296,46 @@ final class Shift4Gateway implements PluginInterface, GatewayAdapterInterface
                 }
             }
         }
+    }
+
+    /**
+     * Verifies the configured API Secret Key authenticates against Shift4's real API (basic-auth
+     * with the key as username), without moving money - this module's own initiate()/verify()
+     * don't send any auth header at all (see class docblock, those are simulation-only).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter an API Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.shift4.com/charges?limit=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $apiKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Shift4 - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $mode = str_starts_with($apiKey, 'sk_live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Shift4 ({$mode} mode)."];
+        }
+
+        $error = is_array($data) ? $this->getArray($data, 'error') : [];
+        $errMsg = is_scalar($error['message'] ?? null) ? (string) $error['message'] : 'Shift4 rejected the provided API Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

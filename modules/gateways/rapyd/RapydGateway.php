@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class RapydGateway implements PluginInterface, GatewayAdapterInterface
+final class RapydGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -295,6 +296,61 @@ final class RapydGateway implements PluginInterface, GatewayAdapterInterface
                 }
             }
         }
+    }
+
+    /**
+     * Verifies the configured Access Key/Secret Key authenticate against Rapyd's real signed API
+     * (this module's own initiate()/verify() don't implement Rapyd's actual HMAC signing scheme -
+     * see class docblock, those are simulation-only), without creating any payment. Uses Rapyd's
+     * documented request-signing algorithm against a lightweight, read-only customers list.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $accessKey = $this->getString($credentials['access_key'] ?? '');
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($accessKey === '' || $secretKey === '') {
+            return ['success' => false, 'message' => 'Enter a Rapyd Access Key and Secret Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? 'https://api.rapyd.net' : 'https://sandboxapi.rapyd.net';
+        $urlPath = '/v1/customers';
+        $salt = bin2hex(random_bytes(6));
+        $timestamp = (string) time();
+        $toSign = 'get' . $urlPath . $salt . $timestamp . $accessKey . $secretKey;
+        $signature = base64_encode(hash_hmac('sha256', $toSign, $secretKey));
+
+        $ch = curl_init($baseUrl . $urlPath);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'access_key: ' . $accessKey,
+                'salt: ' . $salt,
+                'timestamp: ' . $timestamp,
+                'signature: ' . $signature,
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Rapyd - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data)) {
+            return ['success' => true, 'message' => "Connected successfully to Rapyd ({$mode} mode)."];
+        }
+
+        $status = is_array($data) ? $this->getArray($data, 'status') : [];
+        $errMsg = is_scalar($status['message'] ?? null) ? (string) $status['message'] : 'Rapyd rejected the provided Access Key/Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

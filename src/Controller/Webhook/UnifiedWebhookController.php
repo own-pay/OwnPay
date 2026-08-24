@@ -86,7 +86,7 @@ final class UnifiedWebhookController
         // implementation wrapped the signature check in
         //   if ($this->c->has(GatewayBridge::class)) { ... if ($bridge instanceof ...) { ... } }
         // which silently skipped verification when the bridge was missing or
-        // misregistered — a single configuration error disabled webhook
+        // misregistered - a single configuration error disabled webhook
         // authentication entirely. We now require the bridge to be resolvable
         // and to actually be a GatewayBridge instance; anything else is a
         // deployment/configuration failure that must not be allowed to fail
@@ -196,29 +196,90 @@ final class UnifiedWebhookController
     }
 
     /**
-     * Extracts a transaction reference from the raw webhook body, checking the same common
-     * field names used across the codebase's other gateway-agnostic reference lookups
-     * (see resolveMerchantFromPayload() and GatewayApiService::handleCallback()).
+     * Extracts every candidate transaction/session reference from a webhook body.
+     *
+     * Checks two shapes:
+     * - Flat top-level fields, used by most gateways (bKash, SSLCommerz-style IPNs, etc.):
+     *   trx_id, tran_id, order_id, reference, merchant_order_id, invoice_id, client_reference_id.
+     * - Stripe's nested event shape, where nothing relevant is ever at the top level - everything
+     *   lives under `data.object` (docs.stripe.com/api/events/object). StripeGateway::initiate()
+     *   sets `metadata[trx_id]` on the Checkout Session, so `data.object.metadata.trx_id` is the
+     *   reliable match; `data.object.client_reference_id` and `data.object.id` (the session/
+     *   payment-intent id, matching our stored gateway_trx_id/gateway_session_id) are included as
+     *   fallbacks for events where metadata isn't echoed back the same way.
+     *
+     * Without the nested lookup, every Stripe webhook fails merchant resolution and signature
+     * verification never even runs - Stripe's payload structurally never matches the flat-only list.
+     *
+     * @param array<int|string, mixed> $data Decoded webhook body (JSON-decoded, or parse_str() fallback).
+     * @return array<int, string> Ordered list of non-empty candidate reference strings to try.
+     */
+    private function extractReferenceCandidates(array $data): array
+    {
+        $candidates = [];
+
+        $flatFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id', 'invoice_id', 'client_reference_id'];
+        foreach ($flatFields as $field) {
+            $val = $data[$field] ?? null;
+            if (is_scalar($val) && (string) $val !== '') {
+                $candidates[] = (string) $val;
+            }
+        }
+
+        $object = $data['data'] ?? null;
+        $object = is_array($object) ? ($object['object'] ?? null) : null;
+        if (is_array($object)) {
+            $metadata = $object['metadata'] ?? null;
+            $metaTrxId = is_array($metadata) ? ($metadata['trx_id'] ?? null) : null;
+            if (is_scalar($metaTrxId) && (string) $metaTrxId !== '') {
+                $candidates[] = (string) $metaTrxId;
+            }
+            $objClientRef = $object['client_reference_id'] ?? null;
+            if (is_scalar($objClientRef) && (string) $objClientRef !== '') {
+                $candidates[] = (string) $objClientRef;
+            }
+            $objId = $object['id'] ?? null;
+            if (is_scalar($objId) && (string) $objId !== '') {
+                $candidates[] = (string) $objId;
+            }
+            // Stripe charge/dispute/refund events nest the PaymentIntent id one level down
+            // instead of at object.id (e.g. charge.updated -> data.object.payment_intent).
+            // We store the PaymentIntent id as gateway_trx_id, so this is often the only match.
+            $objPaymentIntent = $object['payment_intent'] ?? null;
+            if (is_scalar($objPaymentIntent) && (string) $objPaymentIntent !== '') {
+                $candidates[] = (string) $objPaymentIntent;
+            }
+        }
+
+        return $candidates;
+    }
+
+    /**
+     * Decodes a raw webhook body (JSON, falling back to form-encoded) into an array.
+     *
+     * @param string $rawBody The raw request body.
+     * @return array<int|string, mixed> Decoded payload, or [] if neither format parses.
+     */
+    private function decodeWebhookBody(string $rawBody): array
+    {
+        $data = json_decode($rawBody, true);
+        if (is_array($data)) {
+            return $data;
+        }
+        parse_str($rawBody, $data);
+        return $data;
+    }
+
+    /**
+     * Extracts a transaction reference from the raw webhook body.
      *
      * @param string $rawBody The raw (JSON or form-encoded) webhook request body.
      * @return string The first recognized reference value found, or '' if none.
      */
     private function extractTrxRef(string $rawBody): string
     {
-        $data = json_decode($rawBody, true);
-        if (!is_array($data)) {
-            parse_str($rawBody, $data);
-        }
-
-        $refFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id', 'invoice_id', 'client_reference_id'];
-        foreach ($refFields as $field) {
-            $val = $data[$field] ?? null;
-            if (is_scalar($val) && (string) $val !== '') {
-                return (string) $val;
-            }
-        }
-
-        return '';
+        $candidates = $this->extractReferenceCandidates($this->decodeWebhookBody($rawBody));
+        return $candidates[0] ?? '';
     }
 
     /**
@@ -230,34 +291,26 @@ final class UnifiedWebhookController
     private function resolveMerchantFromPayload(Request $req): int
     {
         $body = $req->rawBody() ?? '';
-        $data = json_decode($body, true);
+        $data = $this->decodeWebhookBody($body);
+        $candidates = $this->extractReferenceCandidates($data);
 
-        if (!is_array($data)) {
-            parse_str($body, $data);
+        if ($candidates === []) {
+            return 0;
         }
 
-        // Common field names for transaction references across gateways
-        // TODO: Add more common fields.
-        $refFields = ['order_id', 'tran_id', 'invoice_id', 'reference', 'merchant_order_id', 'client_reference_id'];
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return 0;
+        }
 
-        foreach ($refFields as $field) {
-            if (!empty($data[$field])) {
-                $ref = $data[$field];
-                if (!is_scalar($ref)) {
-                    continue;
-                }
-                $refStr = (string) $ref;
-                $db = $this->c->get(\OwnPay\Core\Database::class);
-                if ($db instanceof \OwnPay\Core\Database) {
-                    // Correct column name is 'trx_id', not 'transaction_id'
-                    $txn = $db->fetchOne(
-                        "SELECT merchant_id FROM op_transactions WHERE trx_id = :ref OR gateway_trx_id = :ref2 LIMIT 1",
-                        ['ref' => $refStr, 'ref2' => $refStr]
-                    );
-                    if (is_array($txn) && isset($txn['merchant_id']) && is_numeric($txn['merchant_id'])) {
-                        return (int) $txn['merchant_id'];
-                    }
-                }
+        foreach ($candidates as $refStr) {
+            // Correct column name is 'trx_id', not 'transaction_id'
+            $txn = $db->fetchOne(
+                "SELECT merchant_id FROM op_transactions WHERE trx_id = :ref OR gateway_trx_id = :ref2 LIMIT 1",
+                ['ref' => $refStr, 'ref2' => $refStr]
+            );
+            if (is_array($txn) && isset($txn['merchant_id']) && is_numeric($txn['merchant_id'])) {
+                return (int) $txn['merchant_id'];
             }
         }
 

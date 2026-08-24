@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class PaytraceGateway implements PluginInterface, GatewayAdapterInterface
+final class PaytraceGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -295,6 +296,57 @@ final class PaytraceGateway implements PluginInterface, GatewayAdapterInterface
                 }
             }
         }
+    }
+
+    /**
+     * Verifies the configured username/password authenticate against PayTrace's real OAuth token
+     * endpoint (PayTrace's actual API uses OAuth2 password-grant, unlike this module's own
+     * initiate()/verify(), which don't send any auth header at all - see class docblock, those
+     * are simulation-only pending a real implementation).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $username = $this->getString($credentials['username'] ?? '');
+        $password = $this->getString($credentials['password'] ?? '');
+        if ($username === '' || $password === '') {
+            return ['success' => false, 'message' => 'Enter a Username and Password before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? 'https://api.paytrace.com' : 'https://api.sandbox.paytrace.com';
+
+        $ch = curl_init($baseUrl . '/oauth/token');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'grant_type' => 'password',
+                'username'   => $username,
+                'password'   => $password,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach PayTrace - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data) && is_scalar($data['access_token'] ?? null) && (string) $data['access_token'] !== '') {
+            return ['success' => true, 'message' => "Connected successfully to PayTrace ({$mode} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['error_description'] ?? null)
+            ? (string) $data['error_description']
+            : 'PayTrace rejected the provided Username/Password.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

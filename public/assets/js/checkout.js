@@ -71,7 +71,7 @@
         // Previously the script carried the page's CSP nonce, which gave
         // brand admins (or anyone who compromised a brand admin account)
         // same-origin JavaScript execution on every customer checkout page
-        // for that brand — including pages where customers enter card
+        // for that brand - including pages where customers enter card
         // numbers, OTPs, and MFS PINs. Such a script could exfiltrate form
         // fields, redirect to phishing pages, or modify the payment amount
         // before submission.
@@ -114,7 +114,7 @@
         if (storedExpiry) {
             expiryTimestamp = Number(storedExpiry);
         } else {
-            // First visit — use server-calculated remaining, store expiry
+            // First visit - use server-calculated remaining, store expiry
             expiryTimestamp = Date.now() + serverRemaining * 1000;
             if (serverRemaining > 0) {
                 localStorage.setItem(storageKey, String(expiryTimestamp));
@@ -660,6 +660,10 @@
         } else if (action === "go-tab") {
             window.goT(target.getAttribute("data-tab-name"));
         } else if (action === "pick-gw") {
+            if (target.getAttribute("data-disabled") === "1") {
+                showCheckoutError(target.getAttribute("data-reason") || "This gateway isn't available for this amount.");
+                return;
+            }
             window.pickGW(
                 target,
                 target.getAttribute("data-tab"),

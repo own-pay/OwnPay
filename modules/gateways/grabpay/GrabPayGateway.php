@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\GrabPay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * GrabPay Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class GrabPayGateway implements PluginInterface, GatewayAdapterInterface
+final class GrabPayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -108,6 +109,58 @@ final class GrabPayGateway implements PluginInterface, GatewayAdapterInterface
             'gateway_trx_id' => $grabTxID,
             'status'         => $grabTxID !== '' ? 'completed' : 'failed',
         ];
+    }
+
+    /**
+     * Verifies the Client ID/Client Secret authenticate against GrabID's OAuth2 token endpoint
+     * via a client_credentials grant - mints an access token, doesn't charge anything.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? null);
+        $clientSecret = $this->getString($credentials['client_secret'] ?? null);
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter the Client ID and Client Secret before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $endpoint = $mode === 'live'
+            ? 'https://api.grab.com/grabid/v1/oauth2/token'
+            : 'https://partner.stg-myteksi.com/grabid/v1/oauth2/token';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'client_id'     => $clientId,
+                'client_secret' => $clientSecret,
+                'grant_type'    => 'client_credentials',
+                'scope'         => 'grabpay.partner_api',
+            ]),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach GrabPay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data) && isset($data['access_token'])) {
+            return ['success' => true, 'message' => 'Connected successfully to GrabPay (' . ($mode === 'live' ? 'live' : 'sandbox') . ' mode).'];
+        }
+        $errMsg = is_array($data) && is_scalar($data['error_description'] ?? null) ? (string) $data['error_description'] : 'GrabPay rejected the provided Client ID/Client Secret.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

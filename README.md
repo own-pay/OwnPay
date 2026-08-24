@@ -14,10 +14,14 @@
 
 <br />
 
+<a href="https://www.producthunt.com/products/ownpay?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ownpay" target="_blank" rel="noopener noreferrer"><img alt="OwnPay - Self-hosted, open-source payment gateway software | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1223841&amp;theme=light&amp;t=1786871746374"></a>
+
 [![Release](https://img.shields.io/badge/Public%20Beta-v0.2.0-22C55E?style=for-the-badge&logo=rocket&logoColor=white)](https://github.com/own-pay/OwnPay/releases/latest)
 [![License](https://img.shields.io/badge/License-AGPL%20v3.0-3B82F6?style=for-the-badge)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](CONTRIBUTING.md)
+
+[![Codacy Security Scan](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml/badge.svg?branch=main)](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml) [![CI](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml) [![CodeQL](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql) [![ESLint](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml) [![Semgrep](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml)
 
 [![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
 [![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=flat-square&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;

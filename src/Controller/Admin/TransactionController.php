@@ -11,9 +11,11 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\TransactionRepository;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\AuditLogRepository;
+use OwnPay\Repository\RefundRepository;
 use OwnPay\Service\System\PaginationService;
 use OwnPay\Service\System\AuditService;
 use OwnPay\Event\EventManager;
+use OwnPay\Support\DateHelper;
 
 /**
  * Controller for managing payment transactions within the admin portal.
@@ -58,6 +60,16 @@ final class TransactionController
     private AuditService $audit;
 
     /**
+     * The database wrapper.
+     */
+    private \OwnPay\Core\Database $db;
+
+    /**
+     * The refund repository.
+     */
+    private RefundRepository $refunds;
+
+    /**
      * TransactionController constructor.
      *
      * @param Container $c The dependency injection container.
@@ -67,6 +79,7 @@ final class TransactionController
      * @param AuditLogRepository $auditRepo The audit log repository.
      * @param EventManager $events The event manager instance.
      * @param AuditService $audit The audit service instance.
+     * @param RefundRepository $refunds The refund repository.
      */
     public function __construct(
         Container $c,
@@ -75,7 +88,9 @@ final class TransactionController
         SmsParsedRepository $smsRepo,
         AuditLogRepository $auditRepo,
         EventManager $events,
-        AuditService $audit
+        AuditService $audit,
+        \OwnPay\Core\Database $db,
+        RefundRepository $refunds
     ) {
         $this->c         = $c;
         $this->session   = $session;
@@ -84,6 +99,8 @@ final class TransactionController
         $this->auditRepo = $auditRepo;
         $this->events    = $events;
         $this->audit     = $audit;
+        $this->db        = $db;
+        $this->refunds   = $refunds;
     }
 
     /**
@@ -213,38 +230,37 @@ final class TransactionController
         }
 
         $smsData  = $this->smsRepo->listForTransaction($id);
-        // (REPO-7) Scope the audit log lookup by the record's own merchant_id
-        // so the repository method's merchant_id filter is always exercised
-        // from this call path. $recordMid was resolved above to the record's
-        // own brand (or falls back to the active merchant in normal view).
-        $auditLog = $this->auditRepo->listForEntity('transaction', $id, $recordMid);
+        $auditLog = $this->auditRepo->listForEntity('transaction', $id);
+        $refundsRepo = $isGlobal ? $this->refunds->forAllTenants() : $this->refunds->forTenant($recordMid);
+        $refunds  = $refundsRepo->listFiltered(['transaction_id' => $id], 50, 0);
+
+        // Same accounting RefundService::create() itself enforces (pending + completed count
+        // against the limit) - shown here so the admin sees the real remaining refundable amount
+        // rather than the transaction's full original amount once a prior refund exists.
+        $totalRefundedRaw = $refundsRepo->getTotalRefundedAmount($id, $recordMid);
+        $totalRefunded = is_numeric($totalRefundedRaw) ? $totalRefundedRaw : '0.00';
+        $txnAmountVal = $txn['amount'] ?? '0.00';
+        $txnAmountStr = is_scalar($txnAmountVal) && is_numeric((string) $txnAmountVal) ? (string) $txnAmountVal : '0.00';
+        /** @var numeric-string $totalRefunded */
+        /** @var numeric-string $txnAmountStr */
+        $remainingRefundable = bcsub($txnAmountStr, $totalRefunded, 2);
+        if (bccomp($remainingRefundable, '0.00', 2) < 0) {
+            $remainingRefundable = '0.00';
+        }
 
         return $this->renderAdminPage('admin/transactions/edit.twig', [
-            'txn'         => $txn,
-            'sms_data'    => $smsData,
-            'audit_log'   => $auditLog,
+            'txn'                  => $txn,
+            'sms_data'             => $smsData,
+            'audit_log'            => $auditLog,
+            'refunds'              => $refunds,
+            'total_refunded'       => $totalRefunded,
+            'remaining_refundable' => $remainingRefundable,
             'active_page' => 'transactions',
         ]);
     }
 
     /**
-     * Update status of a transaction (e.g. mark completed, cancel) and post double-entry ledger lines.
-     *
-     * Refunds are intentionally NOT handled here. The refund flow must go through
-     * `RefundController::store` → `RefundService::create`, which enforces:
-     *   - SELECT ... FOR UPDATE on the transaction row
-     *   - Sum of prior refunds cannot exceed the original amount
-     *   - Merchant payable ledger balance is sufficient net of pending refunds
-     *   - Gateway refund API is invoked
-     *   - Transaction status flips to 'refunded' only when the total refunded
-     *     equals the original amount (not on any partial refund)
-     *
-     * The previous implementation accepted `status=refunded` here and posted a
-     * full-amount refund ledger entry unconditionally, bypassing every one of
-     * the guards above. Among other things, this allowed over-refund (because
-     * the SUM(amount) cap was never checked) and posted ledger entries even
-     * when partial refunds already existed, permanently unbalancing the books.
-     * See audit finding PAY-1 / issue #173 for the full impact analysis.
+     * Update status of a transaction (e.g. mark completed, refund, cancel) and post double-entry ledger lines.
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP redirect response.
@@ -257,8 +273,8 @@ final class TransactionController
         $mid = $this->resolveMerchant($req);
 
         $newStatus = $req->post('status', '');
-        if (!in_array($newStatus, ['completed', 'canceled'], true)) {
-            $this->session->flashError('Invalid status. Refunds must be processed via the refund form.');
+        if (!in_array($newStatus, ['completed', 'canceled', 'refunded'], true)) {
+            $this->session->flashError('Invalid status');
             return Response::redirect("/admin/transactions/{$id}");
         }
 
@@ -278,15 +294,18 @@ final class TransactionController
         }
 
         // State machine enforcement: terminal transactions must not be
-        // re-completed or cancelled, otherwise ledger entries get posted for
-        // money that never moved (e.g. "completing" an already-refunded payment).
-        // $newStatus is already narrowed to 'completed'|'canceled' by the
-        // whitelist guard above, so only the terminal-state check remains.
+        // re-completed or cancelled, and only completed transactions may be
+        // marked refunded - otherwise ledger entries get posted for money
+        // that never moved (e.g. "refunding" a failed payment).
         $currentStatus = isset($txn['status']) && is_scalar($txn['status']) ? (string) $txn['status'] : '';
         $terminalStatuses = array_map(static fn(TransactionStatus $s) => $s->value, TransactionStatus::terminal());
 
-        if (in_array($currentStatus, $terminalStatuses, true)) {
+        if (in_array($newStatus, ['completed', 'canceled'], true) && in_array($currentStatus, $terminalStatuses, true)) {
             $this->session->flashError("Cannot mark a {$currentStatus} transaction as {$newStatus}");
+            return Response::redirect("/admin/transactions/{$id}");
+        }
+        if ($newStatus === 'refunded' && $currentStatus !== 'completed') {
+            $this->session->flashError('Only completed transactions can be marked refunded');
             return Response::redirect("/admin/transactions/{$id}");
         }
 
@@ -317,6 +336,42 @@ final class TransactionController
                     is_string($currencyVal) ? $currencyVal : 'BDT'
                 );
             }
+        } elseif ($newStatus === 'refunded') {
+            $this->txns->forTenant($mid)->updateScoped($id, ['status' => 'refunded', 'updated_at' => DateHelper::now()]);
+            $amountVal = $txn['amount'] ?? '0.00';
+            $currencyVal = $txn['currency'] ?? 'BDT';
+            $amount = is_string($amountVal) ? $amountVal : '0.00';
+
+            // Find or create a refund record in op_refunds to get a unique refund ID for the ledger
+            $refundRepo = $this->db->fetchOne(
+                "SELECT id FROM op_refunds WHERE transaction_id = :txid AND merchant_id = :mid AND amount = :amt LIMIT 1",
+                ['txid' => $id, 'mid' => $mid, 'amt' => $amount]
+            );
+
+            if ($refundRepo !== null && isset($refundRepo['id'])) {
+                $idVal = $refundRepo['id'];
+                $refundId = is_scalar($idVal) ? (int) $idVal : 0;
+                $this->db->execute(
+                    "UPDATE op_refunds SET status = 'completed', processed_at = NOW() WHERE id = :id",
+                    ['id' => $refundId]
+                );
+            } else {
+                $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+                $this->db->execute(
+                    "INSERT INTO op_refunds (merchant_id, transaction_id, uuid, amount, reason, status, processed_at)
+                     VALUES (:mid, :txid, :uuid, :amt, 'Refund processed by administrator', 'completed', NOW())",
+                    ['mid' => $mid, 'txid' => $id, 'uuid' => $uuid, 'amt' => $amount]
+                );
+                $refundId = (int) $this->db->lastInsertId();
+            }
+
+            $ledgerService->recordRefund(
+                $mid,
+                $refundId,
+                $id,
+                $amount,
+                is_string($currencyVal) ? $currencyVal : 'BDT'
+            );
         } elseif ($newStatus === 'canceled') {
             $transactionService->cancel($id, $mid);
         }

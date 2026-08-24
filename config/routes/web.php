@@ -195,6 +195,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/settings', 'Admin\\SettingsController@index', 'admin');
     $router->get('/admin/settings/{tab}', 'Admin\\SettingsController@tab', 'admin');
     $router->post('/admin/settings/save', 'Admin\\SettingsController@save', 'admin');
+    $router->post('/admin/notifications/mark-all-read', 'Admin\\SettingsController@markNotificationsRead', 'admin');
+    $router->post('/admin/settings/email/test', 'Admin\\SettingsController@testEmail', 'admin');
     $router->post('/admin/settings/upload', 'Admin\\SettingsController@upload', 'admin');
     $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
     $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
@@ -309,6 +311,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/plugins/{slug}/restore', 'Admin\\PluginController@restore', 'admin');
     $router->get('/admin/plugins/{slug}/settings', 'Admin\\PluginController@settings', 'admin');
     $router->post('/admin/plugins/{slug}/settings', 'Admin\\PluginController@saveSettings', 'admin');
+    $router->post('/admin/plugins/{slug}/test-connection', 'Admin\\PluginController@testConnection', 'admin');
 
     $router->get('/admin/themes', 'Admin\\ThemeController@index', 'admin');
     $router->get('/admin/themes/install', 'Admin\\ThemeController@installForm', 'admin');
@@ -333,7 +336,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // ─── Cron endpoint ─────────────────────────────────────────
     // CRON-2: Removed the GET /cron/{secret} route. URL paths are recorded
     // verbatim in web server access logs, proxy/CDN logs, browser history,
-    // and can leak via the Referer header — exposing the shared cron secret
+    // and can leak via the Referer header - exposing the shared cron secret
     // to any party with read access to those logs. All cron triggers must
     // now use POST /cron with the secret in the X-Cron-Secret header or
     // Authorization: Bearer header (both already supported by the controller).

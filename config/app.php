@@ -18,21 +18,17 @@ declare(strict_types=1);
  */
 return [
     // Identity parameters
-    'name'    => 'OwnPay',
+    'name' => ($_ENV['APP_NAME'] ?? getenv('APP_NAME')) ?: 'OwnPay',
     'version' => \OwnPay\Support\Version::CURRENT,
     'codename'=> 'Genesis',
 
     // Environment settings
-    'env'   => getenv('APP_ENV') ?: 'production',
-    'debug' => filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN),
-
-    // Canonical application URL (server-side configured; never trust HTTP Host header).
-    // Used for security-critical response headers (e.g. Report-To) where a spoofed
-    // Host header must NOT redirect client browser reports to an attacker's domain.
-    'url'   => getenv('APP_URL') ?: '',
+    'env'   => ($_ENV['APP_ENV'] ?? getenv('APP_ENV')) ?: 'production',
+    'debug' => filter_var(($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG')) ?: 'false', FILTER_VALIDATE_BOOLEAN),
+    'url'   => ($_ENV['APP_URL'] ?? getenv('APP_URL')) ?: '',
 
     // System-wide timezone configuration
-    'timezone' => getenv('APP_TIMEZONE') ?: 'Asia/Dhaka',
+    'timezone' => ($_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE')) ?: 'Asia/Dhaka',
 
     // Relative system directory structures
     'paths' => [
@@ -94,6 +90,6 @@ return [
     ],
 
     // Engine drivers
-    'cache_driver' => getenv('CACHE_DRIVER') ?: 'file',
-    'queue_driver' => getenv('QUEUE_DRIVER') ?: 'file',
+    'cache_driver' => ($_ENV['CACHE_DRIVER'] ?? getenv('CACHE_DRIVER')) ?: 'file',
+    'queue_driver' => ($_ENV['QUEUE_DRIVER'] ?? getenv('QUEUE_DRIVER')) ?: 'file',
 ];

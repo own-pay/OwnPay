@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Payu;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * PayU India payment gateway adapter implementing the secure hosted checkout redirection.
  */
-final class PayuGateway implements PluginInterface, GatewayAdapterInterface
+final class PayuGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -219,5 +220,62 @@ final class PayuGateway implements PluginInterface, GatewayAdapterInterface
     public function supportedCurrencies(): array
     {
         return ['INR'];
+    }
+
+    /**
+     * Verifies the configured Merchant Key/Salt authenticate against PayU's real merchant
+     * postservice API (verify_payment command), without creating any payment. A bad key/salt is
+     * rejected with an auth error; valid credentials return a normal "transaction not found" for
+     * the nonexistent txnid queried here.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $key = $this->getString($credentials['merchant_key'] ?? '');
+        $salt = $this->getString($credentials['salt'] ?? '');
+        if ($key === '' || $salt === '') {
+            return ['success' => false, 'message' => 'Enter a Merchant Key and Merchant Salt before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? 'https://info.payu.in' : 'https://test.payu.in';
+        $txnid = 'OWNPAY-CONNECTION-TEST';
+        $hash = strtolower(hash('sha512', "{$key}|verify_payment|{$txnid}|{$salt}"));
+
+        $ch = curl_init($baseUrl . '/merchant/postservice?form=2');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'key'     => $key,
+                'command' => 'verify_payment',
+                'var1'    => $txnid,
+                'hash'    => $hash,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach PayU - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'message' => 'PayU returned an invalid response.'];
+        }
+
+        $status = $data['status'] ?? null;
+        // status: 1 = request accepted and processed (even if the txnid itself wasn't found) -
+        // meaning the key/hash authenticated. status 0 with an auth-related message means rejected.
+        if (is_scalar($status) && (int) $status === 1) {
+            return ['success' => true, 'message' => "Connected successfully to PayU ({$mode} mode)."];
+        }
+
+        $msg = is_scalar($data['msg'] ?? null) ? (string) $data['msg'] : 'PayU rejected the provided Merchant Key/Salt.';
+        return ['success' => false, 'message' => $msg];
     }
 }

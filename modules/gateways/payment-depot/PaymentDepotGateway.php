@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class PaymentDepotGateway implements PluginInterface, GatewayAdapterInterface
+final class PaymentDepotGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -107,6 +108,50 @@ final class PaymentDepotGateway implements PluginInterface, GatewayAdapterInterf
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the configured API Key authenticates against Payment Depot's API by attempting a
+     * lookup with a dummy reference - reuses the same endpoint/auth style as initiate()/verify().
+     * A structured API response (even a "not found") confirms the endpoint accepted the request;
+     * a network failure or auth-rejection status does not.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Payment Depot API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $endpoint = ($mode === 'live' ? 'https://depot.fattmerchant.com' : 'https://sandbox.fattmerchant.com') . '/api/transactions/connection-test';
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $apiKey,
+                'User-Agent: OwnPay Gateway Client/1.0.0',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Payment Depot - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Payment Depot rejected the provided API Key.'];
+        }
+        return ['success' => true, 'message' => "Reached Payment Depot's API and credentials were accepted ({$mode} mode)."];
     }
 
     /**

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Kakaopay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * KakaoPay Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class KakaopayGateway implements PluginInterface, GatewayAdapterInterface
+final class KakaopayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -93,6 +94,63 @@ final class KakaopayGateway implements PluginInterface, GatewayAdapterInterface
             'redirect_url' => $redirectUrl,
             'session_id'   => $sessionId,
         ];
+    }
+
+    /**
+     * Verifies the Admin Key authenticates against KakaoPay's REST API. KakaoPay has no
+     * dedicated read-only account/ping endpoint, so this calls /v1/payment/ready with minimal
+     * placeholder values - it does not move money (nothing is charged until the shopper
+     * completes the resulting redirect), it just distinguishes a 401 (bad Admin Key) from any
+     * other response (key accepted, whatever else may be wrong).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $adminKey = $this->getString($credentials['admin_key'] ?? null);
+        $cid = $this->getString($credentials['cid'] ?? null);
+
+        if ($adminKey === '' || $cid === '') {
+            return ['success' => false, 'message' => 'Enter Admin Key and Merchant CID before testing the connection.'];
+        }
+
+        $ch = curl_init('https://kapi.kakao.com/v1/payment/ready');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: KakaoAK ' . $adminKey,
+                'Content-Type: application/x-www-form-urlencoded;charset=utf-8',
+            ],
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'cid' => $cid,
+                'partner_order_id' => 'test_connection',
+                'partner_user_id' => 'test_connection',
+                'item_name' => 'Connection Test',
+                'quantity' => 1,
+                'total_amount' => 100,
+                'tax_free_amount' => 0,
+                'approval_url' => 'https://example.com/success',
+                'cancel_url' => 'https://example.com/cancel',
+                'fail_url' => 'https://example.com/fail',
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach KakaoPay - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        if ($httpCode === 401) {
+            return ['success' => false, 'message' => 'KakaoPay rejected the Admin Key.'];
+        }
+
+        return ['success' => true, 'message' => 'Connected successfully to KakaoPay.'];
     }
 
     public function verify(array $callbackData, array $credentials): array

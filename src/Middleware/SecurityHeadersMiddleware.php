@@ -106,7 +106,7 @@ final class SecurityHeadersMiddleware
             // Now we enumerate the active brand's DNS-verified+active custom
             // domains from `op_domains` and emit them as the explicit allow
             // list. Falls back to `'self'` only when no verified domain is
-            // registered or the container/DB is unavailable — merchants who
+            // registered or the container/DB is unavailable - merchants who
             // want embedded checkout must explicitly register their embedding
             // domain in the Domains admin and complete DNS verification.
             $frameAncestors = $this->resolveCheckoutFrameAncestors();
@@ -367,18 +367,18 @@ final class SecurityHeadersMiddleware
      * Per TMPL-5: the previous `frame-ancestors 'self' https:` policy allowed ANY
      * HTTPS origin to iframe the checkout page. Modern browsers honour CSP
      * frame-ancestors over the global `X-Frame-Options: DENY` header, so the
-     * global DENY was overridden on checkout paths — an attacker site at
+     * global DENY was overridden on checkout paths - an attacker site at
      * `https://evil.com` could iframe the OwnPay checkout, overlay it with a
      * transparent UI, and trick the customer into clicking "Pay" on what they
      * thought was the attacker's UI but was actually the OwnPay checkout
      * (classic clickjacking).
      *
-     * Resolution order (every source is server-controlled — never the client):
+     * Resolution order (every source is server-controlled - never the client):
      *   1. `'self'` always (the OwnPay origin itself, including white-labeled
      *      custom domains that resolve to this OwnPay install).
      *   2. Every DNS-verified + active custom domain registered for the active
      *      brand in `op_domains`, emitted as `https://<host>`. Only verified+
-     *      active rows are eligible — a `pending` or `inactive` domain must
+     *      active rows are eligible - a `pending` or `inactive` domain must
      *      never be a frame-ancestor.
      *
      * Strict hostname validation (letters, digits, hyphen, dot only, ASCII) is
@@ -439,7 +439,7 @@ final class SecurityHeadersMiddleware
                 }
                 // Defence-in-depth: strict ASCII hostname charset. Rejects any
                 // tampered `domain` value containing scheme/port/path/whitespace/
-                // quote/semicolon — prevents CSP-directive injection from a
+                // quote/semicolon - prevents CSP-directive injection from a
                 // corrupted row.
                 if (preg_match('/^[a-z0-9.\-]+$/i', $domain) !== 1) {
                     continue;
@@ -448,7 +448,7 @@ final class SecurityHeadersMiddleware
                 $emitted++;
             }
         } catch (\Throwable) {
-            // Container / DB unavailable — fail closed to 'self' only.
+            // Container / DB unavailable - fail closed to 'self' only.
         }
 
         return implode(' ', array_values(array_unique($sources)));
@@ -457,7 +457,7 @@ final class SecurityHeadersMiddleware
     /**
      * Resolves the CSP Report-To endpoint URL from server-side configuration only.
      *
-     * Resolution order (every source is server-controlled — never the HTTP Host header):
+     * Resolution order (every source is server-controlled - never the HTTP Host header):
      *   1. config.app.url (set from the APP_URL env var in config/app.php)
      *   2. $_SERVER['SERVER_NAME'] (set by the web server, not the client)
      *
@@ -477,7 +477,7 @@ final class SecurityHeadersMiddleware
                 $base = trim($configApp['url']);
             }
         } catch (\Throwable) {
-            // Container / config unavailable — fall through to SERVER_NAME below.
+            // Container / config unavailable - fall through to SERVER_NAME below.
         }
 
         if ($base === '') {

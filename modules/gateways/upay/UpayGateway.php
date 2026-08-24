@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Upay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Upay Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class UpayGateway implements PluginInterface, GatewayAdapterInterface
+final class UpayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -51,6 +52,56 @@ final class UpayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'merchant_id', 'label' => 'Merchant ID', 'type' => 'text', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the API key/secret/merchant ID authenticate against Upay's login endpoint - the
+     * exact same call initiate() already makes to obtain its access token, without proceeding to
+     * create any checkout session.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? null);
+        $apiKey = $this->getString($credentials['api_key'] ?? null);
+        $apiSecret = $this->getString($credentials['api_secret'] ?? null);
+        if ($merchantId === '' || $apiKey === '' || $apiSecret === '') {
+            return ['success' => false, 'message' => 'Enter API Key, API Secret, and Merchant ID before testing the connection.'];
+        }
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $authUrl = $mode === 'live'
+            ? 'https://api.upay.com.bd/v1/auth/login'
+            : 'https://sandbox.upay.com.bd/v1/auth/login';
+
+        $ch = curl_init($authUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'merchant_id' => $merchantId,
+                'api_key'     => $apiKey,
+                'api_secret'  => $apiSecret,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Upay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $token = is_array($data) ? $this->getString($data['access_token'] ?? null) : '';
+        if ($token !== '') {
+            return ['success' => true, 'message' => 'Connected successfully to Upay (' . ($mode !== '' ? $mode : 'sandbox') . ' mode).'];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Upay rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

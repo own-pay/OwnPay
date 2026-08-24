@@ -54,7 +54,7 @@ final class PluginSandbox
     {
         $real = realpath($path);
         if ($real === false) {
-            // Bug #18 fix: File doesn't exist yet — validate parent directory and basename
+            // Bug #18 fix: File doesn't exist yet - validate parent directory and basename
             $parent = realpath(dirname($path));
             if ($parent === false) {
                 return false;
@@ -98,7 +98,7 @@ final class PluginSandbox
      */
     public function validateSql(string $sql): bool
     {
-        // Bug #1 fix: Do NOT strip MySQL conditional comments (/*!...*/) — they are real SQL.
+        // Bug #1 fix: Do NOT strip MySQL conditional comments (/*!...*/) - they are real SQL.
         // Only strip true block comments (/* ... */) that do NOT start with !
         $sql = preg_replace('/\/\*(?!!).*?\*\//s', ' ', $sql) ?? $sql;
         // Bug #14 fix: Strip # line comments in addition to -- comments

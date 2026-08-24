@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Przelewy24 Payment Gateway Adapter.
  */
-final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterface
+final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -290,6 +291,50 @@ final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterfac
                 }
             }
         }
+    }
+
+    /**
+     * Verifies the configured POS ID/API Key authenticate against Przelewy24's official
+     * testAccess endpoint, without creating any payment - this is P24's own documented
+     * connection-test endpoint, purpose-built for exactly this.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $posId = $this->getInt($credentials['pos_id'] ?? 0);
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($posId <= 0 || $apiKey === '') {
+            return ['success' => false, 'message' => 'Enter a POS ID and API Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? 'https://secure.przelewy24.pl' : 'https://sandbox.przelewy24.pl';
+
+        $ch = curl_init($baseUrl . '/api/v1/testAccess');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $posId . ':' . $apiKey,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Przelewy24 - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => "Connected successfully to Przelewy24 ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['error'] ?? null)
+            ? (string) $data['error']
+            : 'Przelewy24 rejected the provided POS ID/API Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function supports(string $feature): bool

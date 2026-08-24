@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Fawry Payment Gateway Adapter.
  */
-final class FawryGateway implements PluginInterface, GatewayAdapterInterface
+final class FawryGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -247,6 +248,57 @@ final class FawryGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         return ['success' => false];
+    }
+
+    /**
+     * Verifies the Merchant Code/Security Key authenticate against Fawry's payment status API,
+     * using a probe reference that won't match any real payment - Fawry distinguishes an
+     * "invalid signature" error from a "reference not found" one, so either response confirms
+     * whether the credentials themselves are valid.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantCode = $this->getString($credentials['merchant_code'] ?? '');
+        $securityKey = $this->getString($credentials['security_key'] ?? '');
+        if ($merchantCode === '' || $securityKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant Code and Security Key before testing the connection.'];
+        }
+
+        $probeRef = 'op-test-connection-probe';
+        $endpoint = $this->getBaseUrl($credentials) . '/fawrypay-api/api/payments/status?merchantCode='
+            . urlencode($merchantCode) . '&merchantRefNumber=' . urlencode($probeRef)
+            . '&signature=' . hash('sha256', $merchantCode . $probeRef . $securityKey);
+
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false || $response === '') {
+            return ['success' => false, 'message' => 'Could not reach Fawry - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'message' => 'Fawry returned an unreadable response.'];
+        }
+
+        $statusDesc = strtolower($this->getString($data['statusDescription'] ?? $data['message'] ?? ''));
+        if (str_contains($statusDesc, 'signature') || str_contains($statusDesc, 'merchant')) {
+            return ['success' => false, 'message' => 'Fawry rejected the provided Merchant Code/Security Key.'];
+        }
+
+        // Any structured status response (even "reference not found") means the request authenticated.
+        return ['success' => true, 'message' => 'Connected successfully to Fawry.'];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

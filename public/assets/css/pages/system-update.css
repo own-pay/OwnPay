@@ -414,7 +414,6 @@
   font-size: 13px;
   cursor: pointer;
   transition: background 0.15s ease;
-  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -496,7 +495,6 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  -webkit-user-select: none;
   user-select: none;
   touch-action: none;
   transition: border-color 0.2s ease, background 0.2s ease;

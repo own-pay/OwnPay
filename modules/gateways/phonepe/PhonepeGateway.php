@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\PhonePe;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * PhonePe Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class PhonePeGateway implements PluginInterface, GatewayAdapterInterface
+final class PhonePeGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -187,5 +188,64 @@ final class PhonePeGateway implements PluginInterface, GatewayAdapterInterface
         // server-side status call in verify() recomputes; webhooks act as
         // untrusted triggers only, and completion requires the amount match.
         return true;
+    }
+
+    /**
+     * Verifies the configured Merchant ID/Salt Key authenticate against PhonePe, without creating
+     * any payment - reuses the same status-check X-VERIFY checksum as verify(), against a
+     * nonexistent transaction ID. Bad credentials are rejected with an auth error; valid
+     * credentials return a normal "transaction not found" response instead.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? null);
+        $saltKey = $this->getString($credentials['salt_key'] ?? null);
+        $saltIndex = $this->getString($credentials['salt_index'] ?? null);
+        $mode = $this->getString($credentials['mode'] ?? null);
+        if ($merchantId === '' || $saltKey === '' || $saltIndex === '') {
+            return ['success' => false, 'message' => 'Enter a Merchant ID, Salt Key, and Salt Index before testing the connection.'];
+        }
+
+        $trxId = 'OWNPAYCONNECTIONTEST';
+        $endpoint = "/pg/v1/status/{$merchantId}/{$trxId}";
+        $url = $mode === 'production'
+            ? "https://api.phonepe.com/apis/hermes{$endpoint}"
+            : "https://api-preprod.phonepe.com/apis/pg-sandbox{$endpoint}";
+        $checksum = hash('sha256', $endpoint . $saltKey) . '###' . $saltIndex;
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-MERCHANT-ID: ' . $merchantId,
+                'X-VERIFY: ' . $checksum,
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach PhonePe - check the server\'s network connectivity.'];
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'PhonePe rejected the provided Merchant ID/Salt Key.'];
+        }
+
+        $dataRaw = json_decode((string) $response, true);
+        $data = is_array($dataRaw) ? $dataRaw : [];
+        $code = is_scalar($data['code'] ?? null) ? (string) $data['code'] : '';
+        if ($code === 'UNAUTHORIZED' || $code === 'BAD_REQUEST') {
+            $msg = is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'PhonePe rejected the provided credentials.';
+            return ['success' => false, 'message' => $msg];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to PhonePe ({$mode} mode)."];
     }
 }

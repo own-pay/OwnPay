@@ -159,7 +159,17 @@ final class AuthController
         }
 
         $this->audit->log('login.success', 'user', $userId);
-        return Response::redirect('/admin');
+        $landingPath = $this->resolvePostLoginPath($this->auth->currentPermissions());
+        if ($landingPath === null) {
+            $this->auth->logout();
+            $loginSlug = $this->resolveLoginSlug();
+            return $this->renderAdminPage('page/login.twig', [
+                'login_url' => '/' . $loginSlug,
+                'error'     => 'Your account has no active admin permissions. Contact an administrator.',
+                'old_email' => $email,
+            ]);
+        }
+        return Response::redirect($landingPath);
     }
 
     /**
@@ -253,7 +263,7 @@ final class AuthController
         }
 
         if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($decryptedSecret, $code, 1, $lastUsedWindow)) {
-            // Verification failed — release the per-code lock so the user can
+            // Verification failed - release the per-code lock so the user can
             // retry with a fresh code. A wrong code should not permanently
             // consume the slot for the next 120 seconds. (If $cache was not
             // available, no lock was acquired and there is nothing to release.)
@@ -287,6 +297,46 @@ final class AuthController
         $this->audit->log('login.2fa_verified', 'user', $userIdFromDb);
 
         return Response::redirect('/admin');
+    }
+
+    /**
+     * Selects the first administrative page the authenticated role can access.
+     *
+     * Roles may intentionally omit dashboard.view, so always redirecting to
+     * /admin causes a valid staff login to end on a 403 page.
+     *
+     * @param array<int, string> $permissions The role permissions from the session.
+     * @return string|null A permitted landing path, or null when the role has no admin access.
+     */
+    private function resolvePostLoginPath(array $permissions): ?string
+    {
+        $landingRoutes = [
+            ['dashboard.view', '/admin'],
+            ['transactions.view', '/admin/transactions'],
+            ['invoices.view', '/admin/invoices'],
+            ['payment_links.view', '/admin/payment-links'],
+            ['customers.view', '/admin/customers'],
+            ['gateways.view', '/admin/gateways'],
+            ['staff.view', '/admin/staff'],
+            ['brands.view', '/admin/brands'],
+            ['settings.view', '/admin/settings'],
+            ['api_keys.view', '/admin/api-keys'],
+            ['sms.view', '/admin/sms-center'],
+            ['devices.view', '/admin/devices'],
+            ['plugins.view', '/admin/plugins'],
+            ['domains.view', '/admin/domains'],
+            ['system.reports', '/admin/reports'],
+            ['system.audit', '/admin/activities'],
+            ['admin.access', '/admin/my-account'],
+        ];
+
+        foreach ($landingRoutes as [$permission, $path]) {
+            if (in_array($permission, $permissions, true)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -401,7 +451,7 @@ final class AuthController
         // controller uses resolveLoginSlug() to honour the admin-configurable
         // login URL (e.g. /secret-login). Hardcoding '/login' here meant that
         // if the admin changed the slug, a user who just reset their password
-        // landed on a 404 — and may have believed the reset failed, retrying
+        // landed on a 404 - and may have believed the reset failed, retrying
         // with the now-consumed token and getting a 'link expired' error.
         return Response::redirect('/' . $this->resolveLoginSlug());
     }

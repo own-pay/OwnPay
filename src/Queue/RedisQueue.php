@@ -95,7 +95,7 @@ final class RedisQueue implements QueueInterface
      * Default visibility timeout (seconds) for in-flight jobs.
      *
      * A job that has been popped but not completed/failed within this window
-     * is considered "stale" — the worker is presumed dead (OOM, deploy, crash)
+     * is considered "stale" - the worker is presumed dead (OOM, deploy, crash)
      * and the job is eligible for re-enqueueing by recoverStale().
      */
     private const int VISIBILITY_TIMEOUT = 300;
@@ -107,8 +107,8 @@ final class RedisQueue implements QueueInterface
      *
      * NOTE: This is distinct from {@see self::MAX_ATTEMPTS} (which caps
      * retry() attempts at 3 to match QueueWorkerJob::MAX_ATTEMPTS).
-     * recoverStale() re-enqueues jobs whose worker died mid-flight — a
-     * softer failure mode than a handler that explicitly throws — so it
+     * recoverStale() re-enqueues jobs whose worker died mid-flight - a
+     * softer failure mode than a handler that explicitly throws - so it
      * gets a slightly higher budget (5) before giving up.
      */
     private const int STALE_MAX_ATTEMPTS = 5;
@@ -208,7 +208,7 @@ final class RedisQueue implements QueueInterface
      * Scans the failed list to find the matching job record, removes it from the list,
      * and either re-queues it (when under MAX_ATTEMPTS) or moves it to the dead-letter
      * list (when the attempt budget is exhausted). Constructing the retried job record
-     * inline — rather than delegating to push() — preserves the attempt counter so
+     * inline - rather than delegating to push() - preserves the attempt counter so
      * that handlers which always throw cannot trigger an infinite retry storm.
      *
      * @param string $jobId The UUID identifier of the job.
@@ -247,7 +247,7 @@ final class RedisQueue implements QueueInterface
                 }
 
                 // Construct the retried job record inline with attempts
-                // incremented by 1. We deliberately do NOT call push() here —
+                // incremented by 1. We deliberately do NOT call push() here -
                 // push() resets attempts to 0, which would defeat the
                 // MAX_ATTEMPTS cap and reintroduce the infinite-retry bug.
                 $queueName = is_string($job['queue'] ?? null) ? $job['queue'] : 'default';
@@ -360,7 +360,7 @@ final class RedisQueue implements QueueInterface
      *
      * SECURITY (QUEUE-2): previously, if a worker was killed (OOM, deploy,
      * crash) between pop() returning and complete()/fail() being called, the
-     * job existed only in the `processing` hash — there was no background
+     * job existed only in the `processing` hash - there was no background
      * reaper, no TTL on the hash entry, and no visibility-timeout mechanism
      * to re-queue stale jobs. The job was permanently stuck.
      *
@@ -394,7 +394,7 @@ final class RedisQueue implements QueueInterface
         // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition
         while (is_array($entries = $this->redis->hScan($processingKey, $iterator, '*', 100))) {
             if ($entries === []) {
-                // Empty batch but iterator is not yet exhausted — continue.
+                // Empty batch but iterator is not yet exhausted - continue.
                 if ($iterator === 0) {
                     break;
                 }
@@ -410,7 +410,7 @@ final class RedisQueue implements QueueInterface
                 }
                 $job = json_decode($rawStr, true);
                 if (!is_array($job)) {
-                    // Corrupt entry — remove it so it doesn't block future scans.
+                    // Corrupt entry - remove it so it doesn't block future scans.
                     $this->redis->hDel($processingKey, $jobIdStr);
                     continue;
                 }
@@ -430,7 +430,7 @@ final class RedisQueue implements QueueInterface
                 $this->redis->hDel($processingKey, $jobIdStr);
 
                 if ($attempts >= self::STALE_MAX_ATTEMPTS) {
-                    // Exceeded retry budget — move to failed list with a
+                    // Exceeded retry budget - move to failed list with a
                     // descriptive error so an operator can investigate.
                     $job['error'] = 'Visibility timeout exceeded after '
                         . $attempts . ' attempts; moved to failed by recoverStale()';

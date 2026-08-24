@@ -41,7 +41,7 @@ final class AuditIntegrityController
      *
      * Runs verifyIntegrity() FIRST and reports unsigned rows as a separate
      * "legacy unsigned" category. Does NOT call signExistingLogs()
-     * automatically — that previously blessed any tampered unsigned rows
+     * automatically - that previously blessed any tampered unsigned rows
      * with their current (potentially modified) values, hiding the
      * tampering. Signing legacy rows now requires an explicit confirmation
      * via signLegacy().
@@ -55,7 +55,7 @@ final class AuditIntegrityController
         // Run integrity verification check first. Previously scan() called
         // signExistingLogs() BEFORE verifyIntegrity(), which signed tampered
         // unsigned rows with their current (potentially modified) values
-        // before the integrity check ran — hiding the tampering. Unsigned
+        // before the integrity check ran - hiding the tampering. Unsigned
         // rows are now reported as a separate category the operator must
         // explicitly review before signing them via signLegacy().
         $compromised = $this->audit->verifyIntegrity();

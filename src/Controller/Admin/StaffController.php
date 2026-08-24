@@ -90,7 +90,7 @@ final class StaffController
         $this->brand->resolveFromRequest($req);
         $mid = $this->brand->getActiveBrandId();
 
-        if ($mid === null) {
+        if ($mid === null || $mid <= 0) {
             $this->session->flashError('Please select a specific brand to add staff to.');
             return Response::redirect('/admin/staff');
         }
@@ -101,7 +101,6 @@ final class StaffController
             return $this->renderAdminPage('admin/staff/edit.twig', [
                 'user' => null,
                 'roles' => $roles,
-                'available_permissions' => $this->getPermissions(),
                 'active_page' => 'staff',
             ]);
         }
@@ -138,6 +137,11 @@ final class StaffController
             }
         }
 
+        if ($roleId === null) {
+            $this->session->flashError('Create a role for this brand before adding staff.');
+            return Response::redirect('/admin/staff/create');
+        }
+
         // Validate required fields + password policy.
         // Audit fix STF-2: the previous implementation only enforced
         // strlen($password) < 8. Common passwords like 'password' and
@@ -161,6 +165,14 @@ final class StaffController
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $this->session->flashError('Enter a valid email address.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if ($this->userRepo->emailExists($email)) {
+            $this->session->flashError('An account with this email already exists.');
             return Response::redirect('/admin/staff/create');
         }
         if (strlen($password) < 12) {
@@ -268,7 +280,6 @@ final class StaffController
             return $this->renderAdminPage('admin/staff/edit.twig', [
                 'user' => $user,
                 'roles' => $roles,
-                'available_permissions' => $this->getPermissions(),
                 'active_page' => 'staff',
             ]);
         }
@@ -294,7 +305,7 @@ final class StaffController
 
         // STF-1: Enforce minimum password length on the edit path. The
         // create() path already enforces strlen >= 8, but edit() silently
-        // accepted even a 1-character password — letting any user with
+        // accepted even a 1-character password - letting any user with
         // staff.manage overwrite any other user's password with a trivially-
         // guessable value, including on the superadmin account. We enforce
         // 12 characters (the modern NIST/PCI minimum) and require a
@@ -347,15 +358,15 @@ final class StaffController
                 }
             }
             if ($validRole && $newRoleRow !== null) {
-                // STF-6: Privilege-escalation guard — mirror the same check
+                // STF-6: Privilege-escalation guard - mirror the same check
                 // that RolesController::update() already enforces. A non-
                 // superadmin caller may only assign a role whose permissions
                 // are a subset of the caller's own permissions. Without this
                 // guard, a staffer with staff.manage (e.g. an HR clerk) could
                 // edit their own record, change their role_id to the highest-
                 // privileged role in the merchant, and on the next request
-                // gain those permissions — a complete privilege escalation.
-                // Superadmins are exempt — they can assign any role.
+                // gain those permissions - a complete privilege escalation.
+                // Superadmins are exempt - they can assign any role.
                 if (!$this->session->isSuperadmin()) {
                     // Mirror the same guard that RolesController::update()
                     // already enforces for permission escalation. We resolve
@@ -444,7 +455,7 @@ final class StaffController
         // STF-3: Refuse to hard-delete staff. The previous implementation
         // physically removed the user row, which:
         //   (a) left the user's active PHP sessions, JWT refresh tokens, and
-        //       API keys valid until they independently expired — a deleted
+        //       API keys valid until they independently expired - a deleted
         //       staffer (or an attacker who compromised them) retained
         //       partial access for up to 30 days;
         //   (b) orphaned audit-log entries referencing the now-non-existent
@@ -490,7 +501,7 @@ final class StaffController
                     $apiKeys->revokeAllForMerchant($userMerchantId);
                 }
             } catch (\Throwable $e) {
-                // Log and continue — the suspension + epoch stamp is the
+                // Log and continue - the suspension + epoch stamp is the
                 // primary remediation; API-key revocation is defense-in-depth.
                 $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
@@ -539,22 +550,6 @@ final class StaffController
     }
 
     /**
-     * Resolve global static permissions whitelist.
-     *
-     * @return string[] The list of permissions.
-     */
-    private function getPermissions(): array
-    {
-        return [
-            'transactions.view', 'transactions.manage', 'invoices.view', 'invoices.manage',
-            'payment_links.view', 'payment_links.manage', 'customers.view', 'customers.manage',
-            'gateways.view', 'gateways.manage', 'staff.view', 'staff.manage',
-            'settings.view', 'settings.manage', 'reports.view', 'sms.view',
-            'devices.view', 'devices.manage', 'domains.view', 'domains.manage',
-        ];
-    }
-
-    /**
      * Fetch the permission slugs assigned to a role.
      *
      * Used by the STF-6 privilege-escalation guard in {@see edit()} to verify
@@ -567,7 +562,7 @@ final class StaffController
      */
     private function getRolePermissions(int $roleId, int $merchantId): array
     {
-        // $merchantId is intentionally unused — op_role_permissions is keyed
+        // $merchantId is intentionally unused - op_role_permissions is keyed
         // by role_id alone and the role_id was already verified to belong to
         // the merchant via the $roles loop above. The parameter is retained
         // for symmetry with the RolesController guard signature.
@@ -614,7 +609,7 @@ final class StaffController
 
         // STF-5: Require step-up authentication before disabling another
         // user's 2FA. The previous implementation accepted the request with
-        // only the existing session cookie as authorization — any staffer
+        // only the existing session cookie as authorization - any staffer
         // with staff.manage (e.g. a junior IT staffer) could disable 2FA
         // for any staff member in the merchant, including higher-privileged
         // admins. Combined with the STF-1 weak-password gap, this enabled a

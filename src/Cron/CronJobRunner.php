@@ -192,7 +192,7 @@ final class CronJobRunner
                     // CRON-3: Always advance the schedule, even on failure.
                     // The previous implementation only called recordLastRun()
                     // inside the try block, so a failing job was retried on
-                    // every cron tick with no backoff — a retry storm that
+                    // every cron tick with no backoff - a retry storm that
                     // could log 28,800 errors/day per failing job.
                     $this->recordLastRun($name);
                 }
@@ -232,7 +232,7 @@ final class CronJobRunner
             // opened. The previous implementation logged a warning and
             // executed the job WITHOUT the concurrency guard, so a full
             // disk / permission error / readonly filesystem silently
-            // disabled concurrency control — two concurrent cron
+            // disabled concurrency control - two concurrent cron
             // invocations could both execute every job simultaneously.
             // Returning null signals "lock unavailable" to the caller,
             // which surfaces as 'status' => 'locked' in the run results.

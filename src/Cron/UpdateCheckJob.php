@@ -48,7 +48,7 @@ final class UpdateCheckJob
             return ['action' => 'none', 'message' => 'No updates available'];
         }
 
-        $autoUpdate = (getenv('AUTO_UPDATE') ?: 'false') === 'true';
+        $autoUpdate = ($_ENV['AUTO_UPDATE'] ?? getenv('AUTO_UPDATE') ?: 'false') === 'true';
         $hour = DateHelper::currentHour();
         $inNightWindow = ($hour >= 2 && $hour <= 5);
         $version = $check['version'] ?? '0.1.0';

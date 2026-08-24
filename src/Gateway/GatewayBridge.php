@@ -143,13 +143,23 @@ final class GatewayBridge
      * @param int $merchantId The ID of the brand/merchant context.
      * @param string $gatewayTrxId The transaction identifier assigned by the gateway.
      * @param string $amount High-precision amount string (BCMath-compatible) to refund.
+     * @param string|null $sessionId The gateway's original checkout session/payment ID (e.g.
+     *                               bKash's paymentID), when the caller has one on record. Some
+     *                               gateways' refund APIs require this in addition to the settled
+     *                               transaction id. Passed through the credentials array under
+     *                               '_session_id' rather than a new interface parameter, so every
+     *                               existing gateway adapter (most of which never need it) is
+     *                               unaffected - adapters that do need it simply read that key.
      * @return array<string, mixed> The refund processing status and result details.
      * @throws \RuntimeException If the adapter is not found.
      */
-    public function refund(string $gatewaySlug, int $merchantId, string $gatewayTrxId, string $amount): array
+    public function refund(string $gatewaySlug, int $merchantId, string $gatewayTrxId, string $amount, ?string $sessionId = null): array
     {
         $adapter = $this->resolveAdapter($gatewaySlug);
         $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
+        if ($sessionId !== null && $sessionId !== '') {
+            $credentials['_session_id'] = $sessionId;
+        }
 
         return $adapter->refund($gatewayTrxId, $amount, $credentials);
     }
@@ -260,6 +270,31 @@ final class GatewayBridge
             return [];
         }
         return $this->adapters[$slug]->supportedCurrencies();
+    }
+
+    /**
+     * Resolves the minimum chargeable amount a gateway will accept for a currency, if it
+     * declares one (see MinimumAmountAwareInterface). Used by the checkout page to hide a
+     * gateway for under-minimum transactions instead of offering it and letting the customer
+     * hit an API error after selecting it.
+     *
+     * @param string $slug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param string $currency ISO 4217 currency code (any case).
+     * @return string|null The minimum amount as a decimal string, or null if the gateway isn't
+     *                      registered, doesn't declare a minimum, or credentials can't be read.
+     */
+    public function minimumChargeAmount(string $slug, int $merchantId, string $currency): ?string
+    {
+        if (!isset($this->adapters[$slug]) || !$this->adapters[$slug] instanceof MinimumAmountAwareInterface) {
+            return null;
+        }
+        try {
+            $credentials = $this->decryptCredentials($slug, $merchantId);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        return $this->adapters[$slug]->minimumChargeAmount(strtolower($currency), $credentials);
     }
 
     /**

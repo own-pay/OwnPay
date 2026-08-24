@@ -23,7 +23,7 @@ export default {
     "property-no-vendor-prefix": [
       true,
       {
-        ignoreProperties: ["/^-(webkit|moz|ms|o)-/"]
+        ignoreProperties: ["backdrop-filter", "text-size-adjust", "user-select"]
       }
     ],
     // stylelint-config-standard@40 introduced these new rules. They are

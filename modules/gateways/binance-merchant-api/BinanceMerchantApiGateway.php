@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\BinanceMerchantApi;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Binance Pay Merchant API gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapterInterface
+final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -70,6 +71,66 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
                 'ADA'   => 'Cardano (ADA)'
             ], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the Merchant API Key/Secret Key using the exact same BinancePay-Signature HMAC
+     * scheme initiate()/verify() rely on, querying a merchant trade number that cannot exist.
+     * A signed request that authenticates returns a structured Binance Pay envelope (even if
+     * the order itself isn't found); an invalid key/signature is rejected before that point.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = is_scalar($credentials['merchant_api_key'] ?? null) ? (string) $credentials['merchant_api_key'] : '';
+        $apiSecret = is_scalar($credentials['merchant_secret_key'] ?? null) ? (string) $credentials['merchant_secret_key'] : '';
+        if ($apiKey === '' || $apiSecret === '') {
+            return ['success' => false, 'message' => 'Enter Merchant API Key and Merchant Secret Key before testing the connection.'];
+        }
+
+        $merchantTradeNo = 'op_test_connection_' . bin2hex(random_bytes(6));
+        $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
+        $timestamp = round(microtime(true) * 1000);
+        $nonce = bin2hex(random_bytes(16));
+        $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
+        $signature = hash_hmac('SHA512', $message, $apiSecret);
+
+        $ch = curl_init(self::QUERY_URL);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'BinancePay-Timestamp: ' . $timestamp,
+                'BinancePay-Nonce: ' . $nonce,
+                'BinancePay-Certificate-SN: ' . $apiKey,
+                'BinancePay-Signature: ' . $signature,
+            ],
+            CURLOPT_POSTFIELDS     => (string) $payload,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Binance Pay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errorCode = is_array($data) && is_scalar($data['errorCode'] ?? null) ? (string) $data['errorCode'] : '';
+        $status = is_array($data) && is_scalar($data['status'] ?? null) ? (string) $data['status'] : '';
+
+        if ($httpCode === 200 && ($status !== '' || $errorCode !== '')
+            && !in_array($errorCode, ['SIGNATURE_INVALID', 'CERTIFICATE_INVALID', 'INVALID_API_KEY', 'UNAUTHORIZED'], true)
+        ) {
+            return ['success' => true, 'message' => 'Connected successfully to Binance Pay.'];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['errorMessage'] ?? null) ? (string) $data['errorMessage'] : 'Binance Pay rejected the provided API Key/Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

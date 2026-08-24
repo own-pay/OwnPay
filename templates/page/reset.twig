@@ -20,8 +20,8 @@
             <div class="op-auth-header">
                 {% if settings_logo is defined and settings_logo %}
                     <div class="op-logo-img-container">
-                        <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-light" style="height: 40px; width: auto;">
-                        <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-dark" style="height: 40px; width: auto;">
+                        <img src="{{ app_logo_light }}" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-light" style="height: 40px; width: auto;">
+                        <img src="{{ app_logo_dark }}" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-dark" style="height: 40px; width: auto;">
                     </div>
                 {% else %}
                     <div class="op-logo">

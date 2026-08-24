@@ -164,11 +164,16 @@ class BackupService
      */
     private function dumpDatabase(string $outputPath): void
     {
-        $host = getenv('DB_HOST') ?: 'localhost';
-        $name = getenv('DB_NAME') ?: '';
-        $user = getenv('DB_USER') ?: '';
-        $pass = getenv('DB_PASS') ?: '';
-        $port = getenv('DB_PORT') ?: '3306';
+        $hostValue = $_ENV['DB_HOST'] ?? getenv('DB_HOST');
+        $nameValue = $_ENV['DB_NAME'] ?? getenv('DB_NAME');
+        $userValue = $_ENV['DB_USER'] ?? getenv('DB_USER');
+        $passValue = $_ENV['DB_PASS'] ?? getenv('DB_PASS');
+        $portValue = $_ENV['DB_PORT'] ?? getenv('DB_PORT');
+        $host = is_string($hostValue) && $hostValue !== '' ? $hostValue : 'localhost';
+        $name = is_string($nameValue) ? $nameValue : '';
+        $user = is_string($userValue) ? $userValue : '';
+        $pass = is_string($passValue) ? $passValue : '';
+        $port = is_scalar($portValue) ? (string) $portValue : '3306';
 
         $tmpCnf = tempnam(sys_get_temp_dir(), 'op_dump_');
         file_put_contents($tmpCnf, "[client]\nuser={$user}\npassword={$pass}\nhost={$host}\nport={$port}\n", LOCK_EX);
@@ -267,7 +272,7 @@ class BackupService
      * instead of leaving the database in a half-restored, inconsistent state.
      *
      * Note: MySQL DDL statements (CREATE/ALTER/DROP TABLE, etc.) implicitly
-     * commit and therefore CANNOT be rolled back — this is a MySQL engine
+     * commit and therefore CANNOT be rolled back - this is a MySQL engine
      * limitation, not a code limitation. DML statements (INSERT/UPDATE/DELETE)
      * WILL roll back. A DDL failure mid-restore still aborts the loop so the
      * caller is informed; subsequent DML statements are not applied.

@@ -252,7 +252,7 @@ final class InstallerController
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
         // SECURITY (audit INST-7): allowlist the DB host (same guard as
-        // testDatabase — see that method for rationale).
+        // testDatabase - see that method for rationale).
         if (!$this->isDbHostAllowed($host)) {
             return Response::json([
                 'success' => false,
@@ -428,7 +428,7 @@ final class InstallerController
         }
         // Audit fix INST-8: the previous check only enforced strlen >= 8,
         // so passwords like 'password' or '12345678' were accepted for
-        // the superadmin account — the highest-privilege credential in
+        // the superadmin account - the highest-privilege credential in
         // the system (unrestricted access to ALL merchant data, ALL
         // brands, ALL financial operations). Mirrors the
         // StaffController::create() policy (audit STF-2):
@@ -476,7 +476,7 @@ final class InstallerController
             }
         }
         foreach ($forbiddenSubstrings as $needle) {
-            // Skip short needles — they would cause false positives
+            // Skip short needles - they would cause false positives
             // (e.g. name "Jo" rejecting any password containing "jo").
             if (strlen($needle) >= 4 && str_contains($pwLower, $needle)) {
                 return Response::json(['success' => false, 'error' => 'Password must not contain your name, username, email, or "ownpay".'], 422);
@@ -506,7 +506,7 @@ final class InstallerController
                 $dbPass,
                 [
                     \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth —
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth -
                     // the host was allowlisted at importSchema time, but a
                     // rogue MySQL server could still request file reads).
                     \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
@@ -559,15 +559,27 @@ final class InstallerController
 
             // 5. Seed default permissions
             $permissions = [
+                ['dashboard.view',        'View Dashboard',            'dashboard'],
+                ['dashboard.stats',       'View Statistics',           'dashboard'],
                 ['admin.access',          'Admin Access',             'system'],
                 ['transactions.view',     'View Transactions',        'payments'],
                 ['transactions.manage',   'Manage Transactions',      'payments'],
+                ['transactions.update',   'Update Transactions',      'payments'],
+                ['transactions.export',   'Export Transactions',      'payments'],
                 ['invoices.view',         'View Invoices',            'payments'],
                 ['invoices.manage',       'Manage Invoices',          'payments'],
+                ['invoices.create',       'Create Invoices',           'payments'],
+                ['invoices.update',       'Update Invoices',           'payments'],
+                ['invoices.delete',       'Delete Invoices',           'payments'],
                 ['payment_links.view',    'View Payment Links',       'payments'],
                 ['payment_links.manage',  'Manage Payment Links',     'payments'],
+                ['payment_links.create',  'Create Payment Links',     'payments'],
+                ['payment_links.update',  'Update Payment Links',     'payments'],
+                ['payment_links.delete',  'Delete Payment Links',     'payments'],
                 ['customers.view',        'View Customers',           'people'],
                 ['customers.manage',      'Manage Customers',         'people'],
+                ['customers.create',      'Create Customers',         'people'],
+                ['customers.update',      'Update Customers',         'people'],
                 ['gateways.view',         'View Gateways',            'gateways'],
                 ['gateways.manage',       'Manage Gateways',          'gateways'],
                 ['brands.view',           'View Brands',              'people'],
@@ -575,10 +587,19 @@ final class InstallerController
                 ['brands.access_all',     'Access All Brands view',   'people'],
                 ['staff.view',            'View Staff',               'people'],
                 ['staff.manage',          'Manage Staff',             'people'],
+                ['staff.create',          'Create Staff',              'people'],
+                ['staff.update',          'Update Staff',              'people'],
+                ['staff.delete',          'Delete Staff',              'people'],
+                ['merchants.view',        'View Merchants',            'merchants'],
+                ['merchants.create',      'Create Merchants',          'merchants'],
+                ['merchants.update',      'Update Merchants',            'merchants'],
                 ['settings.view',         'View Settings',            'system'],
                 ['settings.manage',       'Manage Settings',          'system'],
+                ['settings.update',       'Update Settings',            'system'],
                 ['api_keys.view',         'View API Keys',            'developers'],
                 ['api_keys.manage',       'Manage API Keys',          'developers'],
+                ['webhooks.view',         'View Webhooks',              'developers'],
+                ['webhooks.manage',       'Manage Webhooks',            'developers'],
                 ['sms.view',              'View SMS',                 'mobile'],
                 ['sms.manage',            'Manage SMS',               'mobile'],
                 ['devices.view',          'View Devices',             'mobile'],
@@ -667,16 +688,16 @@ final class InstallerController
             // Host header or X-Forwarded-Proto for the APP_URL/APP_DOMAIN
             // values written permanently to .env. A poisoned
             // `Host: evil.com` + `X-Forwarded-Proto: https` would write
-            // APP_URL=https://evil.com — every subsequent password-reset
+            // APP_URL=https://evil.com - every subsequent password-reset
             // email would leak its token to the attacker, and webhook
             // callbacks would be poisoned.
             //
-            // Use SERVER_NAME first (set by the web server config —
+            // Use SERVER_NAME first (set by the web server config -
             // nginx `server_name` / Apache `ServerName`, NOT client-
             // controlled) and only fall back to HTTP_HOST if the server
             // did not set SERVER_NAME. Use Request::scheme() (which only
             // honours X-Forwarded-Proto when REMOTE_ADDR is in the
-            // TRUSTED_PROXIES env var — see Request::isTrustedProxy()).
+            // TRUSTED_PROXIES env var - see Request::isTrustedProxy()).
             $serverName = $req->server('SERVER_NAME');
             $httpHostRaw = $serverName !== '' ? $serverName : ($req->server('HTTP_HOST') ?: 'localhost');
             $httpHost = preg_match('/^[A-Za-z0-9.\-]+(:[0-9]{1,5})?$/', $httpHostRaw) === 1 ? $httpHostRaw : 'localhost';
@@ -747,7 +768,7 @@ final class InstallerController
             // after the marker file was accidentally deleted and the DB
             // was briefly unreachable, so isInstalled() returned false)
             // would silently clobber the existing .env with freshly-
-            // generated crypto keys — making all field-encrypted PII
+            // generated crypto keys - making all field-encrypted PII
             // permanently unreadable and breaking the audit chain HMAC
             // verification (SYS-1).
             $envBackup = null;
@@ -790,6 +811,8 @@ final class InstallerController
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
+                ['branding', 'app_logo_light',  '/assets/img/logo-light.svg?v=002', 'string'],
+                ['branding', 'app_logo_dark',   '/assets/img/logo-dark.svg?v=002',  'string'],
                 ['branding', 'primary_color',   '#6366f1',               'string'],
                 ['branding', 'footer_text',     "\u00a9 2025 {$appName}",  'string'],
                 ['mail',     'driver',          'smtp',                    'string'],
@@ -971,7 +994,7 @@ final class InstallerController
             $pdo = new \PDO("mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 2,
-                // Disable LOCAL INFILE (audit INST-7, defense-in-depth —
+                // Disable LOCAL INFILE (audit INST-7, defense-in-depth -
                 // host comes from the live .env, but a rogue upstream
                 // MySQL server could still request file reads).
                 \PDO::MYSQL_ATTR_LOCAL_INFILE => false,

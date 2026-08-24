@@ -168,7 +168,7 @@ final class PluginInstaller
             $normalizedName = str_replace('\\', '/', $rawName);
             $targetPath = $tempDir . '/' . $normalizedName;
 
-            // Skip directory entries — mkdir will create them below
+            // Skip directory entries - mkdir will create them below
             if (str_ends_with($normalizedName, '/')) {
                 @mkdir($targetPath, 0755, true);
                 continue;

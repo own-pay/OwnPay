@@ -155,14 +155,31 @@
     var notifMarkRead = document.getElementById("notif-mark-read");
     if (notifMarkRead) {
         notifMarkRead.addEventListener("click", function () {
-            document.querySelectorAll(".op-notif-unread").forEach(function (item) {
-                item.classList.remove("op-notif-unread");
+            notifMarkRead.disabled = true;
+            fetch("/admin/notifications/mark-all-read", {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-Token": window.OP_CSRF || ""
+                }
+            }).then(function (response) {
+                if (!response.ok) { throw new Error("Notification update failed"); }
+                return response.json();
+            }).then(function (result) {
+                if (!result.success) { throw new Error("Notification update failed"); }
+                document.querySelectorAll(".op-notif-unread").forEach(function (item) {
+                    item.classList.remove("op-notif-unread");
+                });
+                document.querySelectorAll(".op-notif-dot").forEach(function (dot) {
+                    dot.remove();
+                });
+                var badge = document.querySelector(".op-badge-dot");
+                if (badge) { badge.style.display = "none"; }
+            }).catch(function () {
+                // Keep the unread state when the server could not persist the action.
+            }).finally(function () {
+                notifMarkRead.disabled = false;
             });
-            document.querySelectorAll(".op-notif-dot").forEach(function (dot) {
-                dot.remove();
-            });
-            var badge = document.querySelector(".op-badge-dot");
-            if (badge) { badge.style.display = "none"; }
         });
     }
 
@@ -790,14 +807,24 @@
     var searchInput = document.getElementById("global-search");
     if (searchInput) {
         var debounce = null;
+        var executeSearch = function () {
+            var q = searchInput.value.trim();
+            if (q.length >= 2) {
+                window.location.href = "/admin/transactions?q=" + encodeURIComponent(q);
+            }
+        };
+
         searchInput.addEventListener("input", function () {
             clearTimeout(debounce);
-            debounce = setTimeout(function () {
-                var q = searchInput.value.trim();
-                if (q.length >= 2) {
-                    window.location.href = "/admin/transactions?q=" + encodeURIComponent(q);
-                }
-            }, 500);
+            debounce = setTimeout(executeSearch, 500);
+        });
+
+        searchInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                clearTimeout(debounce);
+                executeSearch();
+            }
         });
     }
 
@@ -932,6 +959,55 @@
 
 
     // --- Global Modal Functions & CSP Delegated Handlers ------------------------------
+    function getFocusableElements(container) {
+        if (!container) {
+            return [];
+        }
+        return Array.prototype.slice.call(
+            container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        ).filter(function (el) {
+            return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+        });
+    }
+
+    window.openModal = function (id) {
+        var modal = typeof id === "string" ? document.getElementById(id) : id;
+        if (!modal) {
+            return;
+        }
+        modal._opener = document.activeElement;
+        modal.hidden = false;
+        var focusEl = modal.querySelector("[autofocus]");
+        if (!focusEl) {
+            var focusables = getFocusableElements(modal);
+            focusEl = focusables.length > 0 ? focusables[0] : modal;
+        }
+        if (focusEl && typeof focusEl.focus === "function") {
+            setTimeout(function () {
+                try {
+                    focusEl.focus();
+                } catch {
+                    // Ignore focus exceptions in detached/hidden elements
+                }
+            }, 10);
+        }
+    };
+
+    window.closeModal = function (id) {
+        var modal = typeof id === "string" ? document.getElementById(id) : id;
+        if (modal) {
+            modal.hidden = true;
+            if (modal._opener && typeof modal._opener.focus === "function") {
+                try {
+                    modal._opener.focus();
+                } catch {
+                    // Ignore focus exceptions
+                }
+                modal._opener = null;
+            }
+        }
+    };
+
     window.openDeleteModal = function (action, itemName) {
         var form = document.getElementById("delete-form");
         var nameEl = document.getElementById("delete-item-name");
@@ -944,14 +1020,7 @@
                 return;
             }
             nameEl.textContent = itemName;
-            modal.hidden = false;
-        }
-    };
-
-    window.closeModal = function (id) {
-        var modal = document.getElementById(id);
-        if (modal) {
-            modal.hidden = true;
+            window.openModal("confirm-delete-modal");
         }
     };
 
@@ -963,7 +1032,7 @@
             return;
         }
         titleEl.textContent = title;
-        modal.hidden = false;
+        window.openModal("detail-modal");
         content.innerHTML = '<div class="op-loading">Loading...</div>';
         fetch(url)
             .then(function (r) {
@@ -981,7 +1050,7 @@
                 // `<img src=x onerror=alert(1)>`) would otherwise become a
                 // DOM-XSS sink in the admin context. <script> tags injected
                 // via innerHTML do not execute in modern browsers, but event
-                // handler attributes (onerror/onload/onmouseover) DO fire —
+                // handler attributes (onerror/onload/onmouseover) DO fire -
                 // so we parse with DOMParser, strip dangerous elements + on*
                 // attributes + javascript:/vbscript:/data:text/html URLs +
                 // inline style attributes, then inject the sanitized DOM.
@@ -990,7 +1059,7 @@
             })
             .catch(function (err) {
                 // Build the error shell via innerHTML (static, no interpolation)
-                // then write the dynamic message via textContent — never
+                // then write the dynamic message via textContent - never
                 // interpolate err.message into innerHTML (it could originate
                 // from a redirected fetch body in some browser/Fetch impls).
                 content.innerHTML = '<div class="op-error op-p-4"><p>Failed to load details.</p><pre class="op-text-sm op-text-muted op-mt-2"></pre></div>';
@@ -1007,7 +1076,7 @@
      *
      * Defence-in-depth sink hardening for window.openDetailModal (UI-9).
      * Today the only caller is /admin/activities/{id}/details, whose Twig
-     * template auto-escapes every field — so today this is a no-op
+     * template auto-escapes every field - so today this is a no-op
      * security-wise. But the data-open-detail-modal attribute is generic;
      * any future admin endpoint that returns non-escaped user-controlled
      * HTML and is invoked via that attribute would otherwise become a
@@ -1020,7 +1089,7 @@
      *   2. Strip every on* attribute (onclick, onerror, onload, ...).
      *   3. Strip javascript:/vbscript:/data:text/html URLs in href/src/
      *      action/formaction/background/poster/xlink:href.
-     *   4. Strip inline style attributes (CSS-based UI redress attacks —
+     *   4. Strip inline style attributes (CSS-based UI redress attacks -
      *      defence-in-depth; not strictly XSS but cheap to drop).
      *
      * No external dependency (no DOMPurify). Conservative: legitimate
@@ -1106,15 +1175,8 @@
         // 1b. Delegated Modal Open
         var openBtn = target.closest("[data-open-modal]");
         if (openBtn) {
-            var modalId = openBtn.getAttribute("data-open-modal") || openBtn.dataset.openModal;
-            var modal = document.getElementById(modalId);
-            if (modal) {
-                modal.hidden = false;
-                var focusEl = modal.querySelector("[autofocus]");
-                if (focusEl) {
-                    focusEl.focus();
-                }
-            }
+            var openModalId = openBtn.getAttribute("data-open-modal") || openBtn.dataset.openModal;
+            window.openModal(openModalId);
             return;
         }
 
@@ -1138,8 +1200,45 @@
     });
 
     document.addEventListener("keydown", function (e) {
+        var openModals = Array.prototype.slice.call(document.querySelectorAll(".op-modal:not([hidden])"));
+        if (openModals.length === 0) {
+            return;
+        }
+        var activeModal = openModals[openModals.length - 1];
+
         if (e.key === "Escape") {
-            document.querySelectorAll(".op-modal:not([hidden])").forEach(function (m) { m.hidden = true; });
+            e.preventDefault();
+            var modalId = activeModal.id;
+            if (modalId === "confirm-modal") {
+                closeConfirmModal();
+            } else if (modalId) {
+                window.closeModal(modalId);
+            } else {
+                window.closeModal(activeModal);
+            }
+            return;
+        }
+
+        if (e.key === "Tab") {
+            var focusables = getFocusableElements(activeModal);
+            if (focusables.length === 0) {
+                e.preventDefault();
+                return;
+            }
+            var first = focusables[0];
+            var last = focusables[focusables.length - 1];
+
+            if (e.shiftKey) {
+                if (document.activeElement === first || !activeModal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last || !activeModal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
         }
     });
 
@@ -1276,14 +1375,11 @@
         }
 
         confirmCallback = callback;
-        modal.hidden = false;
+        window.openModal("confirm-modal");
     };
 
     function closeConfirmModal() {
-        var modal = document.getElementById("confirm-modal");
-        if (modal) {
-            modal.hidden = true;
-        }
+        window.closeModal("confirm-modal");
         confirmCallback = null;
     }
 

@@ -26,6 +26,11 @@ class Database
     private PDO $pdo;
 
     /**
+     * Configured application table prefix.
+     */
+    private string $tablePrefix = 'op_';
+
+    /**
      * @var self|null The singleton instance used for testing/fallback context.
      */
     private static ?self $instance = null;
@@ -49,10 +54,15 @@ class Database
      * Database constructor.
      *
      * @param PDO $pdo The underlying PDO connection.
+     * @param string $tablePrefix The configured application table prefix.
      */
-    public function __construct(PDO $pdo)
+    public function __construct(PDO $pdo, string $tablePrefix = 'op_')
     {
         $this->pdo = $pdo;
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $tablePrefix)) {
+            throw new \InvalidArgumentException('Invalid database table prefix.');
+        }
+        $this->tablePrefix = $tablePrefix;
     }
 
     /**
@@ -111,10 +121,10 @@ class Database
      * (no application-level override) or traverse the wire in cleartext.
      *
      * The caller may now pass:
-     *   - $options[PDO::ATTR_TIMEOUT] (default 5) — connect timeout in seconds.
-     *   - $options[PDO::ATTR_PERSISTENT] (default false) — set true for
+     *   - $options[PDO::ATTR_TIMEOUT] (default 5) - connect timeout in seconds.
+     *   - $options[PDO::ATTR_PERSISTENT] (default false) - set true for
      *     long-running CLI/cron workers to reuse pooled connections.
-     *   - $sslCa (path to a PEM-encoded CA bundle) — when non-null, TLS is
+     *   - $sslCa (path to a PEM-encoded CA bundle) - when non-null, TLS is
      *     enabled with server-cert verification pinned to the supplied CA.
      *
      * @param string                                                $host    The database host.
@@ -250,6 +260,7 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
+        $sql = $this->applyTablePrefix($sql);
         // DB-1: The db.query.before filter previously fired on EVERY query,
         // including core-originated queries against sensitive tables
         // (op_api_keys, op_users, op_merchant_users, op_password_resets,
@@ -259,7 +270,7 @@ class Database
         // every API key, or rewrite `UPDATE op_transactions SET status=
         // 'completed' WHERE id=:id AND merchant_id=:mid` to drop the tenant
         // guard. The sandbox check on line 238-247 only ran when the active
-        // owner was a plugin — for core-originated queries, no sandbox
+        // owner was a plugin - for core-originated queries, no sandbox
         // validation happened at all, and the rewritten SQL was executed
         // verbatim.
         //
@@ -356,6 +367,35 @@ class Database
         }
 
         return $stmt;
+    }
+
+    /**
+     * Rewrites core table identifiers from the canonical op_ prefix to the
+     * configured prefix. SQL values and comments are intentionally untouched.
+     *
+     * @param string $sql SQL statement containing canonical table identifiers.
+     * @return string SQL statement using the configured table prefix.
+     */
+    private function applyTablePrefix(string $sql): string
+    {
+        if ($this->tablePrefix === 'op_') {
+            return $sql;
+        }
+
+        $rewritten = preg_replace_callback(
+            '/(?P<q>`)(?P<name>op_[a-z_][a-z0-9_]*)\k<q>'
+            . '|(?P<pre>[\s(])(?P<bare>op_[a-z_][a-z0-9_]*)/i',
+            function (array $match): string {
+                if ($match['q'] !== '') {
+                    $name = $match['name'];
+                    return $match['q'] . $this->tablePrefix . substr($name, 3) . $match['q'];
+                }
+                return $match['pre'] . $this->tablePrefix . substr($match['bare'], 3);
+            },
+            $sql
+        );
+
+        return is_string($rewritten) ? $rewritten : $sql;
     }
 
     /**
@@ -468,7 +508,7 @@ class Database
      * Checks if a row exists in the database.
      *
      * SECURITY: The $where argument is concatenated directly into the SQL
-     * string. Callers MUST NOT interpolate user input into $where — only
+     * string. Callers MUST NOT interpolate user input into $where - only
      * literal SQL fragments with :named placeholders bound via $params are
      * permitted. A runtime assertion rejects obvious SQL-injection markers
      * (statement separator, comment markers, NUL/control bytes) as a
@@ -495,7 +535,7 @@ class Database
      * Counts rows matching selection parameters.
      *
      * SECURITY: The $where argument is concatenated directly into the SQL
-     * string. Callers MUST NOT interpolate user input into $where — only
+     * string. Callers MUST NOT interpolate user input into $where - only
      * literal SQL fragments with :named placeholders bound via $params are
      * permitted. A runtime assertion rejects obvious SQL-injection markers
      * (statement separator, comment markers, NUL/control bytes) as a
@@ -529,7 +569,7 @@ class Database
      * placeholders and quoted SQL literals (e.g. status IN ('open',
      * 'under_review')) pass through unchanged.
      *
-     * This is NOT a complete SQL-injection defence — the only safe pattern is
+     * This is NOT a complete SQL-injection defence - the only safe pattern is
      * to bind all user-derived values via $params. The guard exists solely to
      * turn an accidental caller shortcut into a loud failure rather than a
      * silent exploit.
@@ -543,7 +583,7 @@ class Database
         if ($where === '') {
             return;
         }
-        // Reject statement separators and SQL comment markers — no legitimate
+        // Reject statement separators and SQL comment markers - no legitimate
         // WHERE clause needs them.
         if (
             str_contains($where, ';')

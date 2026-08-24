@@ -68,8 +68,8 @@ final class ActiveThemeResolver
         // SettingsRepository and is normally validated upstream by
         // ThemeController::activate()/saveBrandTheme() against the plugins
         // table. However, a compromised plugin row with a traversal slug
-        // (e.g. '../attacker-theme') — inserted via zip-slip during plugin
-        // install, a corrupted manifest, or direct DB access — would flow
+        // (e.g. '../attacker-theme') - inserted via zip-slip during plugin
+        // install, a corrupted manifest, or direct DB access - would flow
         // straight into filesystem path interpolation here, enabling LFI
         // via PlainPhpThemeRenderer::include. Reject any slug that is not a
         // strict identifier; also verify realpath() containment of $basePath

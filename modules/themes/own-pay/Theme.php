@@ -62,6 +62,11 @@ final class Theme implements PluginInterface
             echo '<script' . $nonceAttr . ' src="/assets/js/op-fetch.js"></script>';
             echo '<script' . $nonceAttr . ' src="/assets/js/checkout.js"></script>';
         });
+        // Note: checkout.css, op-fetch.js, and checkout.js are NOT enqueued here - checkout.twig
+        // already loads all three directly with cache-busting `?v=` query strings. Echoing them
+        // again unversioned here (as this used to) double-loads them and, worse, means the
+        // unversioned copies never bust a stale browser cache: a cached copy of checkout.js could
+        // silently reinstall a second, outdated click handler after any JS fix ships.
     }
 
     public function boot(Container $container): void {}

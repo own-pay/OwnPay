@@ -140,7 +140,7 @@ final class DomainMiddleware
         // before it is emitted as a `Location:` header. Storage-time validation
         // in DomainController::store()/update() should already have rejected
         // dangerous values (external hosts, javascript:/data: URIs), but rows
-        // written before that fix landed — or a SQL-level tamper — could still
+        // written before that fix landed - or a SQL-level tamper - could still
         // contain an open-redirect target. Defense-in-depth: if the stored
         // value is not a safe relative path or a same-origin absolute URL, the
         // redirect is suppressed and the request falls through to the standard
@@ -235,7 +235,7 @@ final class DomainMiddleware
      *
      * Returns false for anything else (external hosts, dangerous schemes,
      * protocol-relative URLs, empty allowedDomain). The caller then suppresses
-     * the redirect and serves the fallback 404 — no 302 is ever issued to an
+     * the redirect and serves the fallback 404 - no 302 is ever issued to an
      * untrusted target.
      *
      * @param string $url The stored redirect_url value.
@@ -249,7 +249,7 @@ final class DomainMiddleware
         }
 
         // Relative path: must start with `/` but not `//` (protocol-relative)
-        // or `/\` (backslash variant — some browsers normalize this to `//`).
+        // or `/\` (backslash variant - some browsers normalize this to `//`).
         if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_starts_with($url, '/\\')) {
             return true;
         }

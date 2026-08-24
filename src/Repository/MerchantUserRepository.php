@@ -62,6 +62,24 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
+     * Checks whether an email is already assigned to an account.
+     *
+     * @param string $email The email address to check.
+     * @param int|null $excludeId Optional user ID to exclude during edits.
+     * @return bool True when the email is already in use.
+     */
+    public function emailExists(string $email, ?int $excludeId = null): bool
+    {
+        $where = 'email = :email';
+        $params = ['email' => $email];
+        if ($excludeId !== null) {
+            $where .= ' AND id <> :exclude_id';
+            $params['exclude_id'] = $excludeId;
+        }
+        return $this->db->exists($this->table, $where, $params);
+    }
+
+    /**
      * Finds an active user record by their email address for authentication checks.
      *
      * @param string $email The user's email address.
@@ -145,7 +163,7 @@ final class MerchantUserRepository extends BaseRepository
      *
      * The `password_changed_at` timestamp is consumed by the session/JWT/API-key
      * invalidation logic (SEC-4) to revoke credentials issued before the password
-     * change — so a victim who clicks the reset link after suspecting compromise
+     * change - so a victim who clicks the reset link after suspecting compromise
      * actually kicks out the attacker's stolen session/refresh token/API key.
      *
      * @param int $id The user's primary key ID.
@@ -293,13 +311,16 @@ final class MerchantUserRepository extends BaseRepository
         string $status = 'active',
         ?string $avatarPath = null
     ): string {
-        // Use provided roleId, or resolve Staff role for this merchant
+        // Use provided roleId, or resolve the brand's Staff role.
         if ($roleId === null) {
             $role = $this->db->fetchOne(
                 "SELECT id FROM op_roles WHERE merchant_id = :mid AND slug = 'staff' LIMIT 1",
                 ['mid' => $merchantId]
             );
-            $roleId = ($role && isset($role['id']) && is_scalar($role['id'])) ? (int) $role['id'] : 1;
+            if ($role === null || !isset($role['id']) || !is_scalar($role['id'])) {
+                throw new \RuntimeException('No Staff role is configured for this brand.');
+            }
+            $roleId = (int) $role['id'];
         }
 
         return $this->create([

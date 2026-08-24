@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\NexusPay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Dutch-Bangla Bank Limited (DBBL) NexusPay payment gateway adapter.
  */
-final class NexusPayGateway implements PluginInterface, GatewayAdapterInterface
+final class NexusPayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -80,6 +81,60 @@ final class NexusPayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'secret_key', 'label' => 'Secret Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the configured Merchant ID/Secret Key authenticate against DBBL's NexusPay API by
+     * attempting a signed status lookup with a dummy transaction reference - reuses the same
+     * base URL, signature scheme, and header style as verify(). A structured JSON response (even
+     * one reporting the dummy reference as unknown) confirms the signature was accepted; a
+     * network failure or auth-rejection status does not.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($merchantId === '' || $secretKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant ID and Secret Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        $signature = hash('sha256', $merchantId . 'connection-test' . '0.00' . $secretKey);
+
+        $ch = curl_init($baseUrl . '/api/v1/payment/verify');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'merchant_id'    => $merchantId,
+                'trx_id'         => 'connection-test',
+                'gateway_trx_id' => 'connection-test',
+                'amount'         => '0.00',
+            ]),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-Signature: ' . $signature,
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach the NexusPay API - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'NexusPay rejected the provided Merchant ID/Secret Key.'];
+        }
+        return ['success' => true, 'message' => "Reached the NexusPay API and credentials were accepted ({$mode} mode)."];
     }
 
     public function initiate(array $params, array $credentials): array

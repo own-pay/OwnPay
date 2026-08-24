@@ -437,7 +437,7 @@ final class DeveloperController
 
         // Validate Signature
         $payload = 'ip=' . $ip . '&expires=' . $expires;
-        $appKeyRaw = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '');
+        $appKeyRaw = ($_ENV['APP_KEY'] ?? getenv('APP_KEY')) ?: '';
         $appKey = is_string($appKeyRaw) ? $appKeyRaw : '';
         if ($appKey === '') {
             throw new \RuntimeException('APP_KEY is not configured on the server.');

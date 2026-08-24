@@ -65,7 +65,7 @@ final class CronController
         $configApp = $this->c->get('config.app');
         $configCronSecret = (is_array($configApp) && isset($configApp['cron_secret']) && is_string($configApp['cron_secret'])) ? $configApp['cron_secret'] : '';
         
-        $envSecret = getenv('CRON_SECRET');
+        $envSecret = ($_ENV['CRON_SECRET'] ?? getenv('CRON_SECRET'));
         $dbSecretStr = is_string($dbSecret) ? $dbSecret : '';
         $expected = (is_string($envSecret) && $envSecret !== '') ? $envSecret : ($dbSecretStr !== '' ? $dbSecretStr : $configCronSecret);
  

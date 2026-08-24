@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Instamojo;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Instamojo payment gateway adapter implementing the OAuth2 and Payment Requests API.
  */
-final class InstamojoGateway implements PluginInterface, GatewayAdapterInterface
+final class InstamojoGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -157,6 +158,34 @@ final class InstamojoGateway implements PluginInterface, GatewayAdapterInterface
             'redirect_url' => $checkoutUrl,
             'session_id'   => $requestId,
         ];
+    }
+
+    /**
+     * Verifies the configured Client ID/Secret authenticate against Instamojo's OAuth2 token
+     * endpoint, without creating a payment request.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? '');
+        $clientSecret = $this->getString($credentials['client_secret'] ?? '');
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter Client ID and Client Secret before testing the connection.'];
+        }
+
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        try {
+            $this->getAccessToken($baseUrl, $clientId, $clientSecret);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to Instamojo ({$mode} mode)."];
     }
 
     /**

@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Payfast Payment Gateway Adapter.
  */
-final class PayfastGateway implements PluginInterface, GatewayAdapterInterface
+final class PayfastGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -92,6 +93,49 @@ final class PayfastGateway implements PluginInterface, GatewayAdapterInterface
         return $mode === 'live'
             ? 'https://www.payfast.co.za/eng/process'
             : 'https://sandbox.payfast.co.za/eng/process';
+    }
+
+    /**
+     * PayFast's classic checkout API (merchant_id/merchant_key/passphrase, used here) has no
+     * account-info endpoint that can be queried with just those fields - the /eng/query/validate
+     * endpoint only validates whether a POSTed ITN payload's signature+source IP look genuine,
+     * which is meaningless without a real transaction. This confirms the process endpoint is
+     * reachable and both required fields are present, which is the most this integration can
+     * honestly verify before a real checkout attempt.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = $this->getString($credentials['merchant_id'] ?? '');
+        $merchantKey = $this->getString($credentials['merchant_key'] ?? '');
+        if ($merchantId === '' || $merchantKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant ID and Merchant Key before testing the connection.'];
+        }
+
+        $ch = curl_init($this->getEndpoint($credentials));
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_NOBODY         => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $ok = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($ok === false) {
+            return ['success' => false, 'message' => 'Could not reach PayFast - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Merchant ID and Key are set and the PayFast checkout endpoint is reachable. '
+                . 'PayFast\'s classic API has no way to fully verify these credentials without a live checkout attempt.',
+        ];
     }
 
     public function initiate(array $params, array $credentials): array

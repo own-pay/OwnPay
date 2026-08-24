@@ -24,7 +24,7 @@ final class EnvironmentService
      */
     public static function mode(): string
     {
-        $env = getenv('APP_ENV');
+        $env = ($_ENV['APP_ENV'] ?? getenv('APP_ENV'));
         if ($env === false) {
             $env = $_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? 'production';
         }
@@ -68,7 +68,7 @@ final class EnvironmentService
      */
     public static function debugEnabled(): bool
     {
-        $env = getenv('APP_DEBUG');
+        $env = ($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG'));
         if ($env === false) {
             $env = $_ENV['APP_DEBUG'] ?? $_SERVER['APP_DEBUG'] ?? 'false';
         }
@@ -167,7 +167,7 @@ final class EnvironmentService
     /**
      * Injects a logger used to surface DB persistence failures from set().
      *
-     * Optional — if never called, persistence failures remain silent (the
+     * Optional - if never called, persistence failures remain silent (the
      * previous behaviour) and the in-memory cache still reflects the requested
      * value so the app does not crash. When wired (typically by the Kernel
      * during boot), failures are logged at ERROR level for operator visibility.
@@ -228,7 +228,7 @@ final class EnvironmentService
         }
 
         // System environment variable fallback
-        $env = getenv($key);
+        $env = ($_ENV[$key] ?? getenv($key));
         if ($env === false) {
             $env = $_ENV[$key] ?? $_SERVER[$key] ?? false;
         }
@@ -272,7 +272,7 @@ final class EnvironmentService
                     $repo->set('runtime', $key, $value);
                 }
             } catch (\Throwable $e) {
-                // DB write failed — surface it via the logger (if wired) so
+                // DB write failed - surface it via the logger (if wired) so
                 // operators can detect silent persistence degradation. The
                 // in-memory cache still holds the requested value so the
                 // current process keeps functioning; the value is lost on
@@ -287,7 +287,7 @@ final class EnvironmentService
                 );
             }
         } else {
-            // No repo available at all (DB not booted) — same surface.
+            // No repo available at all (DB not booted) - same surface.
             self::$logger?->error(
                 'EnvironmentService::set persistence skipped: repository unavailable',
                 [

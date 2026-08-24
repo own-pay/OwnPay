@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\PagSeguro;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * PagSeguro Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class PagSeguroGateway implements PluginInterface, GatewayAdapterInterface
+final class PagSeguroGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -50,6 +51,50 @@ final class PagSeguroGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'token', 'label' => 'API Token', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the configured Merchant Email/API Token authenticate against PagSeguro's real
+     * legacy API via POST /v2/sessions - the same session-creation call the old checkout
+     * lightbox flow relies on, and PagSeguro's only lightweight endpoint reachable with just an
+     * email+token pair (no charge is created).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $email = $this->getString($credentials['email'] ?? null);
+        $token = $this->getString($credentials['token'] ?? null);
+        if ($email === '' || $token === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant Email and API Token before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $url = $mode === 'live'
+            ? 'https://ws.pagseguro.uol.com.br/v2/sessions'
+            : 'https://ws.sandbox.pagseguro.uol.com.br/v2/sessions';
+
+        $ch = curl_init($url . '?' . http_build_query(['email' => $email, 'token' => $token]));
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false || $response === '') {
+            return ['success' => false, 'message' => 'Could not reach PagSeguro - check the server\'s network connectivity.'];
+        }
+
+        $xmlObj = @simplexml_load_string((string) $response);
+        if ($xmlObj !== false && isset($xmlObj->id) && (string) $xmlObj->id !== '') {
+            return ['success' => true, 'message' => "Connected successfully to PagSeguro ({$mode} mode)."];
+        }
+
+        $errMsg = ($xmlObj !== false && isset($xmlObj->error->message)) ? (string) $xmlObj->error->message : 'PagSeguro rejected the provided Email/Token.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

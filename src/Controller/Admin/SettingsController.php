@@ -9,6 +9,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\System\AuditService;
+use OwnPay\View\FragmentRenderer;
 
 /**
  * Class SettingsController
@@ -50,6 +51,8 @@ final class SettingsController
      */
     private AuditService $audit;
 
+    private FragmentRenderer $renderer;
+
     /**
      * SettingsController constructor.
      *
@@ -59,13 +62,14 @@ final class SettingsController
      * @param \OwnPay\Repository\SettingsRepository $settingsRepo The settings repository.
      * @param AuditService                          $audit        The application audit logging service.
      */
-    public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo, AuditService $audit)
+    public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo, AuditService $audit, FragmentRenderer $renderer)
     {
         $this->c = $c;
         $this->session = $session;
         $this->events = $events;
         $this->settingsRepo = $settingsRepo;
         $this->audit = $audit;
+        $this->renderer = $renderer;
     }
 
     /**
@@ -146,9 +150,11 @@ final class SettingsController
                 'timer_enabled' => $brandSettings['timer_enabled'] ?? '0',
                 'timer_seconds' => $brandSettings['timer_seconds'] ?? '900',
                 'show_faq' => $brandSettings['show_faq'] ?? '0',
-                'auto_redirect_to_merchant' => $brandSettings['auto_redirect_to_merchant'] ?? '0',
                 'custom_css' => $brandSettings['custom_css'] ?? '',
                 'custom_js' => $brandSettings['custom_js'] ?? '',
+                'show_powered_by' => $brandSettings['show_powered_by'] ?? '1',
+                'powered_by_text' => $brandSettings['powered_by_text'] ?? '',
+                'powered_by_url'  => $brandSettings['powered_by_url'] ?? '',
             ];
             $theme = [
                 'primary_color' => $brandSettings['primary_color'] ?? '#0D9488',
@@ -171,6 +177,15 @@ final class SettingsController
             $inherited   = [];
             $settings    = $this->settingsRepo->getGroup('general');
             $branding    = $this->settingsRepo->getGroup('branding');
+            $mailSettings = $this->settingsRepo->getGroup('plugin.mail-gateway');
+            foreach (['smtp_host', 'smtp_port', 'smtp_encryption'] as $mailKey) {
+                if (isset($mailSettings[$mailKey])) {
+                    $settings[$mailKey] = $mailSettings[$mailKey];
+                }
+            }
+            if (isset($mailSettings['smtp_user'])) {
+                $settings['smtp_username'] = $mailSettings['smtp_user'];
+            }
             $landing     = $this->settingsRepo->getGroup('landing');
             $checkout    = $this->settingsRepo->getGroup('checkout');
             $theme       = $this->settingsRepo->getGroup('theme');
@@ -368,7 +383,7 @@ final class SettingsController
 
         $queueObj = $this->c->get(\OwnPay\Queue\QueueInterface::class);
         $queueDriverStats = [
-            'driver' => getenv('QUEUE_DRIVER') ?: 'file',
+            'driver' => ($_ENV['QUEUE_DRIVER'] ?? getenv('QUEUE_DRIVER')) ?: 'file',
             'sizes' => [
                 'default'  => 0,
                 'webhooks' => 0,
@@ -550,11 +565,12 @@ final class SettingsController
                     
                     $brandSettings['show_faq'] = isset($data['show_faq']) && $data['show_faq'] === '1' ? '1' : '0';
 
-                    // Issue #71: auto-redirect toggle. When enabled, the success
-                    // page issues an immediate client-side redirect to the
-                    // merchant return URL instead of showing the invoice screen.
-                    $brandSettings['auto_redirect_to_merchant'] = isset($data['auto_redirect_to_merchant']) && $data['auto_redirect_to_merchant'] === '1' ? '1' : '0';
-                    
+                    $brandSettings['show_powered_by'] = isset($data['show_powered_by']) && $data['show_powered_by'] === '1' ? '1' : '0';
+                    $poweredByTextVal = $data['powered_by_text'] ?? ($brandSettings['powered_by_text'] ?? '');
+                    $brandSettings['powered_by_text'] = \OwnPay\Service\System\InputSanitizer::string(is_string($poweredByTextVal) ? $poweredByTextVal : '');
+                    $poweredByUrlVal = $data['powered_by_url'] ?? ($brandSettings['powered_by_url'] ?? '');
+                    $brandSettings['powered_by_url'] = \OwnPay\Service\System\InputSanitizer::url(is_string($poweredByUrlVal) ? $poweredByUrlVal : '');
+
                     $isSuperadmin = !empty($_SESSION['is_superadmin']);
                     if ($isSuperadmin) {
                         $customCssVal = $data['custom_css'] ?? ($brandSettings['custom_css'] ?? '');
@@ -562,25 +578,10 @@ final class SettingsController
                         $customJsVal = $data['custom_js'] ?? ($brandSettings['custom_js'] ?? '');
                         $customJs = is_string($customJsVal) ? $customJsVal : '';
 
-                        // Sanitize brand-supplied CSS (issue #79). Even though
-                        // only superadmins can set this field, defense-in-depth
-                        // removes the well-known CSS-borne XSS vectors so a
-                        // compromised superadmin session cannot weaponize the
-                        // checkout page against customers.
-                        //
-                        // SECURITY (TMPL-4): brand-controlled custom_js is now
-                        // injected by checkout.js WITHOUT the page's CSP nonce,
-                        // so it is blocked by the browser's CSP
-                        // `script-src 'self' 'nonce-{$nonce}'` directive unless
-                        // the operator has explicitly opted in by adding
-                        // 'unsafe-inline' to script-src via the
-                        // 'checkout.csp.sources' filter hook. Saving custom_js
-                        // here is always allowed (and audit-logged below) so
-                        // the value is preserved for deployments that have
-                        // opted in, but it will not execute by default.
-                        $customCss = $this->sanitizeBrandCss($customCss);
+                        $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
+                        $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', is_string($customCss) ? $customCss : '');
 
-                        $brandSettings['custom_css'] = $customCss;
+                        $brandSettings['custom_css'] = is_string($customCss) ? $customCss : '';
                         $brandSettings['custom_js']  = $customJs;
                     }
                     break;
@@ -646,6 +647,7 @@ final class SettingsController
                 break;
 
             default:
+                $this->saveApplicationLogos($req);
                 $this->saveGeneral($data);
                 break;
         }
@@ -660,6 +662,71 @@ final class SettingsController
         }
 
         return Response::redirect('/admin/settings/' . $tab);
+    }
+
+    /**
+     * Sends a test message through the configured email provider.
+     *
+     * @param Request $req The incoming test request.
+     * @return Response JSON delivery result.
+     */
+    public function testEmail(Request $req): Response
+    {
+        $targetVal = $req->post('to', '');
+        $target = is_string($targetVal) ? trim($targetVal) : '';
+        if ($target === '' || filter_var($target, FILTER_VALIDATE_EMAIL) === false) {
+            return Response::json(['success' => false, 'error' => 'Enter a valid test recipient email address.'], 422);
+        }
+
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            return Response::json(['success' => false, 'error' => 'Brand context unavailable.'], 500);
+        }
+        $brand->resolveFromRequest($req);
+        $merchantId = $brand->getActiveBrandId();
+        if ($merchantId === null) {
+            return Response::json(['success' => false, 'error' => 'Merchant context unavailable.'], 500);
+        }
+
+        $comm = $this->c->get(\OwnPay\Service\Communication\CommunicationService::class);
+        if (!$comm instanceof \OwnPay\Service\Communication\CommunicationService) {
+            return Response::json(['success' => false, 'error' => 'Email service unavailable.'], 500);
+        }
+
+        $html = $this->renderer->render('email/smtp_test.twig', [
+            'recipient' => $target,
+            'sent_at'   => date('Y-m-d H:i:s T'),
+        ]);
+
+        $result = $comm->sendEmail($merchantId, [
+            'to'      => $target,
+            'subject' => 'OwnPay email configuration test',
+            'body'    => 'This is a test email from OwnPay.',
+            'html'    => $html,
+        ]);
+
+        return Response::json($result, $result['success'] ? 200 : 502);
+    }
+
+    /**
+     * Persists the current notification scope's read timestamp.
+     *
+     * @param Request $req The incoming request.
+     * @return Response JSON acknowledgement.
+     */
+    public function markNotificationsRead(Request $req): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            return Response::json(['success' => false], 500);
+        }
+        $brand->resolveFromRequest($req);
+        $scope = $brand->getActiveBrandId();
+        $userId = $this->session->userId() ?? 0;
+        $scopeKey = 'admin_notifications_read_at_' . $userId . '_' . ($scope ?? 'all');
+        $this->session->set($scopeKey, time());
+
+        return Response::json(['success' => true]);
     }
 
     /**
@@ -750,7 +817,7 @@ final class SettingsController
             return Response::redirect('/admin/settings/branding');
         }
 
-        foreach (['site_logo', 'site_favicon'] as $field) {
+        foreach (['site_logo', 'site_favicon', 'app_logo_light', 'app_logo_dark'] as $field) {
             $file = $req->file($field);
             if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
                 continue;
@@ -758,7 +825,7 @@ final class SettingsController
 
             try {
                 if (isset($file['name'], $file['tmp_name']) && is_string($file['name']) && is_string($file['tmp_name'])) {
-                    $path = $fs->storePublicUpload($file, 'branding');
+                    $path = $fs->storePublicUpload($file, in_array($field, ['app_logo_light', 'app_logo_dark'], true) ? 'app-logos' : 'branding');
                     $this->settingsRepo->set('branding', $field, $path);
                     $saved[$field] = $path;
                 }
@@ -1172,22 +1239,48 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                // UI-2: Treat an empty smtp_password as "no change" so the
-                // password field can be left blank in the form (the template
-                // no longer echoes the current password into the page source).
-                // Only overwrite the stored password when a non-empty value
-                // is submitted.
-                if ($key === 'smtp_password') {
-                    $smtpVal = is_scalar($data[$key]) ? (string) $data[$key] : '';
-                    if ($smtpVal === '') {
-                        continue;
-                    }
-                }
                 $filtered[$key] = is_array($data[$key]) ? (json_encode($data[$key]) ?: '') : (is_scalar($data[$key]) ? (string) $data[$key] : '');
             }
         }
 
         $this->settingsRepo->bulkSet('general', $filtered);
+
+        if (isset($data['smtp_host'], $data['smtp_port'], $data['smtp_encryption'], $data['mail_from_email'], $data['mail_from_name'])) {
+            $smtpHost = is_scalar($data['smtp_host']) ? trim((string) $data['smtp_host']) : '';
+            $smtpPort = is_scalar($data['smtp_port']) ? (int) $data['smtp_port'] : 0;
+            $smtpEncryption = is_scalar($data['smtp_encryption']) ? (string) $data['smtp_encryption'] : '';
+            $fromEmail = is_scalar($data['mail_from_email']) ? trim((string) $data['mail_from_email']) : '';
+            $fromName = is_scalar($data['mail_from_name']) ? trim((string) $data['mail_from_name']) : '';
+
+            if ($smtpHost === '' || $smtpPort < 1 || $smtpPort > 65535) {
+                throw new \InvalidArgumentException('SMTP host and a valid port are required.');
+            }
+            if (!in_array($smtpEncryption, ['tls', 'ssl', 'none'], true)) {
+                throw new \InvalidArgumentException('Unsupported SMTP encryption.');
+            }
+            if (filter_var($fromEmail, FILTER_VALIDATE_EMAIL) === false) {
+                throw new \InvalidArgumentException('A valid sender email address is required.');
+            }
+
+            $mailSettings = [
+                'provider'         => 'smtp',
+                'smtp_host'        => $smtpHost,
+                'smtp_port'        => (string) $smtpPort,
+                'smtp_encryption'  => $smtpEncryption,
+                'from_email'       => $fromEmail,
+                'from_name'        => $fromName,
+                'enabled'          => '1',
+            ];
+            $passwordVal = $data['smtp_password'] ?? '';
+            if (is_scalar($passwordVal) && (string) $passwordVal !== '') {
+                $mailSettings['smtp_password'] = (string) $passwordVal;
+            }
+            $usernameVal = $data['smtp_username'] ?? '';
+            $mailSettings['smtp_user'] = is_scalar($usernameVal) ? (string) $usernameVal : '';
+            foreach ($mailSettings as $key => $value) {
+                $this->settingsRepo->set('plugin.mail-gateway', $key, $value);
+            }
+        }
 
         // Save Admin Login URL Slug to landing group if present (as it was moved to Security tab)
         if (isset($data['admin_login_slug'])) {
@@ -1227,6 +1320,28 @@ final class SettingsController
             ], JSON_THROW_ON_ERROR));
         } elseif (file_exists($lockFile)) {
             @unlink($lockFile);
+        }
+    }
+
+    /**
+     * Stores optional global light/dark application logos submitted with General settings.
+     *
+     * @param Request $req The multipart settings request.
+     * @return void
+     */
+    private function saveApplicationLogos(Request $req): void
+    {
+        $fs = new \OwnPay\Service\System\FilesystemService();
+        foreach (['app_logo_light', 'app_logo_dark'] as $field) {
+            $file = $req->file($field);
+            if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            if (!isset($file['name'], $file['tmp_name']) || !is_string($file['name']) || !is_string($file['tmp_name'])) {
+                throw new \InvalidArgumentException("Invalid file for {$field}.");
+            }
+            $path = $fs->storePublicUpload($file, 'app-logos');
+            $this->settingsRepo->set('branding', $field, $path);
         }
     }
 
@@ -1780,75 +1895,5 @@ final class SettingsController
         }
 
         return Response::redirect('/admin/settings/language');
-    }
-
-    /**
-     * Sanitizes brand-supplied custom CSS for known XSS vectors (issue #79).
-     *
-     * Brand CSS is rendered into a `<style>` element on the customer-facing
-     * checkout page, so the attack surface is CSS-borne script execution
-     * rather than HTML injection. The following patterns are stripped:
-     *
-     *  - `expression(...)`: IE-only dynamic-expression XSS, still relevant
-     *    for very old browsers and corporate legacy estates.
-     *  - `behavior:` and `-moz-binding`: legacy IE/Firefox script-binding
-     *    properties that load external behavior files.
-     *  - `javascript:` URL scheme inside `url(...)` values: classic XSS vector
-     *    for CSS-driven navigation.
-     *  - `@import`: loading remote stylesheets opens an exfiltration and
-     *    script-injection channel via attacker-controlled `url()` values.
-     *  - `<script>` blocks: defense-in-depth in case the CSS is later
-     *    rendered into an HTML context (e.g. inline `<div style="...">`).
-     *
-     * This is intentionally a denylist - it catches the documented vectors
-     * without breaking legitimate CSS. New attack vectors are mitigated by
-     * the CSP nonce requirement on injected `<style>` elements (see
-     * `public/assets/js/checkout.js`).
-     *
-     * @param string $css Raw brand-supplied CSS.
-     * @return string Sanitized CSS with known XSS vectors removed.
-     */
-    private function sanitizeBrandCss(string $css): string
-    {
-        // Decode CSS hex-escape sequences before applying the denylist
-        // (audit THM-1). Browsers decode `\65` to `e`, `\6D` to `m`, `\73`
-        // to `s`, etc. before applying the rule, so an attacker can encode
-        // keyword characters (`expr\65ssion`, `b\65havior:`, `@i\6Dport`,
-        // `url(java\73cript:)`) to evade every regex below. Normalising the
-        // escapes first makes the denylist effective against encoded
-        // payloads. Only `\` + 1-6 hex digits (optionally followed by a
-        // single whitespace) is decoded; literal escapes like `\.` or `\:`
-        // (non-hex) are left untouched so legitimate CSS identifiers still
-        // survive. Null codepoints are stripped entirely (they break the
-        // regex matchers and have no legitimate use in brand CSS).
-        $css = (string) preg_replace_callback(
-            '/\\\\([0-9a-fA-F]{1,6})\s?/u',
-            static function (array $m): string {
-                $code = (int) hexdec($m[1]);
-                if ($code === 0 || $code > 0x10FFFF) {
-                    return '';
-                }
-                return mb_chr($code, 'UTF-8');
-            },
-            $css
-        );
-
-        // Strip legacy dynamic-expression / behavior-binding properties.
-        $css = (string) preg_replace('/expression\s*\(/i', '(', $css);
-        $css = (string) preg_replace('/-?behavior\s*:/i', 'x-behavior-disabled:', $css);
-        $css = (string) preg_replace('/-moz-binding\s*:/i', 'x-moz-binding-disabled:', $css);
-
-        // Neutralize javascript: URLs inside url(...) values.
-        $css = (string) preg_replace('/url\s*\(\s*["\']?\s*javascript\s*:/i', 'url(', $css);
-
-        // Block @import - remote stylesheets are an exfiltration + injection
-        // channel; brand CSS should be self-contained.
-        $css = (string) preg_replace('/@import\b[^;]*;?/i', '', $css);
-
-        // Defense-in-depth: strip any embedded <script> blocks in case the
-        // CSS is ever rendered into an HTML context.
-        $css = (string) preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', $css);
-
-        return $css;
     }
 }

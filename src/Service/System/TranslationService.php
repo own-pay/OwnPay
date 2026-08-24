@@ -471,7 +471,7 @@ final class TranslationService
         if (!file_exists($filePath)) {
             $dbTranslations = $this->loadTranslationsFromDb($code);
             // Recovery path: when the on-disk JSON is missing but the language
-            // exists in the database (even with an empty translations payload —
+            // exists in the database (even with an empty translations payload -
             // common right after createLanguage() copies '{}' for a brand-new
             // locale), we must re-materialise the file. Otherwise the next
             // setLocale()+trans() cycle finds the file still missing and the
@@ -486,7 +486,7 @@ final class TranslationService
                 if ($json !== false) {
                     // json_encode([]) returns '[]' (a non-empty string), so
                     // no empty-string guard is needed here. Write the encoded
-                    // payload verbatim — the file will always contain at
+                    // payload verbatim - the file will always contain at
                     // minimum '[]' or '{}'.
                     @file_put_contents($filePath, $json, LOCK_EX);
                     @chmod($filePath, 0664);

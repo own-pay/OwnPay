@@ -61,6 +61,24 @@ final class PaymentLinkCheckoutController
     }
 
     /**
+     * Resolves per-brand theme/footer settings (footer_text, show_powered_by, powered_by_text,
+     * etc.) for the payment-link templates below - without this, `brand` is never present in
+     * their render context and checkout/layout.twig falls back to its unconditional, unbranded
+     * default footer instead of respecting the merchant's configured settings.
+     *
+     * @param int $mid The merchant/brand identifier.
+     * @return array<string, mixed> Brand theme settings, or [] if unresolvable.
+     */
+    private function loadBrandTheme(int $mid): array
+    {
+        if ($mid <= 0 || !$this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
+            return [];
+        }
+        $themeSvc = $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class);
+        return $themeSvc instanceof \OwnPay\Service\Brand\BrandThemeService ? $themeSvc->getBrandTheme($mid) : [];
+    }
+
+    /**
      * Renders the payment link checkout screen or redirects to the transaction.
      *
      * If the payment link has a fixed amount, it initializes a pending transaction (if one does not
@@ -144,6 +162,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'csrf_token' => $csrf,
                 'error'      => $error,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
 
@@ -253,6 +272,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'error'      => 'Please enter a valid amount',
                 'csrf_token' => $csrf,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
 
@@ -276,6 +296,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'error'      => "Minimum amount is {$minAmount} {$currency}",
                 'csrf_token' => $csrf,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
         if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amountStr, $maxAmount, 2) > 0) {
@@ -283,6 +304,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'error'      => "Maximum amount is {$maxAmount} {$currency}",
                 'csrf_token' => $csrf,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
 
@@ -339,7 +361,9 @@ final class PaymentLinkCheckoutController
             'status'       => 'expired',
             'status_label' => 'Payment Link Expired',
             'txn'          => [],
-            'brand'        => ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
+            'brand'        => $brandId !== null
+                ? $this->loadBrandTheme($brandId)
+                : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],
         ]);
     }

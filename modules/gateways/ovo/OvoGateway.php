@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Ovo;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * OVO Wallet Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class OvoGateway implements PluginInterface, GatewayAdapterInterface
+final class OvoGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -48,6 +49,41 @@ final class OvoGateway implements PluginInterface, GatewayAdapterInterface
         return [
             ['name' => 'secret_key', 'label' => 'Xendit Secret Key', 'type' => 'password', 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the configured Xendit Secret Key authenticates against Xendit's real API via
+     * GET /balance - a free, read-only, account-scoped call that any valid key can make.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter the Xendit Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.xendit.co/balance');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Xendit - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to Xendit.'];
+        }
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Xendit rejected the provided Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

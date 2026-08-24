@@ -116,7 +116,7 @@ final class ApiKeyApiSecurityTest extends IntegrationTestCase
         $this->assertFalse($body1['success']);
         $this->assertSame('INSUFFICIENT_PRIVILEGE', $body1['errors'][0]['code']);
 
-        // An admin-scoped key (without any spoofed header) must succeed — the
+        // An admin-scoped key (without any spoofed header) must succeed - the
         // X-Super-Admin-Email header was removed as part of the API-1 security
         // fix (it was pure security theater, providing no real identity proof).
         $req5 = new Request([], [], []);
