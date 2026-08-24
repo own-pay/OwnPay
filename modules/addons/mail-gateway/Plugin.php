@@ -188,19 +188,135 @@ final class Plugin implements PluginInterface
     /** @return array<string, mixed> */
     private function sendSmtp(string $to, string $subject, string $body): array
     {
-        $fromEmail = $this->settings['from_email'] ?? 'noreply@example.com';
-        $fromName = $this->settings['from_name'] ?? 'OwnPay';
+        $host = trim((string) ($this->settings['smtp_host'] ?? ''));
+        $port = (int) ($this->settings['smtp_port'] ?? 587);
+        $user = (string) ($this->settings['smtp_user'] ?? '');
+        $password = (string) ($this->settings['smtp_password'] ?? '');
+        $encryption = strtolower(trim((string) ($this->settings['smtp_encryption'] ?? 'tls')));
+        $fromEmail = trim((string) ($this->settings['from_email'] ?? ''));
+        $fromName = trim((string) ($this->settings['from_name'] ?? 'OwnPay'));
 
-        $headers = [
-            "From: {$fromName} <{$fromEmail}>",
-            "Reply-To: {$fromEmail}",
-            "MIME-Version: 1.0",
-            "Content-Type: text/html; charset=UTF-8",
-            "X-Mailer: OwnPay/1.0",
-        ];
+        if ($host === '' || $port < 1 || $port > 65535 || $fromEmail === '') {
+            return ['success' => false, 'provider' => 'smtp', 'error' => 'SMTP host, port, and from email are required'];
+        }
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL) || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'provider' => 'smtp', 'error' => 'Invalid recipient or sender email'];
+        }
+        if (!in_array($encryption, ['tls', 'ssl', 'none'], true)) {
+            return ['success' => false, 'provider' => 'smtp', 'error' => 'Unsupported SMTP encryption'];
+        }
 
-        $result = @mail($to, $subject, $body, implode("\r\n", $headers));
-        return ['success' => $result, 'provider' => 'smtp'];
+        $transport = $encryption === 'ssl' ? 'ssl://' : 'tcp://';
+        $errno = 0;
+        $error = '';
+        $socket = @stream_socket_client(
+            $transport . $host . ':' . $port,
+            $errno,
+            $error,
+            15,
+            STREAM_CLIENT_CONNECT
+        );
+        if (!is_resource($socket)) {
+            return ['success' => false, 'provider' => 'smtp', 'error' => "SMTP connection failed: {$error}"];
+        }
+
+        stream_set_timeout($socket, 15);
+        try {
+            $this->smtpRead($socket, [220]);
+            $this->smtpCommand($socket, 'EHLO ' . $this->smtpClientName(), [250]);
+
+            if ($encryption === 'tls') {
+                $this->smtpCommand($socket, 'STARTTLS', [220]);
+                $crypto = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+                if ($crypto !== true) {
+                    throw new \RuntimeException('SMTP TLS negotiation failed');
+                }
+                $this->smtpCommand($socket, 'EHLO ' . $this->smtpClientName(), [250]);
+            }
+
+            if ($user !== '') {
+                $this->smtpCommand($socket, 'AUTH LOGIN', [334]);
+                $this->smtpCommand($socket, base64_encode($user), [334]);
+                $this->smtpCommand($socket, base64_encode($password), [235]);
+            }
+
+            $this->smtpCommand($socket, 'MAIL FROM:<' . $fromEmail . '>', [250]);
+            $this->smtpCommand($socket, 'RCPT TO:<' . $to . '>', [250, 251]);
+            $this->smtpCommand($socket, 'DATA', [354]);
+
+            $safeSubject = str_replace(["\r", "\n"], '', $subject);
+            $safeFromName = str_replace(["\r", "\n"], '', $fromName);
+            $safeBody = str_replace(["\r\n", "\r", "\n"], "\r\n", $body);
+            $safeBody = preg_replace('/^\./m', '..', $safeBody) ?? $safeBody;
+            $headers = [
+                'From: ' . ($safeFromName !== '' ? $safeFromName . ' <' . $fromEmail . '>' : $fromEmail),
+                'To: <' . $to . '>',
+                'Subject: ' . $safeSubject,
+                'MIME-Version: 1.0',
+                'Content-Type: text/html; charset=UTF-8',
+                'Content-Transfer-Encoding: 8bit',
+                'X-Mailer: OwnPay/1.0',
+            ];
+            $this->smtpWrite($socket, implode("\r\n", $headers) . "\r\n\r\n" . $safeBody . "\r\n.");
+            $this->smtpRead($socket, [250]);
+            $this->smtpWrite($socket, 'QUIT');
+            fclose($socket);
+            return ['success' => true, 'provider' => 'smtp'];
+        } catch (\Throwable $e) {
+            fclose($socket);
+            return ['success' => false, 'provider' => 'smtp', 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * @param resource $socket
+     * @param array<int, int> $expected
+     */
+    private function smtpCommand($socket, string $command, array $expected): void
+    {
+        $this->smtpWrite($socket, $command);
+        $this->smtpRead($socket, $expected);
+    }
+
+    /** @param resource $socket */
+    private function smtpWrite($socket, string $command): void
+    {
+        if (fwrite($socket, $command . "\r\n") === false) {
+            throw new \RuntimeException('SMTP write failed');
+        }
+    }
+
+    /**
+     * @param resource $socket
+     * @param array<int, int> $expected
+     */
+    private function smtpRead($socket, array $expected): string
+    {
+        $response = '';
+        do {
+            $line = fgets($socket, 2048);
+            if ($line === false) {
+                throw new \RuntimeException('SMTP server closed the connection');
+            }
+            $response .= $line;
+        } while (isset($line[3]) && $line[3] === '-');
+
+        $code = (int) substr($response, 0, 3);
+        if (!in_array($code, $expected, true)) {
+            $message = trim(preg_replace('/^\d{3}[- ]?/m', '', $response) ?? $response);
+            throw new \RuntimeException("SMTP server rejected command ({$code}): {$message}");
+        }
+        return $response;
+    }
+
+    private function smtpClientName(): string
+    {
+        $name = gethostname();
+        if (!is_string($name) || $name === '') {
+            return 'localhost';
+        }
+        $cleaned = preg_replace('/[^a-zA-Z0-9.-]/', '', $name);
+        return is_string($cleaned) && $cleaned !== '' ? $cleaned : 'localhost';
     }
 
     /** @return array<string, mixed> */
