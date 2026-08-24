@@ -922,7 +922,18 @@ final class CheckoutController
                         if ($result['success']) {
                             $status = 'completed';
                             $leaseReleased = true;
-                        } elseif (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
+                        } else {
+                            $logger = $this->c->has(\OwnPay\Service\System\Logger::class)
+                                ? $this->c->get(\OwnPay\Service\System\Logger::class)
+                                : null;
+                            if ($logger instanceof \OwnPay\Service\System\Logger) {
+                                $error = is_string($result['error'] ?? null) ? $result['error'] : 'unknown verification failure';
+                                $logger->warning(
+                                    "Gateway callback verification failed for {$token}: gateway={$gateway}, payment_id={$callbackPaymentId}, error={$error}"
+                                );
+                            }
+                        }
+                        if (!$result['success'] && in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
                             $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'failed', $mid);
                             $status = 'failed';
                             $leaseReleased = true;

@@ -192,7 +192,11 @@ final class GatewayApiService
         $verification = $this->bridge->verify($gatewaySlug, $merchantId, $callbackData);
 
         if (!$verification['success']) {
-            return ['success' => false, 'error' => 'Verification failed'];
+            $verificationError = $verification['error'] ?? 'Verification failed';
+            return [
+                'success' => false,
+                'error'   => is_scalar($verificationError) ? (string) $verificationError : 'Verification failed',
+            ];
         }
 
         $trxId = '';

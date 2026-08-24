@@ -263,12 +263,22 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface,
                 'gateway_trx_id' => '',
                 'amount'         => null,
                 'status'         => 'failed',
-                'error'          => 'bKash API verification failed: Invalid response',
+                'error'          => 'bKash API verification failed: Invalid response (' . substr(trim((string) $response), 0, 200) . ')',
             ];
         }
 
         $statusCode = isset($data['statusCode']) && is_scalar($data['statusCode']) ? (string) $data['statusCode'] : '';
         $trxStatus = isset($data['transactionStatus']) && is_scalar($data['transactionStatus']) ? (string) $data['transactionStatus'] : '';
+
+        if ($statusCode === '2062' && $paymentId !== '') {
+            $statusData = $this->queryPaymentStatus($baseUrl, $token, $appKey, $paymentId);
+            if (is_array($statusData)) {
+                $data = $statusData;
+                $statusCode = isset($data['statusCode']) && is_scalar($data['statusCode']) ? (string) $data['statusCode'] : '';
+                $trxStatus = isset($data['transactionStatus']) && is_scalar($data['transactionStatus']) ? (string) $data['transactionStatus'] : '';
+            }
+        }
+
         $success = $statusCode === '0000' && $trxStatus === 'Completed';
 
         $trxID = isset($data['trxID']) && is_scalar($data['trxID']) ? (string) $data['trxID'] : '';
@@ -279,7 +289,51 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface,
             'gateway_trx_id' => $trxID,
             'amount'         => $amountVal,
             'status'         => $success ? 'completed' : 'failed',
+            'error'          => $success ? '' : sprintf(
+                'bKash execute rejected payment: statusCode=%s, statusMessage=%s, transactionStatus=%s',
+                $statusCode !== '' ? $statusCode : 'missing',
+                isset($data['statusMessage']) && is_scalar($data['statusMessage']) ? (string) $data['statusMessage'] : 'missing',
+                $trxStatus !== '' ? $trxStatus : 'missing'
+            ) . (isset($data['_diagnostic']) && is_scalar($data['_diagnostic']) ? ' response=' . (string) $data['_diagnostic'] : ''),
         ];
+    }
+
+    /**
+     * Retrieves the final bKash status after execute reports an already-completed payment.
+     *
+     * @param string $baseUrl bKash API base URL.
+     * @param string $token Authorization token.
+     * @param string $appKey Merchant app key.
+     * @param string $paymentId bKash payment ID.
+     * @return array<string, mixed>|null Decoded status response, or null on transport/JSON failure.
+     */
+    private function queryPaymentStatus(string $baseUrl, string $token, string $appKey, string $paymentId): ?array
+    {
+        $ch = curl_init($baseUrl . '/tokenized/checkout/payment/status');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: ' . $token,
+                'X-APP-Key: ' . $appKey,
+            ],
+            CURLOPT_POSTFIELDS => (string) json_encode(['paymentID' => $paymentId]),
+        ]);
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+        if ($response === false) {
+            return null;
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return null;
+        }
+        $data['_diagnostic'] = substr(trim((string) $response), 0, 300);
+        return $data;
     }
 
     /**
