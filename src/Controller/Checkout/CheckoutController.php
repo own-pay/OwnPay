@@ -371,6 +371,22 @@ final class CheckoutController
         }
         $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
 
+        $gatewayName = 'OwnPay';
+        if (is_array($txn)) {
+            $gatewaySlug = is_string($txn['gateway_slug'] ?? null) ? $txn['gateway_slug'] : '';
+            if ($gatewaySlug !== '') {
+                $gatewayRow = \OwnPay\Core\Database::getInstance()->fetchOne(
+                    'SELECT name FROM op_gateways WHERE slug = :slug LIMIT 1',
+                    ['slug' => $gatewaySlug]
+                );
+                if (is_array($gatewayRow) && is_scalar($gatewayRow['name'] ?? null)) {
+                    $gatewayName = (string) $gatewayRow['name'];
+                } elseif ($gatewaySlug !== '') {
+                    $gatewayName = ucwords(str_replace(['-', '_'], ' ', $gatewaySlug));
+                }
+            }
+        }
+
         // Retrieve dynamic currency symbols for status confirmation page.
         if (is_array($txn) && $this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
             $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
@@ -413,6 +429,7 @@ final class CheckoutController
         $brandId = $mid > 0 ? $mid : null;
         return $this->renderThemed($tplName, $brandId, [
             'txn'          => $txn ?? ['trx_id' => $ref],
+            'gateway_name' => $gatewayName,
             'status'       => $status ?: (is_array($txn) && is_string($txn['status'] ?? null) ? $txn['status'] : 'expired'),
             'status_label' => $this->statusLabel($status),
             'brand'        => $brand,
