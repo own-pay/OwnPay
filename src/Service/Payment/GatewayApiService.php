@@ -384,10 +384,13 @@ final class GatewayApiService
         if (!in_array($status, ['pending', 'processing', 'callback_processing'], true)) {
             return false;
         }
+        $storedGateway = is_string($transaction['gateway_slug'] ?? null)
+            ? $transaction['gateway_slug']
+            : '';
         if ($status === 'pending') {
-            return true;
+            return $storedGateway === '' || $storedGateway === $gatewaySlug;
         }
-        return ($transaction['gateway_slug'] ?? null) === $gatewaySlug;
+        return $storedGateway === $gatewaySlug;
     }
 
     /**
