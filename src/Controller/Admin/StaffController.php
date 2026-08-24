@@ -101,7 +101,6 @@ final class StaffController
             return $this->renderAdminPage('admin/staff/edit.twig', [
                 'user' => null,
                 'roles' => $roles,
-                'available_permissions' => $this->getPermissions(),
                 'active_page' => 'staff',
             ]);
         }
@@ -281,7 +280,6 @@ final class StaffController
             return $this->renderAdminPage('admin/staff/edit.twig', [
                 'user' => $user,
                 'roles' => $roles,
-                'available_permissions' => $this->getPermissions(),
                 'active_page' => 'staff',
             ]);
         }
@@ -549,22 +547,6 @@ final class StaffController
             );
         }
         return [];
-    }
-
-    /**
-     * Resolve global static permissions whitelist.
-     *
-     * @return string[] The list of permissions.
-     */
-    private function getPermissions(): array
-    {
-        return [
-            'transactions.view', 'transactions.manage', 'invoices.view', 'invoices.manage',
-            'payment_links.view', 'payment_links.manage', 'customers.view', 'customers.manage',
-            'gateways.view', 'gateways.manage', 'staff.view', 'staff.manage',
-            'settings.view', 'settings.manage', 'reports.view', 'sms.view',
-            'devices.view', 'devices.manage', 'domains.view', 'domains.manage',
-        ];
     }
 
     /**
