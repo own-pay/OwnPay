@@ -164,11 +164,16 @@ class BackupService
      */
     private function dumpDatabase(string $outputPath): void
     {
-        $host = ($_ENV['DB_HOST'] ?? getenv('DB_HOST')) ?: 'localhost';
-        $name = ($_ENV['DB_NAME'] ?? getenv('DB_NAME')) ?: '';
-        $user = ($_ENV['DB_USER'] ?? getenv('DB_USER')) ?: '';
-        $pass = ($_ENV['DB_PASS'] ?? getenv('DB_PASS')) ?: '';
-        $port = ($_ENV['DB_PORT'] ?? getenv('DB_PORT')) ?: '3306';
+        $hostValue = $_ENV['DB_HOST'] ?? getenv('DB_HOST');
+        $nameValue = $_ENV['DB_NAME'] ?? getenv('DB_NAME');
+        $userValue = $_ENV['DB_USER'] ?? getenv('DB_USER');
+        $passValue = $_ENV['DB_PASS'] ?? getenv('DB_PASS');
+        $portValue = $_ENV['DB_PORT'] ?? getenv('DB_PORT');
+        $host = is_string($hostValue) && $hostValue !== '' ? $hostValue : 'localhost';
+        $name = is_string($nameValue) ? $nameValue : '';
+        $user = is_string($userValue) ? $userValue : '';
+        $pass = is_string($passValue) ? $passValue : '';
+        $port = is_scalar($portValue) ? (string) $portValue : '3306';
 
         $tmpCnf = tempnam(sys_get_temp_dir(), 'op_dump_');
         file_put_contents($tmpCnf, "[client]\nuser={$user}\npassword={$pass}\nhost={$host}\nport={$port}\n", LOCK_EX);

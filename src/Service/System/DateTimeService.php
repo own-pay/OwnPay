@@ -143,7 +143,8 @@ final class DateTimeService
      */
     public static function getCurrentDatetime(string $format = 'Y-m-d H:i:s'): string
     {
-        $tz = ($_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE')) ?: 'Asia/Dhaka';
+        $timezoneValue = $_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE');
+        $tz = is_string($timezoneValue) && $timezoneValue !== '' ? $timezoneValue : 'Asia/Dhaka';
         return (new \DateTimeImmutable('now', new \DateTimeZone($tz)))->format($format);
     }
 }

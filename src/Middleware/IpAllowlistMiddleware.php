@@ -132,7 +132,8 @@ final class IpAllowlistMiddleware
      */
     private function getAllowlist(): array
     {
-        $raw = ($_ENV['IP_ALLOWLIST'] ?? getenv('IP_ALLOWLIST')) ?: '';
+        $rawValue = $_ENV['IP_ALLOWLIST'] ?? getenv('IP_ALLOWLIST');
+        $raw = is_string($rawValue) ? $rawValue : '';
         if ($raw === '') {
             return [];
         }

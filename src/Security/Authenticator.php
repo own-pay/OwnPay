@@ -85,8 +85,10 @@ final class Authenticator
         }
 
         // Verify active lockout window to prevent brute-force attacks.
-        $maxAttempts = (int) ($_ENV['MAX_LOGIN_ATTEMPTS'] ?? getenv('MAX_LOGIN_ATTEMPTS') ?: 5);
-        $window = (int) ($_ENV['LOCKOUT_DURATION'] ?? getenv('LOCKOUT_DURATION') ?: 300);
+        $maxAttemptsValue = $_ENV['MAX_LOGIN_ATTEMPTS'] ?? getenv('MAX_LOGIN_ATTEMPTS');
+        $windowValue = $_ENV['LOCKOUT_DURATION'] ?? getenv('LOCKOUT_DURATION');
+        $maxAttempts = is_numeric($maxAttemptsValue) ? (int) $maxAttemptsValue : 5;
+        $window = is_numeric($windowValue) ? (int) $windowValue : 300;
         $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);
 
         if ($lockRemaining > 0) {
