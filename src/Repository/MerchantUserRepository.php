@@ -145,7 +145,7 @@ final class MerchantUserRepository extends BaseRepository
      *
      * The `password_changed_at` timestamp is consumed by the session/JWT/API-key
      * invalidation logic (SEC-4) to revoke credentials issued before the password
-     * change — so a victim who clicks the reset link after suspecting compromise
+     * change - so a victim who clicks the reset link after suspecting compromise
      * actually kicks out the attacker's stolen session/refresh token/API key.
      *
      * @param int $id The user's primary key ID.

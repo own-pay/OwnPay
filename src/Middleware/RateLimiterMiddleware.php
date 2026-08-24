@@ -182,9 +182,18 @@ final class RateLimiterMiddleware
                             $twig = $this->container->get(\Twig\Environment::class);
                             if ($twig instanceof \Twig\Environment) {
                                 $cspNonce = '';
-                                if ($this->container->has('csp_nonce')) {
-                                    $cspNonceVal = $this->container->get('csp_nonce');
-                                    $cspNonce = is_string($cspNonceVal) ? $cspNonceVal : '';
+                                $reqNonce = $request->getAttribute('csp_nonce');
+                                if (is_string($reqNonce) && $reqNonce !== '') {
+                                    $cspNonce = $reqNonce;
+                                } elseif ($this->container->has(\OwnPay\Security\CspNonce::class)) {
+                                    try {
+                                        $nonceObj = $this->container->get(\OwnPay\Security\CspNonce::class);
+                                        if ($nonceObj instanceof \OwnPay\Security\CspNonce) {
+                                            $cspNonce = $nonceObj->getNonce();
+                                        }
+                                    } catch (\Throwable) {
+                                        // Ignore
+                                    }
                                 }
                                 $html = $twig->render('error/429.twig', [
                                     'retry_after' => $window,
@@ -256,7 +265,7 @@ final class RateLimiterMiddleware
 
             // Fail closed for non-safe mutating endpoints: when the rate limiter
             // backend is unavailable (Redis down, DB down, etc.), we must NOT
-            // silently allow POST/PUT/PATCH/DELETE traffic through — that would
+            // silently allow POST/PUT/PATCH/DELETE traffic through - that would
             // disable brute-force protection for the entire app for as long as
             // the limiter is down. Read-only safe methods (GET/HEAD/OPTIONS)
             // are allowed through as a graceful-degradation measure.

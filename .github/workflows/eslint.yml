@@ -18,7 +18,7 @@ on:
   schedule:
     - cron: '36 6 * * 1'
 
-# Minimum permissions — CodeQL flagged the absence of this block.
+# Minimum permissions - CodeQL flagged the absence of this block.
 permissions:
   contents: read
 

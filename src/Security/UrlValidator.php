@@ -19,7 +19,7 @@ final class UrlValidator
     private const ALLOWED_SCHEMES = ['http', 'https'];
 
     /**
-     * @var array<int, string> Allowed URL schemes for sanitize() — broader than
+     * @var array<int, string> Allowed URL schemes for sanitize() - broader than
      *                         ALLOWED_SCHEMES because sanitize() is also used for
      *                         mailto/tel links and other user-supplied URL strings
      *                         that are not outbound HTTP targets.
@@ -129,7 +129,7 @@ final class UrlValidator
      *
      * SECURITY: $allowedDomain is now MANDATORY. The previous signature allowed
      * a null $allowedDomain, in which case any URL with an http/https scheme and
-     * a host was accepted — an open-redirect sink for any caller that didn't
+     * a host was accepted - an open-redirect sink for any caller that didn't
      * pass an explicit allowlist. The fix is to require the caller to explicitly
      * provide the app's canonical host (e.g. from config.app.url, SERVER_NAME,
      * or RouteHelper::siteUrl('MainDomain')), so every redirect target is
@@ -145,7 +145,7 @@ final class UrlValidator
     public static function isValidRedirect(string $url, string $allowedDomain): bool
     {
         // An empty allowed domain means the caller has no configured canonical
-        // host — fail closed rather than risk an open-redirect sink.
+        // host - fail closed rather than risk an open-redirect sink.
         if ($allowedDomain === '') {
             return false;
         }

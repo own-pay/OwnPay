@@ -85,7 +85,7 @@ final class LoginAttemptController
 
         // Audit fix ROL-2: the previous implementation ran
         // `DELETE FROM op_login_attempts WHERE ip_address = :ip` (or email),
-        // destroying ALL login records — both successes and failures. That
+        // destroying ALL login records - both successes and failures. That
         // wiped the audit trail of legitimate successful logins for the
         // target, making it impossible to investigate "did the user actually
         // log in successfully before being unlocked?". Scope the DELETE to

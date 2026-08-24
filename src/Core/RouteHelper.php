@@ -57,7 +57,7 @@ final class RouteHelper
         // permitted hosts. The Host header is fully client-controlled in
         // HTTP/1.1, so without validation any caller of siteUrl() that
         // places the result in an outbound email, redirect, or JSON
-        // response is vulnerable to host-header injection — most
+        // response is vulnerable to host-header injection - most
         // critically the password-reset flow, where a spoofed
         // Host: attacker.com causes the victim to receive a reset-email
         // link pointing at the attacker's host, leaking the reset token
@@ -184,7 +184,7 @@ final class RouteHelper
      *
      * Returns the validated host (which may be the supplied value, or a
      * fallback when the supplied value is not allowed) or null when no
-     * validation is configured (legacy behavior — caller uses the raw Host).
+     * validation is configured (legacy behavior - caller uses the raw Host).
      *
      * @param string $host The Host header value to validate.
      * @return string|null The validated host, or null when no allow-list is configured.
@@ -207,7 +207,7 @@ final class RouteHelper
                 if (in_array($hostForComparison, $allowed, true)) {
                     return $host;
                 }
-                // Host not in allow-list — fall back to the first allowed host.
+                // Host not in allow-list - fall back to the first allowed host.
                 return $allowed[0];
             }
         }
@@ -237,7 +237,7 @@ final class RouteHelper
             return $serverName;
         }
 
-        // No validation configured — return null to signal "use the raw Host".
+        // No validation configured - return null to signal "use the raw Host".
         // This preserves backward compatibility for installations that have
         // not yet set ALLOWED_HOSTS or APP_URL. Operators should set one of
         // these to enable host-header validation.

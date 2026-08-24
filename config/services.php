@@ -317,15 +317,20 @@ return static function (\OwnPay\Container $c): void {
 
         /**
          * Expose CSP nonce to all templates.
-         * SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
-         * Use lazy proxy since nonce isn't generated until middleware runs.
+         * SecurityHeadersMiddleware sets the nonce on CspNonce singleton and Request attribute.
          */
         $twig->addGlobal('csp_nonce', new class($c) implements \Stringable {
             private \OwnPay\Container $c;
             public function __construct(\OwnPay\Container $c) { $this->c = $c; }
             public function __toString(): string
             {
-                return $this->c->has('csp_nonce') && is_string($n = $this->c->get('csp_nonce')) ? $n : '';
+                if ($this->c->has(\OwnPay\Security\CspNonce::class)) {
+                    $nonceObj = $this->c->get(\OwnPay\Security\CspNonce::class);
+                    if ($nonceObj instanceof \OwnPay\Security\CspNonce) {
+                        return $nonceObj->getNonce();
+                    }
+                }
+                return '';
             }
         });
         return $twig;
@@ -550,6 +555,10 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Repository\PluginRepository::class, $repoFactory(\OwnPay\Repository\PluginRepository::class));
 
     // --- Security
+    $c->singleton(\OwnPay\Security\CspNonce::class, static function (): \OwnPay\Security\CspNonce {
+        return new \OwnPay\Security\CspNonce();
+    });
+
     $c->singleton(\OwnPay\Security\FieldEncryptor::class, static function (): \OwnPay\Security\FieldEncryptor {
         return new \OwnPay\Security\FieldEncryptor();
     });
@@ -672,11 +681,12 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    // Payment completion listener (invoice paid + link use_count)
+    // Payment completion listener (invoice paid + link use_count + payment intent completed)
     $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
         return new \OwnPay\Service\Payment\PaymentCompletionListener(
             ensureType($c->get(\OwnPay\Repository\InvoiceRepository::class), \OwnPay\Repository\InvoiceRepository::class),
-            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class)
+            ensureType($c->get(\OwnPay\Repository\PaymentLinkRepository::class), \OwnPay\Repository\PaymentLinkRepository::class),
+            ensureType($c->get(\OwnPay\Repository\PaymentIntentRepository::class), \OwnPay\Repository\PaymentIntentRepository::class)
         );
     });
 
@@ -699,7 +709,8 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\View\FragmentRenderer::class), \OwnPay\View\FragmentRenderer::class),
             ensureType($c->get(\OwnPay\Service\Domain\DomainUrlService::class), \OwnPay\Service\Domain\DomainUrlService::class),
             ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
-            ensureType($c->get(\OwnPay\Repository\ApiKeyRepository::class), \OwnPay\Repository\ApiKeyRepository::class)
+            ensureType($c->get(\OwnPay\Repository\ApiKeyRepository::class), \OwnPay\Repository\ApiKeyRepository::class),
+            ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class)
         );
     });
 

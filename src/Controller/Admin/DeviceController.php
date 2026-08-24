@@ -171,7 +171,7 @@ final class DeviceController
 
             // Audit-trail the pairing-OTP generation. The previous implementation
             // silently minted OTPs with no record of who initiated the pairing
-            // flow — a revoked admin could keep generating fresh OTPs and there
+            // flow - a revoked admin could keep generating fresh OTPs and there
             // was no breadcrumb in op_audit_logs to correlate against.
             $this->audit->log(
                 'mobile.pairing_otp.generated',

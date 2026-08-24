@@ -54,7 +54,7 @@ final class SmsTemplateRepository extends BaseRepository
      *
      * Matching is **case-insensitive** (`LOWER(...) = LOWER(...)`): carriers send the same alpha sender
      * id with inconsistent casing ("bKash" / "bkash" / "BKASH"), so a case-sensitive (BINARY) match
-     * silently failed to find an otherwise-correct template — the SMS then fell through to admin-review
+     * silently failed to find an otherwise-correct template - the SMS then fell through to admin-review
      * unparsed. This mirrors the device-side whitelist ([getSenderWhitelist]), which is also
      * case-insensitive, keeping capture and parsing consistent. Retrieves both merchant-specific and
      * global (merchant_id IS NULL) configurations.

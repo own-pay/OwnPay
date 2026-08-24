@@ -6215,45 +6215,60 @@ label.op-toggle-label {
     width: 100%;
   }
 
+  .op-card-body {
+    padding: 12px 14px;
+  }
+
   .op-card-body.op-p-0 {
     overflow: auto hidden;
   }
 
   .op-card-body.op-p-0 .op-table tbody td {
-    padding: 4px 0;
-    font-size: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
   .op-card-body.op-p-0 .op-table tbody td .op-btn-xs {
     padding: 6px 12px;
     font-size: 12px;
-    min-height: 34px;
+    min-height: 36px;
     border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .op-btn {
     padding: 8px 16px;
     font-size: 13px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .op-input {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: 14px;
+    min-height: 40px;
   }
 
   .op-filter-btn {
     padding: 8px 14px;
     font-size: 13px;
+    min-height: 38px;
   }
 
   .op-custom-dropdown-btn {
     padding: 8px 12px;
     font-size: 13px;
+    min-height: 40px;
   }
 
   .op-modal-dialog {
     margin: 12px;
     border-radius: 10px;
+    max-width: calc(100vw - 24px);
   }
 
   .op-modal-header,
@@ -6265,25 +6280,23 @@ label.op-toggle-label {
   .op-navbar-search {
     width: 140px;
   }
-}
 
-@media (max-width: 600px) {
   .op-stats-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
   }
 
   .op-stat-card {
-    padding: 10px;
+    padding: 12px;
     gap: 8px;
   }
 
   .op-stat-value {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
   }
 
   .op-stat-label {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
 
   .op-pill {
@@ -6291,90 +6304,14 @@ label.op-toggle-label {
   }
 
   .op-pill-title {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .op-pill-toggle,
   .op-pill-input {
-    font-size: 11px;
+    font-size: 12px;
     padding: 6px 10px;
-  }
-
-  .op-content {
-    padding: 12px;
-    padding-top: 0;
-  }
-
-  .op-page-header h1 {
-    font-size: 18px;
-  }
-
-  .op-card {
-    border-radius: 8px;
-  }
-
-  .op-card-header {
-    padding: 12px 14px;
-  }
-
-  .op-card-body {
-    padding: 12px 14px;
-  }
-
-  .op-card-body.op-p-0 {
-    overflow: auto hidden;
-  }
-
-  .op-card-body.op-p-0 .op-table tbody td {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
-
-  .op-card-body.op-p-0 .op-table tbody td .op-btn-xs {
-    padding: 6px 12px;
-    font-size: 12px;
-    min-height: 34px;
-    border-radius: 8px;
-  }
-
-  .op-btn {
-    padding: 7px 14px;
-    font-size: 12px;
-  }
-
-  .op-input {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .op-filter-btn {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-
-  .op-custom-dropdown-btn {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .op-modal-dialog {
-    margin: 8px;
-    border-radius: 8px;
-  }
-
-  .op-modal-header,
-  .op-modal-body,
-  .op-modal-footer {
-    padding: 12px 14px;
-  }
-
-  .op-page-header {
-    margin-top: 8px;
-    margin-bottom: 4px;
-  }
-
-  .op-page-header h1 {
-    font-size: 16px;
+    min-height: 36px;
   }
 }
 

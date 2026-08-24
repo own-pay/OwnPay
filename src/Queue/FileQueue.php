@@ -69,7 +69,7 @@ final class FileQueue implements QueueInterface
         if ($written === false) {
             // Disk full, directory not writable, or other I/O failure. Surface
             // the failure to the caller instead of returning a valid-looking
-            // $jobId pointing at a file that was never created — that would
+            // $jobId pointing at a file that was never created - that would
             // silently lose the job.
             throw new \RuntimeException("FileQueue push failed for queue {$queue} at {$filepath}");
         }

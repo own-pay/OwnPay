@@ -138,9 +138,9 @@ final class PaymentController
         }
 
         // Verify callback schemes enforce safe transport standards AND block SSRF targets
-        // (private/loopback/link-local IPs — including cloud metadata endpoints).
+        // (private/loopback/link-local IPs - including cloud metadata endpoints).
         // Previously this only checked scheme + filter_var(FILTER_VALIDATE_URL), which accepts
-        // http://127.0.0.1/, http://169.254.169.254/, http://10.x/ — all SSRF vectors if any
+        // http://127.0.0.1/, http://169.254.169.254/, http://10.x/ - all SSRF vectors if any
         // downstream code dispatches an outbound request to the intent's stored webhook_url.
         $urlsToCheck = [
             'callback_url' => $callbackUrlStr,

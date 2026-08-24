@@ -48,9 +48,9 @@ abstract class IntegrationTestCase extends TestCase
         // Seed a default test merchant with id=1 (platform-owned) so that tests
         // which hardcode `merchant_id = 1` in child tables (op_api_keys,
         // op_transactions, op_paired_devices, op_fee_rules, op_system_settings,
-        // ...) do not trip FK constraint 1452. INSERT IGNORE is used so this
-        // call is idempotent: a subclass setUp that explicitly DELETEs the
-        // row before re-inserting its own version is unaffected, and a
+        // op_roles, ...) do not trip FK constraint 1452. INSERT IGNORE is used
+        // so this call is idempotent: a subclass setUp that explicitly DELETEs
+        // the row before re-inserting its own version is unaffected, and a
         // subclass setUp that does a plain INSERT will already have a row
         // present (those tests use the "SELECT then INSERT" pattern, see
         // LedgerServiceTest / WebhookIdempotencyTest / etc., so the seed

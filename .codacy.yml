@@ -1,4 +1,4 @@
-# Codacy configuration — https://docs.codacy.com/repositories-configure/configuring-codacy-using-a-codacy-yaml-file/
+# Codacy configuration - https://docs.codacy.com/repositories-configure/configuring-codacy-using-a-codacy-yaml-file/
 #
 # Excludes vendor/, node_modules/, and other dependency/build directories
 # from Codacy analysis. The Codacy CLI v7.9.x was spending ~12 minutes
@@ -6,7 +6,7 @@
 # detection phase (logging "No language found for X" for thousands of
 # files), which made the workflow impractically slow.
 #
-# Excluding these directories is also semantically correct — third-party
+# Excluding these directories is also semantically correct - third-party
 # dependencies are not part of OwnPay's own attack surface, and any
 # vulnerabilities in them are tracked by `composer audit` / `npm audit`
 # (which the CI workflow already runs).
@@ -51,6 +51,6 @@ engines:
         php:
         javascript:
 
-# Don't fail the build on the Codacy side — let GitHub code scanning
+# Don't fail the build on the Codacy side - let GitHub code scanning
 # surface the results as PR annotations instead.
 min_blob_strength: 1

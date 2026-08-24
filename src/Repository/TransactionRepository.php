@@ -501,7 +501,7 @@ final class TransactionRepository extends BaseRepository
      *
      * REPO-6 (issue #461): Added required $merchantId parameter. The trx_id is a
      * customer-facing identifier exposed in checkout URLs, email links, and
-     * receipts — anyone who obtains it could previously cancel ANY pending
+     * receipts - anyone who obtains it could previously cancel ANY pending
      * transaction across ALL tenants by calling this method. The merchant_id
      * scope ensures only the owning merchant's rows are affected.
      *
@@ -545,7 +545,7 @@ final class TransactionRepository extends BaseRepository
      * cannot be "completed" by a stale webhook from a gateway they explicitly abandoned.
      *
      * REPO-6 (issue #461): Added required $merchantId parameter. The trx_id is
-     * customer-facing and was previously unscoped — an attacker with a known trx_id
+     * customer-facing and was previously unscoped - an attacker with a known trx_id
      * could revert ANY merchant's processing transaction, causing double-charges.
      *
      * @param string $trxId Unique transaction identifier.
@@ -610,7 +610,7 @@ final class TransactionRepository extends BaseRepository
      *
      * REPO-5: $merchantId default changed from 0 to -1 (sentinel for "unset")
      * and the method now throws LogicException if no merchant scope is
-     * available. The previous default of 0 meant "bypass scoping" — a caller
+     * available. The previous default of 0 meant "bypass scoping" - a caller
      * that forgot to pass $mid on a non-forTenant()'d repository instance
      * silently mutated a transaction across all tenants. All current callers
      * (CheckoutController, PaymentIntentCheckoutController) pass $mid

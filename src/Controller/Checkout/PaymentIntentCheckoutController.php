@@ -798,7 +798,7 @@ final class PaymentIntentCheckoutController
                                             // base) and the post-conversion amount/currency for audit. The
                                             // previous code stored getRate($targetCurrency) which is the
                                             // rate of the TARGET relative to the system BASE, not relative
-                                            // to the source currency — misleading for reconciliation when
+                                            // to the source currency - misleading for reconciliation when
                                             // neither leg is the system base (e.g. EUR->BDT when the base
                                             // is USD). The write is routed through
                                             // TransactionRepository::updateMetadata() so it merges with
@@ -1060,7 +1060,7 @@ final class PaymentIntentCheckoutController
         // to /cancel after a successful payment and mark the intent
         // cancelled, producing state inconsistency: txn completed but intent
         // cancelled. For `processing` intents we additionally gate on the
-        // absence of an in-flight transaction — if a txn has already moved
+        // absence of an in-flight transaction - if a txn has already moved
         // past `pending` (e.g. `processing` / `awaiting_verification` /
         // `completed`) the gateway callback is in flight and we must not
         // flip the intent to cancelled.
@@ -1075,7 +1075,7 @@ final class PaymentIntentCheckoutController
 
         if ($currentStatus === 'processing') {
             // Refuse to cancel if any child transaction has progressed past
-            // `pending` — the gateway is in flight and the cancel would race
+            // `pending` - the gateway is in flight and the cancel would race
             // the success callback.
             $inFlightTxn = $this->db->fetchOne(
                 "SELECT id FROM op_transactions

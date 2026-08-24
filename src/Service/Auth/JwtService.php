@@ -24,7 +24,7 @@ final class JwtService
      * tokens (accepted by JwtAuthMiddleware for API authorization) from
      * long-lived refresh tokens (only accepted by the /auth/refresh endpoint to
      * mint a new access token). Without this distinction a stolen refresh token
-     * would grant 30 days of direct API access — see audit finding SEC-1.
+     * would grant 30 days of direct API access - see audit finding SEC-1.
      */
     public const TYPE_ACCESS  = 'access';
     public const TYPE_REFRESH = 'refresh';
@@ -88,7 +88,7 @@ final class JwtService
         }
 
         $this->secret = $resolvedSecret;
-        // Default to the stable ISSUER constant — never APP_NAME (see ISSUER doc). An explicit override
+        // Default to the stable ISSUER constant - never APP_NAME (see ISSUER doc). An explicit override
         // is still honored (tests), but production wiring passes none so the issuer is brand-independent.
         $this->issuer = $issuer ?? self::ISSUER;
         $this->audience = $audience ?? self::AUDIENCE;
@@ -311,7 +311,7 @@ final class JwtService
      * Issues a long-lived refresh token associated with the device context.
      *
      * The token carries `typ=refresh` so JwtAuthMiddleware can reject it for
-     * direct API access — refresh tokens are only usable at the /auth/refresh
+     * direct API access - refresh tokens are only usable at the /auth/refresh
      * endpoint to mint a new short-lived access token. A stolen refresh token
      * therefore cannot be used as a long-lived access credential.
      *

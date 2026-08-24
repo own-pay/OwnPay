@@ -1,0 +1,17 @@
+# GitHub Issue Template Configuration
+# Controls issue creation behavior, discussions redirect, and external support resources.
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Ask a Question / Community Discussions
+    url: https://github.com/own-pay/OwnPay/discussions
+    about: Ask questions, share ideas, and connect with other OwnPay users & developers.
+  - name: 📖 Official Documentation & API Reference
+    url: https://ownpay.org/docs
+    about: Browse comprehensive guides, API reference, and deployment documentation.
+  - name: 🛡️ Report a Security Vulnerability
+    url: https://github.com/own-pay/OwnPay/security/advisories/new
+    about: Report sensitive security vulnerabilities privately to our security team.
+  - name: 👥 Facebook Community Group
+    url: https://www.facebook.com/groups/ownpay.org
+    about: Join the community discussion group on Facebook for news and setup tips.

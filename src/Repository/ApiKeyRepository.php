@@ -100,7 +100,7 @@ final class ApiKeyRepository extends BaseRepository
      *
      * Used by the SEC-4 password-reset flow to invalidate all of a user's API
      * keys when their password is changed. Bypasses the TenantScope guard
-     * because password reset is cross-tenant — the user's email is globally
+     * because password reset is cross-tenant - the user's email is globally
      * unique and a compromised password must revoke keys across every brand
      * the user belongs to.
      *

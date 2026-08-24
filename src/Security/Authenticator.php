@@ -87,9 +87,9 @@ final class Authenticator
         // Verify active lockout window to prevent brute-force attacks.
         //
         // Two counters are checked:
-        //   1. (email, IP) lockout — short-fuse per source IP. Catches a single
+        //   1. (email, IP) lockout - short-fuse per source IP. Catches a single
         //      attacker hammering from one host.
-        //   2. (email-only) lockout — independent of IP. Caps total failures
+        //   2. (email-only) lockout - independent of IP. Caps total failures
         //      against one account across ALL IPs, so an attacker rotating IPs
         //      cannot get MAX_LOGIN_ATTEMPTS tries per IP with no global ceiling.
         //      Threshold is 3x the per-IP threshold to keep NAT/shared-IP
