@@ -131,7 +131,11 @@ return static function (\OwnPay\Container $c): void {
     });
 
     $c->singleton(\OwnPay\Core\Database::class, static function (\OwnPay\Container $c): \OwnPay\Core\Database {
-        $db = new \OwnPay\Core\Database(ensureType($c->get(\PDO::class), \PDO::class));
+        $cfg = ensureArray($c->get('config.database'));
+        $db = new \OwnPay\Core\Database(
+            ensureType($c->get(\PDO::class), \PDO::class),
+            ensureString($cfg['prefix'] ?? 'op_')
+        );
         \OwnPay\Core\Database::setInstance($db);
         return $db;
     });
