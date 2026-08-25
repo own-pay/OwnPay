@@ -670,9 +670,15 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
-    $listener = ensureType($c->get(\OwnPay\Service\Payment\WebhookAutoDispatchListener::class), \OwnPay\Service\Payment\WebhookAutoDispatchListener::class);
-    $events->addAction('payment.transaction.completed', [$listener, 'onTransactionCompleted']);
+    if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
+        try {
+            $events = ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class);
+            $listener = ensureType($c->get(\OwnPay\Service\Payment\WebhookAutoDispatchListener::class), \OwnPay\Service\Payment\WebhookAutoDispatchListener::class);
+            $events->addAction('payment.transaction.completed', [$listener, 'onTransactionCompleted']);
+        } catch (\Throwable) {
+            // Defer listener wiring when DB-backed services are unavailable (e.g. installer phase).
+        }
+    }
 
 
     $c->singleton(\OwnPay\Service\Payment\PaymentService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentService {
