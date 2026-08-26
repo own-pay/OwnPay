@@ -103,10 +103,10 @@
             <!-- Warning if existing tables found -->
             <div id="dbOverwriteWarning" class="ins-warn" style="display: none;">
                 <strong>⚠️ Warning - Existing Structures Detected:</strong><br>
-                This database contains <span id="dbExistingTableCount">0</span> existing tables. Proceeding will drop only tables matching the configured OwnPay prefix and reinstall a fresh schema. Tables belonging to other applications sharing this database are preserved.
+                This database contains <span id="dbExistingTableCount">0</span> existing tables. Proceeding will permanently drop all tables and views in this database, then install a fresh schema. Do not continue if this database contains data for another application.
                 <div style="margin-top: 10px; display: flex; align-items: flex-start; gap: 8px;">
                     <input type="checkbox" id="confirmOverwriteCheckbox" style="margin-top: 3px; cursor: pointer;">
-                    <label for="confirmOverwriteCheckbox" style="cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--danger);">I explicitly authorize dropping existing OwnPay-prefixed tables and installing a fresh schema.</label>
+                    <label for="confirmOverwriteCheckbox" style="cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--danger);">I explicitly authorize dropping every existing table and view, then installing a fresh schema.</label>
                 </div>
             </div>
 
@@ -145,6 +145,18 @@ function opFetch(url, opts) {
     });
     return fetch(url, opts);
 }
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function setMsgError(msgEl, title, detail) {
+    msgEl.className = 'ins-msg ins-msg-err';
+    msgEl.innerHTML = '<strong>' + escapeHtml(title) + '</strong><br>' + escapeHtml(detail);
+}
 var dbConfigPayload = null;
 
 // Handle connection testing
@@ -173,8 +185,7 @@ document.getElementById('dbForm').addEventListener('submit', async function(e) {
         try {
             d = JSON.parse(text);
         } catch (e) {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            setMsgError(msg, 'Server Error', text.substring(0, 300) || 'Invalid response from server.');
             btn.disabled = false;
             btnText.textContent = 'Test Database Connection →';
             return;
@@ -205,14 +216,12 @@ document.getElementById('dbForm').addEventListener('submit', async function(e) {
             document.getElementById('dbParamsPanel').style.display = 'none';
             document.getElementById('dbConfirmPanel').style.display = 'block';
         } else {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Connection Failed</strong><br>' + (d.error || 'Could not connect to the database. Verify your host, port, credentials, and ensure MySQL is running.');
+            setMsgError(msg, 'Connection Failed', d.error || 'Could not connect to the database. Verify your host, port, credentials, and ensure MySQL is running.');
             btn.disabled = false;
             btnText.textContent = 'Test Database Connection →';
         }
     } catch (err) {
-        msg.className = 'ins-msg ins-msg-err';
-        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Could not reach the server. Check that your PHP server is running and accessible.');
+        setMsgError(msg, 'Network Error', err.message || 'Could not reach the server. Check that your PHP server is running and accessible.');
         btn.disabled = false;
         btnText.textContent = 'Test Database Connection →';
     }
@@ -284,8 +293,7 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
             d = JSON.parse(text);
         } catch (e) {
             printLog('[ERROR] Server returned invalid format.', 'err');
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            setMsgError(msg, 'Server Error', text.substring(0, 300) || 'Invalid response from server.');
             btn.disabled = false;
             backBtn.disabled = false;
             return;
@@ -319,15 +327,13 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
             setTimeout(function() { location.href = '?step=3'; }, 1800);
         } else {
             printLog('[ERROR] ' + (d.error || 'Import failed'), 'err');
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Import Failed</strong><br>' + (d.error || 'The database schema could not be imported. Check that the database user has CREATE privileges.');
+            setMsgError(msg, 'Import Failed', d.error || 'The database schema could not be imported. Check that the database user has CREATE privileges.');
             btn.disabled = false;
             backBtn.disabled = false;
         }
     } catch (err) {
         printLog('[ERROR] Network exception triggered.', 'err');
-        msg.className = 'ins-msg ins-msg-err';
-        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Lost connection during import. The database may be in an incomplete state - check your server logs.');
+        setMsgError(msg, 'Network Error', err.message || 'Lost connection during import. The database may be in an incomplete state - check your server logs.');
         btn.disabled = false;
         backBtn.disabled = false;
     }

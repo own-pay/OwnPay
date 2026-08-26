@@ -48,7 +48,8 @@
             </div>
             <div class="ins-field">
                 <label for="admin_password">Password</label>
-                <input id="admin_password" name="password" type="password" required minlength="8" placeholder="Minimum 8 characters">
+                <input id="admin_password" name="password" type="password" required minlength="12" placeholder="Minimum 12 characters">
+                <small style="display:block;margin-top:6px;color:var(--text-muted);font-size:.82rem;">Use at least 12 characters and include any 3: uppercase, lowercase, number, symbol.</small>
                 <div class="ins-pw-meter" id="pwMeter">
                     <div class="ins-pw-bar"></div>
                 </div>
@@ -73,13 +74,25 @@ function opFetch(url, opts) {
     });
     return fetch(url, opts);
 }
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function setMsgError(msgEl, title, detail) {
+    msgEl.className = 'ins-msg ins-msg-err';
+    msgEl.innerHTML = '<strong>' + escapeHtml(title) + '</strong><br>' + escapeHtml(detail);
+}
 // Password strength meter
 document.getElementById('admin_password').addEventListener('input', function() {
     var meter = document.getElementById('pwMeter');
     var val = this.value;
     meter.className = 'ins-pw-meter';
     if (val.length === 0) return;
-    if (val.length < 8) { meter.classList.add('ins-pw-weak'); return; }
+    if (val.length < 12) { meter.classList.add('ins-pw-weak'); return; }
     var score = 0;
     if (/[a-z]/.test(val)) score++;
     if (/[A-Z]/.test(val)) score++;
@@ -103,6 +116,19 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
     var fd = new FormData(this), body = {};
     fd.forEach(function(v, k) { body[k] = v; });
 
+    var pw = String(body.password || '');
+    var classes = 0;
+    if (/[A-Z]/.test(pw)) classes++;
+    if (/[a-z]/.test(pw)) classes++;
+    if (/[0-9]/.test(pw)) classes++;
+    if (/[^A-Za-z0-9]/.test(pw)) classes++;
+    if (pw.length < 12 || classes < 3) {
+        setMsgError(msg, 'Password Policy', 'Password must be at least 12 characters and include any 3 of: uppercase, lowercase, number, symbol.');
+        btn.disabled = false;
+        btnText.textContent = 'Create Admin Account →';
+        return;
+    }
+
     try {
         var r = await opFetch('/install/create-admin', {
             method: 'POST',
@@ -114,8 +140,7 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
         try {
             d = JSON.parse(text);
         } catch (e) {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            setMsgError(msg, 'Server Error', text.substring(0, 300) || 'Invalid response from server.');
             btn.disabled = false;
             btnText.textContent = 'Create Admin Account →';
             return;
@@ -127,14 +152,12 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
             btnText.textContent = 'Success! Redirecting...';
             setTimeout(function() { location.href = '?step=4'; }, 1000);
         } else {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Account Creation Failed</strong><br>' + (d.error || 'Could not create the admin account. The email or username may already be taken.');
+            setMsgError(msg, 'Account Creation Failed', d.error || 'Could not create the admin account. The email or username may already be taken.');
             btn.disabled = false;
             btnText.textContent = 'Create Admin Account →';
         }
     } catch (err) {
-        msg.className = 'ins-msg ins-msg-err';
-        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Could not reach the server. Ensure your PHP server is running.');
+        setMsgError(msg, 'Network Error', err.message || 'Could not reach the server. Ensure your PHP server is running.');
         btn.disabled = false;
         btnText.textContent = 'Create Admin Account →';
     }

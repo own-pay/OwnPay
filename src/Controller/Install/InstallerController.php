@@ -35,6 +35,11 @@ final class InstallerController
     private ?bool $dbProbeResult = null;
 
     /**
+     * @var bool|null Memoized result for temp-env superadmin existence probe.
+     */
+    private ?bool $tempEnvAdminProbeResult = null;
+
+    /**
      * Default allowlist of DB hosts the installer will connect to.
      *
      * The installer runs on the OwnPay server and connects to the DB using
@@ -81,6 +86,9 @@ final class InstallerController
         $tempEnv = $this->rootDir . '/storage/.env.temp';
         if ($step >= 3 && !file_exists($tempEnv)) {
             return Response::redirect('/install?step=2');
+        }
+        if ($step >= 4 && !$this->tempEnvHasSuperadmin()) {
+            return Response::redirect('/install?step=3');
         }
 
         $data = match ($step) {
@@ -240,7 +248,7 @@ final class InstallerController
         $prefixVal    = $body['prefix'] ?? null;
         $prefix       = is_string($prefixVal) ? trim($prefixVal) : 'op_';
         $overwriteVal = $body['confirm_overwrite'] ?? null;
-        $overwrite    = (is_int($overwriteVal) || is_string($overwriteVal) || is_numeric($overwriteVal)) ? (bool)$overwriteVal : false;
+        $overwrite    = $overwriteVal === true || $overwriteVal === 1 || $overwriteVal === '1' || $overwriteVal === 'true';
 
         if (!$name || !$user) {
             return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
@@ -317,34 +325,53 @@ final class InstallerController
                 ) ?? $sql;
             }
 
-            $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
-            $existing = [];
-            $showTablesStmt = $pdo->query("SHOW TABLES");
-            if ($showTablesStmt !== false) {
-                $existing = $showTablesStmt->fetchAll(\PDO::FETCH_COLUMN);
-            }
-            // SECURITY (INST-6): only drop tables that match the configured
-            // OwnPay table prefix. Previously the loop destroyed every table
-            // in the target database, including unrelated applications sharing
-            // the same MySQL database (e.g. phpMyAdmin control tables, legacy
-            // application data). The schema file already renames op_* tables
-            // to the configured prefix via str_replace above, so dropping only
-            // prefixed tables is sufficient to clean a previous OwnPay install.
-            foreach ($existing as $table) {
-                if (!is_string($table)) {
-                    continue;
-                }
-                if (!str_starts_with($table, $prefix)) {
-                    continue;
-                }
-                $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
-            }
+            // InnoDB requires foreign-key constraint names to be unique within
+            // the database, so namespace schema constraints for every install.
+            $sql = preg_replace_callback(
+                '/(?P<head>\bCONSTRAINT\s+)(?P<quote>`?)(?P<name>[a-z0-9_]+)(?P=quote)/i',
+                static function (array $m) use ($prefix): string {
+                    return $m['head'] . $m['quote'] . $prefix . $m['name'] . $m['quote'];
+                },
+                $sql
+            ) ?? $sql;
 
-            $statements = $this->parseSqlStatements($sql);
-            foreach ($statements as $stmt) {
-                $pdo->exec($stmt);
+            $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+            try {
+                $existing = [];
+                $showTablesStmt = $pdo->query("SHOW FULL TABLES");
+                if ($showTablesStmt !== false) {
+                    $existing = $showTablesStmt->fetchAll(\PDO::FETCH_NUM);
+                }
+                // Installation is explicitly destructive after overwrite confirmation.
+                // Drop views first, then tables, so old prefixes and other schemas cannot remain.
+                foreach ($existing as $entry) {
+                    $object = $entry[0] ?? null;
+                    $type = strtoupper((string) ($entry[1] ?? 'BASE TABLE'));
+                    if (!is_string($object) || $object === '') {
+                        continue;
+                    }
+                    $quoted = str_replace('`', '``', $object);
+                    if ($type === 'VIEW') {
+                        $pdo->exec("DROP VIEW IF EXISTS `{$quoted}`");
+                    }
+                }
+                foreach ($existing as $entry) {
+                    $object = $entry[0] ?? null;
+                    $type = strtoupper((string) ($entry[1] ?? 'BASE TABLE'));
+                    if (!is_string($object) || $object === '' || $type === 'VIEW') {
+                        continue;
+                    }
+                    $quoted = str_replace('`', '``', $object);
+                    $pdo->exec("DROP TABLE IF EXISTS `{$quoted}`");
+                }
+
+                $statements = $this->parseSqlStatements($sql);
+                foreach ($statements as $stmt) {
+                    $pdo->exec($stmt);
+                }
+            } finally {
+                $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
             }
-            $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
             $env = 'DB_HOST=' . $this->envToken($host) . "\n"
                  . 'DB_PORT=' . $this->envToken((string) $port) . "\n"
                  . 'DB_NAME=' . $this->envToken($name) . "\n"
@@ -499,6 +526,9 @@ final class InstallerController
             $dbUser = $env['DB_USER'] ?? 'root';
             $dbPass = $env['DB_PASS'] ?? '';
             $p      = $env['DB_PREFIX'] ?? 'op_';
+            if (!preg_match('/^[a-z0-9_]{1,30}$/i', $p)) {
+                return Response::json(['success' => false, 'error' => 'Invalid database prefix configuration.'], 500);
+            }
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
@@ -671,6 +701,9 @@ final class InstallerController
         if (!file_exists($tempEnv)) {
             return Response::json(['success' => false, 'error' => 'Complete previous steps'], 400);
         }
+        if (!$this->tempEnvHasSuperadmin()) {
+            return Response::json(['success' => false, 'error' => 'Complete admin step first'], 400);
+        }
 
         try {
             $appKey          = 'base64:' . base64_encode(random_bytes(32));
@@ -789,6 +822,9 @@ final class InstallerController
             $dbUser = $dbEnv['DB_USER'] ?? 'root';
             $dbPass = $dbEnv['DB_PASS'] ?? '';
             $p      = $dbEnv['DB_PREFIX'] ?? 'op_';
+            if (!preg_match('/^[a-z0-9_]{1,30}$/i', $p)) {
+                return Response::json(['success' => false, 'error' => 'Invalid database prefix configuration.'], 500);
+            }
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
@@ -977,17 +1013,17 @@ final class InstallerController
             return $this->dbProbeResult;
         }
 
-        $host = $_ENV['DB_HOST'] ?? null;
-        $name = $_ENV['DB_NAME'] ?? null;
-        $user = $_ENV['DB_USER'] ?? null;
+        $host = $_ENV['DB_HOST'] ?? (getenv('DB_HOST') ?: null);
+        $name = $_ENV['DB_NAME'] ?? (getenv('DB_NAME') ?: null);
+        $user = $_ENV['DB_USER'] ?? (getenv('DB_USER') ?: null);
         if (!is_string($host) || $host === '' || !is_string($name) || $name === '' || !is_string($user) || $user === '') {
             return $this->dbProbeResult = false;
         }
-        $passVal = $_ENV['DB_PASS'] ?? '';
+        $passVal = $_ENV['DB_PASS'] ?? (getenv('DB_PASS') ?: '');
         $pass = is_string($passVal) ? $passVal : '';
-        $portVal = $_ENV['DB_PORT'] ?? 3306;
+        $portVal = $_ENV['DB_PORT'] ?? (getenv('DB_PORT') ?: 3306);
         $port = is_scalar($portVal) ? (int) $portVal : 3306;
-        $prefixVal = $_ENV['DB_PREFIX'] ?? 'op_';
+        $prefixVal = $_ENV['DB_PREFIX'] ?? (getenv('DB_PREFIX') ?: 'op_');
         $prefix = is_string($prefixVal) && preg_match('/^[a-z0-9_]{1,30}$/i', $prefixVal) ? $prefixVal : 'op_';
 
         try {
@@ -1075,6 +1111,56 @@ final class InstallerController
         ob_start();
         include $file;
         return ob_get_clean() ?: '';
+    }
+
+    /**
+     * Checks whether the DB from storage/.env.temp already contains a superadmin user.
+     *
+     * @return bool True when installer step 3 completed successfully.
+     */
+    private function tempEnvHasSuperadmin(): bool
+    {
+        if ($this->tempEnvAdminProbeResult !== null) {
+            return $this->tempEnvAdminProbeResult;
+        }
+
+        $tempEnv = $this->rootDir . '/storage/.env.temp';
+        if (!file_exists($tempEnv)) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
+
+        $env = $this->parseTempEnv($tempEnv);
+        if (empty($env)) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
+
+        $dbHost = $env['DB_HOST'] ?? 'localhost';
+        $dbPort = $env['DB_PORT'] ?? '3306';
+        $dbName = $env['DB_NAME'] ?? 'ownpay';
+        $dbUser = $env['DB_USER'] ?? 'root';
+        $dbPass = $env['DB_PASS'] ?? '';
+        $prefix = $env['DB_PREFIX'] ?? 'op_';
+
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
+
+        try {
+            $pdo = new \PDO(
+                "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    \PDO::ATTR_TIMEOUT => 3,
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
+            );
+            $stmt = $pdo->query("SELECT 1 FROM `{$prefix}merchant_users` WHERE is_superadmin = 1 LIMIT 1");
+            return $this->tempEnvAdminProbeResult = ($stmt !== false && $stmt->fetch() !== false);
+        } catch (\Throwable) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
     }
 
     /**
