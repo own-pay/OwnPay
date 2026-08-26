@@ -183,6 +183,11 @@ final class SettingsController
                     $settings[$mailKey] = $mailSettings[$mailKey];
                 }
             }
+            foreach (['from_email' => 'mail_from_email', 'from_name' => 'mail_from_name'] as $mailKey => $formKey) {
+                if (isset($mailSettings[$mailKey])) {
+                    $settings[$formKey] = $mailSettings[$mailKey];
+                }
+            }
             if (isset($mailSettings['smtp_user'])) {
                 $settings['smtp_username'] = $mailSettings['smtp_user'];
             }
@@ -238,7 +243,7 @@ final class SettingsController
         }
         $baseUrl = $urlService->resolveBaseUrl($mid, $req);
         $baseUrlStr = (string) $baseUrl;
-        $cronUrl = rtrim($baseUrlStr, '/') . '/cron/' . $cronSecret;
+        $cronUrl = rtrim($baseUrlStr, '/') . '/cron/' . rawurlencode($cronSecret);
 
         // Fetch all registered Cron Jobs and their execution logs
         $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
@@ -648,7 +653,7 @@ final class SettingsController
 
             default:
                 $this->saveApplicationLogos($req);
-                $this->saveGeneral($data);
+                $this->saveGeneral($data, $tab);
                 break;
         }
 
@@ -1208,7 +1213,7 @@ final class SettingsController
      *
      * @return void
      */
-    private function saveGeneral(array $data): void
+    private function saveGeneral(array $data, string $tab = 'general'): void
     {
         $checkboxFields = [
             'maintenance_mode', 'force_https', 'require_2fa',
@@ -1245,7 +1250,7 @@ final class SettingsController
 
         $this->settingsRepo->bulkSet('general', $filtered);
 
-        if (isset($data['smtp_host'], $data['smtp_port'], $data['smtp_encryption'], $data['mail_from_email'], $data['mail_from_name'])) {
+        if ($tab === 'email' && isset($data['smtp_host'], $data['smtp_port'], $data['smtp_encryption'], $data['mail_from_email'], $data['mail_from_name'])) {
             $smtpHost = is_scalar($data['smtp_host']) ? trim((string) $data['smtp_host']) : '';
             $smtpPort = is_scalar($data['smtp_port']) ? (int) $data['smtp_port'] : 0;
             $smtpEncryption = is_scalar($data['smtp_encryption']) ? (string) $data['smtp_encryption'] : '';
