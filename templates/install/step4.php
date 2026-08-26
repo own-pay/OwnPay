@@ -100,6 +100,18 @@ function opFetch(url, opts) {
     });
     return fetch(url, opts);
 }
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function setMsgError(msgEl, title, detail) {
+    msgEl.className = 'ins-msg ins-msg-err';
+    msgEl.innerHTML = '<strong>' + escapeHtml(title) + '</strong><br>' + escapeHtml(detail);
+}
 document.getElementById('settingsForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     var btn = document.getElementById('settingsBtn');
@@ -125,8 +137,7 @@ document.getElementById('settingsForm').addEventListener('submit', async functio
         try {
             d = JSON.parse(text);
         } catch (e) {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            setMsgError(msg, 'Server Error', text.substring(0, 300) || 'Invalid response from server.');
             btn.disabled = false;
             btnText.textContent = 'Complete Platform Installation';
             return;
@@ -136,14 +147,12 @@ document.getElementById('settingsForm').addEventListener('submit', async functio
             document.getElementById('settingsForm').style.display = 'none';
             document.getElementById('donePanel').style.display = 'block';
         } else {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Finalization Failed</strong><br>' + (d.error || 'Could not complete the installation. Check file permissions and try again.');
+            setMsgError(msg, 'Finalization Failed', d.error || 'Could not complete the installation. Check file permissions and try again.');
             btn.disabled = false;
             btnText.textContent = 'Complete Platform Installation';
         }
     } catch (err) {
-        msg.className = 'ins-msg ins-msg-err';
-        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Could not reach the server. Ensure your PHP server is running.');
+        setMsgError(msg, 'Network Error', err.message || 'Could not reach the server. Ensure your PHP server is running.');
         btn.disabled = false;
         btnText.textContent = 'Complete Platform Installation';
     }

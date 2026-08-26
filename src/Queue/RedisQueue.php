@@ -36,14 +36,24 @@ final class RedisQueue implements QueueInterface
     /**
      * RedisQueue constructor.
      *
-     * Connects to the Redis daemon and selects database DB 1 for queue operation namespaces.
+    * Connects to the Redis daemon, authenticates when configured, and selects the configured database.
      *
      * @param string $host The Redis server host. Defaults to '127.0.0.1'.
      * @param int $port The Redis server port. Defaults to 6379.
-     * @param string $prefix The global queue prefix namespace. Defaults to 'op:queue:'.
+    * @param string $prefix The global queue prefix namespace. Defaults to 'op:queue:'.
+    * @param string|null $password Optional Redis AUTH password.
+    * @param string|null $username Optional Redis ACL username.
+    * @param int $database Redis database index. Defaults to 0.
      * @throws \RuntimeException If connecting to the Redis host fails.
      */
-    public function __construct(string $host = '127.0.0.1', int $port = 6379, string $prefix = 'op:queue:')
+    public function __construct(
+        string $host = '127.0.0.1',
+        int $port = 6379,
+        string $prefix = 'op:queue:',
+        ?string $password = null,
+        ?string $username = null,
+        int $database = 0
+    )
     {
         $this->prefix = $prefix;
         $this->redis = new \Redis();
@@ -52,7 +62,16 @@ final class RedisQueue implements QueueInterface
             throw new \RuntimeException("Cannot connect to Redis at {$host}:{$port}");
         }
 
-        $this->redis->select(1);
+        if ($password !== null && $password !== '') {
+            $authOk = ($username !== null && $username !== '')
+                ? $this->redis->auth([$username, $password])
+                : $this->redis->auth($password);
+            if ($authOk !== true) {
+                throw new \RuntimeException("Redis authentication failed for {$host}:{$port}");
+            }
+        }
+
+        $this->redis->select($database);
     }
 
     /**

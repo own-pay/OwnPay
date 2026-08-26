@@ -60,6 +60,7 @@ final class RateLimiterMiddleware
 
             $requestPath = '/' . trim($request->path(), '/');
             $isSafeMethod = in_array(strtoupper($request->method()), ['GET', 'HEAD', 'OPTIONS'], true);
+            $isInstallRoute = $requestPath === '/install' || str_starts_with($requestPath, '/install/');
             $isLogin = (
                 $requestPath === '/' . $loginSlug ||
                 $requestPath === '/2fa' ||
@@ -71,7 +72,7 @@ final class RateLimiterMiddleware
                 str_contains($requestPath, '/reset-password')
             );
 
-            if (!$isSafeMethod || $isLogin || str_starts_with($requestPath, '/api/mobile/v1/devices')) {
+            if ((!$isSafeMethod && !$isInstallRoute) || $isLogin || str_starts_with($requestPath, '/api/mobile/v1/devices')) {
                 return Response::json([
                     'success' => false,
                     'message' => 'Service temporarily unavailable. Limiter backend error.',

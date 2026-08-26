@@ -260,7 +260,7 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
-        $sql = $this->applyTablePrefix($sql);
+        $canonicalSql = $sql;
         // DB-1: The db.query.before filter previously fired on EVERY query,
         // including core-originated queries against sensitive tables
         // (op_api_keys, op_users, op_merchant_users, op_password_resets,
@@ -289,7 +289,7 @@ class Database
             'op_password_resets',
             'op_totp_secrets',
         ];
-        $sqlLower = strtolower($sql);
+        $sqlLower = strtolower($canonicalSql);
         $isProtected = false;
         foreach ($protectedTables as $table) {
             if (str_contains($sqlLower, $table)) {
@@ -297,6 +297,22 @@ class Database
                 break;
             }
         }
+
+        // Validate plugin SQL before applying a custom prefix; otherwise a
+        // plugin could evade the canonical core-table restrictions.
+        if ($this->registry !== null && $this->events !== null) {
+            $activeOwner = $this->events->getActiveOwner();
+            if ($activeOwner !== 'core') {
+                $sandbox = $this->registry->getSandbox($activeOwner);
+                if ($sandbox !== null && !$sandbox->validateSql($canonicalSql)) {
+                    throw new \RuntimeException(
+                        "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
+                    );
+                }
+            }
+        }
+
+        $sql = $this->applyTablePrefix($sql);
 
         // Fire db.query.before filter - plugins can modify SQL/params.
         // Guard prevents infinite recursion when hook listeners query DB.
@@ -317,21 +333,6 @@ class Database
                 }
             } finally {
                 $this->firingHooks = false;
-            }
-        }
-
-        // Validate SQL query safety if executed within plugin context.
-        if ($this->registry !== null && $this->events !== null) {
-            $activeOwner = $this->events->getActiveOwner();
-            if ($activeOwner !== 'core') {
-                $sandbox = $this->registry->getSandbox($activeOwner);
-                if ($sandbox !== null) {
-                    if (!$sandbox->validateSql($sql)) {
-                        throw new \RuntimeException(
-                            "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
-                        );
-                    }
-                }
             }
         }
 

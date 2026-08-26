@@ -34,26 +34,24 @@ final class CronController
     /**
      * Triggers the background cron execution pipeline.
      *
-     * POST /cron (with X-Cron-Secret or Authorization: Bearer header)
-     *
-     * CRON-2: The GET /cron/{secret} route has been removed because URL paths
-     * are recorded in web server access logs and can leak the shared secret.
-     * The secret must now be supplied via a request header.
+        * GET /cron/{secret} or POST /cron (with X-Cron-Secret or Authorization header)
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP response confirming how many jobs ran.
      */
     public function run(Request $req): Response
     {
-        // 1. Validate secret against env/config/db. CRON-2: secret must come
-        // from a header (X-Cron-Secret or Authorization: Bearer), never from
-        // the URL path.
+        // 1. Validate secret against env/config/db. GET uses the route parameter
+        // for compatibility with hosting-panel cron services.
         $secret = $req->header('X-Cron-Secret');
         if ($secret === '') {
             $authHeader = $req->header('Authorization');
             if (str_starts_with(strtolower($authHeader), 'bearer ')) {
                 $secret = substr($authHeader, 7);
             }
+        }
+        if ($secret === '') {
+            $secret = $req->param('secret');
         }
 
         $settingsRepo = $this->c->has(\OwnPay\Repository\SettingsRepository::class) ? $this->c->get(\OwnPay\Repository\SettingsRepository::class) : null;

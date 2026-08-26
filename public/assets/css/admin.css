@@ -4997,6 +4997,42 @@ label.op-toggle-label {
   border: 1px solid rgb(239 68 68 / 30%);
 }
 
+.op-test-notification {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--op-border);
+}
+
+.op-test-notification label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.op-test-notification textarea,
+.op-test-notification input {
+  min-width: 0;
+}
+
+.op-test-notification textarea {
+  min-height: 42px;
+  resize: vertical;
+}
+
+.op-test-notification .op-test-connection-result {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+@media (max-width: 700px) {
+  .op-test-notification {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════
    SMS CENTER
    ═══════════════════════════════════════════════════════ */
