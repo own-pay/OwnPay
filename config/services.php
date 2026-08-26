@@ -167,8 +167,8 @@ return static function (\OwnPay\Container $c): void {
                     is_string($redisUsername) && $redisUsername !== '' ? $redisUsername : null,
                     is_numeric($redisDatabase) ? (int) $redisDatabase : 0
                 );
-            } catch (\Throwable) {
-                // Graceful fallback to file cache
+            } catch (\Throwable $e) {
+                error_log('[OwnPay] Redis cache unavailable; falling back to file cache: ' . $e->getMessage());
             }
         }
         $paths = ensureArray($appCfg['paths'] ?? null);
@@ -186,13 +186,19 @@ return static function (\OwnPay\Container $c): void {
                 $redisHost = $_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST');
                 $redisPort = $_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT');
                 $redisPrefix = $_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX');
+                $redisPassword = $_ENV['REDIS_PASSWORD'] ?? getenv('REDIS_PASSWORD');
+                $redisUsername = $_ENV['REDIS_USERNAME'] ?? getenv('REDIS_USERNAME');
+                $redisDatabase = $_ENV['REDIS_DB'] ?? getenv('REDIS_DB');
                 return new \OwnPay\Queue\RedisQueue(
                     is_string($redisHost) && $redisHost !== '' ? $redisHost : '127.0.0.1',
                     is_numeric($redisPort) ? (int) $redisPort : 6379,
-                    is_string($redisPrefix) && $redisPrefix !== '' ? $redisPrefix : 'op:queue:'
+                    is_string($redisPrefix) && $redisPrefix !== '' ? $redisPrefix : 'op:queue:',
+                    is_string($redisPassword) && $redisPassword !== '' ? $redisPassword : null,
+                    is_string($redisUsername) && $redisUsername !== '' ? $redisUsername : null,
+                    is_numeric($redisDatabase) ? (int) $redisDatabase : 0
                 );
-            } catch (\Throwable) {
-                // Graceful fallback to file queue
+            } catch (\Throwable $e) {
+                error_log('[OwnPay] Redis queue unavailable; falling back to file queue: ' . $e->getMessage());
             }
         }
         $paths = ensureArray($appCfg['paths'] ?? null);

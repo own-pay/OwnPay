@@ -334,12 +334,9 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/balance-verification/run', 'Admin\\BalanceVerificationController@run', 'admin');
 
     // ─── Cron endpoint ─────────────────────────────────────────
-    // CRON-2: Removed the GET /cron/{secret} route. URL paths are recorded
-    // verbatim in web server access logs, proxy/CDN logs, browser history,
-    // and can leak via the Referer header - exposing the shared cron secret
-    // to any party with read access to those logs. All cron triggers must
-    // now use POST /cron with the secret in the X-Cron-Secret header or
-    // Authorization: Bearer header (both already supported by the controller).
+    // GET is supported for compatibility with hosting-panel cron services.
+    // POST /cron with X-Cron-Secret or Authorization: Bearer is also supported.
+    $router->get('/cron/{secret}', 'Page\\CronController@run', 'cron');
     $router->post('/cron', 'Page\\CronController@run', 'cron');
 
     // ─── Unified Webhook Endpoint (dynamic, zero-core-mod) ──────
