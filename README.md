@@ -371,40 +371,42 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 ➡️ **See the full [ROADMAP.md](ROADMAP.md)** for what's planned, in progress, and shipped.
 
 ---
-
-## <a id="sponsors"></a>💛 Sponsors
-
-*OwnPay is made possible by the generous support of our sponsors.*
+<!-- SPONSORS-START -->
+<!-- This section is auto-generated. Do not edit manually. -->
+<!-- Edit sponsor.json in the own-pay/.github repo to update. -->
 
 <div align="center">
 
-<br />
+### Elite Sponsor
 
-**⚡ Elite Sponsor**
+<a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="40" alt="Namepart"></a>
 
-<br />
+<br><br>
 
-<a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="40" alt="Namepart" /></a>
+### Platinum Sponsora
 
-<br /><br />
+<a href="https://hostever.com"><img src="https://www.hostever.com/storage/2022/07/hostever-logo-black-white.svg" height="30" alt="Hostever"></a>
 
-**🤝 Community Sponsors**
 
-<br />
+### Community Sponsors
 
-<p align="center">
-  <a href="https://hostever.com"><img src="https://www.hostever.com/storage/2022/07/hostever-logo-black-white.svg" height="30" alt="Hostever" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.flexohost.com"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="30" alt="FlexoHost" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="30" alt="Hostazy" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://banglahoster.net"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="30" alt="Bangla Hoster" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://hostsite24.com"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="30" alt="HostSite24" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.rayanhoster.com"><img src="https://res.cloudinary.com/dvj5lfwjf/image/upload/v1780857381/rayanhoster/uvfas9pobgpxubxkinrr.png" height="30" alt="Rayan Hoster" /></a>
-</p>
+<a href="https://www.flexohost.com"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="30" alt="FlexoHost"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="30" alt="Hostazy"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://banglahoster.net"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="30" alt="Bangla Hoster"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://hostsite24.com"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="30" alt="HostSite24"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://www.rayanhoster.com"><img src="https://res.cloudinary.com/dvj5lfwjf/image/upload/v1780857381/rayanhoster/uvfas9pobgpxubxkinrr.png" height="30" alt="Rayan Hoster"></a>
 
-<sub>Want your logo here? &nbsp;→&nbsp; <a href="https://ownpay.org/donate"><b>Become a Sponsor</b></a></sub>
+<br><br>
+
+<sub>Want your logo here? <a href="https://ownpay.org/donate"><b>Become a Sponsor</b></a></sub>
 
 </div>
 
+<!-- SPONSORS-END -->
 ---
 
 ## <a id="contributors"></a>👥 Contributors
