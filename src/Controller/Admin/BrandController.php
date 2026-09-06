@@ -210,7 +210,7 @@ final class BrandController
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
-        $isSuperAdmin = !empty($_SESSION['is_superadmin']);
+        $isSuperAdmin = $this->session->isSuperadmin();
         $authMerchantId = $this->session->merchantId() ?? 0;
         if (!$isSuperAdmin && $id !== $authMerchantId) {
             $this->session->flashError('Permission denied to access this brand');
@@ -253,7 +253,7 @@ final class BrandController
     public function update(Request $req): Response
     {
         $id   = (int) $req->param('id');
-        $isSuperAdmin = !empty($_SESSION['is_superadmin']);
+        $isSuperAdmin = $this->session->isSuperadmin();
         $authMerchantId = $this->session->merchantId() ?? 0;
         if (!$isSuperAdmin && $id !== $authMerchantId) {
             $this->session->flashError('Permission denied to access this brand');
@@ -342,7 +342,7 @@ final class BrandController
     public function switchBrand(Request $req): Response
     {
         $id = $req->post('brand_id');
-        $isSuperAdmin = !empty($_SESSION['is_superadmin']);
+        $isSuperAdmin = $this->session->isSuperadmin();
         $authMerchantId = $_SESSION['auth_merchant_id'] ?? 0;
         $homeMerchantId = is_scalar($authMerchantId) && is_numeric($authMerchantId) ? (int) $authMerchantId : 0;
 

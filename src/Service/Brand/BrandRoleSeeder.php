@@ -34,7 +34,10 @@ final class BrandRoleSeeder
     ];
 
     /**
-     * Seeds or synchronizes the 4 standard conflict-free roles for a given brand store.
+     * Seeds the 4 standard conflict-free roles for a given brand store.
+     *
+     * Notes: permissions are always (re)applied for the Owner role; other roles are only
+     * provisioned on first creation.
      *
      * @param Database $db The database adapter.
      * @param int $merchantId The merchant brand identifier.

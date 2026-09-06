@@ -141,10 +141,14 @@ final class RocketGateway implements PluginInterface, GatewayAdapterInterface, T
         $err = curl_error($ch);
         curl_close($ch);
 
-        if ($httpCode >= 200 && $httpCode < 500) {
+        if ($err !== '') {
+            return ['success' => false, 'message' => 'Could not reach DBBL Rocket endpoint: ' . $err];
+        }
+
+        if ($httpCode >= 200 && $httpCode < 300) {
             return ['success' => true, 'message' => "Connected successfully to DBBL Rocket ({$mode} mode)."];
         }
 
-        return ['success' => false, 'message' => 'Could not reach DBBL Rocket endpoint: ' . ($err ?: "HTTP {$httpCode}")];
+        return ['success' => false, 'message' => "DBBL Rocket endpoint responded with HTTP {$httpCode}"];
     }
 }
