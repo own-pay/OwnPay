@@ -101,7 +101,7 @@ final class TwigFactory
 
         $twig = new Environment($loader, [
             'cache'            => $cachePath !== '' ? $cachePath . '/twig' : false,
-            'auto_reload'      => true,
+            'auto_reload'      => $debug,
             'strict_variables' => true,
             'autoescape'       => 'html',
         ]);

@@ -722,6 +722,16 @@ final class CheckoutController
 
             $details = $req->post('payment_details', []);
             if (is_array($details) && !empty($details)) {
+                $updateFields = [];
+                if (!empty($details['transaction_id']) && is_string($details['transaction_id'])) {
+                    $updateFields['gateway_trx_id'] = trim($details['transaction_id']);
+                }
+                if (!empty($details['sender_number']) && is_string($details['sender_number'])) {
+                    $updateFields['sender_account'] = trim($details['sender_number']);
+                }
+                if (!empty($updateFields)) {
+                    $this->txnRepo->forTenant($mid)->updateScoped($txnId, $updateFields);
+                }
                 $this->txnRepo->updateMetadata($txnId, [
                     'payment_details' => $details,
                     'submitted_at'    => DateHelper::now(),

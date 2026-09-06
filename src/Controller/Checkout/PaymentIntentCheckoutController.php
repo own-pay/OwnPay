@@ -756,6 +756,17 @@ final class PaymentIntentCheckoutController
             $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'awaiting_verification', $mid);
             $details = $req->post('payment_details', []);
             if (!empty($details) && is_array($details)) {
+                $updateFields = [];
+                if (!empty($details['transaction_id']) && is_string($details['transaction_id'])) {
+                    $updateFields['gateway_trx_id'] = trim($details['transaction_id']);
+                }
+                if (!empty($details['sender_number']) && is_string($details['sender_number'])) {
+                    $updateFields['sender_account'] = trim($details['sender_number']);
+                }
+                if (!empty($updateFields)) {
+                    $this->txnRepo->forTenant($mid)->updateScoped($txnId, $updateFields);
+                }
+
                 $metaRaw = $intent['metadata'] ?? '{}';
                 $metaStr = is_string($metaRaw) ? $metaRaw : '{}';
                 $metaObj = json_decode($metaStr, true);
