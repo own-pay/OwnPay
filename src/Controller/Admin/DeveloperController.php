@@ -117,7 +117,7 @@ final class DeveloperController
                  ORDER BY w.id DESC LIMIT 100"
             );
         } else {
-            $webhooksListPaginated = $webhookRepo->forTenant($mid)->paginate(1, 100);
+            $webhooksListPaginated = $webhookRepo->forTenant($mid)->paginateScoped(1, 100);
             $webhooksList = $webhooksListPaginated['items'];
         }
 
