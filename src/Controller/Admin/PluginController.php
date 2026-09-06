@@ -519,9 +519,10 @@ final class PluginController
         if ($instance !== null) {
             $isGateway = ($plugin['type'] ?? '') === 'gateway';
             $displayValues = [];
+            $effectiveBrandId = $this->resolveEffectiveBrandId($brandId);
             if ($isGateway) {
-                $currentValues = $this->readGatewayCredentials($slug, $brandId ?? 0);
-                $displayValues = $this->readGatewayDisplaySettings($slug, $brandId ?? 0);
+                $currentValues = $this->readGatewayCredentials($slug, $effectiveBrandId);
+                $displayValues = $this->readGatewayDisplaySettings($slug, $effectiveBrandId);
             } else {
                 $settingsRepo = $this->c->get(SettingsRepository::class);
                 $currentValues = [];
@@ -532,8 +533,19 @@ final class PluginController
                 }
             }
             $action = "/admin/plugins/{$slug}/settings";
-            $cspNonceVal = $this->c->has('csp_nonce') ? $this->c->get('csp_nonce') : '';
-            $cspNonce = is_string($cspNonceVal) ? $cspNonceVal : '';
+            $cspNonce = '';
+            if ($this->c->has(\OwnPay\Security\CspNonce::class)) {
+                $cspNonceObj = $this->c->get(\OwnPay\Security\CspNonce::class);
+                if ($cspNonceObj instanceof \OwnPay\Security\CspNonce) {
+                    $cspNonce = $cspNonceObj->getNonce();
+                }
+            }
+            if ($cspNonce === '') {
+                $reqNonce = $request->getAttribute('csp_nonce');
+                if (is_string($reqNonce)) {
+                    $cspNonce = $reqNonce;
+                }
+            }
             $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action, $isGateway, $displayValues, $cspNonce);
         }
 
@@ -583,10 +595,11 @@ final class PluginController
         $isGateway = $plugin !== null && ($plugin['type'] ?? '') === 'gateway';
         $instance = $this->resolvePluginInstance($slug);
         $passwordFields = $this->passwordFieldNames($instance);
+        $effectiveBrandId = $this->resolveEffectiveBrandId($brandId);
 
         if ($instance !== null) {
             $existingValues = $isGateway
-                ? $this->readGatewayCredentials($slug, $brandId ?? 0)
+                ? $this->readGatewayCredentials($slug, $effectiveBrandId)
                 : (($brandId !== null && $brandId > 0)
                     ? $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId)
                     : $settingsRepo->getGroup("plugin.{$slug}"));
@@ -597,14 +610,12 @@ final class PluginController
             }
         }
 
-        if ($brandId !== null && $brandId > 0) {
-            if ($isGateway) {
-                $displaySettings = $this->extractGatewayDisplaySettings($request, $slug, $brandId);
-                $this->saveGatewayCredentials($slug, $brandId, $settings, $passwordFields, $displaySettings);
-            } else {
-                $this->mergeUnblankedPasswordFields($settings, $passwordFields, $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId));
-                $settingsRepo->bulkSetScoped("plugin.{$slug}", $settings, $brandId);
-            }
+        if ($isGateway) {
+            $displaySettings = $this->extractGatewayDisplaySettings($request, $slug, $effectiveBrandId);
+            $this->saveGatewayCredentials($slug, $effectiveBrandId, $settings, $passwordFields, $displaySettings);
+        } elseif ($brandId !== null && $brandId > 0) {
+            $this->mergeUnblankedPasswordFields($settings, $passwordFields, $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId));
+            $settingsRepo->bulkSetScoped("plugin.{$slug}", $settings, $brandId);
         } else {
             $this->mergeUnblankedPasswordFields($settings, $passwordFields, $settingsRepo->getGroup("plugin.{$slug}"));
             $settingsRepo->bulkSet("plugin.{$slug}", $settings);
@@ -637,12 +648,19 @@ final class PluginController
                 $brandId = $brandCtx->getActiveBrandId() ?? 0;
             }
         }
+        $effectiveBrandId = $this->resolveEffectiveBrandId($brandId);
+
+        $newCsrf = $request->getAttribute('_new_csrf_token');
+        if (!is_string($newCsrf) || $newCsrf === '') {
+            $newCsrf = $_SESSION['_csrf_token'] ?? null;
+        }
 
         $instance = $this->resolvePluginInstance($slug);
         if (!$instance instanceof \OwnPay\Gateway\TestableConnectionInterface) {
             return Response::json([
-                'success' => false,
-                'message' => 'Connection testing isn\'t supported for this gateway yet.',
+                'success'     => false,
+                'message'     => 'Connection testing isn\'t supported for this gateway yet.',
+                '_csrf_token' => $newCsrf,
             ]);
         }
 
@@ -651,16 +669,24 @@ final class PluginController
             $submitted = [];
         }
         $passwordFields = $this->passwordFieldNames($instance);
-        $existingCreds = $this->readGatewayCredentials($slug, $brandId);
+        $existingCreds = $this->readGatewayCredentials($slug, $effectiveBrandId);
         $credentials = self::mergeGatewayFieldValues($existingCreds, $submitted, $passwordFields);
 
         try {
             $result = $instance->testConnection($credentials);
         } catch (\Throwable $e) {
-            return Response::json(['success' => false, 'message' => 'Unexpected error: ' . $e->getMessage()]);
+            return Response::json([
+                'success'     => false,
+                'message'     => 'Unexpected error: ' . $e->getMessage(),
+                '_csrf_token' => $newCsrf,
+            ]);
         }
 
-        return Response::json(['success' => $result['success'], 'message' => $result['message']]);
+        return Response::json([
+            'success'     => $result['success'],
+            'message'     => $result['message'],
+            '_csrf_token' => $newCsrf,
+        ]);
     }
 
     /**
@@ -788,6 +814,29 @@ final class PluginController
     }
 
     /**
+     * Resolves an effective brand ID for tenant-scoped operations.
+     * When no active brand is selected (e.g. All Brands / global admin view),
+     * falls back to the default merchant brand.
+     *
+     * @param int|null $brandId Active brand/merchant ID.
+     * @return int Effective brand ID (> 0).
+     */
+    private function resolveEffectiveBrandId(?int $brandId): int
+    {
+        if ($brandId !== null && $brandId > 0) {
+            return $brandId;
+        }
+        $db = $this->c->has(\OwnPay\Core\Database::class) ? $this->c->get(\OwnPay\Core\Database::class) : null;
+        if ($db instanceof \OwnPay\Core\Database) {
+            $defaultBrand = $db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 0 ORDER BY id ASC LIMIT 1");
+            if ($defaultBrand && isset($defaultBrand['id']) && is_numeric($defaultBrand['id'])) {
+                return (int) $defaultBrand['id'];
+            }
+        }
+        return 1;
+    }
+
+    /**
      * Decrypts the currently-stored credentials for a gateway-type plugin under a brand.
      *
      * Falls back to legacy plaintext plugin settings if no encrypted credentials exist yet
@@ -799,9 +848,7 @@ final class PluginController
      */
     private function readGatewayCredentials(string $slug, int $brandId): array
     {
-        if ($brandId <= 0) {
-            return [];
-        }
+        $targetBrandId = $this->resolveEffectiveBrandId($brandId);
         $gwRepo = $this->c->get(GatewayRepository::class);
         if (!$gwRepo instanceof GatewayRepository) {
             return [];
@@ -815,12 +862,12 @@ final class PluginController
         if (!$gwConfigRepo instanceof GatewayConfigRepository) {
             return [];
         }
-        $existing = $gwConfigRepo->forTenant($brandId)->findForGateway($gwId);
+        $existing = $gwConfigRepo->forTenant($targetBrandId)->findForGateway($gwId);
         $encCreds = is_scalar($existing['credentials_enc'] ?? null) ? (string) $existing['credentials_enc'] : '';
         if ($encCreds === '') {
             $settingsRepo = $this->c->get(SettingsRepository::class);
             return $settingsRepo instanceof SettingsRepository
-                ? $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId)
+                ? $settingsRepo->getGroupScoped("plugin.{$slug}", $targetBrandId)
                 : [];
         }
         $encryptor = $this->c->get(FieldEncryptor::class);
@@ -860,9 +907,7 @@ final class PluginController
      */
     private function readGatewayDisplaySettings(string $slug, int $brandId): array
     {
-        if ($brandId <= 0) {
-            return [];
-        }
+        $targetBrandId = $this->resolveEffectiveBrandId($brandId);
         $gwRepo = $this->c->get(GatewayRepository::class);
         if (!$gwRepo instanceof GatewayRepository) {
             return [];
@@ -876,7 +921,7 @@ final class PluginController
         if (!$gwConfigRepo instanceof GatewayConfigRepository) {
             return [];
         }
-        $existing = $gwConfigRepo->forTenant($brandId)->findForGateway($gwId);
+        $existing = $gwConfigRepo->forTenant($targetBrandId)->findForGateway($gwId);
         $settingsRaw = is_array($existing) ? ($existing['settings'] ?? null) : null;
         $decoded = is_string($settingsRaw) ? json_decode($settingsRaw, true) : null;
         if (!is_array($decoded)) {
