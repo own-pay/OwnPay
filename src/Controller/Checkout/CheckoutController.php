@@ -317,7 +317,24 @@ final class CheckoutController
             }
 
             $paymentNumberVal = $gw['payment_number'] ?? '';
-            $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
+            $paymentNumber = is_string($paymentNumberVal) ? trim($paymentNumberVal) : '';
+            if ($paymentNumber === '') {
+                foreach ($inputFields as $field) {
+                    if (is_array($field) && (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number')) {
+                        $fieldVal = $field['value'] ?? $field['default'] ?? '';
+                        if (is_string($fieldVal) && trim($fieldVal) !== '') {
+                            $paymentNumber = trim($fieldVal);
+                            break;
+                        }
+                    }
+                }
+            }
+            if ($paymentNumber === '') {
+                $instrRaw = is_array($instructions) ? implode(' ', $instructions) : (string) $instructions;
+                if (preg_match('/(?:01[3-9]\d{8}|01[3-9]\d{2}-\d{6})/i', $instrRaw, $matches)) {
+                    $paymentNumber = $matches[0];
+                }
+            }
 
             $logoPathVal = $gw['logo_path'] ?? null;
             $qrCodePathVal = $gw['qr_code_path'] ?? null;
