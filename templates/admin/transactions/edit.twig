@@ -41,7 +41,21 @@
     </div>
 </div>
 
-{% if txn.status == 'pending' %}
+{% if payment_details is defined and payment_details|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Manual Payment Submission Details</h3></div>
+    <div class="op-card-body">
+        <dl class="op-detail-list">
+            {% for k, v in payment_details %}
+            <dt>{{ k|replace({'_': ' '})|title }}</dt>
+            <dd><strong>{{ v }}</strong></dd>
+            {% endfor %}
+        </dl>
+    </div>
+</div>
+{% endif %}
+
+{% if txn.status in ['pending', 'awaiting_verification', 'pending_review', 'processing'] %}
 <div class="op-card op-mt-4">
     <div class="op-card-header"><h3>Actions</h3></div>
     <div class="op-card-body">

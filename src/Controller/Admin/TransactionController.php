@@ -248,14 +248,24 @@ final class TransactionController
             $remainingRefundable = '0.00';
         }
 
+        // Extract manual payment submission details (e.g. sender_number, transaction_id, etc.)
+        $paymentDetails = [];
+        if (!empty($txn['metadata'])) {
+            $meta = is_string($txn['metadata']) ? json_decode($txn['metadata'], true) : $txn['metadata'];
+            if (is_array($meta) && isset($meta['payment_details']) && is_array($meta['payment_details'])) {
+                $paymentDetails = $meta['payment_details'];
+            }
+        }
+
         return $this->renderAdminPage('admin/transactions/edit.twig', [
             'txn'                  => $txn,
+            'payment_details'      => $paymentDetails,
             'sms_data'             => $smsData,
             'audit_log'            => $auditLog,
             'refunds'              => $refunds,
             'total_refunded'       => $totalRefunded,
             'remaining_refundable' => $remainingRefundable,
-            'active_page' => 'transactions',
+            'active_page'          => 'transactions',
         ]);
     }
 
