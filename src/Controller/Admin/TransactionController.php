@@ -252,8 +252,15 @@ final class TransactionController
         $paymentDetails = [];
         if (!empty($txn['metadata'])) {
             $meta = is_string($txn['metadata']) ? json_decode($txn['metadata'], true) : $txn['metadata'];
-            if (is_array($meta) && isset($meta['payment_details']) && is_array($meta['payment_details'])) {
-                $paymentDetails = $meta['payment_details'];
+            if (is_array($meta)) {
+                if (isset($meta['payment_details']) && is_array($meta['payment_details'])) {
+                    $paymentDetails = $meta['payment_details'];
+                } elseif (!empty($meta['sender_number']) || !empty($meta['transaction_id'])) {
+                    $paymentDetails = array_filter([
+                        'sender_number'  => $meta['sender_number'] ?? null,
+                        'transaction_id' => $meta['transaction_id'] ?? null,
+                    ]);
+                }
             }
         }
 
