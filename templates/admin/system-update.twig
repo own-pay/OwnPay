@@ -355,6 +355,115 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     ROW 1.5 - MANUAL UPDATE VIA ZIP UPLOAD
+     Allows an authorized superadmin to apply a ZIP package
+     from the UI without CLI access.
+     ═══════════════════════════════════════════════════════════ -->
+{% if is_superadmin %}
+<div class="op-update-hero-row op-mt-4">
+    <div class="op-hero-primary">
+        <div class="op-card op-premium-card">
+            <div class="op-card-header op-flex op-justify-between op-items-center">
+                <div class="op-flex op-items-center op-gap-2">
+                    <div class="op-card-header-icon op-card-header-icon-amber">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    </div>
+                    <h3>Manual Update via ZIP Upload</h3>
+                </div>
+                <span class="op-text-muted op-text-xs">Apply an update package from your local machine</span>
+            </div>
+            <div class="op-card-body">
+                <div id="manual-zip-panel">
+                    <div class="op-alert op-alert-warning op-mb-4">
+                        <div class="op-alert-icon">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        </div>
+                        <div class="op-alert-content">
+                            <strong>Caution:</strong> Uploading a ZIP package replaces core files and runs database migrations.
+                            A full backup is created before applying, and the system is placed into maintenance mode during the process.
+                        </div>
+                    </div>
+
+                    <form id="manual-zip-form" enctype="multipart/form-data">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                        <div class="op-flex op-gap-3 op-items-start">
+                            <input type="file" name="update_zip" id="manual-zip-file" accept=".zip,application/zip" class="op-file-input" required>
+                            <button type="submit" class="op-btn op-btn-primary" id="manual-zip-upload-btn">
+                                Validate &amp; Preview Update
+                            </button>
+                        </div>
+                        <p class="op-text-muted op-text-xs op-mt-2">
+                            Accepted format: <code>.zip</code> containing a <code>version.json</code> manifest plus files under approved directories
+                            (src, config, templates, public, database, modules). Maximum size: 50 MB.
+                        </p>
+                    </form>
+                    <div id="manual-zip-errors" class="op-alert op-alert-danger op-d-none op-mt-3"></div>
+                    <div id="manual-zip-uploading" class="op-d-none op-mt-3">
+                        <span class="op-milestone-spinner"></span> Validating package...
+                    </div>
+                </div>
+
+                <div id="manual-zip-preview" class="op-d-none">
+                    <div class="op-alert op-alert-success op-mb-4">
+                        <div class="op-alert-icon">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div class="op-alert-content">
+                            <strong>Package validated successfully.</strong> Review the details below before applying.
+                        </div>
+                    </div>
+                    <div class="op-preflight-card op-mb-4">
+                        <div class="op-preflight-header">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m-6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <strong>Upload Package Preview</strong>
+                        </div>
+                        <div class="op-preflight-grid">
+                            <div class="op-preflight-row verified">
+                                <span class="op-preflight-label">Target Version</span>
+                                <span class="op-preflight-value" id="zip-preview-version">-</span>
+                            </div>
+                            <div class="op-preflight-row verified">
+                                <span class="op-preflight-label">Current Version</span>
+                                <span class="op-preflight-value" id="zip-preview-current">-</span>
+                            </div>
+                            <div class="op-preflight-row verified">
+                                <span class="op-preflight-label">Version Relation</span>
+                                <span class="op-preflight-value" id="zip-preview-relation">-</span>
+                            </div>
+                            <div class="op-preflight-row verified">
+                                <span class="op-preflight-label">Filename</span>
+                                <span class="op-preflight-value" id="zip-preview-filename">-</span>
+                            </div>
+                            <div class="op-preflight-row verified">
+                                <span class="op-preflight-label">Package Size</span>
+                                <span class="op-preflight-value" id="zip-preview-size">-</span>
+                            </div>
+                            <div class="op-preflight-row" id="zip-preview-signature-row">
+                                <span class="op-preflight-label">Signature</span>
+                                <span class="op-preflight-value" id="zip-preview-signature">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="/admin/system-update/apply-zip" id="manual-zip-apply-form" enctype="multipart/form-data">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="version" id="zip-apply-version" value="">
+                        <div class="op-flex op-gap-3 op-items-center">
+                            <button type="submit" class="op-btn op-btn-danger" id="manual-zip-apply-btn">
+                                Apply Update Now
+                            </button>
+                            <button type="button" class="op-btn op-btn-outline" id="manual-zip-cancel-btn">Cancel</button>
+                            <span class="op-text-muted op-text-xs">System enters maintenance mode and creates a full backup before applying.</span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
      ROW 2 - INFO: System Diagnostics + Updater Policies
      Compact horizontal telemetry strip with side-by-side policies
      ═══════════════════════════════════════════════════════════ -->
@@ -938,6 +1047,146 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusBadge = document.getElementById('installer-global-status');
         statusBadge.className = 'op-badge op-badge-danger';
         statusBadge.innerText = 'Failed';
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 4. Manual ZIP Upload flow
+    // ══════════════════════════════════════════════════════════════
+    const zipForm = document.getElementById('manual-zip-form');
+    const zipPreview = document.getElementById('manual-zip-preview');
+    const zipPanel = document.getElementById('manual-zip-panel');
+    const zipErrors = document.getElementById('manual-zip-errors');
+    const zipUploading = document.getElementById('manual-zip-uploading');
+    const zipFileInput = document.getElementById('manual-zip-file');
+
+function showZipError(message) {
+        zipErrors.innerHTML = '';
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'op-alert-icon';
+        iconWrap.innerHTML = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+        const contentWrap = document.createElement('div');
+        contentWrap.className = 'op-alert-content';
+        contentWrap.textContent = (message ? message : 'Package validation failed.');
+        zipErrors.appendChild(iconWrap);
+        zipErrors.appendChild(contentWrap);
+        zipErrors.classList.remove('op-d-none');
+        zipUploading.classList.add('op-d-none');
+    }
+
+    if (zipForm && zipPreview && zipErrors && zipUploading) {
+        zipForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!zipFileInput.files.length) {
+                showZipError('Please select a .zip update package first.');
+                return;
+            }
+            zipErrors.classList.add('op-d-none');
+            zipUploading.classList.remove('op-d-none');
+            document.getElementById('manual-zip-upload-btn').disabled = true;
+
+            const fd = new FormData();
+            fd.append('_csrf_token', '{{ csrf_token }}');
+            fd.append('update_zip', zipFileInput.files[0]);
+
+            fetch('/admin/system-update/upload', {
+                method: 'POST',
+                body: fd,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                zipUploading.classList.add('op-d-none');
+                document.getElementById('manual-zip-upload-btn').disabled = false;
+                if (!ok || !data.success) {
+                    showZipError(data.error || 'Package validation failed.');
+                    return;
+                }
+
+                const relationLabel = data.version_relation === 'older' ? 'Older than current (downgrade)' : data.version_relation === 'same' ? 'Same as current' : 'Newer than current (upgrade)';
+                document.getElementById('zip-preview-version').textContent = 'v' + data.version;
+                document.getElementById('zip-preview-current').textContent = 'v' + data.current_version;
+                document.getElementById('zip-preview-relation').textContent = relationLabel;
+                document.getElementById('zip-preview-filename').textContent = data.filename;
+                document.getElementById('zip-preview-size').textContent = data.size;
+                const signatureEl = document.getElementById('zip-preview-signature');
+                if (signatureEl) {
+                    signatureEl.textContent = data.signature === 'verified' ? 'Verified manifest (RSA SHA-256)' : 'None (unsigned upload)';
+                    signatureEl.className = 'op-preflight-value' + (data.signature === 'verified' ? ' op-text-success' : ' op-text-warning');
+                }
+                document.getElementById('zip-apply-version').value = data.version;
+
+                zipPanel.classList.add('op-d-none');
+                zipPreview.classList.remove('op-d-none');
+                document.getElementById('manual-zip-preview').scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(err => {
+                zipUploading.classList.add('op-d-none');
+                document.getElementById('manual-zip-upload-btn').disabled = false;
+                showZipError('Connection error while validating package.');
+            });
+        });
+
+        document.getElementById('manual-zip-cancel-btn').addEventListener('click', () => {
+            zipPreview.classList.add('op-d-none');
+            zipPanel.classList.remove('op-d-none');
+            zipFileInput.value = '';
+            zipErrors.classList.add('op-d-none');
+        });
+
+        // Apply: re-send the selected file directly to the apply endpoint.
+        const zipApplyForm = document.getElementById('manual-zip-apply-form');
+        if (zipApplyForm) {
+            zipApplyForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (!zipFileInput.files.length) {
+                    showZipError('The selected package is no longer available. Please re-upload it.');
+                    zipPreview.classList.add('op-d-none');
+                    zipPanel.classList.remove('op-d-none');
+                    return;
+                }
+                const confirmed = window.confirm('Apply this update package now? The system will enter maintenance mode and a full backup will be created. Do not navigate away during the process.');
+                if (!confirmed) return;
+
+                const applyBtn = document.getElementById('manual-zip-apply-btn');
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Applying Update...';
+
+                const fd = new FormData();
+                fd.append('_csrf_token', '{{ csrf_token }}');
+                fd.append('version', document.getElementById('zip-apply-version').value);
+                fd.append('update_zip', zipFileInput.files[0]);
+
+                fetch('/admin/system-update/apply-zip', {
+                    method: 'POST',
+                    body: fd,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok && data.success) {
+                        window.alert('Update applied successfully! The system will now reload.');
+                        window.location.reload();
+                    } else {
+                        applyBtn.disabled = false;
+                        applyBtn.textContent = 'Apply Update Now';
+                        zipPreview.classList.add('op-d-none');
+                        zipPanel.classList.remove('op-d-none');
+                        showZipError((data.error || 'Update failed.') + (data.rollback ? ' The system was rolled back to its previous state.' : ''));
+                    }
+                })
+                .catch(() => {
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = 'Apply Update Now';
+                    showZipError('Connection error while applying the update. Check whether the system recovered and reload this page.');
+                });
+            });
+        }
     }
 });
 </script>

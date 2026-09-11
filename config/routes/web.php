@@ -322,6 +322,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/system-update/check', 'Admin\\SystemUpdateController@check', 'admin');
     $router->post('/admin/system-update/apply', 'Admin\\SystemUpdateController@install', 'admin');
     $router->post('/admin/system-update/settings', 'Admin\\SystemUpdateController@settings', 'admin');
+    $router->post('/admin/system-update/upload', 'Admin\\\\SystemUpdateController@uploadZip', 'admin');
+    $router->post('/admin/system-update/apply-zip', 'Admin\\\\SystemUpdateController@applyZip', 'admin');
 
     // Balance Verification
     $router->get('/admin/balance-verification', 'Admin\\BalanceVerificationController@index', 'admin');
