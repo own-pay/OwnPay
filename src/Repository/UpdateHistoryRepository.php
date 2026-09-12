@@ -25,7 +25,8 @@ class UpdateHistoryRepository extends BaseRepository
      * @var array<int, string>
      */
     protected array $fillable = [
-        'from_version', 'to_version', 'status', 'backup_path',
+        'from_version', 'to_version', 'status', 'update_type',
+        'uploaded_by', 'zip_filename', 'backup_path',
         'checksum', 'error', 'completed_at',
     ];
 
@@ -54,6 +55,28 @@ class UpdateHistoryRepository extends BaseRepository
             'from_version' => $current,
             'to_version'   => $version,
             'status'       => 'started',
+            'update_type'  => 'remote',
+        ]);
+    }
+
+    /**
+     * Initializes a manual update from an admin-uploaded ZIP package.
+     *
+     * @param string $version    Target version string declared in the package manifest.
+     * @param string $uploadedBy Email/username of the admin triggering the update.
+     * @param string $filename   Original uploaded ZIP filename.
+     * @return int The primary key identifier of the newly started update process.
+     */
+    public function startManualUpdate(string $version, string $uploadedBy, string $filename): int
+    {
+        $current = $this->latest()['to_version'] ?? '0.0.0';
+        return (int) $this->create([
+            'from_version' => $current,
+            'to_version'   => $version,
+            'status'       => 'started',
+            'update_type'  => 'manual',
+            'uploaded_by'  => $uploadedBy,
+            'zip_filename' => $filename,
         ]);
     }
 

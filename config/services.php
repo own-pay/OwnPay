@@ -768,6 +768,17 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    $c->singleton(\OwnPay\Update\ZipUpdateService::class, static function (\OwnPay\Container $c): \OwnPay\Update\ZipUpdateService {
+        return new \OwnPay\Update\ZipUpdateService(
+            ensureType($c->get(\OwnPay\Update\BackupService::class), \OwnPay\Update\BackupService::class),
+            ensureType($c->get(\OwnPay\Update\HealthChecker::class), \OwnPay\Update\HealthChecker::class),
+            ensureType($c->get(\OwnPay\Update\MaintenanceMode::class), \OwnPay\Update\MaintenanceMode::class),
+            ensureType($c->get(\OwnPay\Repository\UpdateHistoryRepository::class), \OwnPay\Repository\UpdateHistoryRepository::class),
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+        );
+    });
+
     $c->singleton(\OwnPay\Cron\SystemUpdateJob::class, static function (\OwnPay\Container $c): \OwnPay\Cron\SystemUpdateJob {
         $appCfg = ensureArray($c->get('config.app'));
         $version = ensureString($appCfg['version'] ?? \OwnPay\Support\Version::CURRENT);

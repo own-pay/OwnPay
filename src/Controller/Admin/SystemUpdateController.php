@@ -8,6 +8,7 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Update\UpdateService;
+use OwnPay\Update\ZipUpdateService;
 use OwnPay\Repository\SettingsRepository;
 use OwnPay\Repository\UpdateHistoryRepository;
 use OwnPay\Support\Version;
@@ -35,6 +36,11 @@ final class SystemUpdateController
     private UpdateService $updater;
 
     /**
+     * The manual ZIP update service instance.
+     */
+    private ZipUpdateService $zipUpdater;
+
+    /**
      * The settings repository.
      */
     private SettingsRepository $settingsRepo;
@@ -50,6 +56,7 @@ final class SystemUpdateController
      * @param Container $c The dependency injection container.
      * @param AdminSession $session The admin session manager.
      * @param UpdateService $updater The update service instance.
+     * @param ZipUpdateService $zipUpdater The manual ZIP update service instance.
      * @param SettingsRepository $settingsRepo The settings repository.
      * @param UpdateHistoryRepository $historyRepo The update history repository.
      */
@@ -57,12 +64,14 @@ final class SystemUpdateController
         Container $c,
         AdminSession $session,
         UpdateService $updater,
+        ZipUpdateService $zipUpdater,
         SettingsRepository $settingsRepo,
         UpdateHistoryRepository $historyRepo
     ) {
         $this->c            = $c;
         $this->session      = $session;
         $this->updater      = $updater;
+        $this->zipUpdater   = $zipUpdater;
         $this->settingsRepo = $settingsRepo;
         $this->historyRepo  = $historyRepo;
     }
@@ -253,5 +262,115 @@ final class SystemUpdateController
 
         $this->session->flashSuccess('Update settings saved');
         return Response::redirect('/admin/system-update');
+    }
+
+    /**
+     * Validate and report on a manually uploaded update ZIP package.
+     *
+     * Performs server-side validation (file type/size, ZIP structure, version
+     * manifest) and returns a JSON payload so the admin UI can render a
+     * confirmation preview before the update is applied.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP JSON response.
+     */
+    public function uploadZip(Request $req): Response
+    {
+        if (!$this->requireSuperadmin()) {
+            return Response::json(['success' => false, 'error' => 'Only superadmin users can upload update packages.'], 403);
+        }
+
+        $file = $req->file('update_zip');
+        if ($file === null) {
+            return Response::json(['success' => false, 'error' => 'No file uploaded.'], 400);
+        }
+
+        $result = $this->zipUpdater->validate($file);
+
+        if (!$result['valid']) {
+            return Response::json(['success' => false, 'error' => $result['error'] ?? 'Invalid package.'], 400);
+        }
+
+        $configApp = $this->c->get('config.app');
+        $currentVersion = is_array($configApp) && isset($configApp['version']) && is_string($configApp['version']) ? $configApp['version'] : Version::CURRENT;
+
+        $targetVersion = is_string($result['version'] ?? null) ? $result['version'] : '';
+        $versionRelation = 'new';
+        if (version_compare($targetVersion, $currentVersion, '<')) {
+            $versionRelation = 'older';
+        } elseif (version_compare($targetVersion, $currentVersion) === 0) {
+            $versionRelation = 'same';
+        }
+
+        return Response::json([
+            'success'            => true,
+            'version'            => $targetVersion,
+            'current_version'    => $currentVersion,
+            'version_relation'   => $versionRelation,
+            'filename'           => $result['filename'] ?? '',
+            'size'               => $result['size'] ?? '',
+            'signature'          => $result['signature'] ?? 'absent',
+        ]);
+    }
+
+    /**
+     * Applies a manually uploaded update ZIP package.
+     *
+     * The ZIP is re-uploaded with a confirmation flag (rather than trusting a
+     * temp-path from hidden form state) and executed through the ZipUpdateService
+     * pipeline: backup -> maintenance -> extract -> migrate -> health -> release.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect or JSON response.
+     */
+    public function applyZip(Request $req): Response
+    {
+        if (!$this->requireSuperadmin()) {
+            return Response::json(['success' => false, 'error' => 'Only superadmin users can apply updates.'], 403);
+        }
+
+        $versionRaw = $req->post('version', '');
+        $version = is_string($versionRaw) ? $versionRaw : '';
+        if ($version === '') {
+            return Response::json(['success' => false, 'error' => 'Missing target version.'], 400);
+        }
+
+        $file = $req->file('update_zip');
+        if ($file === null) {
+            $this->session->flashError('No update package provided.');
+            return Response::redirect('/admin/system-update');
+        }
+
+        $adminEmail = $this->session->userEmail();
+        $result = $this->zipUpdater->execute($file, $adminEmail, $version);
+
+        if ($req->expectsJson()) {
+            if ($result['success']) {
+                return Response::json(['success' => true, 'rollback' => false]);
+            }
+            return Response::json([
+                'success'  => false,
+                'error'    => $result['error'] ?? 'Update failed.',
+                'rollback' => $result['rollback'] ?? false,
+            ], 500);
+        }
+
+        if ($result['success']) {
+            $this->session->flashSuccess("Manual update to v{$version} completed successfully!");
+        } else {
+            $error = $result['error'] ?? 'Update failed.';
+            $this->session->flashError("Manual update failed: {$error}");
+        }
+        return Response::redirect('/admin/system-update');
+    }
+
+    /**
+     * Guards upload/apply actions behind the superadmin role.
+     *
+     * @return bool True when the current admin is a superadmin.
+     */
+    private function requireSuperadmin(): bool
+    {
+        return $this->session->isSuperadmin();
     }
 }

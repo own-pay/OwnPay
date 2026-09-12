@@ -877,13 +877,17 @@ CREATE TABLE `op_update_history` (
   `from_version` VARCHAR(20) NOT NULL,
   `to_version` VARCHAR(20) NOT NULL,
   `status` ENUM('started','backup_created','downloaded','applied','verified','completed','rolled_back','failed') NOT NULL,
+  `update_type` ENUM('remote','manual') NOT NULL DEFAULT 'remote',
+  `uploaded_by` VARCHAR(120) DEFAULT NULL,
+  `zip_filename` VARCHAR(255) DEFAULT NULL,
   `backup_path` VARCHAR(500) DEFAULT NULL,
   `checksum` VARCHAR(64) DEFAULT NULL,
   `error` TEXT DEFAULT NULL,
   `started_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `completed_at` DATETIME(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_status` (`status`)
+  KEY `idx_status` (`status`),
+  KEY `idx_update_type` (`update_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `op_maintenance_locks` (

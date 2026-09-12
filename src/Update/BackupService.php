@@ -297,7 +297,7 @@ class BackupService
     /**
      * Backup application directory files into a single ZIP archive.
      *
-     * Backs up source (src), templates, config, and web root (public) directories.
+     * Backs up source (src), templates, config, web root (public), database and modules directories.
      *
      * @param string $outputPath Path where the ZIP file should be generated.
      * @return void
@@ -310,7 +310,7 @@ class BackupService
             return;
         }
 
-        $dirs = ['src', 'config', 'templates', 'public'];
+        $dirs = ['src', 'config', 'templates', 'public', 'database', 'modules'];
         foreach ($dirs as $dir) {
             $fullDir = $appRoot . '/' . $dir;
             if (!is_dir($fullDir)) continue;
