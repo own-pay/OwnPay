@@ -1,0 +1,6 @@
+interface:
+  display_name: "OwnPay"
+  short_description: "Repo-specific patterns and workflows for OwnPay"
+  default_prompt: "Use the OwnPay repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
