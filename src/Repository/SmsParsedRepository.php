@@ -49,6 +49,32 @@ final class SmsParsedRepository extends BaseRepository
     }
 
     /**
+     * Retrieves unmatched SMS entries for the active tenant carrying the given MFS provider
+     * transaction reference, newest first.
+     *
+     * Used by the manual payment auto-verifier to prove that a customer-submitted TrxID
+     * corresponds to a real payment notification captured from the merchant's paired device.
+     * Rows already linked to a transaction (or explicitly ignored) are excluded so a single
+     * notification can never settle two transactions.
+     *
+     * @param string $trxId The provider transaction reference (e.g. bKash TrxID).
+     * @param int $limit Maximum number of candidate rows to return.
+     * @return array<int, array<string, mixed>> Candidate unmatched SMS rows.
+     * @throws \RuntimeException If the active tenant context cannot be resolved.
+     */
+    public function findUnmatchedByTrxId(string $trxId, int $limit = 2): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table}
+             WHERE merchant_id = :mid AND trx_id = :trx
+               AND transaction_id IS NULL
+               AND match_status NOT IN ('matched', 'ignored')
+             ORDER BY received_at DESC LIMIT :lim",
+            ['mid' => $this->requireTenant(), 'trx' => $trxId, 'lim' => $limit]
+        );
+    }
+
+    /**
      * Associates a specific parsed SMS entry with a validated transaction and updates its status.
      *
      * @param int $smsId The internal primary identifier of the SMS record.
