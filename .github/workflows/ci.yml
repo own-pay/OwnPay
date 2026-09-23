@@ -30,6 +30,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

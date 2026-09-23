@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
+class ComposerStaticInit5bc1e8fa2bf3e6ab68217354dbab4fcb
 {
     public static $files = array (
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
@@ -25,22 +25,22 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
     );
 
     public static $prefixLengthsPsr4 = array (
-        'c' => 
+        'c' =>
         array (
             'chillerlan\\Settings\\' => 20,
             'chillerlan\\QRCode\\' => 18,
         ),
-        'W' => 
+        'W' =>
         array (
             'Webmozart\\Assert\\' => 17,
         ),
-        'T' => 
+        'T' =>
         array (
             'Twig\\' => 5,
             'TwigCsFixer\\' => 12,
             'Tests\\' => 6,
         ),
-        'S' => 
+        'S' =>
         array (
             'Symfony\\Polyfill\\Php80\\' => 23,
             'Symfony\\Polyfill\\Mbstring\\' => 26,
@@ -53,146 +53,146 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
             'Symfony\\Component\\Filesystem\\' => 29,
             'Symfony\\Component\\Console\\' => 26,
         ),
-        'R' => 
+        'R' =>
         array (
             'Ramsey\\Uuid\\' => 12,
             'Ramsey\\Collection\\' => 18,
         ),
-        'P' => 
+        'P' =>
         array (
             'Psr\\Container\\' => 14,
             'PhpParser\\' => 10,
             'PhpOption\\' => 10,
         ),
-        'O' => 
+        'O' =>
         array (
             'OwnPay\\' => 7,
         ),
-        'G' => 
+        'G' =>
         array (
             'GrahamCampbell\\ResultType\\' => 26,
         ),
-        'F' => 
+        'F' =>
         array (
             'Firebase\\JWT\\' => 13,
         ),
-        'D' => 
+        'D' =>
         array (
             'Dotenv\\' => 7,
             'DeepCopy\\' => 9,
         ),
-        'B' => 
+        'B' =>
         array (
             'Brick\\Math\\' => 11,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'chillerlan\\Settings\\' => 
+        'chillerlan\\Settings\\' =>
         array (
             0 => __DIR__ . '/..' . '/chillerlan/php-settings-container/src',
         ),
-        'chillerlan\\QRCode\\' => 
+        'chillerlan\\QRCode\\' =>
         array (
             0 => __DIR__ . '/..' . '/chillerlan/php-qrcode/src',
         ),
-        'Webmozart\\Assert\\' => 
+        'Webmozart\\Assert\\' =>
         array (
             0 => __DIR__ . '/..' . '/webmozart/assert/src',
         ),
-        'Twig\\' => 
+        'Twig\\' =>
         array (
             0 => __DIR__ . '/..' . '/twig/twig/src',
         ),
-        'TwigCsFixer\\' => 
+        'TwigCsFixer\\' =>
         array (
             0 => __DIR__ . '/..' . '/vincentlanglet/twig-cs-fixer/src',
         ),
-        'Tests\\' => 
+        'Tests\\' =>
         array (
             0 => __DIR__ . '/../..' . '/tests',
         ),
-        'Symfony\\Polyfill\\Php80\\' => 
+        'Symfony\\Polyfill\\Php80\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
         ),
-        'Symfony\\Polyfill\\Mbstring\\' => 
+        'Symfony\\Polyfill\\Mbstring\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
         ),
-        'Symfony\\Polyfill\\Intl\\Normalizer\\' => 
+        'Symfony\\Polyfill\\Intl\\Normalizer\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer',
         ),
-        'Symfony\\Polyfill\\Intl\\Grapheme\\' => 
+        'Symfony\\Polyfill\\Intl\\Grapheme\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme',
         ),
-        'Symfony\\Polyfill\\Ctype\\' => 
+        'Symfony\\Polyfill\\Ctype\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
         ),
-        'Symfony\\Contracts\\Service\\' => 
+        'Symfony\\Contracts\\Service\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/service-contracts',
         ),
-        'Symfony\\Component\\String\\' => 
+        'Symfony\\Component\\String\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/string',
         ),
-        'Symfony\\Component\\Finder\\' => 
+        'Symfony\\Component\\Finder\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/finder',
         ),
-        'Symfony\\Component\\Filesystem\\' => 
+        'Symfony\\Component\\Filesystem\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/filesystem',
         ),
-        'Symfony\\Component\\Console\\' => 
+        'Symfony\\Component\\Console\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/console',
         ),
-        'Ramsey\\Uuid\\' => 
+        'Ramsey\\Uuid\\' =>
         array (
             0 => __DIR__ . '/..' . '/ramsey/uuid/src',
         ),
-        'Ramsey\\Collection\\' => 
+        'Ramsey\\Collection\\' =>
         array (
             0 => __DIR__ . '/..' . '/ramsey/collection/src',
         ),
-        'Psr\\Container\\' => 
+        'Psr\\Container\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
-        'PhpParser\\' => 
+        'PhpParser\\' =>
         array (
             0 => __DIR__ . '/..' . '/nikic/php-parser/lib/PhpParser',
         ),
-        'PhpOption\\' => 
+        'PhpOption\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
-        'OwnPay\\' => 
+        'OwnPay\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
-        'GrahamCampbell\\ResultType\\' => 
+        'GrahamCampbell\\ResultType\\' =>
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
         ),
-        'Firebase\\JWT\\' => 
+        'Firebase\\JWT\\' =>
         array (
             0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
         ),
-        'Dotenv\\' => 
+        'Dotenv\\' =>
         array (
             0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
         ),
-        'DeepCopy\\' => 
+        'DeepCopy\\' =>
         array (
             0 => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy',
         ),
-        'Brick\\Math\\' => 
+        'Brick\\Math\\' =>
         array (
             0 => __DIR__ . '/..' . '/brick/math/src',
         ),
@@ -462,6 +462,7 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'OwnPay\\Plugin\\PluginMigrator' => __DIR__ . '/../..' . '/src/Plugin/PluginMigrator.php',
         'OwnPay\\Plugin\\PluginRegistry' => __DIR__ . '/../..' . '/src/Plugin/PluginRegistry.php',
         'OwnPay\\Plugin\\PluginSandbox' => __DIR__ . '/../..' . '/src/Plugin/PluginSandbox.php',
+        'OwnPay\\Plugin\\ThemeSecurityScanner' => __DIR__ . '/../..' . '/src/Plugin/ThemeSecurityScanner.php',
         'OwnPay\\Queue\\FileQueue' => __DIR__ . '/../..' . '/src/Queue/FileQueue.php',
         'OwnPay\\Queue\\QueueInterface' => __DIR__ . '/../..' . '/src/Queue/QueueInterface.php',
         'OwnPay\\Queue\\RedisQueue' => __DIR__ . '/../..' . '/src/Queue/RedisQueue.php',
@@ -549,6 +550,7 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'OwnPay\\Service\\Sms\\SmsHeuristicParser' => __DIR__ . '/../..' . '/src/Service/Sms/SmsHeuristicParser.php',
         'OwnPay\\Service\\Sms\\SmsParserService' => __DIR__ . '/../..' . '/src/Service/Sms/SmsParserService.php',
         'OwnPay\\Service\\Sms\\SmsRegexParser' => __DIR__ . '/../..' . '/src/Service/Sms/SmsRegexParser.php',
+        'OwnPay\\Service\\System\\AssetManager' => __DIR__ . '/../..' . '/src/Service/System/AssetManager.php',
         'OwnPay\\Service\\System\\AuditLogger' => __DIR__ . '/../..' . '/src/Service/System/AuditLogger.php',
         'OwnPay\\Service\\System\\AuditService' => __DIR__ . '/../..' . '/src/Service/System/AuditService.php',
         'OwnPay\\Service\\System\\DateTimeService' => __DIR__ . '/../..' . '/src/Service/System/DateTimeService.php',
@@ -567,6 +569,7 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'OwnPay\\Update\\HealthChecker' => __DIR__ . '/../..' . '/src/Update/HealthChecker.php',
         'OwnPay\\Update\\MaintenanceMode' => __DIR__ . '/../..' . '/src/Update/MaintenanceMode.php',
         'OwnPay\\Update\\UpdateService' => __DIR__ . '/../..' . '/src/Update/UpdateService.php',
+        'OwnPay\\Update\\ZipUpdateService' => __DIR__ . '/../..' . '/src/Update/ZipUpdateService.php',
         'OwnPay\\View\\ErrorPageRenderer' => __DIR__ . '/../..' . '/src/View/ErrorPageRenderer.php',
         'OwnPay\\View\\FragmentRenderer' => __DIR__ . '/../..' . '/src/View/FragmentRenderer.php',
         'OwnPay\\View\\PluginViewRenderer' => __DIR__ . '/../..' . '/src/View/PluginViewRenderer.php',
@@ -2504,14 +2507,18 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Integration\\ActiveThemeResolverTest' => __DIR__ . '/../..' . '/tests/Integration/ActiveThemeResolverTest.php',
         'Tests\\Integration\\AdminApiSecurityTest' => __DIR__ . '/../..' . '/tests/Integration/AdminApiSecurityTest.php',
         'Tests\\Integration\\AdminFeaturesIntegrationTest' => __DIR__ . '/../..' . '/tests/Integration/AdminFeaturesIntegrationTest.php',
+        'Tests\\Integration\\AdminPageRendererTest' => __DIR__ . '/../..' . '/tests/Integration/AdminPageRendererTest.php',
         'Tests\\Integration\\AllBrandsDeviceSmsVerificationTest' => __DIR__ . '/../..' . '/tests/Integration/AllBrandsDeviceSmsVerificationTest.php',
         'Tests\\Integration\\ApiKeyApiSecurityTest' => __DIR__ . '/../..' . '/tests/Integration/ApiKeyApiSecurityTest.php',
         'Tests\\Integration\\ApiKeyControllerLockUnlockTest' => __DIR__ . '/../..' . '/tests/Integration/ApiKeyControllerLockUnlockTest.php',
         'Tests\\Integration\\ApiKeyLockUnlockTest' => __DIR__ . '/../..' . '/tests/Integration/ApiKeyLockUnlockTest.php',
+        'Tests\\Integration\\AssetEnqueueingRenderTest' => __DIR__ . '/../..' . '/tests/Integration/AssetEnqueueingRenderTest.php',
+        'Tests\\Integration\\AuthenticatorLandingViewTest' => __DIR__ . '/../..' . '/tests/Integration/AuthenticatorLandingViewTest.php',
         'Tests\\Integration\\BrandBrandingIntegrationTest' => __DIR__ . '/../..' . '/tests/Integration/BrandBrandingIntegrationTest.php',
         'Tests\\Integration\\BrandNotificationSettingsTest' => __DIR__ . '/../..' . '/tests/Integration/BrandNotificationSettingsTest.php',
         'Tests\\Integration\\CheckoutBackNavigationTest' => __DIR__ . '/../..' . '/tests/Integration/CheckoutBackNavigationTest.php',
         'Tests\\Integration\\CheckoutClaimPendingForPayTest' => __DIR__ . '/../..' . '/tests/Integration/CheckoutClaimPendingForPayTest.php',
+        'Tests\\Integration\\CheckoutCustomizationHooksTest' => __DIR__ . '/../..' . '/tests/Integration/CheckoutCustomizationHooksTest.php',
         'Tests\\Integration\\CheckoutManualGatewayDetailsTest' => __DIR__ . '/../..' . '/tests/Integration/CheckoutManualGatewayDetailsTest.php',
         'Tests\\Integration\\CheckoutReactivateForRetryTest' => __DIR__ . '/../..' . '/tests/Integration/CheckoutReactivateForRetryTest.php',
         'Tests\\Integration\\CheckoutStatusRedirectTest' => __DIR__ . '/../..' . '/tests/Integration/CheckoutStatusRedirectTest.php',
@@ -2536,6 +2543,7 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Integration\\InvoiceServiceMinorFixesTest' => __DIR__ . '/../..' . '/tests/Integration/InvoiceServiceMinorFixesTest.php',
         'Tests\\Integration\\LanguageSystemTest' => __DIR__ . '/../..' . '/tests/Integration/LanguageSystemTest.php',
         'Tests\\Integration\\LedgerServiceTest' => __DIR__ . '/../..' . '/tests/Integration/LedgerServiceTest.php',
+        'Tests\\Integration\\LoggerServiceBindingTest' => __DIR__ . '/../..' . '/tests/Integration/LoggerServiceBindingTest.php',
         'Tests\\Integration\\ManualGatewayRoutingTest' => __DIR__ . '/../..' . '/tests/Integration/ManualGatewayRoutingTest.php',
         'Tests\\Integration\\MobileBootstrapRouteTest' => __DIR__ . '/../..' . '/tests/Integration/MobileBootstrapRouteTest.php',
         'Tests\\Integration\\NotificationDashboardIntegrationTest' => __DIR__ . '/../..' . '/tests/Integration/NotificationDashboardIntegrationTest.php',
@@ -2544,10 +2552,11 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Integration\\OnboardingRouteRedirectTest' => __DIR__ . '/../..' . '/tests/Integration/OnboardingRouteRedirectTest.php',
         'Tests\\Integration\\OnboardingSkipStepTest' => __DIR__ . '/../..' . '/tests/Integration/OnboardingSkipStepTest.php',
         'Tests\\Integration\\PasswordResetServiceTest' => __DIR__ . '/../..' . '/tests/Integration/PasswordResetServiceTest.php',
+        'Tests\\Integration\\PaymentCurrencyResolutionTest' => __DIR__ . '/../..' . '/tests/Integration/PaymentCurrencyResolutionTest.php',
         'Tests\\Integration\\PaymentLinkAdminFixesTest' => __DIR__ . '/../..' . '/tests/Integration/PaymentLinkAdminFixesTest.php',
-        'Tests\\Integration\\ReferenceMinimalRenderPipelineTest' => __DIR__ . '/../..' . '/tests/Integration/ReferenceMinimalRenderPipelineTest.php',
         'Tests\\Integration\\RefundApiIntegrationTest' => __DIR__ . '/../..' . '/tests/Integration/RefundApiIntegrationTest.php',
         'Tests\\Integration\\RefundReconciliationJobTest' => __DIR__ . '/../..' . '/tests/Integration/RefundReconciliationJobTest.php',
+        'Tests\\Integration\\SaveSettingsRequiredFieldTest' => __DIR__ . '/../..' . '/tests/Integration/SaveSettingsRequiredFieldTest.php',
         'Tests\\Integration\\SettingsDomainsLinkTest' => __DIR__ . '/../..' . '/tests/Integration/SettingsDomainsLinkTest.php',
         'Tests\\Integration\\SetupWizardIntegrationTest' => __DIR__ . '/../..' . '/tests/Integration/SetupWizardIntegrationTest.php',
         'Tests\\Integration\\SmokeTest' => __DIR__ . '/../..' . '/tests/Integration/SmokeTest.php',
@@ -2556,8 +2565,6 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Integration\\SmsParsingIntegrationTest' => __DIR__ . '/../..' . '/tests/Integration/SmsParsingIntegrationTest.php',
         'Tests\\Integration\\SovereignArchitectureTest' => __DIR__ . '/../..' . '/tests/Integration/SovereignArchitectureTest.php',
         'Tests\\Integration\\TelegramBotAddonTest' => __DIR__ . '/../..' . '/tests/Integration/TelegramBotAddonTest.php',
-        'Tests\\Integration\\ThemeControllerFirstActivationTest' => __DIR__ . '/../..' . '/tests/Integration/ThemeControllerFirstActivationTest.php',
-        'Tests\\Integration\\ThemeRenderPipelineTest' => __DIR__ . '/../..' . '/tests/Integration/ThemeRenderPipelineTest.php',
         'Tests\\Integration\\TranslationCodeSecurityTest' => __DIR__ . '/../..' . '/tests/Integration/TranslationCodeSecurityTest.php',
         'Tests\\Integration\\TrxIdLookupApiTest' => __DIR__ . '/../..' . '/tests/Integration/TrxIdLookupApiTest.php',
         'Tests\\Integration\\WebhookIdempotencyTest' => __DIR__ . '/../..' . '/tests/Integration/WebhookIdempotencyTest.php',
@@ -2589,7 +2596,10 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Service\\SmsRegexParserReDoSTest' => __DIR__ . '/../..' . '/tests/Service/SmsRegexParserReDoSTest.php',
         'Tests\\Service\\SmsRegexParserTest' => __DIR__ . '/../..' . '/tests/Service/SmsRegexParserTest.php',
         'Tests\\Unit\\ActiveThemeTest' => __DIR__ . '/../..' . '/tests/Unit/ActiveThemeTest.php',
+        'Tests\\Unit\\AdminEnginesRegisterFilterTest' => __DIR__ . '/../..' . '/tests/Unit/AdminEnginesRegisterFilterTest.php',
         'Tests\\Unit\\AfricaMenaGatewayTest' => __DIR__ . '/../..' . '/tests/Unit/AfricaMenaGatewayTest.php',
+        'Tests\\Unit\\AlipayGatewayTest' => __DIR__ . '/../..' . '/tests/Unit/AlipayGatewayTest.php',
+        'Tests\\Unit\\AssetManagerTest' => __DIR__ . '/../..' . '/tests/Unit/AssetManagerTest.php',
         'Tests\\Unit\\AuditIntegrityTest' => __DIR__ . '/../..' . '/tests/Unit/AuditIntegrityTest.php',
         'Tests\\Unit\\BackupServiceRelativePathTest' => __DIR__ . '/../..' . '/tests/Unit/BackupServiceRelativePathTest.php',
         'Tests\\Unit\\BangladeshMfsGatewayTest' => __DIR__ . '/../..' . '/tests/Unit/BangladeshMfsGatewayTest.php',
@@ -2613,12 +2623,11 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Unit\\MiddlewareTest' => __DIR__ . '/../..' . '/tests/Unit/MiddlewareTest.php',
         'Tests\\Unit\\PdfServicePathTraversalTest' => __DIR__ . '/../..' . '/tests/Unit/PdfServicePathTraversalTest.php',
         'Tests\\Unit\\PlainPhpThemeRendererTest' => __DIR__ . '/../..' . '/tests/Unit/PlainPhpThemeRendererTest.php',
+        'Tests\\Unit\\PluginControllerRequiredFieldValidationTest' => __DIR__ . '/../..' . '/tests/Unit/PluginControllerRequiredFieldValidationTest.php',
         'Tests\\Unit\\PluginLoaderAdminMenuCapabilityTest' => __DIR__ . '/../..' . '/tests/Unit/PluginLoaderAdminMenuCapabilityTest.php',
         'Tests\\Unit\\PluginManifestEngineTest' => __DIR__ . '/../..' . '/tests/Unit/PluginManifestEngineTest.php',
         'Tests\\Unit\\PluginRegistryHasCapabilityTest' => __DIR__ . '/../..' . '/tests/Unit/PluginRegistryHasCapabilityTest.php',
         'Tests\\Unit\\PluginSystemTest' => __DIR__ . '/../..' . '/tests/Unit/PluginSystemTest.php',
-        'Tests\\Unit\\ReferenceMinimalLayoutTest' => __DIR__ . '/../..' . '/tests/Unit/ReferenceMinimalLayoutTest.php',
-        'Tests\\Unit\\ReferenceMinimalThemeTest' => __DIR__ . '/../..' . '/tests/Unit/ReferenceMinimalThemeTest.php',
         'Tests\\Unit\\RouterTest' => __DIR__ . '/../..' . '/tests/Unit/RouterTest.php',
         'Tests\\Unit\\SecurityTest' => __DIR__ . '/../..' . '/tests/Unit/SecurityTest.php',
         'Tests\\Unit\\ServiceTest' => __DIR__ . '/../..' . '/tests/Unit/ServiceTest.php',
@@ -2632,6 +2641,7 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
         'Tests\\Unit\\WebhookDispatcherTest' => __DIR__ . '/../..' . '/tests/Unit/WebhookDispatcherTest.php',
         'Tests\\Unit\\WebhookPayloadTest' => __DIR__ . '/../..' . '/tests/Unit/WebhookPayloadTest.php',
         'Tests\\Unit\\WebhookRetryTest' => __DIR__ . '/../..' . '/tests/Unit/WebhookRetryTest.php',
+        'Tests\\Unit\\ZipUpdateServiceTest' => __DIR__ . '/../..' . '/tests/Unit/ZipUpdateServiceTest.php',
         'TheSeer\\Tokenizer\\Exception' => __DIR__ . '/..' . '/theseer/tokenizer/src/Exception.php',
         'TheSeer\\Tokenizer\\NamespaceUri' => __DIR__ . '/..' . '/theseer/tokenizer/src/NamespaceUri.php',
         'TheSeer\\Tokenizer\\NamespaceUriException' => __DIR__ . '/..' . '/theseer/tokenizer/src/NamespaceUriException.php',
@@ -3063,9 +3073,9 @@ class ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitf10eb23e4ee22f3c6a19f0f7744516e0::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit5bc1e8fa2bf3e6ab68217354dbab4fcb::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit5bc1e8fa2bf3e6ab68217354dbab4fcb::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit5bc1e8fa2bf3e6ab68217354dbab4fcb::$classMap;
 
         }, null, ClassLoader::class);
     }

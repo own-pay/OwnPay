@@ -24,6 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
       - name: Run agent
         uses: pullfrog/pullfrog@v0
