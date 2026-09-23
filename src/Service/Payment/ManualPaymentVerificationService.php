@@ -271,7 +271,9 @@ final class ManualPaymentVerificationService
             return false;
         }
 
-        $this->events->doAction('checkout.manual_verify.verified', $transaction, $sms);
+        // Refresh transaction row to reflect completed state for verified event
+        $updatedTransaction = $this->transactions->forTenant($merchantId)->findScoped($transactionId);
+        $this->events->doAction('checkout.manual_verify.verified', $updatedTransaction ?? $transaction, $sms);
 
         try {
             $this->audit->record(

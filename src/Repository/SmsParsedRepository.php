@@ -68,7 +68,7 @@ final class SmsParsedRepository extends BaseRepository
             "SELECT * FROM {$this->table}
              WHERE merchant_id = :mid AND trx_id = :trx
                AND transaction_id IS NULL
-               AND match_status NOT IN ('matched', 'ignored')
+               AND match_status = 'pending'
              ORDER BY received_at DESC LIMIT :lim",
             ['mid' => $this->requireTenant(), 'trx' => $trxId, 'lim' => $limit]
         );
