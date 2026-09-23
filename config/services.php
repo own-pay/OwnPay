@@ -624,6 +624,19 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    $c->singleton(\OwnPay\Service\Payment\ManualPaymentVerificationService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\ManualPaymentVerificationService {
+        return new \OwnPay\Service\Payment\ManualPaymentVerificationService(
+            ensureType($c->get(\OwnPay\Repository\SmsParsedRepository::class), \OwnPay\Repository\SmsParsedRepository::class),
+            ensureType($c->get(\OwnPay\Repository\TransactionRepository::class), \OwnPay\Repository\TransactionRepository::class),
+            ensureType($c->get(\OwnPay\Service\Payment\TransactionService::class), \OwnPay\Service\Payment\TransactionService::class),
+            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class),
+            ensureType($c->get(\OwnPay\Repository\AuditLogRepository::class), \OwnPay\Repository\AuditLogRepository::class),
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class),
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+        );
+    });
+
     $c->singleton(\OwnPay\Gateway\GatewayBridge::class, static function (\OwnPay\Container $c): \OwnPay\Gateway\GatewayBridge {
         return new \OwnPay\Gateway\GatewayBridge(
             ensureType($c->get(\OwnPay\Repository\GatewayConfigRepository::class), \OwnPay\Repository\GatewayConfigRepository::class),
@@ -756,11 +769,13 @@ return static function (\OwnPay\Container $c): void {
 
     // Wiring listener to hook eagerly during boot
     /**
-     * Registers payment completion hooks.
+     * Registers payment completion and manual-verification hooks.
      *
      * Hooks into the global EventManager to listen to 'payment.transaction.completed'
      * and route events to the PaymentCompletionListener, plus the transactional email
      * notifier on completion + refund (priority 20 so payment-state updates run first).
+     * Also routes 'checkout.manual_verify.submitted' to the manual payment auto-verifier,
+     * which reconciles the submitted TrxID against the brand's parsed SMS inbox.
      */
     if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
         try {
@@ -772,6 +787,9 @@ return static function (\OwnPay\Container $c): void {
                 $emailNotifier = ensureType($c->get(\OwnPay\Service\Communication\EmailNotificationService::class), \OwnPay\Service\Communication\EmailNotificationService::class);
                 $events->addAction('payment.transaction.completed', [$emailNotifier, 'onTransactionCompleted'], 20);
                 $events->addAction('refund.created', [$emailNotifier, 'onRefundCreated'], 20);
+
+                $manualVerifier = ensureType($c->get(\OwnPay\Service\Payment\ManualPaymentVerificationService::class), \OwnPay\Service\Payment\ManualPaymentVerificationService::class);
+                $events->addAction('checkout.manual_verify.submitted', [$manualVerifier, 'onManualVerifySubmitted']);
             });
         } catch (\Throwable) {}
     }
