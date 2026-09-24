@@ -149,6 +149,7 @@ final class BrandController
             'custom_css' => '',
             'custom_js' => '',
             'show_powered_by' => 0,
+            'manual_payment_auto_redirect' => '0',
         ];
 
         $merchantId = (int) $this->merchants->createMerchant([

@@ -1283,7 +1283,7 @@ final class PaymentIntentCheckoutController
                 $intent = $row;
             }
         }
-        $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
+        $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => '', 'manual_payment_auto_redirect' => '0'];
 
         $txn = null;
         if ($intent) {
@@ -1339,6 +1339,43 @@ final class PaymentIntentCheckoutController
             }
         }
 
+        // ── Manual-pending detection ─────────────────────────────────────────
+        // 'awaiting_verification' and 'pending_review' are exclusively manual payment
+        // statuses. 'processing' after a manual submit also counts (txn is still
+        // awaiting_verification or pending_review at that point).
+        $isManualPending = in_array($status, ['awaiting_verification', 'pending_review'], true);
+        if (!$isManualPending && $status === 'processing') {
+            $txnStatus = is_string($txn['status'] ?? null) ? $txn['status'] : '';
+            if (in_array($txnStatus, ['awaiting_verification', 'pending_review'], true)) {
+                $isManualPending = true;
+            }
+        }
+
+        // ── Per-brand setting (from op_merchants.settings JSON) ──────────────
+        // Read from $brand which loadBrand() already resolved for this $mid.
+        // Falls back to '0' (OFF) if key missing — safe for existing brands.
+        $manualAutoRedirectVal = $brand['manual_payment_auto_redirect'] ?? '0';
+        $allowManualRedirect = is_string($manualAutoRedirectVal) && $manualAutoRedirectVal === '1';
+
+        // ── Determine effective redirect URL & status ───────────────────────
+        // For manual-pending with redirect disabled: suppress countdown entirely
+        // by passing empty merchant_redirect_url (template condition fails: 'and merchant_redirect_url').
+        // For manual-pending with redirect enabled: pass status='pending' to merchant
+        // so their platform (e.g. WooCommerce) keeps the order as pending — never 'processing'.
+        // API gateway flow is NOT affected (isManualPending = false for those paths).
+        $effectiveRedirectUrl = $targetUrl;
+        $effectiveIntentStatus = $status;
+
+        if ($isManualPending) {
+            if (!$allowManualRedirect) {
+                // Suppress countdown block entirely
+                $effectiveRedirectUrl = '';
+            } else {
+                // Redirect allowed — but ALWAYS send status=pending to merchant
+                $effectiveIntentStatus = 'pending';
+            }
+        }
+
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         $brandId = $mid > 0 ? $mid : null;
@@ -1352,11 +1389,12 @@ final class PaymentIntentCheckoutController
                 'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
                 'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
-            'merchant_redirect_url' => $targetUrl,
+            'merchant_redirect_url' => $effectiveRedirectUrl,
             'intent_payment_id'     => $intent['uuid'] ?? '',
             'intent_token'          => $ref,
-            'intent_status'         => $status,
+            'intent_status'         => $effectiveIntentStatus,
             'is_intent'             => true,
+            'is_manual_pending'     => $isManualPending,
         ]);
     }
 
