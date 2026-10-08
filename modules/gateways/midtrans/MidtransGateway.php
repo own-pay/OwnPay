@@ -212,6 +212,9 @@ final class MidtransGateway implements PluginInterface, GatewayAdapterInterface,
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),

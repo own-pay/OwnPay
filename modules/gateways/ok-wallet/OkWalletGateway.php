@@ -263,6 +263,9 @@ final class OkWalletGateway implements PluginInterface, GatewayAdapterInterface,
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,

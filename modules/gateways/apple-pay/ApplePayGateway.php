@@ -227,6 +227,9 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface,
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             $res = [
                 'success'        => true,
                 'gateway_trx_id' => 'APAY_TRX_' . bin2hex(random_bytes(12)),

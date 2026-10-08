@@ -186,6 +186,9 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             $res = [
                 'success'        => true,
                 'gateway_trx_id' => 'GPAY_TRX_' . bin2hex(random_bytes(12)),

@@ -219,6 +219,9 @@ final class PortWalletGateway implements PluginInterface, GatewayAdapterInterfac
                 ];
             }
             $amountStr = is_numeric($amount) ? $amount : '0.00';
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $invoiceId,
