@@ -331,7 +331,7 @@ final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterfac
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            return false;
         }
 
         $receivedSignature = $headers['MyFatoorah-Signature'] ?? $headers['myfatoorah-signature'] ?? '';

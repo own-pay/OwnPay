@@ -188,7 +188,7 @@ final class FlutterwaveGateway implements PluginInterface, GatewayAdapterInterfa
     {
         $expectedHash = $this->getString($credentials['secret_hash'] ?? null);
         if ($expectedHash === '') {
-            return true;
+            return false;
         }
         $sigHeader = $this->getString($headers['Verif-Hash'] ?? $headers['verif-hash'] ?? null);
         return hash_equals($expectedHash, $sigHeader);

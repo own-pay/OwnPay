@@ -279,7 +279,7 @@ final class TapPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            return false;
         }
 
         // Retrieve the signature header (case-insensitive checking)

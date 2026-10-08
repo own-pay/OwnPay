@@ -212,6 +212,9 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
@@ -282,7 +285,7 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
 
         $secret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($secret === '') {
-            return true; // Backward compatibility
+            return false;
         }
 
         $computed = hash_hmac('sha256', $rawBody, $secret);

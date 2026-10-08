@@ -186,6 +186,9 @@ final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterfac
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,

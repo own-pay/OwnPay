@@ -292,7 +292,7 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            return false;
         }
 
         $sigHeader = $headers['Stripe-Signature'] ?? $headers['stripe-signature'] ?? '';
