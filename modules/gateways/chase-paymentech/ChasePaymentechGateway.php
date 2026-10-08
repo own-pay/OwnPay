@@ -240,26 +240,11 @@ final class ChasePaymentechGateway implements PluginInterface, GatewayAdapterInt
     }
 
     /**
-     * Validates webhook signatures.
+     * Fails closed: no signature verification is implemented for this gateway yet.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'X-Chase-Signature';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
-            return false;
-        }
-
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**
