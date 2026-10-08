@@ -105,8 +105,19 @@ final class CCAvenueGateway implements PluginInterface, GatewayAdapterInterface
         }
         $iv = pack('C*', 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f);
         $binaryCipher = hex2bin($encResponse);
-        $decrypted = openssl_decrypt((string)$binaryCipher, 'aes-128-cbc', $hashedKey, OPENSSL_RAW_DATA, $iv);
-        parse_str((string)$decrypted, $response);
+        // openssl_decrypt() returns false - not an empty string - whenever it
+        // cannot decrypt (wrong working key, corrupt/tampered encResp, or an
+        // odd-length hex string that hex2bin() rejects with a warning). Casting
+        // that false to '' used to make parse_str() yield an empty array, so the
+        // failure was indistinguishable from a genuine "order not successful"
+        // callback. Fail loudly instead of silently degrading.
+        $decrypted = $binaryCipher === false
+            ? false
+            : openssl_decrypt($binaryCipher, 'aes-128-cbc', $hashedKey, OPENSSL_RAW_DATA, $iv);
+        if ($decrypted === false) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+        }
+        parse_str($decrypted, $response);
 
         $orderStatus = $this->getString($response['order_status'] ?? null);
         $success = $orderStatus === 'Success';

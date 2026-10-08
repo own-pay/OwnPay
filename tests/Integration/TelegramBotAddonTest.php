@@ -12,6 +12,8 @@ use OwnPay\Repository\SettingsRepository;
 
 final class TelegramBotAddonTest extends IntegrationTestCase
 {
+    private const WEBHOOK_SECRET = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+
     private Database $db;
     private Container $container;
     private Plugin $plugin;
@@ -33,9 +35,14 @@ final class TelegramBotAddonTest extends IntegrationTestCase
 
         $settingsRepo = $this->container->get(SettingsRepository::class);
         if ($settingsRepo instanceof SettingsRepository) {
+            // SECURITY (TG-1): handleWebhook() now requires the webhook
+            // secret_token Telegram echoes back, so every request in this test
+            // carries it. The chat ID alone is no longer sufficient.
             $settingsRepo->bulkSet('plugin.telegram-bot', [
                 'bot_token' => '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11',
                 'chat_id' => '987654321',
+                'webhook_secret' => self::WEBHOOK_SECRET,
+                'webhook_secret_registered' => self::WEBHOOK_SECRET,
                 'alert_on_success' => '1',
                 'alert_on_failure' => '1',
             ]);
@@ -66,6 +73,20 @@ final class TelegramBotAddonTest extends IntegrationTestCase
         parent::tearDown();
     }
 
+    /**
+     * Builds a webhook POST carrying the configured secret token.
+     *
+     * @param array<string, mixed> $payload Telegram update payload.
+     */
+    private function webhookRequest(array $payload): Request
+    {
+        return new Request([], [], [
+            'REQUEST_METHOD' => 'POST',
+            'REQUEST_URI' => '/plugins/telegram-bot/webhook',
+            'HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN' => self::WEBHOOK_SECRET,
+        ], [], [], json_encode($payload));
+    }
+
     public function testWebhookRejectsUnauthorizedChatId(): void
     {
         $payload = [
@@ -75,9 +96,41 @@ final class TelegramBotAddonTest extends IntegrationTestCase
             ]
         ];
 
+        $res = $this->plugin->handleWebhook($this->webhookRequest($payload));
+        $this->assertSame(403, $res->getStatusCode());
+    }
+
+    public function testWebhookRejectsCorrectChatIdWithoutSecretToken(): void
+    {
+        $payload = [
+            'message' => [
+                'chat' => ['id' => 987654321],
+                'text' => '/today'
+            ]
+        ];
+
         $req = new Request([], [], [
             'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
+            'REQUEST_URI' => '/plugins/telegram-bot/webhook',
+        ], [], [], json_encode($payload));
+
+        $res = $this->plugin->handleWebhook($req);
+        $this->assertSame(403, $res->getStatusCode());
+    }
+
+    public function testWebhookRejectsWrongSecretToken(): void
+    {
+        $payload = [
+            'message' => [
+                'chat' => ['id' => 987654321],
+                'text' => '/today'
+            ]
+        ];
+
+        $req = new Request([], [], [
+            'REQUEST_METHOD' => 'POST',
+            'REQUEST_URI' => '/plugins/telegram-bot/webhook',
+            'HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN' => 'forged',
         ], [], [], json_encode($payload));
 
         $res = $this->plugin->handleWebhook($req);
@@ -93,10 +146,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
             ]
         ];
 
-        $req = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payload));
+        $req = $this->webhookRequest($payload);
 
         $res = $this->plugin->handleWebhook($req);
         $this->assertSame(200, $res->getStatusCode());
@@ -119,10 +169,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
             ]
         ];
 
-        $req = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payload));
+        $req = $this->webhookRequest($payload);
 
         $res = $this->plugin->handleWebhook($req);
         $this->assertSame(200, $res->getStatusCode());
@@ -142,10 +189,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
             ]
         ];
 
-        $req = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payload));
+        $req = $this->webhookRequest($payload);
 
         $res = $this->plugin->handleWebhook($req);
         $this->assertSame(200, $res->getStatusCode());
@@ -165,10 +209,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
             ]
         ];
 
-        $req = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payload));
+        $req = $this->webhookRequest($payload);
 
         $res = $this->plugin->handleWebhook($req);
         $this->assertSame(200, $res->getStatusCode());
@@ -182,10 +223,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
                 'text' => '/disputes'
             ]
         ];
-        $reqDsp = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payloadDsp));
+        $reqDsp = $this->webhookRequest($payloadDsp);
 
         $resDsp = $this->plugin->handleWebhook($reqDsp);
         $this->assertSame(200, $resDsp->getStatusCode());
@@ -196,10 +234,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
                 'text' => '/refunds'
             ]
         ];
-        $reqRef = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payloadRef));
+        $reqRef = $this->webhookRequest($payloadRef);
 
         $resRef = $this->plugin->handleWebhook($reqRef);
         $this->assertSame(200, $resRef->getStatusCode());
@@ -216,10 +251,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
                 ]
             ]
         ];
-        $reqToday = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payloadToday));
+        $reqToday = $this->webhookRequest($payloadToday);
 
         $resToday = $this->plugin->handleWebhook($reqToday);
         $this->assertSame(200, $resToday->getStatusCode());
@@ -233,10 +265,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
                 ]
             ]
         ];
-        $reqDetails = new Request([], [], [
-            'REQUEST_METHOD' => 'POST',
-            'REQUEST_URI' => '/plugins/telegram-bot/webhook'
-        ], [], [], json_encode($payloadDetails));
+        $reqDetails = $this->webhookRequest($payloadDetails);
 
         $resDetails = $this->plugin->handleWebhook($reqDetails);
         $this->assertSame(200, $resDetails->getStatusCode());

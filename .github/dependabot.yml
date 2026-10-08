@@ -1,6 +1,17 @@
 # Dependabot configuration for automated dependency updates.
 # Keeps PHP (Composer) and JavaScript (npm) dependencies up-to-date
 # with automated pull requests and security patch alerts.
+#
+# NOTE: `cooldown` is a SIBLING of `schedule`, not a child of it. Per the
+# official example in "Optimizing the creation of pull requests for Dependabot
+# version updates", it sits at the same indentation as `schedule`, alongside
+# `directory`. Nesting it under `schedule:` makes the whole file invalid and
+# Dependabot silently stops raising updates of any kind for that ecosystem.
+#
+# Cooldown also applies to version updates only, never to security updates, so
+# it cannot delay an advisory fix. What it buys is review time: a malicious
+# version is detected the moment it is published, and the delay gives upstream a
+# chance to yank it before it is ever proposed.
 version: 2
 
 updates:
@@ -10,6 +21,13 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # GitHub already applies a 3-day default to patch updates when cooldown is
+    # absent; the values below make it explicit and give majors an extra week.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
     open-pull-requests-limit: 10
     labels:
       - dependencies
@@ -23,6 +41,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
     open-pull-requests-limit: 10
     labels:
       - dependencies
@@ -37,6 +60,13 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # The primary control for this ecosystem is SHA pinning: every `uses:` in
+    # .github/workflows is pinned to a full commit SHA, so a compromised or
+    # force-pushed action tag cannot execute in a runner at all. This cooldown
+    # is defence in depth for the review queue. Only default-days is valid for
+    # GitHub Actions - it has no semver bump axis.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - dependencies

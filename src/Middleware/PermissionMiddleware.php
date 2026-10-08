@@ -285,6 +285,12 @@ final class PermissionMiddleware
             '/admin/domains'              => 'domains.view',
             '/admin/balance-verification' => 'system.balance',
             '/admin/roles'                => 'staff.view',
+            // Webhook CRUD is mounted under /admin/developer, but it is gated by the
+            // dedicated webhooks.* slugs (seeded in database/seeds/roles.sql) rather
+            // than api_keys.*. This entry must stay ABOVE '/admin/developer': the
+            // prefix loop below walks the map in declaration order and returns the
+            // first match, so a later '/admin/developer' entry would otherwise win.
+            '/admin/developer/webhooks'   => 'webhooks.view',
             '/admin/developer'            => 'api_keys.view',
             '/admin/gateway-webhooks'     => 'api_keys.view',
             '/admin/webhooks'             => 'webhooks.view',
