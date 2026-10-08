@@ -22,10 +22,15 @@ class CheckoutGatewayTabsAndTestConnectionTest extends TestCase
     {
         parent::setUp();
 
+        $prevTz = date_default_timezone_get();
         $kernel = new Kernel();
-        $ref = new \ReflectionMethod($kernel, 'boot');
-        $ref->setAccessible(true);
-        $ref->invoke($kernel);
+        try {
+            $ref = new \ReflectionMethod($kernel, 'boot');
+            $ref->setAccessible(true);
+            $ref->invoke($kernel);
+        } finally {
+            date_default_timezone_set($prevTz);
+        }
 
         $cRef = new \ReflectionProperty($kernel, 'container');
         $cRef->setAccessible(true);
@@ -174,10 +179,15 @@ class CheckoutGatewayTabsAndTestConnectionTest extends TestCase
             ]
         ];
 
+        $prevTz = date_default_timezone_get();
         $kernel = new Kernel();
-        $ref = new \ReflectionMethod($kernel, 'boot');
-        $ref->setAccessible(true);
-        $ref->invoke($kernel);
+        try {
+            $ref = new \ReflectionMethod($kernel, 'boot');
+            $ref->setAccessible(true);
+            $ref->invoke($kernel);
+        } finally {
+            date_default_timezone_set($prevTz);
+        }
 
         $cRef = new \ReflectionProperty($kernel, 'container');
         $cRef->setAccessible(true);

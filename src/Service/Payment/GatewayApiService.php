@@ -339,8 +339,11 @@ final class GatewayApiService
     /**
      * Determines whether a webhook/callback is allowed to complete the given transaction.
      *
-     * `pending` transactions are always eligible (pre-existing behavior, unrelated to the guard
-     * below). Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
+     * `pending` transactions with no gateway recorded yet are always eligible, preserving
+     * the original pre-PAY-17 behavior for genuinely new rows. A `pending` row that still
+     * carries a non-empty `gateway_slug` is only eligible for that same gateway - accepting
+     * a stale callback from an abandoned gateway would hijack the completion (PAY-17).
+     * Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
      * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this prevents
      * a late/stale webhook from a gateway the customer has since abandoned (e.g. went back to
      * checkout and picked a different gateway) from completing the transaction under the wrong
@@ -357,6 +360,10 @@ final class GatewayApiService
             return false;
         }
         if ($status === 'pending') {
+            $slug = $transaction['gateway_slug'] ?? null;
+            if (is_string($slug) && $slug !== '') {
+                return $slug === $gatewaySlug;
+            }
             return true;
         }
         return ($transaction['gateway_slug'] ?? null) === $gatewaySlug;

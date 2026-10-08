@@ -220,7 +220,7 @@ final class DomainService
             [$network, $bitsStr] = explode('/', $cidr, 2);
             $prefix = (int) $bitsStr;
             $netBytes = inet_pton($network);
-            if ($netBytes === false || $prefix < 0 || $prefix > 32) {
+            if ($netBytes === false || !self::isValidIpv4Prefix($prefix)) {
                 continue;
             }
             if (self::ipv4PrefixMatch($ipBytes, $netBytes, $prefix)) {
@@ -258,6 +258,11 @@ final class DomainService
         }
 
         return true;
+    }
+
+    private static function isValidIpv4Prefix(int $prefix): bool
+    {
+        return $prefix >= 0 && $prefix <= 32;
     }
 
     public function __construct(

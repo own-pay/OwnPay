@@ -266,7 +266,7 @@ namespace Tests\Integration {
 
         private function dropCustomPrefixTables(): void
         {
-            foreach (['exchange_rates', 'currencies', 'system_settings', 'merchant_users', 'roles', 'merchants'] as $table) {
+            foreach (['exchange_rates', 'currencies', 'system_settings', 'merchant_users', 'roles', 'merchants', 'languages'] as $table) {
                 $this->db->execute("DROP TABLE IF EXISTS custom_{$table}");
             }
         }
@@ -278,7 +278,7 @@ namespace Tests\Integration {
         private function createCustomPrefixTables(): void
         {
             $this->dropCustomPrefixTables();
-            foreach (['merchants', 'roles', 'merchant_users', 'system_settings', 'currencies', 'exchange_rates'] as $table) {
+            foreach (['merchants', 'roles', 'merchant_users', 'system_settings', 'currencies', 'exchange_rates', 'languages'] as $table) {
                 $this->db->execute("CREATE TABLE custom_{$table} LIKE op_{$table}");
             }
         }

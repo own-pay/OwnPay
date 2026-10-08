@@ -222,7 +222,7 @@ final class RouteHelper
                     return $host;
                 }
                 // Preserve port from APP_URL if present.
-                $port = is_array($parsed) && isset($parsed['port']) ? ':' . (int) $parsed['port'] : '';
+                $port = isset($parsed['port']) ? ':' . (int) $parsed['port'] : '';
                 return $appHost . $port;
             }
         }

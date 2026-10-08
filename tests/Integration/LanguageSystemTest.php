@@ -24,6 +24,9 @@ final class LanguageSystemTest extends IntegrationTestCase
         $this->db = Database::getInstance();
         $this->translationService = new TranslationService($this->db);
         $this->translationService->clearCache();
+        // Clear any languages a prior test (e.g. the installer flow) may have
+        // seeded into op_languages, so this test starts from a known baseline.
+        $this->db->execute("DELETE FROM op_languages WHERE code IN ('bn', 'fr', 'testlocale')");
 
         $this->container = new Container();
         $this->container->instance(Database::class, $this->db);
