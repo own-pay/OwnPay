@@ -309,9 +309,10 @@ final class Plugin implements PluginInterface
      * once in sync, so the common boot path costs no network round trip.
      *
      * @param \OwnPay\Repository\SettingsRepository|null $repo Settings repository, or null when unavailable.
+     * @param bool $force Skip the backoff when this is an explicit operator save.
      * @return void
      */
-    private function syncWebhookRegistration(?\OwnPay\Repository\SettingsRepository $repo): void
+    private function syncWebhookRegistration(?\OwnPay\Repository\SettingsRepository $repo, bool $force = false): void
     {
         $token = $this->settings['bot_token'] ?? '';
         $secret = $this->settings['webhook_secret'] ?? '';
@@ -327,7 +328,7 @@ final class Plugin implements PluginInterface
         // with it) on every page load. Back off for an hour between attempts;
         // the marker is what makes the happy path free.
         $attemptedAt = (int) ($this->settings['webhook_secret_attempted_at'] ?? 0);
-        if ($attemptedAt > 0 && (time() - $attemptedAt) < self::WEBHOOK_RETRY_INTERVAL) {
+        if (!$force && $attemptedAt > 0 && (time() - $attemptedAt) < self::WEBHOOK_RETRY_INTERVAL) {
             return;
         }
         $this->persistSetting($repo, 'webhook_secret_attempted_at', (string) time());
@@ -1495,7 +1496,7 @@ final class Plugin implements PluginInterface
         // inside makes this a no-op when the registration is already current.
         $repo = $this->resolveSettingsRepository();
         $this->ensureWebhookSecret($repo);
-        $this->syncWebhookRegistration($repo);
+        $this->syncWebhookRegistration($repo, true);
     }
 
     /**

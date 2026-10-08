@@ -42,6 +42,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
                 'bot_token' => '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11',
                 'chat_id' => '987654321',
                 'webhook_secret' => self::WEBHOOK_SECRET,
+                'webhook_secret_registered' => self::WEBHOOK_SECRET,
                 'alert_on_success' => '1',
                 'alert_on_failure' => '1',
             ]);

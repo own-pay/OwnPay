@@ -225,6 +225,33 @@ final class TelegramWebhookSecretProvisioningTest extends TestCase
         $this->assertArrayNotHasKey('webhook_secret_registered', $written);
     }
 
+    public function testExplicitSettingsSaveBypassesBackoff(): void
+    {
+        $plugin = $this->bootWith([
+            'bot_token'                  => self::TOKEN,
+            'chat_id'                    => self::CHAT_ID,
+            'webhook_secret'             => 'abc123',
+            'webhook_secret_registered'  => 'previous',
+            'webhook_secret_attempted_at' => (string) (time() - 60),
+        ]);
+        $this->writes = [];
+
+        $plugin->onSettingsSaved('telegram-bot', [
+            'bot_token'                  => self::TOKEN,
+            'chat_id'                    => self::CHAT_ID,
+            'webhook_secret'             => 'abc123',
+            'webhook_secret_registered'  => 'previous',
+            'webhook_secret_attempted_at' => (string) (time() - 60),
+        ]);
+
+        $written = $this->writtenSettings();
+        $this->assertArrayHasKey(
+            'webhook_secret_attempted_at',
+            $written,
+            'An operator re-saving settings must retry the registration despite a recent failed attempt.'
+        );
+    }
+
     public function testUnconfiguredInstallWritesNothing(): void
     {
         $this->bootWith([]);
