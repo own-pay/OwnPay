@@ -16,6 +16,12 @@ use OwnPay\Http\Response;
  */
 final class Plugin implements PluginInterface
 {
+    /**
+     * Minimum seconds between two Telegram setWebhook attempts, so an
+     * unreachable Telegram API cannot add a connect timeout to every request.
+     */
+    private const WEBHOOK_RETRY_INTERVAL = 3600;
+
     /** @var array<string, string> */
     private array $settings = [];
     private ?Container $container = null;
@@ -47,12 +53,27 @@ final class Plugin implements PluginInterface
     public function boot(Container $container): void
     {
         $this->container = $container;
-        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
-            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
-                $this->settings = $repo->getGroup('plugin.telegram-bot');
-            }
+        $repo = $this->resolveSettingsRepository();
+        if ($repo !== null) {
+            $this->settings = $repo->getGroup('plugin.telegram-bot');
         }
+        // SECURITY (TG-1): installs configured before webhook authentication
+        // existed have no webhook_secret. Generate one on first boot so the
+        // webhook can fail closed without the operator having to re-save the
+        // plugin settings by hand. Skipped when the plugin is not configured
+        // (no bot token), so an unconfigured install never writes.
+        if ($repo !== null
+            && ($this->settings['bot_token'] ?? '') !== ''
+            && ($this->settings['webhook_secret'] ?? '') === ''
+        ) {
+            $this->ensureWebhookSecret($repo);
+        }
+        // Generating the secret is only half the job: Telegram must be told to
+        // send it, and setWebhook() only ran when an operator saved the plugin
+        // settings form. Without this the newly generated secret would 403 every
+        // inbound update until someone manually re-saved settings. Re-register
+        // whenever Telegram has not confirmed the current secret.
+        $this->syncWebhookRegistration($repo);
     }
 
     public function deactivate(Container $container): void {}
@@ -83,6 +104,13 @@ final class Plugin implements PluginInterface
                 'type'    => 'text',
                 'default' => '',
                 'help'    => 'Telegram chat ID for notifications. Use @userinfobot to find yours.',
+            ],
+            [
+                'name'    => 'webhook_secret',
+                'label'   => 'Webhook Secret',
+                'type'    => 'password',
+                'default' => '',
+                'help'    => 'Shared secret Telegram echoes back in X-Telegram-Bot-Api-Secret-Token. Auto-generated on save; paste a new value to rotate.',
             ],
             [
                 'name'    => 'alert_on_success',
@@ -141,9 +169,24 @@ final class Plugin implements PluginInterface
 
     /**
      * Webhook handler - /plugins/telegram-bot/webhook
+     *
+     * SECURITY (TG-1): this route is registered from manifest.json without a
+     * middleware element, so Router::load() mounts it on the public `api-public`
+     * group. The only previous check compared the request-supplied
+     * `message.chat.id` with the configured chat ID - and that chat ID is
+     * attacker-supplied data, not proof of origin. Anyone who learns it (it
+     * leaks through screenshots, member lists and forwarded bot messages) could
+     * read customer PII and transaction history, and create live payment links
+     * and invoices. Every request must now carry the shared secret Telegram
+     * echoes back in X-Telegram-Bot-Api-Secret-Token, and the comparison is
+     * constant-time. An absent or unconfigured secret fails closed.
      */
     public function handleWebhook(Request $req): Response
     {
+        if (!$this->verifyWebhookSecret($req)) {
+            return Response::json(['ok' => false], 403);
+        }
+
         $body = $req->json();
         if (!is_array($body)) {
             return Response::json(['ok' => false], 400);
@@ -195,6 +238,187 @@ final class Plugin implements PluginInterface
         }
 
         return Response::json(['ok' => true]);
+    }
+
+    /**
+     * Verifies that an inbound webhook request really came from Telegram.
+     *
+     * Telegram echoes the `secret_token` supplied at setWebhook() time back on
+     * every delivery in the X-Telegram-Bot-Api-Secret-Token header. Compared
+     * with hash_equals() so the check is constant-time, and an unset secret is
+     * treated as a hard failure rather than "no secret configured, allow".
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return bool True when the presented secret matches the configured one.
+     */
+    private function verifyWebhookSecret(Request $req): bool
+    {
+        $expected = $this->settings['webhook_secret'] ?? '';
+        if ($expected === '') {
+            return false;
+        }
+
+        $presented = $req->header('X-Telegram-Bot-Api-Secret-Token');
+        if ($presented === '') {
+            return false;
+        }
+
+        return hash_equals($expected, $presented);
+    }
+
+    /**
+     * Generates and persists a webhook secret when none is configured.
+     *
+     * Telegram restricts secret_token to 1-256 characters from [A-Za-z0-9_-], so
+     * 32 hex characters from random_bytes() is both valid and high-entropy.
+     *
+     * @param \OwnPay\Repository\SettingsRepository|null $repo Settings repository, or null when unavailable.
+     * @return string The active secret (existing or newly generated), or '' on failure.
+     */
+    private function ensureWebhookSecret(?\OwnPay\Repository\SettingsRepository $repo): string
+    {
+        $current = $this->settings['webhook_secret'] ?? '';
+        if ($current !== '') {
+            return $current;
+        }
+        if ($repo === null) {
+            return '';
+        }
+
+        $secret = bin2hex(random_bytes(16));
+        try {
+            $repo->set('plugin.telegram-bot', 'webhook_secret', $secret);
+            $this->settings['webhook_secret'] = $secret;
+            return $secret;
+        } catch (\Throwable) {
+            // Fail closed rather than serving the webhook unauthenticated.
+            return '';
+        }
+    }
+
+    /**
+     * Re-registers the Telegram webhook whenever Telegram has not confirmed the
+     * currently configured secret.
+     *
+     * Telegram only sends X-Telegram-Bot-Api-Secret-Token for updates delivered
+     * to a webhook registered with that secret_token, so a locally generated
+     * secret is inert until setWebhook() succeeds. `webhook_secret_registered`
+     * records the secret Telegram last accepted; while it differs from
+     * `webhook_secret` the registration is retried, which also covers a
+     * transient Telegram outage on the very first attempt. Deliberately no-op
+     * once in sync, so the common boot path costs no network round trip.
+     *
+     * @param \OwnPay\Repository\SettingsRepository|null $repo Settings repository, or null when unavailable.
+     * @return void
+     */
+    private function syncWebhookRegistration(?\OwnPay\Repository\SettingsRepository $repo): void
+    {
+        $token = $this->settings['bot_token'] ?? '';
+        $secret = $this->settings['webhook_secret'] ?? '';
+        if ($token === '' || $secret === '') {
+            return;
+        }
+        if (($this->settings['webhook_secret_registered'] ?? '') === $secret) {
+            return;
+        }
+
+        // This runs on ordinary requests, so a permanently unreachable Telegram
+        // must not cost a network round trip (and the connect timeout that goes
+        // with it) on every page load. Back off for an hour between attempts;
+        // the marker is what makes the happy path free.
+        $attemptedAt = (int) ($this->settings['webhook_secret_attempted_at'] ?? 0);
+        if ($attemptedAt > 0 && (time() - $attemptedAt) < self::WEBHOOK_RETRY_INTERVAL) {
+            return;
+        }
+        $this->persistSetting($repo, 'webhook_secret_attempted_at', (string) time());
+
+        // PluginLoader::loadActive() marks a plugin errored when boot() throws,
+        // so nothing here may escape - not a container autowire failure, not a
+        // database error.
+        try {
+            $registered = $this->registerWebhookWithTelegram($token, $secret);
+        } catch (\Throwable) {
+            $registered = false;
+        }
+
+        if (!$registered) {
+            // Leave the marker alone so a later boot retries. The webhook stays
+            // fail-closed meanwhile, which is the safe direction.
+            return;
+        }
+
+        $this->persistSetting($repo, 'webhook_secret_registered', $secret);
+        $this->settings['webhook_secret_registered'] = $secret;
+    }
+
+    /**
+     * Writes a single setting into the plugin's global settings group.
+     *
+     * @param \OwnPay\Repository\SettingsRepository|null $repo Settings repository, or null when unavailable.
+     * @param string $key Setting key.
+     * @param string $value Setting value.
+     * @return void
+     */
+    private function persistSetting(?\OwnPay\Repository\SettingsRepository $repo, string $key, string $value): void
+    {
+        if ($repo === null) {
+            return;
+        }
+        try {
+            $repo->set('plugin.telegram-bot', $key, $value);
+            $this->settings[$key] = $value;
+        } catch (\Throwable) {
+            // Best effort. A missing row only costs an extra setWebhook call.
+        }
+    }
+
+    /**
+     * Calls Telegram's setWebhook, carrying $secret as the secret_token.
+     *
+     * @param string $token Bot token.
+     * @param string $secret Secret token Telegram must echo back.
+     * @return bool True when Telegram acknowledged the registration.
+     */
+    private function registerWebhookWithTelegram(string $token, string $secret): bool
+    {
+        if ($this->container === null) {
+            return false;
+        }
+
+        $urlSvc = $this->container->get(\OwnPay\Service\Domain\DomainUrlService::class);
+        if (!$urlSvc instanceof \OwnPay\Service\Domain\DomainUrlService) {
+            return false;
+        }
+
+        $ch = curl_init("https://api.telegram.org/bot{$token}/setWebhook");
+        if (!$ch instanceof \CurlHandle) {
+            return false;
+        }
+
+        try {
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POSTFIELDS => (string) json_encode([
+                    'url' => $urlSvc->resolveBaseUrl(1) . '/plugins/telegram-bot/webhook',
+                    'secret_token' => $secret,
+                ]),
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ]);
+            $body = curl_exec($ch);
+        } finally {
+            curl_close($ch);
+        }
+
+        if (!is_string($body)) {
+            return false;
+        }
+
+        $decoded = json_decode($body, true);
+
+        return is_array($decoded) && ($decoded['ok'] ?? false) === true;
     }
 
     /**
@@ -1265,26 +1489,31 @@ final class Plugin implements PluginInterface
         $token = $this->settings['bot_token'] ?? '';
         if ($token === '') return;
 
-        $urlSvc = $this->container->get(\OwnPay\Service\Domain\DomainUrlService::class);
-        if ($urlSvc instanceof \OwnPay\Service\Domain\DomainUrlService) {
-            // Resolve base URL for primary merchant
-            $baseUrl = $urlSvc->resolveBaseUrl(1);
-            $webhookUrl = $baseUrl . '/plugins/telegram-bot/webhook';
+        // SECURITY (TG-1): register the webhook WITH a secret_token so Telegram
+        // echoes it back on every delivery. Without it the inbound endpoint has
+        // no way to tell a genuine update from a forged one. The marker check
+        // inside makes this a no-op when the registration is already current.
+        $repo = $this->resolveSettingsRepository();
+        $this->ensureWebhookSecret($repo);
+        $this->syncWebhookRegistration($repo);
+    }
 
-            // Register webhook on Telegram
-            $ch = curl_init("https://api.telegram.org/bot{$token}/setWebhook");
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POSTFIELDS => (string) json_encode([
-                    'url' => $webhookUrl,
-                ]),
-                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-                CURLOPT_TIMEOUT => 10,
-            ]);
-            curl_exec($ch);
-            curl_close($ch);
+    /**
+     * Resolves SettingsRepository from the container, or null when unavailable.
+     *
+     * @return \OwnPay\Repository\SettingsRepository|null The repository, or null.
+     */
+    private function resolveSettingsRepository(): ?\OwnPay\Repository\SettingsRepository
+    {
+        if ($this->container === null
+            || !$this->container->has(\OwnPay\Repository\SettingsRepository::class)
+        ) {
+            return null;
         }
+
+        $repo = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+
+        return $repo instanceof \OwnPay\Repository\SettingsRepository ? $repo : null;
     }
 
     /**

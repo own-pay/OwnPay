@@ -364,20 +364,20 @@ final class DomainController
             return $this->redirectBack($req);
         }
 
-        $statusVal = $req->post('status', 'pending');
-        $status = is_string($statusVal) && in_array($statusVal, ['active', 'pending', 'inactive'], true) ? $statusVal : 'pending';
-
-        $dnsVerifiedVal = $req->post('dns_verified', '0');
-        $dnsVerified = (is_scalar($dnsVerifiedVal) && (int) $dnsVerifiedVal === 1) ? 1 : 0;
-
         $isPrimaryVal = $req->post('is_primary', '0');
         $isPrimary = (is_scalar($isPrimaryVal) && (int) $isPrimaryVal === 1) ? 1 : 0;
 
+        // SECURITY (DOM-4): `status` and `dns_verified` are NOT mass-assignable.
+        // They gate DomainMiddleware::resolve() (DomainMiddleware.php:133) - a row
+        // with dns_verified = 1 and status = 'active' is served as this brand's
+        // live checkout host. Accepting them from the request body let any admin
+        // with domains.manage point a brand's checkout at a domain they never
+        // proved ownership of, hijacking the merchant's payment page. The only
+        // sanctioned writer is DomainService::verify(), which performs the TXT +
+        // A-record checks. Preserve whatever is already stored instead.
         $updateData = [
             'type'         => $type,
             'redirect_url' => $validatedRedirect,
-            'status'       => $status,
-            'dns_verified' => $dnsVerified,
         ];
 
         // Handles toggling primary status

@@ -201,11 +201,27 @@ final class SystemUpdateController
     /**
      * Install a selected system update version.
      *
+     * SECURITY: requires a superadmin session. The route is reachable by any role
+     * holding `system.update`, but installing a release replaces application code
+     * on disk and runs the release's migrations - a strictly stronger capability
+     * than reading the update dashboard. Every other platform-level mutation in
+     * the admin area is superadmin-gated too (plugins/themes via requireGlobalView()
+     * plus an isSuperadmin() check, audit signing, brand management), so without
+     * this guard a delegated `system.update` role could repoint the whole install.
+     *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP redirect response.
      */
     public function install(Request $req): Response
     {
+        if (!$this->session->isSuperadmin()) {
+            if ($req->expectsJson()) {
+                return Response::json(['success' => false, 'error' => 'Superadmin access required.'], 403);
+            }
+            $this->session->flashError('Only a superadmin can install a system update.');
+            return Response::redirect('/admin/system-update');
+        }
+
         $versionRaw  = $req->post('version', '');
         $version = is_string($versionRaw) ? $versionRaw : '';
         if ($version === '') {
