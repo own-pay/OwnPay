@@ -616,6 +616,8 @@ PHP;
         $settings = new SettingsRepository($dbMock);
         $container->instance(SettingsRepository::class, $settings);
 
+        $container->instance(Database::class, $dbMock);
+
         $brandContext = new BrandContext($dbMock);
         $container->instance(BrandContext::class, $brandContext);
 

@@ -227,8 +227,10 @@ final class EnvironmentService
             }
         }
 
-        // System environment variable fallback
-        $env = ($_ENV[$key] ?? getenv($key));
+        // System environment variable fallback. Prefer the live process
+        // environment (putenv()/set in the container) over the $_ENV snapshot
+        // taken at PHP startup, so dynamically set values win.
+        $env = getenv($key);
         if ($env === false) {
             $env = $_ENV[$key] ?? $_SERVER[$key] ?? false;
         }

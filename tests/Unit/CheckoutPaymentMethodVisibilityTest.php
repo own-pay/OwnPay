@@ -30,10 +30,12 @@ class CheckoutPaymentMethodVisibilityTest extends TestCase
     {
         parent::setUp();
 
+        $prevTz = date_default_timezone_get();
         $kernel = new Kernel();
         $ref = new \ReflectionMethod($kernel, 'boot');
         $ref->setAccessible(true);
         $ref->invoke($kernel);
+        date_default_timezone_set($prevTz);
 
         $cRef = new \ReflectionProperty($kernel, 'container');
         $cRef->setAccessible(true);
