@@ -136,6 +136,10 @@ final class CCAvenueGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        // CCAvenue ships no HMAC signature on the callback; the payload is instead
+        // authenticated by the AES-128-CBC decryption verify() performs with the
+        // merchant working key, so a caller cannot forge one. The webhook is an
+        // untrusted trigger only and completion requires the core amount match.
+        return true;
     }
 }

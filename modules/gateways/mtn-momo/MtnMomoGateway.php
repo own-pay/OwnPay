@@ -355,9 +355,12 @@ final class MtnMomoGateway implements PluginInterface, GatewayAdapterInterface, 
         ];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     public function supports(string $feature): bool

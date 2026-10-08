@@ -301,22 +301,11 @@ final class FirstDataGateway implements PluginInterface, GatewayAdapterInterface
         return ['success' => false, 'message' => 'Payeezy/First Data returned HTTP ' . $httpCode . '.'];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'X-Payeezy-Signature';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
-            return false;
-        }
-
         return false;
     }
 

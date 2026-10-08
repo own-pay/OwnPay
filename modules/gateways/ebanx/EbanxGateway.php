@@ -280,11 +280,12 @@ final class EbanxGateway implements PluginInterface, GatewayAdapterInterface, Te
         return ['success' => false, 'message' => 'EBANX rejected the provided credentials.'];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Ebanx notifies via callback variables or post body
-        // We verify the hash from webhook request by calling the query status API
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

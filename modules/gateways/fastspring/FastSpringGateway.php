@@ -281,24 +281,10 @@ final class FastSpringGateway implements PluginInterface, GatewayAdapterInterfac
     }
 
     /**
-     * Validates webhook signatures.
+     * Fails closed: no signature verification is implemented for this gateway yet.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'X-FS-Signature';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
-            return false;
-        }
-
         return false;
     }
 
