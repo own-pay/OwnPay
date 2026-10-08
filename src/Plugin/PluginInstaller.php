@@ -23,7 +23,7 @@ final class PluginInstaller
      *
      * @var array<int, string>
      */
-    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll'];
+    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll', 'php', 'phtml', 'php3', 'php4', 'php5', 'php7', 'pht', 'phps'];
 
     /**
      * Absolute path to the modules directory.
