@@ -23,7 +23,7 @@ final class PluginInstaller
      *
      * @var array<int, string>
      */
-    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll'];
+    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll', 'php', 'phtml', 'php3', 'php4', 'php5', 'php7', 'pht', 'phps'];
 
     /**
      * Absolute path to the modules directory.
@@ -119,7 +119,8 @@ final class PluginInstaller
     /**
      * Scans ZIP archive entries for path traversal and restricted file extensions.
      *
-     * Mitigates Remote Code Execution (RCE) vectors by blocking phar, shell, and executable files.
+     * Mitigates Remote Code Execution (RCE) vectors by blocking PHP sources, phar, shell,
+     * and other executable files.
      *
      * @param \ZipArchive $zip The active ZIP archive reference.
      * @return array{success: false, error: string}|null Null if clean, or an error array.
@@ -136,9 +137,17 @@ final class PluginInstaller
                 return $this->fail('ZIP contains path traversal attempt');
             }
 
-            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (in_array($ext, self::BLOCKED_EXTENSIONS, true)) {
-                return $this->fail("Blocked file type: .{$ext}");
+            // Every extension segment is checked, not only the last one: web servers resolve
+            // handlers per segment, so `shell.php.jpg` and `shell.php.` still run as PHP.
+            $segments = explode('.', basename($normalizedName));
+            array_shift($segments);
+            foreach ($segments as $segment) {
+                // Trailing dots and spaces are stripped silently by Windows filesystems on
+                // extraction, which would otherwise restore a bare `shell.php` on disk.
+                $ext = strtolower(trim($segment));
+                if (in_array($ext, self::BLOCKED_EXTENSIONS, true)) {
+                    return $this->fail("Blocked file type: .{$ext}");
+                }
             }
         }
         return null;
