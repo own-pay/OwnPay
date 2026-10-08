@@ -10,7 +10,7 @@
 
 **The self-hosted, open-source payment gateway automation platform.**
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=19&duration=2800&pause=1000&color=0066FF&center=true&vCenter=true&width=620&lines=Public+Beta+v0.1.0+%E2%80%94+Out+Now+%F0%9F%9A%80;Payment+Infrastructure.+Reimagined.;Self-Hosted+%E2%80%A2+Open+Source+%E2%80%A2+Forever+Free.;Multi-Brand+%E2%80%A2+120%2B+Gateways+%E2%80%A2+Developer-First.)](https://ownpay.org)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=19&duration=2800&pause=1000&color=0066FF&center=true&vCenter=true&width=620&lines=Public+Beta+v0.2.0+%E2%80%94+Out+Now+%F0%9F%9A%80;Payment+Infrastructure.+Reimagined.;Self-Hosted+%E2%80%A2+Open+Source+%E2%80%A2+Forever+Free.;Multi-Brand+%E2%80%A2+120%2B+Gateways+%E2%80%A2+Developer-First.)](https://ownpay.org)
 
 <br />
 
