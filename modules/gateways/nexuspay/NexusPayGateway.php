@@ -263,7 +263,7 @@ final class NexusPayGateway implements PluginInterface, GatewayAdapterInterface,
                 ];
             }
             if ($this->isProductionEnv()) {
-                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+                return ['success' => false, 'gateway_trx_id' => '', 'amount' => '0.00', 'status' => 'failed'];
             }
             return [
                 'success'        => true,
