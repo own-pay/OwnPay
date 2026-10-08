@@ -162,8 +162,11 @@ final class TossGateway implements PluginInterface, GatewayAdapterInterface, Tes
         ];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        return false;
     }
 }

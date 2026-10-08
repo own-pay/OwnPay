@@ -188,6 +188,8 @@ final class FlutterwaveGateway implements PluginInterface, GatewayAdapterInterfa
     {
         $expectedHash = $this->getString($credentials['secret_hash'] ?? null);
         if ($expectedHash === '') {
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
             return false;
         }
         $sigHeader = $this->getString($headers['Verif-Hash'] ?? $headers['verif-hash'] ?? null);

@@ -180,6 +180,9 @@ final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface, 
                 ];
             }
             // Simulated transaction fallback
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
@@ -230,18 +233,12 @@ final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface, 
         return ['success' => false];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $signature = $headers['signature'] ?? $headers['Signature'] ?? '';
-        if ($signature === '') {
-            return false;
-        }
-
-        $serverKey = $this->getString($credentials['server_key'] ?? '');
-        
-        // PayTabs webhook signature is checked using hash_hmac or signature validation
-        // In simulation mode we return true. For production, we calculate HMAC-SHA256
-        return true;
+        return false;
     }
 
     /**

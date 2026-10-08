@@ -211,8 +211,11 @@ final class GCashGateway implements PluginInterface, GatewayAdapterInterface, Te
         return ['success' => false, 'message' => 'Maya/GCash returned HTTP ' . $httpCode . '.'];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 }

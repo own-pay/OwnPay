@@ -296,11 +296,12 @@ final class KushkiGateway implements PluginInterface, GatewayAdapterInterface, T
         return ['success' => false];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Kushki sends signed notifications via signature headers.
-        // We verify that the webhook is authentic. In simulation/offline we return true.
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

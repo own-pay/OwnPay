@@ -227,6 +227,9 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface,
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             $res = [
                 'success'        => true,
                 'gateway_trx_id' => 'APAY_TRX_' . bin2hex(random_bytes(12)),
@@ -294,6 +297,8 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface,
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
             return false;
         }
 

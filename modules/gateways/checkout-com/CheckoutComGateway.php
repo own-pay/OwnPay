@@ -285,6 +285,8 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
 
         $secret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($secret === '') {
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
             return false;
         }
 

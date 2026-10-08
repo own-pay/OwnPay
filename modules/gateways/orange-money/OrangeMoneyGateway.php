@@ -278,6 +278,9 @@ final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterfa
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'amount' => '0.00', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,
@@ -362,9 +365,12 @@ final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterfa
         ];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     public function supports(string $feature): bool
