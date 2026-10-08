@@ -260,6 +260,9 @@ final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface, 
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,
@@ -269,10 +272,10 @@ final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface, 
         }
 
         return [
-            'success'        => true,
-            'gateway_trx_id' => $gatewayTrxId,
-            'amount'         => $this->getString($callbackData['amount'] ?? '0.00'),
-            'status'         => 'completed',
+            'success'        => false,
+            'gateway_trx_id' => '',
+            'amount'         => '0.00',
+            'status'         => 'failed',
         ];
     }
 
