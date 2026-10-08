@@ -275,15 +275,15 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $secret = $this->getString($credentials['webhook_secret'] ?? '');
-        if ($secret === '') {
-            // Fail closed: without a configured webhook secret nothing can be
-            // authenticated, because the caller supplies the Cko-Signature header.
+        $sigHeader = $headers['Cko-Signature'] ?? $headers['cko-signature'] ?? '';
+        if ($sigHeader === '') {
             return false;
         }
 
-        $sigHeader = $headers['Cko-Signature'] ?? $headers['cko-signature'] ?? '';
-        if ($sigHeader === '') {
+        $secret = $this->getString($credentials['webhook_secret'] ?? '');
+        if ($secret === '') {
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
             return false;
         }
 

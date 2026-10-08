@@ -149,7 +149,12 @@ final class CoinbaseGateway implements PluginInterface, GatewayAdapterInterface,
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $sharedSecret = $this->getString($credentials['shared_secret'] ?? null);
-        if ($sharedSecret === '') return true;
+        if ($sharedSecret === '') {
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
+            return false;
+        }
+
         $sigHeader = $this->getString($headers['X-Cc-Webhook-Signature'] ?? $headers['x-cc-webhook-signature'] ?? null);
         $computedSig = hash_hmac('sha256', $rawBody, $sharedSecret);
         return hash_equals($computedSig, $sigHeader);

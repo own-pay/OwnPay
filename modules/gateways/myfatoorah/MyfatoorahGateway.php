@@ -331,7 +331,9 @@ final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterfac
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
+            return false;
         }
 
         $receivedSignature = $headers['MyFatoorah-Signature'] ?? $headers['myfatoorah-signature'] ?? '';

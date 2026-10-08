@@ -287,10 +287,11 @@ final class SofortGateway implements PluginInterface, GatewayAdapterInterface, T
         return ['success' => false];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Fail closed: neither XML signature validation nor a backchannel status
-        // check is performed here, so no Sofort notification can be authenticated.
         return false;
     }
 

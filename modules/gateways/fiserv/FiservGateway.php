@@ -294,22 +294,11 @@ final class FiservGateway implements PluginInterface, GatewayAdapterInterface, T
         return ['success' => false, 'message' => 'Fiserv returned HTTP ' . $httpCode . '.'];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'X-Fiserv-Signature';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
-            return false;
-        }
-
         return false;
     }
 

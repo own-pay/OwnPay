@@ -294,7 +294,9 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface,
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
+            return false;
         }
 
         $sigHeader = $headers['Stripe-Signature'] ?? $headers['stripe-signature'] ?? '';

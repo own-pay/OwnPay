@@ -280,10 +280,11 @@ final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface
         return ['success' => false];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Braintree signs notifications with bt_signature/bt_payload. Fail closed:
-        // neither is verified here, so no notification can be authenticated.
         return false;
     }
 

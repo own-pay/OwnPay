@@ -230,11 +230,11 @@ final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface, 
         return ['success' => false];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // PayTabs signs callbacks with an HMAC over the raw body. Fail closed: the
-        // signature is never compared against server_key here, so no notification
-        // can be authenticated.
         return false;
     }
 

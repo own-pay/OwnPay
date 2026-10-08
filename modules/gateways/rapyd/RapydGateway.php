@@ -240,24 +240,10 @@ final class RapydGateway implements PluginInterface, GatewayAdapterInterface, Te
     }
 
     /**
-     * Validates webhook signatures.
+     * Fails closed: no signature verification is implemented for this gateway yet.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'signature';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
-            return false;
-        }
-
         return false;
     }
 
