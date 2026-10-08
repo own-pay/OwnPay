@@ -107,6 +107,7 @@ trait CheckoutPresentationTrait
             'checkout_success_msg' => '',
             'checkout_pending_msg' => '',
             'checkout_failed_msg'  => '',
+            'manual_payment_auto_redirect' => '0',
         ];
     }
 }

@@ -2,6 +2,16 @@
 {% set is_processing = (status == 'processing') %}
 {% set is_review = (status == 'pending_review' or status == 'awaiting_verification') %}
 
+{# Manual-pending payments are submitted via bKash/Nagad bank transfer or
+   equivalent gateways and must appear as "Under Review" (not "Processing")
+   until an admin verifies the proof. The payment-intent controller sets
+   `is_manual_pending` before rendering; when both `is_processing` and
+   `is_manual_pending` are true, the review variant wins. #}
+{% if is_manual_pending is defined and is_manual_pending %}
+    {% set is_processing = false %}
+    {% set is_review = true %}
+{% endif %}
+
 {% if is_processing %}
     {% set badge_text = 'Processing' %}
     {% set pending_msg = 'Your payment is being processed by the gateway. This usually takes a few moments.' %}

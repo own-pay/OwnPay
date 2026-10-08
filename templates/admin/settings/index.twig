@@ -815,6 +815,16 @@
                         <small class="op-text-muted">Default: 600 (10 minutes). Range: 60–3600 seconds.</small>
                     </div>
                 </div>
+                {% if is_brand_view %}
+                <div class="op-form-group op-mt-3">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="manual_payment_auto_redirect" value="1" {{ (checkout_settings.manual_payment_auto_redirect ?? '0') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Auto-redirect after manual payment submission</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">When enabled, a 5-second countdown will redirect the customer back to your website after they submit a manual payment. Their order will remain in <strong>Pending Payment</strong> status until you approve the transaction in OwnPay.<br><strong>Note:</strong> This setting only affects manual payment gateways (bKash, Nagad, etc.). Automatic API gateways are not affected.</small>
+                </div>
+                {% endif %}
             </div>
         </div>
 

@@ -150,6 +150,7 @@ final class SettingsController
                 'timer_enabled' => $brandSettings['timer_enabled'] ?? '0',
                 'timer_seconds' => $brandSettings['timer_seconds'] ?? '900',
                 'show_faq' => $brandSettings['show_faq'] ?? '0',
+                'manual_payment_auto_redirect' => $brandSettings['manual_payment_auto_redirect'] ?? '0',
                 'custom_css' => $brandSettings['custom_css'] ?? '',
                 'custom_js' => $brandSettings['custom_js'] ?? '',
                 'show_powered_by' => $brandSettings['show_powered_by'] ?? '1',
@@ -569,6 +570,7 @@ final class SettingsController
                     $brandSettings['timer_seconds'] = is_scalar($timerSecondsVal) ? (string) $timerSecondsVal : '900';
                     
                     $brandSettings['show_faq'] = isset($data['show_faq']) && $data['show_faq'] === '1' ? '1' : '0';
+                    $brandSettings['manual_payment_auto_redirect'] = isset($data['manual_payment_auto_redirect']) && $data['manual_payment_auto_redirect'] === '1' ? '1' : '0';
 
                     $brandSettings['show_powered_by'] = isset($data['show_powered_by']) && $data['show_powered_by'] === '1' ? '1' : '0';
                     $poweredByTextVal = $data['powered_by_text'] ?? ($brandSettings['powered_by_text'] ?? '');
