@@ -232,15 +232,9 @@ final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface, 
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $signature = $headers['signature'] ?? $headers['Signature'] ?? '';
-        if ($signature === '') {
-            return false;
-        }
-
-        $serverKey = $this->getString($credentials['server_key'] ?? '');
-        
-        // PayTabs webhook signature is checked using hash_hmac or signature validation
-        // In simulation mode we return true. For production, we calculate HMAC-SHA256
+        // PayTabs signs callbacks with an HMAC over the raw body. Fail closed: the
+        // signature is never compared against server_key here, so no notification
+        // can be authenticated.
         return false;
     }
 

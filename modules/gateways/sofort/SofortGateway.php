@@ -289,7 +289,8 @@ final class SofortGateway implements PluginInterface, GatewayAdapterInterface, T
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Sofort webhooks are checked using direct XML signature validation or backchannel checks
+        // Fail closed: neither XML signature validation nor a backchannel status
+        // check is performed here, so no Sofort notification can be authenticated.
         return false;
     }
 

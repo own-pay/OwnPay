@@ -282,9 +282,9 @@ final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Braintree sends signatures in parameters (bt_signature, bt_payload)
-        // In local sandbox environment we return true.
-        return true;
+        // Braintree signs notifications with bt_signature/bt_payload. Fail closed:
+        // neither is verified here, so no notification can be authenticated.
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

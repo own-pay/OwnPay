@@ -146,7 +146,9 @@ final class BTCPayGateway implements PluginInterface, GatewayAdapterInterface, T
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? null);
-        if ($webhookSecret === '') return true;
+        // Fail closed: without a configured webhook secret nothing can be
+        // authenticated, because the caller supplies the Btcpay-Sig header.
+        if ($webhookSecret === '') return false;
         $sigHeader = $this->getString($headers['Btcpay-Sig'] ?? $headers['btcpay-sig'] ?? null);
         $computedSig = 'sha256=' . hash_hmac('sha256', $rawBody, $webhookSecret);
         return hash_equals($computedSig, $sigHeader);
