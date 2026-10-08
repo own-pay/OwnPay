@@ -304,8 +304,7 @@ final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface,
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**

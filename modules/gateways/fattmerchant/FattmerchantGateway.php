@@ -296,8 +296,7 @@ final class FattmerchantGateway implements PluginInterface, GatewayAdapterInterf
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**
