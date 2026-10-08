@@ -289,7 +289,7 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface, 
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

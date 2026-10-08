@@ -284,7 +284,7 @@ final class EbanxGateway implements PluginInterface, GatewayAdapterInterface, Te
     {
         // Ebanx notifies via callback variables or post body
         // We verify the hash from webhook request by calling the query status API
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

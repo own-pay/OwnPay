@@ -302,8 +302,7 @@ final class BillerGenieGateway implements PluginInterface, GatewayAdapterInterfa
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**

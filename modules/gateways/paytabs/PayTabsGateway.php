@@ -241,7 +241,7 @@ final class PayTabsGateway implements PluginInterface, GatewayAdapterInterface, 
         
         // PayTabs webhook signature is checked using hash_hmac or signature validation
         // In simulation mode we return true. For production, we calculate HMAC-SHA256
-        return true;
+        return false;
     }
 
     /**

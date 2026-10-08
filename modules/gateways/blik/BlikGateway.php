@@ -308,7 +308,7 @@ final class BlikGateway implements PluginInterface, GatewayAdapterInterface, Tes
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

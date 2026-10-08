@@ -304,8 +304,7 @@ final class NmiGateway implements PluginInterface, GatewayAdapterInterface, Test
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**

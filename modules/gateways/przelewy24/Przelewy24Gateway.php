@@ -262,7 +262,7 @@ final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterfac
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

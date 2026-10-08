@@ -257,8 +257,7 @@ final class TrustCommerceGateway implements PluginInterface, GatewayAdapterInter
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**
