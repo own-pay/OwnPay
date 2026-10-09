@@ -33,15 +33,15 @@
 
             <main id="op-main-content" class="op-content t-panel-slide" data-open="false">
                 {% if flash_success is defined and flash_success %}
-                <div class="op-alert op-alert-success op-alert-dismissible">
-                    {{ flash_success }}
-                    <button type="button" class="op-alert-close">×</button>
+                <div class="op-alert op-alert-success op-alert-dismissible" role="alert">
+                    <span>{{ flash_success }}</span>
+                    <button type="button" class="op-alert-close" aria-label="Dismiss message">&times;</button>
                 </div>
                 {% endif %}
                 {% if flash_error is defined and flash_error %}
-                <div class="op-alert op-alert-danger op-alert-dismissible">
-                    {{ flash_error }}
-                    <button type="button" class="op-alert-close">×</button>
+                <div class="op-alert op-alert-danger op-alert-dismissible" role="alert">
+                    <span>{{ flash_error }}</span>
+                    <button type="button" class="op-alert-close" aria-label="Dismiss error">&times;</button>
                 </div>
                 {% endif %}
 

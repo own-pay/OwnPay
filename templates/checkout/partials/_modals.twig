@@ -1,11 +1,16 @@
 {# MODALS - cancel, info, FAQ, help #}
 
 {# CANCEL MODAL #}
-<div id="mCancel" class="ck-modal ck-hidden">
+<div id="mCancel" class="ck-modal ck-hidden" role="dialog" aria-modal="true" aria-labelledby="mCancelTitle">
     <div class="ck-modal-backdrop" data-action="close-modal" data-target="mCancel"></div>
     <div class="ck-modal-dialog">
-        <h3>{{ lang.cancel_title ?? 'Cancel Payment?' }}</h3>
-        <p>{{ lang.cancel_msg ?? 'Your transaction will be cancelled and you will be redirected back.' }}</p>
+        <div class="ck-modal-header">
+            <h3 id="mCancelTitle" class="ck-modal-title">{{ lang.cancel_title ?? 'Cancel Payment?' }}</h3>
+            <button type="button" class="ck-icon-btn" data-action="close-modal" data-target="mCancel" aria-label="{{ lang.close ?? 'Close' }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <p class="ck-modal-body">{{ lang.cancel_msg ?? 'Your transaction will be cancelled and you will be redirected back.' }}</p>
         <div class="ck-modal-actions">
             <button type="button" data-action="close-modal" data-target="mCancel" class="ck-modal-btn-outline">{{ lang.stay_here ?? 'Stay Here' }}</button>
             <form method="POST" action="/checkout/{{ txn.trx_id }}/cancel">
@@ -18,10 +23,15 @@
 </div>
 
 {# INFO MODAL #}
-<div id="mInfo" class="ck-modal ck-hidden">
+<div id="mInfo" class="ck-modal ck-hidden" role="dialog" aria-modal="true" aria-labelledby="mInfoTitle">
     <div class="ck-modal-backdrop" data-action="close-modal" data-target="mInfo"></div>
     <div class="ck-modal-dialog">
-        <h3>{{ lang.payment_info ?? 'Payment Information' }}</h3>
+        <div class="ck-modal-header">
+            <h3 id="mInfoTitle" class="ck-modal-title">{{ lang.payment_info ?? 'Payment Information' }}</h3>
+            <button type="button" class="ck-icon-btn" data-action="close-modal" data-target="mInfo" aria-label="{{ lang.close ?? 'Close' }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
         <div class="ck-info-list">
             <div><span>{{ lang.transaction_ref ?? 'Reference' }}</span><code>{{ txn.trx_id }}</code></div>
             <div><span>{{ gateway_name ?? (txn.gateway_slug|default('Gateway')) }} TRX ID</span><code>{{ txn.gateway_trx_id ?? '-' }}</code></div>
@@ -33,10 +43,15 @@
 </div>
 
 {# FAQ MODAL #}
-<div id="mFaq" class="ck-modal ck-hidden">
+<div id="mFaq" class="ck-modal ck-hidden" role="dialog" aria-modal="true" aria-labelledby="mFaqTitle">
     <div class="ck-modal-backdrop" data-action="close-modal" data-target="mFaq"></div>
     <div class="ck-modal-dialog">
-        <h3>{{ lang.faq_title ?? 'Frequently Asked Questions' }}</h3>
+        <div class="ck-modal-header">
+            <h3 id="mFaqTitle" class="ck-modal-title">{{ lang.faq_title ?? 'Frequently Asked Questions' }}</h3>
+            <button type="button" class="ck-icon-btn" data-action="close-modal" data-target="mFaq" aria-label="{{ lang.close ?? 'Close' }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
         <div class="ck-faq-list">
             {% for faq in faqs %}
             <details class="ck-faq-item">
@@ -53,11 +68,16 @@
 </div>
 
 {# HELP MODAL #}
-<div id="mHelp" class="ck-modal ck-hidden">
+<div id="mHelp" class="ck-modal ck-hidden" role="dialog" aria-modal="true" aria-labelledby="mHelpTitle">
     <div class="ck-modal-backdrop" data-action="close-modal" data-target="mHelp"></div>
     <div class="ck-modal-dialog">
-        <h3>{{ lang.need_help ?? 'Need Help?' }}</h3>
-        <p>{{ lang.help_msg ?? 'Contact the merchant support team for assistance.' }}</p>
+        <div class="ck-modal-header">
+            <h3 id="mHelpTitle" class="ck-modal-title">{{ lang.need_help ?? 'Need Help?' }}</h3>
+            <button type="button" class="ck-icon-btn" data-action="close-modal" data-target="mHelp" aria-label="{{ lang.close ?? 'Close' }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <p class="ck-modal-body">{{ lang.help_msg ?? 'Contact the merchant support team for assistance.' }}</p>
         {% if brand.support_email %}
             <a href="mailto:{{ brand.support_email }}" class="ck-help-email">{{ brand.support_email }}</a>
         {% endif %}
