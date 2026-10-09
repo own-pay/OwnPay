@@ -136,4 +136,21 @@ final class LogSanitizerTest extends TestCase
         $this->assertSame('99.99', $result['amount']);
         $this->assertSame('USD', $result['currency']);
     }
+
+    public function test_sanitize_compound_sensitive_keys(): void
+    {
+        $data = [
+            'admin_password' => 'p4ssw0rd',
+            'db_password'    => 'db_pass',
+            'new_password'   => 'new_secret',
+            'passcode'       => '123456',
+            'appsecret'      => 'my_app_secret',
+        ];
+        $result = $this->sanitizer->sanitizeArray($data);
+        $this->assertSame('[REDACTED]', $result['admin_password']);
+        $this->assertSame('[REDACTED]', $result['db_password']);
+        $this->assertSame('[REDACTED]', $result['new_password']);
+        $this->assertSame('[REDACTED]', $result['passcode']);
+        $this->assertSame('[REDACTED]', $result['appsecret']);
+    }
 }
