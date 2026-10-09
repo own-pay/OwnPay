@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Server Requirements · OwnPay Setup</title>
-    <link rel="stylesheet" href="/assets/css/installer.css?v=4">
+    <link rel="stylesheet" href="/assets/css/installer.css?v=5">
     <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
         (function(){var t=localStorage.getItem('op-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
     </script>
@@ -25,6 +25,10 @@
         <div class="ins-step"><span class="ins-step-num">3</span><span>Admin</span></div>
         <div class="ins-step-line"></div>
         <div class="ins-step"><span class="ins-step-num">4</span><span>Settings</span></div>
+        <button id="insThemeToggle" type="button" class="ins-theme-btn" aria-label="Toggle theme" title="Toggle theme">
+            <svg id="insMoon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <svg id="insSun" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none;"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
     </div>
 </header>
 
@@ -82,5 +86,31 @@
 </main>
 
 <div class="ins-footer">OwnPay · Secure Payment Platform · v<?php echo \OwnPay\Support\Version::CURRENT; ?></div>
+
+<script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+(function(){
+    var btn = document.getElementById('insThemeToggle');
+    if (!btn) return;
+    var moon = document.getElementById('insMoon');
+    var sun = document.getElementById('insSun');
+    function updateIcons(theme) {
+        if (theme === 'dark') {
+            moon.style.display = 'none';
+            sun.style.display = 'block';
+        } else {
+            moon.style.display = 'block';
+            sun.style.display = 'none';
+        }
+    }
+    updateIcons(document.documentElement.getAttribute('data-theme'));
+    btn.addEventListener('click', function(){
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('op-theme', next);
+        updateIcons(next);
+    });
+})();
+</script>
 </body>
 </html>

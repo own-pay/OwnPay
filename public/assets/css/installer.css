@@ -869,3 +869,23 @@ body {
     margin-bottom: 24px;
     color: var(--op-text-body);
 }
+/* --- Theme Toggle Button in Installer --- */
+.ins-theme-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--op-border);
+    background: var(--op-bg-card);
+    color: var(--op-text-body);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.ins-theme-btn:hover {
+    background: var(--op-bg-hover);
+    color: var(--op-text);
+}

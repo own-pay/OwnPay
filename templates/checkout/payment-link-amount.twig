@@ -13,19 +13,33 @@
 
     <form method="POST" action="/pay/{{ link.slug }}/submit" class="payment-amount-form">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-        <label class="payment-amount-label">Amount ({{ link.currency|default('BDT') }})</label>
-        <input type="number" name="amount" step="0.01" min="1"
-               placeholder="Enter amount"
-               class="payment-amount-input"
-               required>
-        {% if link.min_amount is defined and link.min_amount %}
-            <small class="payment-amount-limit">Min: {{ link.min_amount }} {{ link.currency|default('BDT') }}</small>
-        {% endif %}
-        {% if link.max_amount is defined and link.max_amount %}
-            <small class="payment-amount-limit">Max: {{ link.max_amount }} {{ link.currency|default('BDT') }}</small>
-        {% endif %}
+        <div class="payment-amount-field-group">
+            <label for="linkAmountInput" class="payment-amount-label">Amount ({{ link.currency|default('BDT') }})</label>
+            <div class="payment-amount-input-wrap">
+                <input id="linkAmountInput"
+                       type="number"
+                       name="amount"
+                       step="0.01"
+                       min="{{ link.min_amount|default(1) }}"
+                       {% if link.max_amount is defined and link.max_amount %}max="{{ link.max_amount }}"{% endif %}
+                       placeholder="0.00"
+                       class="payment-amount-input"
+                       required
+                       autofocus>
+                <span class="payment-amount-currency-badge">{{ link.currency|default('BDT') }}</span>
+            </div>
+            <div class="payment-amount-limits">
+                {% if link.min_amount is defined and link.min_amount %}
+                    <small class="payment-amount-limit">Minimum: {{ link.min_amount }} {{ link.currency|default('BDT') }}</small>
+                {% endif %}
+                {% if link.max_amount is defined and link.max_amount %}
+                    <small class="payment-amount-limit">Maximum: {{ link.max_amount }} {{ link.currency|default('BDT') }}</small>
+                {% endif %}
+            </div>
+        </div>
         <button type="submit" class="payment-amount-submit">
-            Continue to Payment
+            <span>Continue to Payment</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
     </form>
 </div>
