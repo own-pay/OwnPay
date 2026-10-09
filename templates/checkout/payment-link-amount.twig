@@ -3,6 +3,11 @@
 {% block title %}Enter Amount - {{ link.title|default('Payment') }}{% endblock %}
 
 {% block content %}
+{% set currency = link.currency|default('BDT') %}
+{# Note: not |default(1) here - Twig's default() filter treats 0/'0' as a defined value, so a
+   link with min_amount stored as 0 would silently drop the input's floor to 0 while the
+   "Minimum" hint below stays hidden. Guard on the value being a positive amount instead. #}
+{% set minAmount = link.min_amount is defined and link.min_amount and link.min_amount > 0 ? link.min_amount : 1 %}
 <div class="payment-amount-card">
     <h2 class="payment-amount-title">
         {{ link.title|default('Payment Link') }}
@@ -14,26 +19,26 @@
     <form method="POST" action="/pay/{{ link.slug }}/submit" class="payment-amount-form">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="payment-amount-field-group">
-            <label for="linkAmountInput" class="payment-amount-label">Amount ({{ link.currency|default('BDT') }})</label>
+            <label for="linkAmountInput" class="payment-amount-label">Amount ({{ currency }})</label>
             <div class="payment-amount-input-wrap">
                 <input id="linkAmountInput"
                        type="number"
                        name="amount"
                        step="0.01"
-                       min="{{ link.min_amount|default(1) }}"
+                       min="{{ minAmount }}"
                        {% if link.max_amount is defined and link.max_amount %}max="{{ link.max_amount }}"{% endif %}
                        placeholder="0.00"
                        class="payment-amount-input"
                        required
                        autofocus>
-                <span class="payment-amount-currency-badge">{{ link.currency|default('BDT') }}</span>
+                <span class="payment-amount-currency-badge">{{ currency }}</span>
             </div>
             <div class="payment-amount-limits">
                 {% if link.min_amount is defined and link.min_amount %}
-                    <small class="payment-amount-limit">Minimum: {{ link.min_amount }} {{ link.currency|default('BDT') }}</small>
+                    <small class="payment-amount-limit">Minimum: {{ link.min_amount }} {{ currency }}</small>
                 {% endif %}
                 {% if link.max_amount is defined and link.max_amount %}
-                    <small class="payment-amount-limit">Maximum: {{ link.max_amount }} {{ link.currency|default('BDT') }}</small>
+                    <small class="payment-amount-limit">Maximum: {{ link.max_amount }} {{ currency }}</small>
                 {% endif %}
             </div>
         </div>
