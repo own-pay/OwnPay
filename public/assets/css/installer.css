@@ -869,6 +869,7 @@ body {
     margin-bottom: 24px;
     color: var(--op-text-body);
 }
+
 /* --- Theme Toggle Button in Installer --- */
 .ins-theme-btn {
     display: inline-flex;
