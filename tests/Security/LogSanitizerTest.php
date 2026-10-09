@@ -153,4 +153,21 @@ final class LogSanitizerTest extends TestCase
         $this->assertSame('[REDACTED]', $result['passcode']);
         $this->assertSame('[REDACTED]', $result['appsecret']);
     }
+
+    public function test_sanitize_keeps_operational_key_names_readable(): void
+    {
+        // Bare `key` in the matcher is a fail-closed bet: `apikey` is a real
+        // credential and `keyword` is an ordinary word, and substring matching
+        // cannot tell them apart. Operational context fields therefore avoid
+        // `key` in their name - EnvironmentService::set() logs the runtime
+        // setting name under `setting` for exactly this reason.
+        $data = [
+            'setting' => 'billing_enabled',
+            'apikey'  => 'sk_live_abc123',
+        ];
+        $result = $this->sanitizer->sanitizeArray($data);
+
+        $this->assertSame('billing_enabled', $result['setting']);
+        $this->assertSame('[REDACTED]', $result['apikey']);
+    }
 }
