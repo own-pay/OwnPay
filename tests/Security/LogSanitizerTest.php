@@ -136,4 +136,38 @@ final class LogSanitizerTest extends TestCase
         $this->assertSame('99.99', $result['amount']);
         $this->assertSame('USD', $result['currency']);
     }
+
+    public function test_sanitize_compound_sensitive_keys(): void
+    {
+        $data = [
+            'admin_password' => 'p4ssw0rd',
+            'db_password'    => 'db_pass',
+            'new_password'   => 'new_secret',
+            'passcode'       => '123456',
+            'appsecret'      => 'my_app_secret',
+        ];
+        $result = $this->sanitizer->sanitizeArray($data);
+        $this->assertSame('[REDACTED]', $result['admin_password']);
+        $this->assertSame('[REDACTED]', $result['db_password']);
+        $this->assertSame('[REDACTED]', $result['new_password']);
+        $this->assertSame('[REDACTED]', $result['passcode']);
+        $this->assertSame('[REDACTED]', $result['appsecret']);
+    }
+
+    public function test_sanitize_keeps_operational_key_names_readable(): void
+    {
+        // Bare `key` in the matcher is a fail-closed bet: `apikey` is a real
+        // credential and `keyword` is an ordinary word, and substring matching
+        // cannot tell them apart. Operational context fields therefore avoid
+        // `key` in their name - EnvironmentService::set() logs the runtime
+        // setting name under `setting` for exactly this reason.
+        $data = [
+            'setting' => 'billing_enabled',
+            'apikey'  => 'sk_live_abc123',
+        ];
+        $result = $this->sanitizer->sanitizeArray($data);
+
+        $this->assertSame('billing_enabled', $result['setting']);
+        $this->assertSame('[REDACTED]', $result['apikey']);
+    }
 }

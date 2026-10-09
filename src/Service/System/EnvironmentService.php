@@ -282,7 +282,10 @@ final class EnvironmentService
                 self::$logger?->error(
                     'EnvironmentService::set persistence failed',
                     [
-                        'key'      => $key,
+                        // `setting`, not `key`: LogSanitizer redacts any context
+                        // field whose name contains `key`, and this name is the
+                        // whole diagnostic payload.
+                        'setting'  => $key,
                         'brand_id' => $brandId,
                         'error'    => $e->getMessage(),
                     ]
@@ -293,7 +296,7 @@ final class EnvironmentService
             self::$logger?->error(
                 'EnvironmentService::set persistence skipped: repository unavailable',
                 [
-                    'key'      => $key,
+                    'setting'  => $key,
                     'brand_id' => $brandId,
                 ]
             );

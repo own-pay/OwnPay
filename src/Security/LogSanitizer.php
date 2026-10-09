@@ -232,7 +232,7 @@ final class LogSanitizer
      */
     private static function containsSensitiveKey(string $key): bool
     {
-        $patterns = ['_secret', '_key', '_token', '_hash'];
+        $patterns = ['password', 'passcode', 'secret', 'key', 'token', 'hash'];
         foreach ($patterns as $pattern) {
             if (str_contains($key, $pattern)) {
                 return true;
