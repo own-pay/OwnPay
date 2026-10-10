@@ -5,7 +5,7 @@ rate severity. It is read alongside the source, not instead of it.
 
 ## What OwnPay is
 
-OwnPay is a self-hosted, open-source payment gateway. It creates payment intents, drives 104
+OwnPay is a self-hosted, open-source payment gateway. It creates payment intents, drives 123
 third-party gateway adapters in `modules/gateways/`, ingests provider webhooks, keeps a ledger,
 handles refunds and disputes, and exposes a merchant API plus an admin panel.
 
@@ -82,7 +82,7 @@ Two conventions we would ask you to apply:
 The checkout is at `/src`. The static checks are green and are worth re-running:
 
 ```
-vendor/bin/parallel-lint --no-progress src tests config modules
+vendor/bin/parallel-lint --no-progress src config modules templates/install public/index.php tests
 vendor/bin/phpstan analyse --no-progress
 vendor/bin/twig-cs-fixer lint templates
 npm run lint
@@ -108,18 +108,34 @@ npm test
 ### The database
 
 `tests/Integration` is the only suite that needs a live database. It connects with the
-credentials in `phpunit.xml` (`ownpay_test`, user `root`, password `root`). If no server is
-installed, `IntegrationTestCase` marks those tests skipped rather than failing.
+credentials in `phpunit.xml` (`ownpay_test`, user `root`, password `root`). `IntegrationTestCase`
+calls `markTestSkipped()` when it cannot reach a server, but five of its subclasses tear down
+state that `setUp()` never assigned because the skip threw first, so those tests are reported
+as **errors** rather than skips. See the list below.
 
 To bring one up by hand:
 
 ```
-mysqld --initialize-insecure --datadir=/var/lib/mysql --user=mysql
 mysqld --datadir=/var/lib/mysql --user=mysql &
-mysql -u root -e "CREATE DATABASE ownpay_test; ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';"
+until mysqladmin ping --silent; do sleep 1; done
+mysql -u root -e "CREATE DATABASE ownpay_test; ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root'; CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY 'root'; GRANT ALL ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;"
 mysql -u root -proot ownpay_test < /src/database/schema.sql
 for seed in /src/database/seeds/*.sql; do mysql -u root -proot ownpay_test < "$seed"; done
 ```
+
+Two things about this recipe. The `until mysqladmin ping` loop matters: `mysqld &`
+returns immediately, so the next `mysql` call would otherwise fail on a socket that is
+not listening yet. And the `root`@`127.0.0.1` account has to be created explicitly,
+because `mariadb-install-db` with `--auth-root-authentication-method=socket`, which is
+what Debian's postinst uses, does not create it.
+
+Do not initialise the data directory yourself. Debian's `mariadb-server` postinst already
+runs `mysql_install_db`, so `/var/lib/mysql` is populated during
+`apt-get install default-mysql-server`; running `mariadb-install-db` again against an
+initialised directory errors out. If you ever do need to initialise a directory yourself,
+use `mariadb-install-db`, **not** `mysqld --initialize-insecure` — `--initialize-insecure`
+is a MySQL option MariaDB does not implement, and it exits with
+`unknown option '--initialize-insecure'`.
 
 Then run the suite with `DB_HOST=127.0.0.1`. Note the image ships MariaDB, while the
 `phpunit` CI job runs MySQL 8.0; schema behaviour on the two is not identical.
@@ -129,12 +145,11 @@ Then run the suite with `DB_HOST=127.0.0.1`. Note the image ships MariaDB, while
 These exist on `main` and are **not** caused by your work. Do not report them, and do not let
 them mislead you about whether a change you made is sound.
 
-- **`vendor/` is committed and incomplete.** `composer install` alone reports
-  `Nothing to install` and then dies generating the autoloader on a missing
-  `symfony/polyfill-intl-grapheme`. Remove `vendor/` and reinstall from `composer.lock`
-  first. The image already does this.
 - **With no database**, PHPUnit reports 19 errors, all in `tests/Integration`, all of the form
-  `Typed property $db must not be accessed before initialization`.
+  `Typed property ... must not be accessed before initialization`. They come from five classes
+  whose `tearDown()` runs after `markTestSkipped()` threw: `TelegramBotAddonTest::$db` (7),
+  `LanguageSystemTest::$db` (4), `SmsGatewayAddonTest::$db` (3),
+  `OnboardingRouteRedirectTest::$settingsRepo` (3) and `AdminPageRendererTest::$logDir` (2).
 - **With a database and seeds loaded**, the same suite reports 72 errors and 9 failures. The
   integration tests want seeded data and a schema that are only partly in sync.
 - **`Tests\Plugin\PluginInstallerTest::testInstallFromZipWithWindowsSeparators`** fails with

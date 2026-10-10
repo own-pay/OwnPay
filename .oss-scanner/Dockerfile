@@ -2,7 +2,7 @@
 #
 # It mirrors the jobs in .github/workflows/ci.yml: PHP 8.3 with the extensions CI
 # installs, Node 24, Composer and npm dependencies, the same static checks, and the
-# same PHPUnit suite.
+# same PHPUnit and Vitest suites.
 #
 # The scanner builds this with the repository as the build context, so `COPY . /src`
 # places the checkout at /src. Network access is available while this image builds and
@@ -44,25 +44,29 @@ RUN apt-get update \
         || echo "WARNING: no database server installed; the DB-backed suites stay skipped") \
     && rm -rf /var/lib/apt/lists/*
 
+# Composer is not part of the official PHP image; take the binary from its own image so
+# no version is pinned to a Debian package that will eventually move on.
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 # scanner contract: the checkout lives inside the image, at /src
 COPY . /src
 WORKDIR /src
 
-# vendor/ is committed but incomplete, so composer reports "Nothing to install" and
-# then fails while generating the autoloader. Installing from composer.lock is the
-# only way to get a working tree.
+# Install from composer.lock into an empty tree, so the image carries exactly the locked
+# dependencies whatever the checkout happened to contain.
 RUN rm -rf vendor \
     && composer install --prefer-dist --no-progress --no-interaction
 
 RUN npm ci --no-audit --no-fund
 
-# These four checks are green on main, so a failure here is a real regression and is
-# worth failing the build over.
-RUN vendor/bin/parallel-lint --no-progress src tests config modules \
+# These checks are green on main, so a failure here is a real regression and is worth
+# failing the build over. The lint paths are the ones ci.yml uses, plus tests.
+RUN vendor/bin/parallel-lint --no-progress src config modules templates/install public/index.php tests \
     && vendor/bin/phpstan analyse --no-progress \
     && vendor/bin/twig-cs-fixer lint templates \
     && npm run lint
 
-# PHPUnit has pre-existing failures on main (see .oss-scanner/threat_model.md), so it
-# must not fail the build; the failures are still visible in the scanner's log.
-RUN (vendor/bin/phpunit --no-coverage || echo "WARNING: phpunit reported failures")
+# The test suites have pre-existing failures on main (see .oss-scanner/threat_model.md),
+# so neither may fail the build; the failures are still visible in the scanner's log.
+RUN (vendor/bin/phpunit --no-coverage || echo "WARNING: phpunit reported failures") \
+    && (npm test || echo "WARNING: the front-end suite reported failures")
