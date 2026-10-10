@@ -55,8 +55,8 @@ cli/
 docs/images/ownpay_logo/
 docs/v2/
 docs/changelog.md
-docker-compose.yml
-Dockerfile
+/docker-compose.yml
+/Dockerfile
 
 
 
@@ -74,7 +74,7 @@ storage/update.lock
 storage/.installed
 public/assets/uploads/**
 public/assets/img/**
-.dockerignore
+/.dockerignore
 storage/languages
 
 # --------------- Generated Reports ---------------
