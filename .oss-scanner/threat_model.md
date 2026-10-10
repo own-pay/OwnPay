@@ -1,13 +1,10 @@
 # OwnPay threat model
 
-This document tells the OSS Scanner what OwnPay is, where untrusted input enters, and how we
-rate severity. It is read alongside the source, not instead of it.
+This document tells the OSS Scanner what OwnPay is, where untrusted input enters, and how we rate severity. It is read alongside the source, not instead of it.
 
 ## What OwnPay is
 
-OwnPay is a self-hosted, open-source payment gateway. It creates payment intents, drives 123
-third-party gateway adapters in `modules/gateways/`, ingests provider webhooks, keeps a ledger,
-handles refunds and disputes, and exposes a merchant API plus an admin panel.
+OwnPay is a self-hosted, open-source payment gateway. It creates payment intents, drives 123+ third-party gateway adapters in `modules/gateways/`, ingests provider webhooks, keeps a ledger, handles refunds and disputes, and exposes a merchant API plus an admin panel.
 
 It handles real money and real cardholder data, so the things that matter most are:
 moving money without authorization, forging a payment or refund webhook, reading or writing
@@ -20,64 +17,37 @@ In rough order of how exposed they are:
 - **Provider webhooks.** `POST /webhook/{gateway}` (`config/routes/web.php:337`) →
   `src/Controller/Webhook/UnifiedWebhookController.php`, which calls
   `GatewayBridge::verifyWebhookSignature()` (`src/Gateway/GatewayBridge.php:155`) on every
-  delivery and `GatewayBridge::verify()` (`:117`) on the callback path; both delegate to the
-  adapter's `verifyWebhook()` / `verify()` in `modules/gateways/*`. These are unauthenticated
-  HTTP endpoints that can credit an account. Signature verification that can be bypassed, or
-  that falls through to a success result when a check is inconclusive, is the single most
-  severe class of bug in this codebase. (`src/Gateway/WebhookInboundProcessor.php` is
-  container-wired at `config/services.php:726` and covered by
-  `tests/Integration/WebhookIdempotencyTest.php`, but nothing resolves it on a request, so it
-  is not the live path.)
+  delivery and `GatewayBridge::verify()` (`:117`) on the callback path; both delegate to the adapter's `verifyWebhook()` / `verify()` in `modules/gateways/*`. These are unauthenticated HTTP endpoints that can credit an account. Signature verification that can be bypassed, or that falls through to a success result when a check is inconclusive, is the single most severe class of bug in this codebase. (`src/Gateway/WebhookInboundProcessor.php` is
+  container-wired at `config/services.php:726` and covered by `tests/Integration/WebhookIdempotencyTest.php`, but nothing resolves it on a request, so it is not the live path.)
 - **The install wizard.** `/install`, `/install/test-db`, `/install/import-schema`,
-  `/install/create-admin`, `/install/finalize` (`config/routes/web.php:347-351`), registered
-  unconditionally on the `install` stack, which is only `SecurityHeadersMiddleware` plus a
-  `RateLimiterMiddleware` that fails open when its backend is unreachable
-  (`config/middleware.php:101-108`). It is **not** left open after installation: every action
-  calls `InstallerController::isInstalled()` (`:726`), which returns true when
-  `storage/.installed` exists and, if that marker is missing, probes the configured database
-  for an existing superadmin and self-heals the marker. Reaching `finalize()` on an installed
-  instance would write `ENCRYPTION_KEY`, `AUDIT_HMAC_SECRET`, `JWT_SECRET` and the database
-  credentials, so treat any bypass of that guard — including the `INSTALL_FORCE_KEY` escape
-  hatch — as critical.
-- **The merchant API.** `config/routes/api.php`, guarded by the middleware chain in
-  `config/middleware.php` (`JwtAuthMiddleware`, `BearerAuthMiddleware`,
+  `/install/create-admin`, `/install/finalize` (`config/routes/web.php:347-351`), registered unconditionally on the `install` stack, which is only `SecurityHeadersMiddleware` plus a
+  `RateLimiterMiddleware` that fails open when its backend is unreachable (`config/middleware.php:101-108`). It is **not** left open after installation: every action calls `InstallerController::isInstalled()` (`:726`), which returns true when
+  `storage/.installed` exists and, if that marker is missing, probes the configured database for an existing superadmin and self-heals the marker. Reaching `finalize()` on an installed instance would write `ENCRYPTION_KEY`, `AUDIT_HMAC_SECRET`, `JWT_SECRET` and the database credentials, so treat any bypass of that guard - including the `INSTALL_FORCE_KEY` escape hatch - as critical.
+- **The merchant API.** `config/routes/api.php`, guarded by the middleware chain in `config/middleware.php` (`JwtAuthMiddleware`, `BearerAuthMiddleware`,
   `AdminBearerAuthMiddleware`, `ApiKeyRepository`, `PermissionMiddleware`,
   `TenantScope`). JSON bodies arrive through `php://input` and land in `src/Http/Request.php`.
 - **The admin panel.** `config/routes/web.php`, session and CSRF guarded.
-- **Installed code.** Plugins (`src/Plugin/`), themes and addons under `modules/`, and the
-  self-update ZIP path in `src/Update/ZipUpdateService.php` all run administrator-supplied
-  code inside the process. Anything that lets a lower-privileged actor write into
-  `modules/` or reach the update path is effectively remote code execution.
-- **Anything a payment gateway sends back**, including SMS parsing content
-  (`tests/Integration/SmsParsing*`), is attacker-influenceable and must be treated as input.
+- **Installed code.** Plugins (`src/Plugin/`), themes and addons under `modules/`, and the self-update ZIP path in `src/Update/ZipUpdateService.php` all run administrator-supplied code inside the process. Anything that lets a lower-privileged actor write into `modules/` or reach the update path is effectively remote code execution.
+- **Anything a payment gateway sends back**, including SMS parsing content (`tests/Integration/SmsParsing*`), is attacker-influenceable and must be treated as input.
 
 ## Where the security-relevant logic lives
 
-- `src/Gateway/` and `modules/gateways/` — webhook verification, signature checks, gateway
-  API calls, `GatewayDefaults.php`.
-- `src/Security/` — `Authenticator`, `FieldEncryptor`, `PiiMasker`, `LogSanitizer`,
+- `src/Gateway/` and `modules/gateways/` - webhook verification, signature checks, gateway API calls, `GatewayDefaults.php`.
+- `src/Security/` - `Authenticator`, `FieldEncryptor`, `PiiMasker`, `LogSanitizer`,
   `RequestValidator`, `UrlValidator`.
-- `src/Middleware/` — authorization. Note `PermissionMiddleware` resolves an exact path first,
-  then the first declared prefix match, default-denying unmapped `/admin/*` paths as
-  `system.unmapped`. It escalates `.view` to `.manage` **only for POST** — `PUT`, `PATCH` and
-  `DELETE` are not escalated, and slugs without a `.view` token (`system.update`,
-  `system.audit`, `system.balance`, `system.reports`, `admin.access`) are returned as
-  declared.
-- `src/Repository/` — every SQL statement, and `TenantScope.php`, which is what keeps one
-  merchant from reading another merchant's rows.
-- `src/Plugin/PluginSandbox.php`, `PluginInstaller.php`, `PluginManager.php` — the boundary
-  around third-party code.
-- `src/Update/` — ZIP validation, signature verification, backup and restore.
-- `src/Core/Database.php` — the PDO connection every repository shares.
+- `src/Middleware/` - authorization. Note `PermissionMiddleware` resolves an exact path first, then the first declared prefix match, default-denying unmapped `/admin/*` paths as
+  `system.unmapped`. It escalates `.view` to `.manage` **only for POST** - `PUT`, `PATCH` and `DELETE` are not escalated, and slugs without a `.view` token (`system.update`,
+  `system.audit`, `system.balance`, `system.reports`, `admin.access`) are returned as declared.
+- `src/Repository/` - every SQL statement, and `TenantScope.php`, which is what keeps one merchant from reading another merchant's rows.
+- `src/Plugin/PluginSandbox.php`, `PluginInstaller.php`, `PluginManager.php` - the boundary around third-party code.
+- `src/Update/` - ZIP validation, signature verification, backup and restore.
+- `src/Core/Database.php` - the PDO connection every repository shares.
 
 ## Severity guidance
 
 Please rate against our impact, not against how impressive the exploit looks.
 
-- **Critical.** Reaching money or another merchant's data without authorization: forging a
-  payment, refund or dispute webhook; bypassing `verifyWebhook()`/`verify()` on any adapter;
-  bypassing authentication or the permission middleware; a SQL injection that reads or writes
-  another tenant's rows, or the `users`, `transactions`, `ledger` or `api_keys` tables;
+- **Critical.** Reaching money or another merchant's data without authorization: forging a payment, refund or dispute webhook; bypassing `verifyWebhook()`/`verify()` on any adapter; bypassing authentication or the permission middleware; a SQL injection that reads or writes another tenant's rows, or the `users`, `transactions`, `ledger` or `api_keys` tables;
   unauthenticated remote code execution via the plugin or self-update path; disclosure of
   cardholder data, or of `ENCRYPTION_KEY` (the field-encryption key, with `APP_KEY` as
   fallback), `AUDIT_HMAC_SECRET` (keys the audit-trail HMAC, see
@@ -179,9 +149,9 @@ them mislead you about whether a change you made is sound.
 
 - **With no database**, PHPUnit reports 19 errors, all in `tests/Integration`, all of the form
   `Typed property ... must not be accessed before initialization`. They come from five classes
-  whose `tearDown()` runs after `markTestSkipped()` threw: `TelegramBotAddonTest::$db` (7),
-  `LanguageSystemTest::$db` (4), `SmsGatewayAddonTest::$db` (3),
-  `OnboardingRouteRedirectTest::$settingsRepo` (3) and `AdminPageRendererTest::$logDir` (2).
+  whose `tearDown()` runs after `markTestSkipped()` threw: `TelegramBotAddonTest::$db` ,
+  `LanguageSystemTest::$db` , `SmsGatewayAddonTest::$db` ,
+  `OnboardingRouteRedirectTest::$settingsRepo`  and `AdminPageRendererTest::$logDir` .
 - **With a database and seeds loaded**, the same suite reports 72 errors and 9 failures. The
   integration tests want seeded data and a schema that are only partly in sync.
 - **`Tests\Plugin\PluginInstallerTest::testInstallFromZipWithWindowsSeparators`** fails with
