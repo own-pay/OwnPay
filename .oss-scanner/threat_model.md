@@ -17,11 +17,28 @@ another merchant's data, and leaking PII into logs, backups or exports.
 
 In rough order of how exposed they are:
 
-- **Provider webhooks.** `src/Gateway/WebhookInboundProcessor.php` and each adapter's
-  `verifyWebhook()` / `verify()` in `modules/gateways/*`. These are unauthenticated HTTP
-  endpoints that can credit an account. Signature verification that can be bypassed, or that
-  falls through to a success result when a check is inconclusive, is the single most severe
-  class of bug in this codebase.
+- **Provider webhooks.** `POST /webhook/{gateway}` (`config/routes/web.php:337`) →
+  `src/Controller/Webhook/UnifiedWebhookController.php`, which calls
+  `GatewayBridge::verifyWebhookSignature()` (`src/Gateway/GatewayBridge.php:155`) on every
+  delivery and `GatewayBridge::verify()` (`:117`) on the callback path; both delegate to the
+  adapter's `verifyWebhook()` / `verify()` in `modules/gateways/*`. These are unauthenticated
+  HTTP endpoints that can credit an account. Signature verification that can be bypassed, or
+  that falls through to a success result when a check is inconclusive, is the single most
+  severe class of bug in this codebase. (`src/Gateway/WebhookInboundProcessor.php` is
+  container-wired at `config/services.php:726` and covered by
+  `tests/Integration/WebhookIdempotencyTest.php`, but nothing resolves it on a request, so it
+  is not the live path.)
+- **The install wizard.** `/install`, `/install/test-db`, `/install/import-schema`,
+  `/install/create-admin`, `/install/finalize` (`config/routes/web.php:347-351`), registered
+  unconditionally on the `install` stack, which is only `SecurityHeadersMiddleware` plus a
+  `RateLimiterMiddleware` that fails open when its backend is unreachable
+  (`config/middleware.php:101-108`). It is **not** left open after installation: every action
+  calls `InstallerController::isInstalled()` (`:726`), which returns true when
+  `storage/.installed` exists and, if that marker is missing, probes the configured database
+  for an existing superadmin and self-heals the marker. Reaching `finalize()` on an installed
+  instance would write `ENCRYPTION_KEY`, `AUDIT_HMAC_SECRET`, `JWT_SECRET` and the database
+  credentials, so treat any bypass of that guard — including the `INSTALL_FORCE_KEY` escape
+  hatch — as critical.
 - **The merchant API.** `config/routes/api.php`, guarded by the middleware chain in
   `config/middleware.php` (`JwtAuthMiddleware`, `BearerAuthMiddleware`,
   `AdminBearerAuthMiddleware`, `ApiKeyRepository`, `PermissionMiddleware`,
@@ -40,8 +57,12 @@ In rough order of how exposed they are:
   API calls, `GatewayDefaults.php`.
 - `src/Security/` — `Authenticator`, `FieldEncryptor`, `PiiMasker`, `LogSanitizer`,
   `RequestValidator`, `UrlValidator`.
-- `src/Middleware/` — authorization. Note `PermissionMiddleware` resolves by declaration
-  order, first match wins, and non-safe methods escalate `.view` to `.manage`.
+- `src/Middleware/` — authorization. Note `PermissionMiddleware` resolves an exact path first,
+  then the first declared prefix match, default-denying unmapped `/admin/*` paths as
+  `system.unmapped`. It escalates `.view` to `.manage` **only for POST** — `PUT`, `PATCH` and
+  `DELETE` are not escalated, and slugs without a `.view` token (`system.update`,
+  `system.audit`, `system.balance`, `system.reports`, `admin.access`) are returned as
+  declared.
 - `src/Repository/` — every SQL statement, and `TenantScope.php`, which is what keeps one
   merchant from reading another merchant's rows.
 - `src/Plugin/PluginSandbox.php`, `PluginInstaller.php`, `PluginManager.php` — the boundary
@@ -58,7 +79,9 @@ Please rate against our impact, not against how impressive the exploit looks.
   bypassing authentication or the permission middleware; a SQL injection that reads or writes
   another tenant's rows, or the `users`, `transactions`, `ledger` or `api_keys` tables;
   unauthenticated remote code execution via the plugin or self-update path; disclosure of
-  cardholder data or `PII_ENCRYPTION_KEY`, `JWT_SECRET` or `APP_KEY`.
+  cardholder data, or of `ENCRYPTION_KEY` (the field-encryption key, with `APP_KEY` as
+  fallback), `AUDIT_HMAC_SECRET` (keys the audit-trail HMAC, see
+  `src/Repository/AuditLogRepository.php:93`), `JWT_SECRET` or `APP_KEY`.
 - **High.** The same bug class but only reachable by an authenticated merchant or a
   lower-privileged admin; SQL injection confined to the caller's own rows; stored XSS in the
   admin panel that can reach an administrator's session; CSRF or signature weakness on an
@@ -94,10 +117,17 @@ The PHPUnit suite is worth running and is where most of the reachable behaviour 
 vendor/bin/phpunit --no-coverage
 ```
 
-`tests/Unit`, `tests/Service`, `tests/Controller`, `tests/Middleware`, `tests/Security`,
-`tests/Event`, `tests/Plugin` and `tests/Feature` need no database. `tests/Security` is
-specifically about authentication, log sanitization and PII masking and is the fastest place
-to confirm you understand our intended invariants.
+`tests/Service`, `tests/Controller`, `tests/Middleware`, `tests/Security` and `tests/Event`
+need no database. `tests/Unit`, `tests/Plugin` and `tests/Feature` mostly do not either, but
+five classes outside `tests/Integration` extend `IntegrationTestCase` and so need a live
+database: `tests/Unit/MerchantRepositoryFindFirstTest.php:11`,
+`tests/Feature/PlatformMaintenanceTest.php:14`, `tests/Plugin/PluginTrashTest.php:13`,
+`tests/Plugin/TenantPluginLifecycleTest.php:18` and
+`tests/Plugin/BrandGatewayConfigSyncTest.php:20`. `PluginTrashTest` and
+`TenantPluginLifecycleTest` are the DB-backed lifecycle checks behind the "installed code"
+entry point above, so do not skip the `Plugin` suite for want of a database. `tests/Security`
+is specifically about authentication, log sanitization and PII masking and is the fastest
+place to confirm you understand our intended invariants.
 
 The front-end suite is Vitest and runs offline:
 
@@ -107,11 +137,13 @@ npm test
 
 ### The database
 
-`tests/Integration` is the only suite that needs a live database. It connects with the
-credentials in `phpunit.xml` (`ownpay_test`, user `root`, password `root`). `IntegrationTestCase`
-calls `markTestSkipped()` when it cannot reach a server, but five of its subclasses tear down
-state that `setUp()` never assigned because the skip threw first, so those tests are reported
-as **errors** rather than skips. See the list below.
+`tests/Integration` is where almost all of the database dependency lives; the five classes
+listed above are the rest of it. It connects with the credentials in `phpunit.xml`
+(`ownpay_test`, user `root`, password `root`). `IntegrationTestCase` calls
+`markTestSkipped()` when it cannot reach a server, but five of its subclasses tear down state
+that `setUp()` never assigned — the skip throws before the assignment, and PHPUnit still runs
+`tearDown()` afterwards, so an exception there turns the skip into an error. Those classes
+report **errors**, not skips. See the list below.
 
 To bring one up by hand:
 
