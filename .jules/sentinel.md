@@ -1,4 +1,0 @@
-## 2025-05-18 - Log Sanitizer Sensitive Key Pattern Coverage
-**Vulnerability:** LogSanitizer contained exact-match keys and prefix/suffix patterns like `_secret`, `_key`, `_token`, `_hash`, which missed compound keys without leading underscores (such as `admin_password`, `db_password`, `new_password`, `passcode`, `appsecret`), risking credential disclosure in application logs.
-**Learning:** Checking for underscored suffixes like `_secret` or `_key` fails when keys use non-standard naming or direct substring concatenations (e.g., `passcode`, `appsecret`).
-**Prevention:** Substring pattern matching in log sanitization helpers should check for core sensitive terms directly (`password`, `passcode`, `secret`, `key`, `token`, `hash`) to ensure any key containing sensitive indicators is safely redacted.
