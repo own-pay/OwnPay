@@ -200,7 +200,13 @@ final class PayuGateway implements PluginInterface, GatewayAdapterInterface, Tes
             'success'        => $success,
             'gateway_trx_id' => $mihpayid ?: $txnid,
             'status'         => $success ? 'completed' : 'failed',
+            'trx_id'         => $txnid,
         ];
+
+        if ($success) {
+            $result['verified_trx_id'] = $txnid;
+        }
+
 
         if ($formattedAmount !== null) {
             $result['amount'] = $formattedAmount;

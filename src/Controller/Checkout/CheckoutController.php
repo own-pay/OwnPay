@@ -984,7 +984,8 @@ final class CheckoutController
                             'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);
 
-                        $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                        $expectedTrxId = is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '';
+                        $result = $svc->handleCallback($mid, $gateway, $callbackData, false, $expectedTrxId);
                         if ($result['success']) {
                             $status = 'completed';
                             $leaseReleased = true;

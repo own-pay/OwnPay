@@ -1023,7 +1023,8 @@ final class PaymentIntentCheckoutController
                         $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
                         if ($gateway !== '') {
-                            $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                            $expectedTrxId = is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '';
+                            $result = $svc->handleCallback($mid, $gateway, $callbackData, false, $expectedTrxId);
 
                             if ($result['success']) {
                                 $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'completed']);
