@@ -304,7 +304,7 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
             'trx_id'         => $tranIdStr,
         ];
 
-        if ($valid && $tranIdStr !== '') {
+        if ($valid === true && $tranIdStr !== '') {
             $result['verified_trx_id'] = $tranIdStr;
         }
 

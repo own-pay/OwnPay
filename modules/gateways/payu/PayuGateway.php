@@ -203,7 +203,7 @@ final class PayuGateway implements PluginInterface, GatewayAdapterInterface, Tes
             'trx_id'         => $txnid,
         ];
 
-        if ($success) {
+        if ($success === true) {
             $result['verified_trx_id'] = $txnid;
         }
 

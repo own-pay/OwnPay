@@ -133,7 +133,7 @@ final class CCAvenueGateway implements PluginInterface, GatewayAdapterInterface
             'trx_id'         => $trxId,
         ];
 
-        if ($success && $trxId !== '') {
+        if ($success === true && $trxId !== '') {
             $result['verified_trx_id'] = $trxId;
         }
 

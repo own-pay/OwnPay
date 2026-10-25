@@ -106,6 +106,7 @@ class IndiaMfsGatewayTest extends TestCase
         $this->assertTrue($verifyRes['success']);
         $this->assertSame('987654321', $verifyRes['gateway_trx_id']);
         $this->assertSame('450.75', $verifyRes['amount']);
+        $this->assertSame('TX2000', $verifyRes['verified_trx_id']);
     }
 
     public function testMobikwikZaakpayChecksum(): void

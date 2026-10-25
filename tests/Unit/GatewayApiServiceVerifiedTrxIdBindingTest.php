@@ -76,4 +76,24 @@ final class GatewayApiServiceVerifiedTrxIdBindingTest extends TestCase
         );
         $this->assertNull($result);
     }
+
+    public function testBrowserReturnDoesNotFallBackToCallbackSuppliedTrxId(): void
+    {
+        $result = $this->resolve(
+            ['success' => true, 'trx_id' => 'trx_abc', 'gateway_trx_id' => 'gw_123'],
+            ['trx_id' => 'trx_abc', 'tran_id' => 'trx_abc', 'order_id' => 'trx_abc'],
+            'trx_abc'
+        );
+        $this->assertNull($result);
+    }
+
+    public function testBrowserReturnDoesNotFallBackToGatewayTrxId(): void
+    {
+        $result = $this->resolve(
+            ['success' => true, 'gateway_trx_id' => 'trx_abc'],
+            [],
+            'trx_abc'
+        );
+        $this->assertNull($result);
+    }
 }
