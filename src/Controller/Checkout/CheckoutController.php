@@ -981,7 +981,6 @@ final class CheckoutController
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
                         $callbackData = array_merge($queryData, [
                             'paymentID' => $callbackPaymentId,
-                            'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);
 
                         $expectedTrxId = is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '';

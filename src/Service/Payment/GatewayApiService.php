@@ -37,9 +37,14 @@ final class GatewayApiService
     private FeeService $fees;
 
     /**
-     * @var LedgerService Service layer for bookkeeping and ledger accounting.
+     * @var LedgerService Service layer for posting ledger balances.
      */
     private LedgerService $ledger;
+
+    /**
+     * @var \OwnPay\Service\System\Logger|null Optional logger for diagnostics.
+     */
+    private ?\OwnPay\Service\System\Logger $logger = null;
 
     /**
      * GatewayApiService constructor.
@@ -55,13 +60,15 @@ final class GatewayApiService
         GatewayRepository $gateways,
         TransactionService $transactions,
         FeeService $fees,
-        LedgerService $ledger
+        LedgerService $ledger,
+        ?\OwnPay\Service\System\Logger $logger = null
     ) {
         $this->bridge = $bridge;
         $this->gateways = $gateways;
         $this->transactions = $transactions;
         $this->fees = $fees;
         $this->ledger = $ledger;
+        $this->logger = $logger;
     }
 
     /**
@@ -178,6 +185,12 @@ final class GatewayApiService
 
         $trxId = $this->resolveTransactionReference($verification, $callbackData, $expectedTrxId);
         if ($trxId === null) {
+            if ($this->logger instanceof \OwnPay\Service\System\Logger) {
+                $verifiedPresent = isset($verification['verified_trx_id']) && is_string($verification['verified_trx_id']) && $verification['verified_trx_id'] !== '';
+                $this->logger->warning(
+                    "Gateway callback verified transaction reference mismatch: gateway={$gatewaySlug}, expected=" . ($expectedTrxId === '' ? '<empty>' : ($expectedTrxId ?? '<null>')) . ', verified_trx_id_present=' . ($verifiedPresent ? 'true' : 'false')
+                );
+            }
             return ['success' => false, 'error' => 'Verified transaction reference mismatch'];
         }
 

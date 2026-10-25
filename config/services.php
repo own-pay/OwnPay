@@ -652,7 +652,8 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Repository\GatewayRepository::class), \OwnPay\Repository\GatewayRepository::class),
             ensureType($c->get(\OwnPay\Service\Payment\TransactionService::class), \OwnPay\Service\Payment\TransactionService::class),
             ensureType($c->get(\OwnPay\Service\Payment\FeeService::class), \OwnPay\Service\Payment\FeeService::class),
-            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class)
+            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class),
+            $c->has(\OwnPay\Service\System\Logger::class) ? $c->get(\OwnPay\Service\System\Logger::class) : null
         );
     });
 

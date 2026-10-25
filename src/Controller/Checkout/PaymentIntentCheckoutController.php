@@ -1017,7 +1017,6 @@ final class PaymentIntentCheckoutController
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
                         $callbackData = array_merge($reqQuery, [
                             'paymentID' => $callbackPaymentId,
-                            'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);
                         $gatewayVal = $txn['gateway_slug'] ?? '';
                         $gateway = is_string($gatewayVal) ? $gatewayVal : '';
