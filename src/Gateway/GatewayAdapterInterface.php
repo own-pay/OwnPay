@@ -32,7 +32,8 @@ interface GatewayAdapterInterface
      *
      * @param array<string, mixed> $callbackData Payload received from the payment provider.
      * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
-     * @return array{success: bool, gateway_trx_id?: string, amount?: string, status?: string} Verification outcome metadata.
+     * @return array{success: bool, gateway_trx_id?: string, amount?: string, status?: string, verified_trx_id?: string} Verification outcome metadata.
+     * `verified_trx_id` must come from a provider-authenticated response or lookup; never echo a callback-supplied reference into it.
      */
     public function verify(array $callbackData, array $credentials): array;
 

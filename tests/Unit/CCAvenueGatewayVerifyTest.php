@@ -66,6 +66,7 @@ final class CCAvenueGatewayVerifyTest extends TestCase
         $this->assertSame('completed', $result['status']);
         $this->assertSame('TRK-1', $result['gateway_trx_id']);
         $this->assertSame('trx_abc', $result['trx_id']);
+        $this->assertSame('trx_abc', $result['verified_trx_id']);
     }
 
     public function testTamperedCiphertextIsRejected(): void

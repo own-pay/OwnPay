@@ -1017,13 +1017,13 @@ final class PaymentIntentCheckoutController
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
                         $callbackData = array_merge($reqQuery, [
                             'paymentID' => $callbackPaymentId,
-                            'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);
                         $gatewayVal = $txn['gateway_slug'] ?? '';
                         $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
                         if ($gateway !== '') {
-                            $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                            $expectedTrxId = is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '';
+                            $result = $svc->handleCallback($mid, $gateway, $callbackData, false, $expectedTrxId);
 
                             if ($result['success']) {
                                 $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'completed']);

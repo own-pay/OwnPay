@@ -125,13 +125,19 @@ final class CCAvenueGateway implements PluginInterface, GatewayAdapterInterface
         $amount = $this->getString($response['amount'] ?? null);
         $trxId = $this->getString($response['order_id'] ?? null);
 
-        return [
+        $result = [
             'success'        => $success,
             'gateway_trx_id' => $gatewayTrxId,
             'amount'         => $amount,
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
+
+        if ($success === true && $trxId !== '') {
+            $result['verified_trx_id'] = $trxId;
+        }
+
+        return $result;
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool

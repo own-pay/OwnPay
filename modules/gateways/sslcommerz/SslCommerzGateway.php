@@ -290,15 +290,25 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
         $bankTranId = $data['bank_tran_id'] ?? '';
         $bankTranIdStr = is_scalar($bankTranId) ? (string) $bankTranId : '';
 
+        $tranId = $data['tran_id'] ?? '';
+        $tranIdStr = is_scalar($tranId) ? (string) $tranId : '';
+
         $amount = $data['amount'] ?? null;
         $amountStr = is_scalar($amount) ? (string) $amount : null;
 
-        return [
+        $result = [
             'success'        => $valid,
             'gateway_trx_id' => $bankTranIdStr,
             'amount'         => $amountStr,
             'status'         => $valid ? 'completed' : 'failed',
+            'trx_id'         => $tranIdStr,
         ];
+
+        if ($valid === true && $tranIdStr !== '') {
+            $result['verified_trx_id'] = $tranIdStr;
+        }
+
+        return $result;
     }
 
     /**

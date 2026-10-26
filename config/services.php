@@ -646,15 +646,17 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    $c->singleton(\OwnPay\Service\Payment\GatewayApiService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\GatewayApiService {
-        return new \OwnPay\Service\Payment\GatewayApiService(
-            ensureType($c->get(\OwnPay\Gateway\GatewayBridge::class), \OwnPay\Gateway\GatewayBridge::class),
-            ensureType($c->get(\OwnPay\Repository\GatewayRepository::class), \OwnPay\Repository\GatewayRepository::class),
-            ensureType($c->get(\OwnPay\Service\Payment\TransactionService::class), \OwnPay\Service\Payment\TransactionService::class),
-            ensureType($c->get(\OwnPay\Service\Payment\FeeService::class), \OwnPay\Service\Payment\FeeService::class),
-            ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class)
-        );
-    });
+$c->singleton(\OwnPay\Service\Payment\GatewayApiService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\GatewayApiService {
+    $logger = $c->get(\OwnPay\Service\System\Logger::class);
+    return new \OwnPay\Service\Payment\GatewayApiService(
+        ensureType($c->get(\OwnPay\Gateway\GatewayBridge::class), \OwnPay\Gateway\GatewayBridge::class),
+        ensureType($c->get(\OwnPay\Repository\GatewayRepository::class), \OwnPay\Repository\GatewayRepository::class),
+        ensureType($c->get(\OwnPay\Service\Payment\TransactionService::class), \OwnPay\Service\Payment\TransactionService::class),
+        ensureType($c->get(\OwnPay\Service\Payment\FeeService::class), \OwnPay\Service\Payment\FeeService::class),
+        ensureType($c->get(\OwnPay\Service\Payment\LedgerService::class), \OwnPay\Service\Payment\LedgerService::class),
+        $logger instanceof \OwnPay\Service\System\Logger ? $logger : null
+    );
+});
 
     $c->singleton(\OwnPay\Service\Payment\RefundService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\RefundService {
         return new \OwnPay\Service\Payment\RefundService(
