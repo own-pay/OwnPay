@@ -20,6 +20,10 @@ jobs:
         uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2.5.0
 
       - name: Auto-merge Dependabot PR
+        # Only auto-merge patch/minor (and non-version) updates; major bumps
+        # require human review. `--auto` defers the merge until required status
+        # checks pass, so CI cannot be bypassed.
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: gh pr merge --auto --squash "$PR_NUMBER"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}

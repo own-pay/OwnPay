@@ -11,7 +11,7 @@ jobs:
   redirect-base:
     name: Change PR base from main to dev
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref == 'main'
+    if: github.event.pull_request.base.ref == 'main' && github.actor == 'dependabot[bot]'
     steps:
       - name: Change base branch to dev
         run: gh pr edit "$PR_NUMBER" --base dev
