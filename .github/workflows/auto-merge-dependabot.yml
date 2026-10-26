@@ -1,0 +1,30 @@
+name: Auto-merge Dependabot PRs
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main, dev]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2.5.0
+
+      - name: Auto-merge Dependabot PR
+        # Only auto-merge patch/minor (and non-version) updates; major bumps
+        # require human review. `--auto` defers the merge until required status
+        # checks pass, so CI cannot be bypassed.
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_NUMBER"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

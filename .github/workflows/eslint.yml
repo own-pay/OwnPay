@@ -11,10 +11,10 @@ name: ESLint
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main", "dev"]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "main" ]
+    branches: ["main", "dev"]
   schedule:
     - cron: '36 6 * * 1'
 
@@ -37,16 +37,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24'
+          node-version: '26'
+          cache: 'npm'
 
-      - name: Install ESLint
-        # Install ESLint 9 (matches the flat-config format used by eslint.config.js
-        # in the repo root) plus the SARIF formatter used to upload results to
-        # GitHub code scanning. Pinning to a known-good major avoids silent
-        # breakage when a new ESLint major ships.
+      - name: Install NPM dependencies
         run: |
-          npm install eslint@9.18.0
-          npm install @microsoft/eslint-formatter-sarif@3.1.0
+          npm ci
+          npm install --no-save @microsoft/eslint-formatter-sarif@3.1.0
 
       - name: Run ESLint
         env:
