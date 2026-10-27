@@ -109,7 +109,7 @@ jobs:
       # CodeQL Action v4 is required — v3 is being deprecated in December 2026
       # (see https://github.blog/changelog/2025-10-28-upcoming-deprecation-of-codeql-action-v3/).
       - name: Upload SARIF results file
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           sarif_file: results.sarif
         # Only upload when the verify step explicitly confirmed the SARIF
