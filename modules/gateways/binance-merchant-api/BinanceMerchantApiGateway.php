@@ -86,7 +86,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
 
         $merchantTradeNo = 'op_test_connection_' . bin2hex(random_bytes(6));
         $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
-        if (!is_string($payload)) {
+        if (is_string($payload) === false) {
             return ['success' => false, 'message' => 'Could not encode Binance Pay test request.'];
         }
         $timestamp = (int) round(microtime(true) * 1000);
@@ -135,7 +135,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $apiKey = is_scalar($credentials['merchant_api_key'] ?? null) ? (string) $credentials['merchant_api_key'] : '';
         $apiSecret = is_scalar($credentials['merchant_secret_key'] ?? null) ? (string) $credentials['merchant_secret_key'] : '';
         $currency = $credentials['payment_currency'] ?? 'USDT';
-        if (!is_scalar($currency)) {
+        if (is_scalar($currency) === false) {
             $currency = 'USDT';
         }
         $currency = (string) $currency;
@@ -198,7 +198,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || !is_string($response) || $response === '') {
+        if ($httpCode !== 200 || is_string($response) === false || $response === '') {
             throw new \RuntimeException('Binance Pay API connection error: HTTP ' . $httpCode);
         }
 
@@ -220,16 +220,16 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
     public function verify(array $callbackData, array $credentials): array
     {
         $rawTradeNo = $callbackData['session_id'] ?? '';
-        $merchantTradeNo = is_scalar($rawTradeNo) ? (string) $rawTradeNo : '';
+        $merchantTradeNo = is_scalar($rawTradeNo) === true ? (string) $rawTradeNo : '';
         if ($merchantTradeNo === '') {
             $rawMt = $callbackData['merchantTradeNo'] ?? '';
-            $merchantTradeNo = is_scalar($rawMt) ? (string) $rawMt : '';
+            $merchantTradeNo = is_scalar($rawMt) === true ? (string) $rawMt : '';
         }
-        if ($merchantTradeNo === '' && isset($callbackData['data']) && is_string($callbackData['data'])) {
+        if ($merchantTradeNo === '' && isset($callbackData['data']) && is_string($callbackData['data']) === true) {
             $decoded = json_decode($callbackData['data'], true);
-            if (is_array($decoded)) {
+            if (is_array($decoded) === true) {
                 $rawMt = $decoded['merchantTradeNo'] ?? '';
-                $merchantTradeNo = is_scalar($rawMt) ? (string) $rawMt : '';
+                $merchantTradeNo = is_scalar($rawMt) === true ? (string) $rawMt : '';
             }
         }
         if ($merchantTradeNo === '') {
@@ -291,7 +291,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
 
         $refGoodsId = '';
         $passThrough = $innerData['passThroughInfo'] ?? null;
-        if (is_scalar($passThrough) && (string) $passThrough !== '') {
+        if (is_scalar($passThrough) === true && (string) $passThrough !== '') {
             $refGoodsId = (string) $passThrough;
         }
         if ($refGoodsId === '') {
@@ -318,6 +318,15 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $signature = $this->getHeader($headers, 'BinancePay-Signature');
 
         if ($timestamp === '' || $nonce === '' || $signature === '' || $rawBody === '') {
+            return false;
+        }
+
+        // Reject timestamps outside a short clock-skew window (replay protection).
+        if (ctype_digit($timestamp) === false) {
+            return false;
+        }
+        $timestampMs = (int) $timestamp;
+        if (abs((int) round(microtime(true) * 1000) - $timestampMs) > 300000) {
             return false;
         }
 
@@ -353,7 +362,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
     {
         foreach ($headers as $k => $v) {
             if (strcasecmp($k, $name) === 0) {
-                return is_scalar($v) ? (string) $v : '';
+                return is_scalar($v) === true ? (string) $v : '';
             }
         }
         return '';
@@ -373,7 +382,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         ];
         foreach ($keys as $k) {
             $val = $credentials[$k] ?? null;
-            if (is_scalar($val) && (string) $val !== '') {
+            if (is_scalar($val) === true && (string) $val !== '') {
                 return (string) $val;
             }
         }
