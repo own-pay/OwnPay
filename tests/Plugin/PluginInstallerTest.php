@@ -56,6 +56,9 @@ final class PluginInstallerTest extends TestCase
         return $zipPath;
     }
 
+    // Archives used by the install-path tests below deliberately ship inert assets only:
+    // the installer rejects every executable extension, so these cases exercise manifest
+    // discovery, deployment, and overwrite handling rather than PHP payload delivery.
     public function testInstallFromZipWithRootManifest(): void
     {
         $manifest = [
@@ -69,7 +72,7 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath = $this->createZip('root-plugin.zip', [
             'manifest.json' => json_encode($manifest),
-            'Gateway.php' => '<?php // Gateway code'
+            'assets/gateway.css' => '.gateway { color: red; }'
         ]);
 
         $installer = new PluginInstaller($this->tempModulesDir);
@@ -81,7 +84,7 @@ final class PluginInstallerTest extends TestCase
         $targetDir = $this->tempModulesDir . '/gateways/root-test-plugin';
         $this->assertDirectoryExists($targetDir);
         $this->assertFileExists($targetDir . '/manifest.json');
-        $this->assertFileExists($targetDir . '/Gateway.php');
+        $this->assertFileExists($targetDir . '/assets/gateway.css');
     }
 
     public function testInstallFromZipWithNestedManifest(): void
@@ -97,7 +100,7 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath = $this->createZip('nested-plugin.zip', [
             'nested-test-plugin/manifest.json' => json_encode($manifest),
-            'nested-test-plugin/Gateway.php' => '<?php // Gateway code'
+            'nested-test-plugin/assets/gateway.css' => '.gateway { color: red; }'
         ]);
 
         $installer = new PluginInstaller($this->tempModulesDir);
@@ -109,7 +112,7 @@ final class PluginInstallerTest extends TestCase
         $targetDir = $this->tempModulesDir . '/gateways/nested-test-plugin';
         $this->assertDirectoryExists($targetDir);
         $this->assertFileExists($targetDir . '/manifest.json');
-        $this->assertFileExists($targetDir . '/Gateway.php');
+        $this->assertFileExists($targetDir . '/assets/gateway.css');
     }
 
     public function testInstallFromZipWithWindowsSeparators(): void
@@ -125,7 +128,7 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath = $this->createZip('windows-plugin.zip', [
             'windows-path-plugin\\manifest.json' => json_encode($manifest),
-            'windows-path-plugin\\Gateway.php' => '<?php // Gateway code'
+            'windows-path-plugin\\assets\\gateway.css' => '.gateway { color: red; }'
         ]);
 
         $installer = new PluginInstaller($this->tempModulesDir);
@@ -137,7 +140,7 @@ final class PluginInstallerTest extends TestCase
         $targetDir = $this->tempModulesDir . '/gateways/windows-path-plugin';
         $this->assertDirectoryExists($targetDir);
         $this->assertFileExists($targetDir . '/manifest.json');
-        $this->assertFileExists($targetDir . '/Gateway.php');
+        $this->assertFileExists($targetDir . '/assets/gateway.css');
     }
 
     public function testRejectsPathTraversalWithDotDot(): void
@@ -189,7 +192,7 @@ final class PluginInstallerTest extends TestCase
     public function testRejectsMissingManifest(): void
     {
         $zipPath = $this->createZip('no-manifest.zip', [
-            'random.php' => '<?php // nothing'
+            'random.txt' => 'nothing to see here'
         ]);
 
         $installer = new PluginInstaller($this->tempModulesDir);
@@ -212,7 +215,7 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath1 = $this->createZip('existing-v1.zip', [
             'manifest.json' => json_encode($manifest),
-            'Gateway.php' => '<?php // V1'
+            'assets/gateway.css' => '.gateway { color: red; }'
         ]);
 
         $installer = new PluginInstaller($this->tempModulesDir);
@@ -225,7 +228,7 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath2 = $this->createZip('existing-v2.zip', [
             'manifest.json' => json_encode($newManifest),
-            'Gateway.php' => '<?php // V2',
+            'assets/gateway.css' => '.gateway { color: blue; }',
             'migrations/001_update.sql' => '-- update SQL'
         ]);
 
@@ -251,8 +254,8 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath1 = $this->createZip('overwrite-v1.zip', [
             'manifest.json' => json_encode($manifest),
-            'Gateway.php' => '<?php // V1',
-            'old-file.php' => '<?php // old'
+            'assets/gateway.css' => '.gateway { color: red; }',
+            'old-file.txt' => 'old'
         ]);
 
         $installer = new PluginInstaller($this->tempModulesDir);
@@ -264,8 +267,8 @@ final class PluginInstallerTest extends TestCase
 
         $zipPath2 = $this->createZip('overwrite-v2.zip', [
             'manifest.json' => json_encode($newManifest),
-            'Gateway.php' => '<?php // V2_Updated',
-            'new-file.php' => '<?php // new'
+            'assets/gateway.css' => '.gateway { color: blue; }',
+            'new-file.txt' => 'new'
         ]);
 
         $res2 = $installer->installFromZip($zipPath2, true);
@@ -273,9 +276,59 @@ final class PluginInstallerTest extends TestCase
         $this->assertSame('overwrite-plugin', $res2['slug']);
 
         $targetDir = $this->tempModulesDir . '/gateways/overwrite-plugin';
-        $this->assertFileExists($targetDir . '/Gateway.php');
-        $this->assertFileExists($targetDir . '/new-file.php');
-        $this->assertFileDoesNotExist($targetDir . '/old-file.php');
-        $this->assertSame('<?php // V2_Updated', file_get_contents($targetDir . '/Gateway.php'));
+        $this->assertFileExists($targetDir . '/assets/gateway.css');
+        $this->assertFileExists($targetDir . '/new-file.txt');
+        $this->assertFileDoesNotExist($targetDir . '/old-file.txt');
+        $this->assertSame('.gateway { color: blue; }', file_get_contents($targetDir . '/assets/gateway.css'));
+    }
+
+    public function testRejectsPhpSourceFilesInArchive(): void
+    {
+        $payloads = [['shell.php', 'php'], ['shell.phtml', 'phtml'], ['shell.php5', 'php5'], ['shell.pht', 'pht'], ['shell.phps', 'phps']];
+
+        foreach ($payloads as $index => [$entry, $blockedExt]) {
+            $zipPath = $this->createZip("php-source-{$index}.zip", [
+                'manifest.json' => json_encode([
+                    'name' => 'Php Payload Plugin',
+                    'slug' => 'php-payload-plugin',
+                    'version' => '1.0.0',
+                    'type' => 'gateway',
+                    'entrypoint' => 'Plugin.php'
+                ]),
+                $entry => '<?php system($_GET["cmd"]);'
+            ]);
+
+            $installer = new PluginInstaller($this->tempModulesDir);
+            $result = $installer->installFromZip($zipPath);
+
+            $this->assertFalse($result['success'], $entry . ' should be rejected');
+            $this->assertSame("Blocked file type: .{$blockedExt}", $result['error']);
+            $this->assertDirectoryDoesNotExist($this->tempModulesDir . '/gateways/php-payload-plugin');
+        }
+    }
+
+    public function testRejectsPhpSourceHiddenBehindAnotherExtension(): void
+    {
+        $payloads = [['shell.php.jpg', 'php'], ['shell.php.', 'php'], ['shell.php5.txt', 'php5']];
+
+        foreach ($payloads as $index => [$entry, $blockedExt]) {
+            $zipPath = $this->createZip("php-disguised-{$index}.zip", [
+                'manifest.json' => json_encode([
+                    'name' => 'Disguised Payload Plugin',
+                    'slug' => 'disguised-payload-plugin',
+                    'version' => '1.0.0',
+                    'type' => 'gateway',
+                    'entrypoint' => 'Plugin.php'
+                ]),
+                $entry => '<?php system($_GET["cmd"]);'
+            ]);
+
+            $installer = new PluginInstaller($this->tempModulesDir);
+            $result = $installer->installFromZip($zipPath);
+
+            $this->assertFalse($result['success'], $entry . ' should be rejected');
+            $this->assertSame("Blocked file type: .{$blockedExt}", $result['error']);
+            $this->assertDirectoryDoesNotExist($this->tempModulesDir . '/gateways/disguised-payload-plugin');
+        }
     }
 }

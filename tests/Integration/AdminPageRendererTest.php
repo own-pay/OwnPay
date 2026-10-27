@@ -50,9 +50,11 @@ final class AdminPageRendererTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        if (static::$dbAvailable) {
-            $this->db->execute("DELETE FROM op_system_settings WHERE group_name = 'appearance' AND key_name = 'admin_engine'");
+        if (!static::$dbAvailable) {
+            parent::tearDown();
+            return;
         }
+        $this->db->execute("DELETE FROM op_system_settings WHERE group_name = 'appearance' AND key_name = 'admin_engine'");
         $this->removeDir($this->logDir);
         parent::tearDown();
     }
