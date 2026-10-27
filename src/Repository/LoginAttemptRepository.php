@@ -69,8 +69,18 @@ final class LoginAttemptRepository extends BaseRepository
         int $maxAttempts = 5,
         int $maxLockout = 1800
     ): int {
+        if ($maxAttempts < 1) {
+            $maxAttempts = 1;
+        }
+        if ($baseWindow < 1) {
+            $baseWindow = 300;
+        }
+        if ($maxLockout < 1) {
+            $maxLockout = 1800;
+        }
         // Look back far enough that sustained abuse keeps escalating the window.
-        $lookback = max($baseWindow * 12, 3600);
+        $safeBaseWindow = min($baseWindow, intdiv(PHP_INT_MAX, 12));
+        $lookback = max($safeBaseWindow * 12, 3600);
         $since = DateHelper::ago($lookback);
         $row = $this->db->fetchOne(
             "SELECT COUNT(*) AS fails, TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS since_last
@@ -80,12 +90,12 @@ final class LoginAttemptRepository extends BaseRepository
             ['email' => $email, 'ip' => $ip, 'since' => $since]
         );
 
-        $fails = is_array($row) && isset($row['fails']) && is_numeric($row['fails']) ? (int) $row['fails'] : 0;
+        $fails = isset($row['fails']) && is_numeric($row['fails']) ? (int) $row['fails'] : 0;
         if ($fails < $maxAttempts) {
             return 0;
         }
 
-        $sinceLast = is_array($row) && isset($row['since_last']) && is_numeric($row['since_last'])
+        $sinceLast = isset($row['since_last']) && is_numeric($row['since_last'])
             ? (int) $row['since_last']
             : null;
         if ($sinceLast === null) {
@@ -126,8 +136,18 @@ final class LoginAttemptRepository extends BaseRepository
         int $maxAttempts = 5,
         int $maxLockout = 1800
     ): int {
+        if ($maxAttempts < 1) {
+            $maxAttempts = 1;
+        }
+        if ($baseWindow < 1) {
+            $baseWindow = 300;
+        }
+        if ($maxLockout < 1) {
+            $maxLockout = 1800;
+        }
         // Look back far enough that sustained abuse keeps escalating the window.
-        $lookback = max($baseWindow * 12, 3600);
+        $safeBaseWindow = min($baseWindow, intdiv(PHP_INT_MAX, 12));
+        $lookback = max($safeBaseWindow * 12, 3600);
         $since = DateHelper::ago($lookback);
         $row = $this->db->fetchOne(
             "SELECT COUNT(*) AS fails, TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS since_last
@@ -137,12 +157,12 @@ final class LoginAttemptRepository extends BaseRepository
             ['email' => $email, 'since' => $since]
         );
 
-        $fails = is_array($row) && isset($row['fails']) && is_numeric($row['fails']) ? (int) $row['fails'] : 0;
+        $fails = isset($row['fails']) && is_numeric($row['fails']) ? (int) $row['fails'] : 0;
         if ($fails < $maxAttempts) {
             return 0;
         }
 
-        $sinceLast = is_array($row) && isset($row['since_last']) && is_numeric($row['since_last'])
+        $sinceLast = isset($row['since_last']) && is_numeric($row['since_last'])
             ? (int) $row['since_last']
             : null;
         if ($sinceLast === null) {
@@ -174,6 +194,15 @@ final class LoginAttemptRepository extends BaseRepository
      */
     private function escalatedWindowSeconds(int $fails, int $baseWindow, int $maxAttempts, int $maxLockout): int
     {
+        if ($maxAttempts < 1) {
+            $maxAttempts = 1;
+        }
+        if ($baseWindow < 1) {
+            $baseWindow = 300;
+        }
+        if ($maxLockout < 1) {
+            $maxLockout = 1800;
+        }
         $tier = intdiv($fails, $maxAttempts);
         $duration = $baseWindow;
         for ($i = 1; $i < $tier && $duration < $maxLockout; $i++) {

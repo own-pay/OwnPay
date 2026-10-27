@@ -7,6 +7,7 @@ use OwnPay\Repository\LoginAttemptRepository;
 use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Repository\RoleRepository;
 use OwnPay\Event\EventManager;
+use OwnPay\Service\System\EnvironmentService;
 
 /**
  * Class Authenticator
@@ -40,6 +41,16 @@ final class Authenticator
     private ?RoleRepository $roles;
 
     /**
+     * @var int|null
+     */
+    private ?int $maxAttempts;
+
+    /**
+     * @var int|null
+     */
+    private ?int $lockoutDuration;
+
+    /**
      * Authenticator constructor.
      *
      * Resolves dependencies for user records, login auditing, and system events.
@@ -48,17 +59,23 @@ final class Authenticator
      * @param \OwnPay\Repository\LoginAttemptRepository|null $attempts The login attempts repository.
      * @param \OwnPay\Event\EventManager|null $events The event manager.
      * @param \OwnPay\Repository\RoleRepository|null $roles The role/permission repository.
+     * @param int|null $maxAttempts Optional brute-force maximum attempt threshold override.
+     * @param int|null $lockoutDuration Optional lockout window duration in seconds override.
      */
     public function __construct(
         ?MerchantUserRepository $users = null,
         ?LoginAttemptRepository $attempts = null,
         ?EventManager $events = null,
-        ?RoleRepository $roles = null
+        ?RoleRepository $roles = null,
+        ?int $maxAttempts = null,
+        ?int $lockoutDuration = null
     ) {
         $this->users = $users;
         $this->attempts = $attempts;
         $this->events = $events;
         $this->roles = $roles;
+        $this->maxAttempts = $maxAttempts;
+        $this->lockoutDuration = $lockoutDuration;
     }
 
     /**
@@ -85,10 +102,36 @@ final class Authenticator
         }
 
         // Verify active lockout window to prevent brute-force attacks.
-        $maxAttemptsValue = $_ENV['MAX_LOGIN_ATTEMPTS'] ?? getenv('MAX_LOGIN_ATTEMPTS');
-        $windowValue = $_ENV['LOCKOUT_DURATION'] ?? getenv('LOCKOUT_DURATION');
-        $maxAttempts = is_numeric($maxAttemptsValue) ? (int) $maxAttemptsValue : 5;
-        $window = is_numeric($windowValue) ? (int) $windowValue : 300;
+        if ($this->maxAttempts !== null && $this->maxAttempts > 0) {
+            $maxAttemptsRaw = $this->maxAttempts;
+        } else {
+            $maxAttemptsValue = EnvironmentService::get('MAX_LOGIN_ATTEMPTS');
+            $filteredAttempts = filter_var($maxAttemptsValue, FILTER_VALIDATE_INT);
+            $maxAttemptsRaw = ($filteredAttempts !== false && $filteredAttempts > 0) ? $filteredAttempts : 5;
+        }
+        // Bound the resolved value against the downstream integer arithmetic
+        // ($maxAttempts * 3 in the per-email threshold) so an oversized or
+        // saturated config value cannot overflow into a float and break the
+        // strict-typed repository calls.
+        $maxAttempts = min($maxAttemptsRaw, intdiv(PHP_INT_MAX, 3));
+        if ($maxAttempts < 1) {
+            $maxAttempts = 5;
+        }
+
+        if ($this->lockoutDuration !== null && $this->lockoutDuration > 0) {
+            $windowRaw = $this->lockoutDuration;
+        } else {
+            $windowValue = EnvironmentService::get('LOCKOUT_DURATION');
+            $filteredWindow = filter_var($windowValue, FILTER_VALIDATE_INT);
+            $windowRaw = ($filteredWindow !== false && $filteredWindow > 0) ? $filteredWindow : 300;
+        }
+        // Bound the resolved value against the downstream integer arithmetic
+        // ($window * 12 lookback in the repository) to prevent overflow.
+        $window = min($windowRaw, intdiv(PHP_INT_MAX, 12));
+        if ($window < 1) {
+            $window = 300;
+        }
+
         $emailLockRemaining = $attempts->lockoutSecondsRemainingByEmail($email, $window, $maxAttempts * 3);
         $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);
 

@@ -9,6 +9,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\LoginAttemptRepository;
 use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Security\Authenticator;
+use OwnPay\Service\System\EnvironmentService;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -26,6 +27,12 @@ final class AccountLockoutEscalationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        EnvironmentService::clearCache();
+        // Prevent settings persisted by a previous test (or a previous run)
+        // from leaking into this one via the shared database.
+        EnvironmentService::delete('MAX_LOGIN_ATTEMPTS');
+        EnvironmentService::delete('LOCKOUT_DURATION');
+        EnvironmentService::clearCache();
         $this->originalEnv = [
             'MAX_LOGIN_ATTEMPTS' => $_ENV['MAX_LOGIN_ATTEMPTS'] ?? null,
             'LOCKOUT_DURATION' => $_ENV['LOCKOUT_DURATION'] ?? null,
@@ -34,6 +41,10 @@ final class AccountLockoutEscalationTest extends TestCase
 
     protected function tearDown(): void
     {
+        // Remove any settings this test persisted so they cannot leak into
+        // other tests or subsequent runs sharing the same database.
+        EnvironmentService::delete('MAX_LOGIN_ATTEMPTS');
+        EnvironmentService::delete('LOCKOUT_DURATION');
         foreach ($this->originalEnv as $key => $value) {
             if ($value === null) {
                 unset($_ENV[$key]);
@@ -41,6 +52,7 @@ final class AccountLockoutEscalationTest extends TestCase
                 $_ENV[$key] = $value;
             }
         }
+        EnvironmentService::clearCache();
         parent::tearDown();
     }
 
@@ -127,6 +139,91 @@ final class AccountLockoutEscalationTest extends TestCase
     }
 
     /**
+     * Helper to run an authentication attempt against a canned IP failure counter.
+     *
+     * @param array{fails: int, since_last: int} $ipCounter
+     * @param int|null $maxAttempts Optional constructor override.
+     * @param int|null $lockoutDuration Optional constructor override.
+     * @return array{success: bool, user?: array<string, mixed>, error?: string, requires_2fa?: bool}
+     */
+    private function attemptWithCounter(array $ipCounter, ?int $maxAttempts = null, ?int $lockoutDuration = null): array
+    {
+        $db = $this->createMock(Database::class);
+        $db->method('fetchOne')->willReturnCallback(
+            static function (string $sql) use (&$ipCounter): array {
+                if (str_contains($sql, 'ip_address = :ip')) {
+                    return $ipCounter;
+                }
+                return ['fails' => 1, 'since_last' => 500];
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            static function () use (&$ipCounter): string {
+                $ipCounter['fails'] += 1;
+                $ipCounter['since_last'] = 0;
+                return '1';
+            }
+        );
+
+        $auth = new Authenticator(
+            new MerchantUserRepository($db),
+            new LoginAttemptRepository($db),
+            new EventManager(),
+            null,
+            $maxAttempts,
+            $lockoutDuration
+        );
+
+        return $auth->attempt('victim@example.test', 'wrong-password', '203.0.113.10', 'PHPUnit');
+    }
+
+    public function testLockoutConfigHonorsEnvironmentService(): void
+    {
+        EnvironmentService::set('MAX_LOGIN_ATTEMPTS', '2');
+        EnvironmentService::set('LOCKOUT_DURATION', '600');
+
+        $result = $this->attemptWithCounter(['fails' => 2, 'since_last' => 0]);
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('10 minute', (string) ($result['error'] ?? ''));
+    }
+
+    public function testConstructorInjectedLockoutConfigOverridesEnvironmentService(): void
+    {
+        EnvironmentService::set('MAX_LOGIN_ATTEMPTS', '10');
+        EnvironmentService::set('LOCKOUT_DURATION', '1800');
+
+        $result = $this->attemptWithCounter(['fails' => 2, 'since_last' => 0], 2, 120);
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('2 minute', (string) ($result['error'] ?? ''));
+    }
+
+    public function testLockoutConfigSafelyDefaultsWhenConfigIsInvalidOrNonPositive(): void
+    {
+        EnvironmentService::set('MAX_LOGIN_ATTEMPTS', '0');
+        EnvironmentService::set('LOCKOUT_DURATION', '-50');
+
+        $result = $this->attemptWithCounter(['fails' => 5, 'since_last' => 0]);
+
+        $this->assertFalse($result['success']);
+        // Default base window is 300s (5 minutes)
+        $this->assertStringContainsString('5 minute', (string) ($result['error'] ?? ''));
+    }
+
+    public function testLockoutConfigSafelyDefaultsWhenConfigIsNonNumericOrFractional(): void
+    {
+        EnvironmentService::set('MAX_LOGIN_ATTEMPTS', '1.5');
+        EnvironmentService::set('LOCKOUT_DURATION', 'not-a-number');
+
+        $result = $this->attemptWithCounter(['fails' => 5, 'since_last' => 0]);
+
+        $this->assertFalse($result['success']);
+        // Fractional numeric strings and non-numeric strings fall back to defaults (5 attempts, 300s / 5 min)
+        $this->assertStringContainsString('5 minute', (string) ($result['error'] ?? ''));
+    }
+
+    /**
      * Runs a login attempt while the account is already locked, against canned
      * counters. Recording the rejected attempt bumps the (email, IP) failure
      * count and re-arms its timestamp, mirroring the insert-then-recount the
@@ -138,6 +235,9 @@ final class AccountLockoutEscalationTest extends TestCase
      */
     private function attemptWhileLocked(array $ipCounter): array
     {
+        EnvironmentService::delete('MAX_LOGIN_ATTEMPTS');
+        EnvironmentService::delete('LOCKOUT_DURATION');
+        EnvironmentService::clearCache();
         $_ENV['MAX_LOGIN_ATTEMPTS'] = 5;
         $_ENV['LOCKOUT_DURATION'] = 300;
 
