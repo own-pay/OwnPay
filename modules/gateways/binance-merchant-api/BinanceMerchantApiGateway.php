@@ -84,7 +84,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             return ['success' => false, 'message' => 'Enter Merchant API Key and Merchant Secret Key before testing the connection.'];
         }
 
-        $merchantTradeNo = 'op_test_connection_' . bin2hex(random_bytes(6));
+        $merchantTradeNo = 'optestconn' . bin2hex(random_bytes(6));
         $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
         if (is_string($payload) === false) {
             return ['success' => false, 'message' => 'Could not encode Binance Pay test request.'];
@@ -287,12 +287,14 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $paid = $bizStatus === 'PAID' || $bizStatus === 'PAY_SUCCESS';
 
         $transactionId = isset($innerData['transactionId']) && is_scalar($innerData['transactionId']) ? (string) $innerData['transactionId'] : $merchantTradeNo;
-        $orderAmount = isset($innerData['orderAmount']) && is_scalar($innerData['orderAmount']) ? (string) $innerData['orderAmount'] : '';
+        $orderAmount = isset($innerData['totalFee']) && is_scalar($innerData['totalFee']) ? (string) $innerData['totalFee'] : '';
 
         $refGoodsId = '';
+        $passThroughAuthenticated = false;
         $passThrough = $innerData['passThroughInfo'] ?? null;
         if (is_scalar($passThrough) === true && (string) $passThrough !== '') {
             $refGoodsId = (string) $passThrough;
+            $passThroughAuthenticated = true;
         }
         if ($refGoodsId === '') {
             $cbTrxId = $callbackData['trx_id'] ?? '';
@@ -302,11 +304,12 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $result = [
             'success'        => $paid,
             'gateway_trx_id' => $transactionId,
+            'amount'         => $orderAmount,
             'status'         => $paid ? 'completed' : 'failed',
             'trx_id'         => $refGoodsId,
         ];
-        if ($orderAmount !== '') {
-            $result['amount'] = $orderAmount;
+        if ($paid === true && $passThroughAuthenticated === true) {
+            $result['verified_trx_id'] = $refGoodsId;
         }
         return $result;
     }

@@ -227,6 +227,21 @@ final class UnifiedWebhookController
         }
 
         $object = $data['data'] ?? null;
+        // Some gateways (e.g. Binance) nest the payload as a JSON string under
+        // `data` rather than an object; decode it and harvest reference fields.
+        if (is_string($object)) {
+            $decoded = json_decode($object, true);
+            if (is_array($decoded)) {
+                $nestedFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id', 'invoice_id', 'client_reference_id', 'merchantTradeNo', 'passThroughInfo'];
+                foreach ($nestedFields as $field) {
+                    $val = $decoded[$field] ?? null;
+                    if (is_scalar($val) && (string) $val !== '') {
+                        $candidates[] = (string) $val;
+                    }
+                }
+                $object = null;
+            }
+        }
         $object = is_array($object) ? ($object['object'] ?? null) : null;
         if (is_array($object)) {
             $metadata = $object['metadata'] ?? null;
