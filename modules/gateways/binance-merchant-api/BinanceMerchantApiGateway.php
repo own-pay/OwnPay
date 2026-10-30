@@ -287,7 +287,10 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $paid = $bizStatus === 'PAID' || $bizStatus === 'PAY_SUCCESS';
 
         $transactionId = isset($innerData['transactionId']) && is_scalar($innerData['transactionId']) ? (string) $innerData['transactionId'] : $merchantTradeNo;
-        $orderAmount = isset($innerData['totalFee']) && is_scalar($innerData['totalFee']) ? (string) $innerData['totalFee'] : '';
+        $orderAmount = isset($innerData['orderAmount']) && is_scalar($innerData['orderAmount']) ? (string) $innerData['orderAmount'] : '';
+        if ($orderAmount === '') {
+            $orderAmount = isset($innerData['totalFee']) && is_scalar($innerData['totalFee']) ? (string) $innerData['totalFee'] : '';
+        }
 
         $refGoodsId = '';
         $passThroughAuthenticated = false;

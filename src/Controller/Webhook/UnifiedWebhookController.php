@@ -218,7 +218,7 @@ final class UnifiedWebhookController
     {
         $candidates = [];
 
-        $flatFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id', 'invoice_id', 'client_reference_id'];
+        $flatFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id', 'invoice_id', 'client_reference_id', 'merchantTradeNo', 'passThroughInfo'];
         foreach ($flatFields as $field) {
             $val = $data[$field] ?? null;
             if (is_scalar($val) && (string) $val !== '') {
@@ -240,6 +240,16 @@ final class UnifiedWebhookController
                     }
                 }
                 $object = null;
+            }
+        }
+        // Object-shaped data (data is an array/object): harvest merchantTradeNo
+        // and passThroughInfo before the Stripe-specific data.object lookup.
+        if (is_array($object)) {
+            foreach (['merchantTradeNo', 'passThroughInfo'] as $field) {
+                $val = $object[$field] ?? null;
+                if (is_scalar($val) && (string) $val !== '') {
+                    $candidates[] = (string) $val;
+                }
             }
         }
         $object = is_array($object) ? ($object['object'] ?? null) : null;
