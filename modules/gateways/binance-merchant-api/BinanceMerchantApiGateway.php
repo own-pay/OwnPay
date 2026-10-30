@@ -18,8 +18,8 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
 {
     use GatewayDefaults;
 
-    private const API_URL = 'https://bpay.binanceapi.com/binancepay/openapi/order';
-    private const QUERY_URL = 'https://bpay.binanceapi.com/binancepay/openapi/order/query';
+    private const API_URL = 'https://bpay.binanceapi.com/binancepay/openapi/v3/order';
+    private const QUERY_URL = 'https://bpay.binanceapi.com/binancepay/openapi/v2/order/query';
 
     public static function metadata(): array
     {
@@ -50,6 +50,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         return [
             ['name' => 'merchant_api_key', 'label' => 'Merchant API Key', 'type' => 'text', 'required' => true],
             ['name' => 'merchant_secret_key', 'label' => 'Merchant Secret Key', 'type' => 'password', 'required' => true],
+            ['name' => 'binance_public_key', 'label' => 'Binance Pay Public Key', 'type' => 'textarea', 'required' => true],
             ['name' => 'payment_currency', 'label' => 'Payment Currency', 'type' => 'select', 'options' => [
                 'USDT'  => 'Tether (USDT)',
                 'BUSD'  => 'Binance USD (BUSD)',
@@ -73,15 +74,8 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         ];
     }
 
-    /**
-     * Verifies the Merchant API Key/Secret Key using the exact same BinancePay-Signature HMAC
-     * scheme initiate()/verify() rely on, querying a merchant trade number that cannot exist.
-     * A signed request that authenticates returns a structured Binance Pay envelope (even if
-     * the order itself isn't found); an invalid key/signature is rejected before that point.
-     *
-     * @param array<string, mixed> $credentials
-     * @return array{success: bool, message: string}
-     */
+    /** @param array<string, mixed> $credentials
+     *  @return array{success: bool, message: string} */
     public function testConnection(array $credentials): array
     {
         $apiKey = is_scalar($credentials['merchant_api_key'] ?? null) ? (string) $credentials['merchant_api_key'] : '';
@@ -90,12 +84,15 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             return ['success' => false, 'message' => 'Enter Merchant API Key and Merchant Secret Key before testing the connection.'];
         }
 
-        $merchantTradeNo = 'op_test_connection_' . bin2hex(random_bytes(6));
+        $merchantTradeNo = 'optestconn' . bin2hex(random_bytes(6));
         $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
-        $timestamp = round(microtime(true) * 1000);
+        if (is_string($payload) === false) {
+            return ['success' => false, 'message' => 'Could not encode Binance Pay test request.'];
+        }
+        $timestamp = (int) round(microtime(true) * 1000);
         $nonce = bin2hex(random_bytes(16));
         $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
-        $signature = hash_hmac('SHA512', $message, $apiSecret);
+        $signature = strtoupper(hash_hmac('SHA512', $message, $apiSecret));
 
         $ch = curl_init(self::QUERY_URL);
         curl_setopt_array($ch, [
@@ -109,7 +106,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
                 'BinancePay-Certificate-SN: ' . $apiKey,
                 'BinancePay-Signature: ' . $signature,
             ],
-            CURLOPT_POSTFIELDS     => (string) $payload,
+            CURLOPT_POSTFIELDS     => $payload,
         ]);
         $response = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -138,30 +135,47 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $apiKey = is_scalar($credentials['merchant_api_key'] ?? null) ? (string) $credentials['merchant_api_key'] : '';
         $apiSecret = is_scalar($credentials['merchant_secret_key'] ?? null) ? (string) $credentials['merchant_secret_key'] : '';
         $currency = $credentials['payment_currency'] ?? 'USDT';
+        if (is_scalar($currency) === false) {
+            $currency = 'USDT';
+        }
+        $currency = (string) $currency;
 
-        $merchantTradeNo = uniqid('order_');
+        $merchantTradeNo = bin2hex(random_bytes(16));
         $separator = (strpos($params['redirect_url'], '?') !== false) ? '&' : '?';
+        $redirectUrl = (string) $params['redirect_url'];
+        $cancelUrl = (string) $params['cancel_url'];
+        $trxId = (string) $params['trx_id'];
 
         $orderData = [
+            'env' => [
+                'terminalType' => 'WEB',
+            ],
             'merchantTradeNo' => $merchantTradeNo,
             'orderAmount'     => $params['amount'],
             'currency'        => $currency,
-            'goods' => [
-                'goodsType'        => '01', // virtual
-                'goodsCategory'    => 'D000',
-                'referenceGoodsId' => $params['trx_id'],
-                'goodsName'        => 'Payment ' . $params['trx_id'],
+            'goodsDetails' => [
+                [
+                    'goodsType'        => '01',
+                    'goodsCategory'    => 'D000',
+                    'referenceGoodsId' => $trxId,
+                    'goodsName'        => 'Payment ' . $trxId,
+                ],
             ],
-            'returnUrl' => $params['redirect_url'] . $separator . 'status=success&session_id=' . urlencode($merchantTradeNo) . '&trx_id=' . urlencode($params['trx_id']),
-            'cancelUrl' => $params['cancel_url'],
+            'description' => 'Payment ' . $trxId,
+            'passThroughInfo' => $trxId,
+            'returnUrl' => $redirectUrl . $separator . 'status=success&session_id=' . urlencode($merchantTradeNo) . '&trx_id=' . urlencode($trxId),
+            'cancelUrl' => $cancelUrl,
         ];
 
         $payload = json_encode($orderData);
+        if (!is_string($payload)) {
+            throw new \RuntimeException('Binance Pay order creation failed: could not encode request');
+        }
 
-        $timestamp = round(microtime(true) * 1000);
+        $timestamp = (int) round(microtime(true) * 1000);
         $nonce = bin2hex(random_bytes(16));
         $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
-        $signature = hash_hmac('SHA512', $message, $apiSecret);
+        $signature = strtoupper(hash_hmac('SHA512', $message, $apiSecret));
 
         $headers = [
             'Content-Type: application/json',
@@ -177,18 +191,18 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => (string) json_encode($orderData),
+            CURLOPT_POSTFIELDS     => $payload,
         ]);
 
         $response = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || !$response) {
+        if ($httpCode !== 200 || is_string($response) === false || $response === '') {
             throw new \RuntimeException('Binance Pay API connection error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode((string) $response, true);
+        $data = json_decode($response, true);
         if (!is_array($data)) {
             throw new \RuntimeException('Binance Pay order creation failed: ' . $response);
         }
@@ -206,7 +220,18 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
     public function verify(array $callbackData, array $credentials): array
     {
         $rawTradeNo = $callbackData['session_id'] ?? '';
-        $merchantTradeNo = is_scalar($rawTradeNo) ? (string) $rawTradeNo : '';
+        $merchantTradeNo = is_scalar($rawTradeNo) === true ? (string) $rawTradeNo : '';
+        if ($merchantTradeNo === '') {
+            $rawMt = $callbackData['merchantTradeNo'] ?? '';
+            $merchantTradeNo = is_scalar($rawMt) === true ? (string) $rawMt : '';
+        }
+        if ($merchantTradeNo === '' && isset($callbackData['data']) && is_string($callbackData['data']) === true) {
+            $decoded = json_decode($callbackData['data'], true);
+            if (is_array($decoded) === true) {
+                $rawMt = $decoded['merchantTradeNo'] ?? '';
+                $merchantTradeNo = is_scalar($rawMt) === true ? (string) $rawMt : '';
+            }
+        }
         if ($merchantTradeNo === '') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
         }
@@ -215,10 +240,13 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         $apiSecret = is_scalar($credentials['merchant_secret_key'] ?? null) ? (string) $credentials['merchant_secret_key'] : '';
 
         $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
-        $timestamp = round(microtime(true) * 1000);
+        if (!is_string($payload)) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
+        }
+        $timestamp = (int) round(microtime(true) * 1000);
         $nonce = bin2hex(random_bytes(16));
         $message = $timestamp . "\n" . $nonce . "\n" . $payload . "\n";
-        $signature = hash_hmac('SHA512', $message, $apiSecret);
+        $signature = strtoupper(hash_hmac('SHA512', $message, $apiSecret));
 
         $headers = [
             'Content-Type: application/json',
@@ -234,18 +262,18 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => (string) json_encode(['merchantTradeNo' => $merchantTradeNo]),
+            CURLOPT_POSTFIELDS     => $payload,
         ]);
 
         $response = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || !$response) {
+        if ($httpCode !== 200 || !is_string($response) || $response === '') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode((string) $response, true);
+        $data = json_decode($response, true);
         if (!is_array($data) || ($data['status'] ?? '') !== 'SUCCESS') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
@@ -260,23 +288,110 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
 
         $transactionId = isset($innerData['transactionId']) && is_scalar($innerData['transactionId']) ? (string) $innerData['transactionId'] : $merchantTradeNo;
         $orderAmount = isset($innerData['orderAmount']) && is_scalar($innerData['orderAmount']) ? (string) $innerData['orderAmount'] : '';
-        
-        $goods = $innerData['goods'] ?? null;
+        if ($orderAmount === '') {
+            $orderAmount = isset($innerData['totalFee']) && is_scalar($innerData['totalFee']) ? (string) $innerData['totalFee'] : '';
+        }
+
         $refGoodsId = '';
-        if (is_array($goods) && isset($goods['referenceGoodsId']) && is_scalar($goods['referenceGoodsId'])) {
-            $refGoodsId = (string) $goods['referenceGoodsId'];
+        $passThroughAuthenticated = false;
+        $passThrough = $innerData['passThroughInfo'] ?? null;
+        if (is_scalar($passThrough) === true && (string) $passThrough !== '') {
+            $refGoodsId = (string) $passThrough;
+            $passThroughAuthenticated = true;
         }
         if ($refGoodsId === '') {
             $cbTrxId = $callbackData['trx_id'] ?? '';
             $refGoodsId = is_scalar($cbTrxId) ? (string) $cbTrxId : '';
         }
 
-        return [
+        $result = [
             'success'        => $paid,
             'gateway_trx_id' => $transactionId,
             'amount'         => $orderAmount,
             'status'         => $paid ? 'completed' : 'failed',
             'trx_id'         => $refGoodsId,
         ];
+        if ($paid === true && $passThroughAuthenticated === true) {
+            $result['verified_trx_id'] = $refGoodsId;
+        }
+        return $result;
+    }
+
+    public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
+    {
+        $timestamp = $this->getHeader($headers, 'BinancePay-Timestamp');
+        $nonce = $this->getHeader($headers, 'BinancePay-Nonce');
+        $signature = $this->getHeader($headers, 'BinancePay-Signature');
+
+        if ($timestamp === '' || $nonce === '' || $signature === '' || $rawBody === '') {
+            return false;
+        }
+
+        // Reject timestamps outside a short clock-skew window (replay protection).
+        if (ctype_digit($timestamp) === false) {
+            return false;
+        }
+        $timestampMs = (int) $timestamp;
+        if (abs((int) round(microtime(true) * 1000) - $timestampMs) > 300000) {
+            return false;
+        }
+
+        $publicKey = $this->resolvePublicKey($credentials);
+        if ($publicKey === '') {
+            return false;
+        }
+
+        $payload = $timestamp . "\n" . $nonce . "\n" . $rawBody . "\n";
+
+        $decodedSignature = base64_decode($signature, true);
+        if ($decodedSignature === false) {
+            return false;
+        }
+
+        $publicKeyPem = $publicKey;
+        if (strpos($publicKeyPem, '-----BEGIN PUBLIC KEY-----') === false) {
+            $publicKeyPem = "-----BEGIN PUBLIC KEY-----\n"
+                . wordwrap($publicKeyPem, 64, "\n", true)
+                . "\n-----END PUBLIC KEY-----";
+        }
+
+        $pubKeyObj = openssl_pkey_get_public($publicKeyPem);
+        if ($pubKeyObj === false) {
+            return false;
+        }
+
+        return openssl_verify($payload, $decodedSignature, $pubKeyObj, OPENSSL_ALGO_SHA256) === 1;
+    }
+
+    /** @param array<string, mixed> $headers */
+    private function getHeader(array $headers, string $name): string
+    {
+        foreach ($headers as $k => $v) {
+            if (strcasecmp($k, $name) === 0) {
+                return is_scalar($v) === true ? (string) $v : '';
+            }
+        }
+        return '';
+    }
+
+    /** @param array<string, mixed> $credentials */
+    private function resolvePublicKey(array $credentials): string
+    {
+        $keys = [
+            'binance_public_key',
+            'binance_pay_public_key',
+            'webhook_public_key',
+            'public_key',
+            'merchant_public_key',
+            'cert_public',
+            'binance_pay_cert_public',
+        ];
+        foreach ($keys as $k) {
+            $val = $credentials[$k] ?? null;
+            if (is_scalar($val) === true && (string) $val !== '') {
+                return (string) $val;
+            }
+        }
+        return '';
     }
 }
