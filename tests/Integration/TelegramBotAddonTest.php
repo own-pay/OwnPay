@@ -54,10 +54,12 @@ final class TelegramBotAddonTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->db->execute("DELETE FROM op_disputes WHERE merchant_id = 1");
-        $this->db->execute("DELETE FROM op_refunds WHERE merchant_id = 1");
-        $this->db->execute("DELETE FROM op_transactions WHERE merchant_id = 1");
-        $this->db->execute("DELETE FROM op_customers WHERE merchant_id = 1");
+        if (isset($this->db)) {
+            $this->db->execute("DELETE FROM op_disputes WHERE merchant_id = 1");
+            $this->db->execute("DELETE FROM op_refunds WHERE merchant_id = 1");
+            $this->db->execute("DELETE FROM op_transactions WHERE merchant_id = 1");
+            $this->db->execute("DELETE FROM op_customers WHERE merchant_id = 1");
+        }
 
         parent::tearDown();
     }

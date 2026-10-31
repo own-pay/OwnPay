@@ -75,10 +75,12 @@ final class SmsGatewayAddonTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->db->execute("DELETE FROM op_comm_log WHERE merchant_id = 1");
-        $this->db->execute("DELETE FROM op_invoices WHERE merchant_id = 1");
-        $this->db->execute("DELETE FROM op_transactions WHERE merchant_id = 1");
-        $this->db->execute("DELETE FROM op_customers WHERE merchant_id = 1");
+        if (isset($this->db)) {
+            $this->db->execute("DELETE FROM op_comm_log WHERE merchant_id = 1");
+            $this->db->execute("DELETE FROM op_invoices WHERE merchant_id = 1");
+            $this->db->execute("DELETE FROM op_transactions WHERE merchant_id = 1");
+            $this->db->execute("DELETE FROM op_customers WHERE merchant_id = 1");
+        }
 
         parent::tearDown();
     }

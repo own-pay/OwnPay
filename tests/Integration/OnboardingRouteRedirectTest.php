@@ -37,7 +37,9 @@ final class OnboardingRouteRedirectTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->settingsRepo->set('system', 'onboarding_completed', '1');
+        if (isset($this->settingsRepo)) {
+            $this->settingsRepo->set('system', 'onboarding_completed', '1');
+        }
         parent::tearDown();
     }
 
