@@ -19,7 +19,6 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           THIS_REPO: ${{ github.repository }}
-          HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'target:main') }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -29,14 +28,7 @@ jobs:
             exit 0
           fi
 
-          # 2. Escape hatch label: do not redirect, but block the merge
-          if [ "$HAS_LABEL" = "true" ]; then
-            echo "Label target:main found. Only dev can merge into main."
-            echo "Use admin bypass for emergency hotfixes."
-            exit 1
-          fi
-
-          # 3. Everyone else: move the PR base to dev
+          # 2. Everyone else: move the PR base to dev
           gh pr edit "$PR_NUMBER" --repo "$THIS_REPO" --base dev
           gh pr comment "$PR_NUMBER" --repo "$THIS_REPO" \
             --body "This PR targeted main, so its base was changed to dev automatically. Contributors must always open PRs against dev." || true
