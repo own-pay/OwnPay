@@ -108,6 +108,8 @@ docker compose exec -T app composer install --no-interaction
 
 > These credentials and settings are **development-only**. Do not use this stack as production deployment guidance.
 
+> **Security:** the app port is bound to `127.0.0.1` (loopback) only. Keep it that way — do not change it to `0.0.0.0` or remove the host IP, and never expose this stack to a network. The database and cache services are intentionally unpublished.
+
 ## Platform-specific all-in-one stacks
 
 Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Quick Start still applies — just point the stack's web root at `public/`.
