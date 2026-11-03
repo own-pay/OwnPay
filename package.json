@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-plugin-jsonc": "^3.4.1",
     "globals": "^17.12.0",
     "jsdom": "^30.1.3",
