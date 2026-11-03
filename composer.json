@@ -41,7 +41,7 @@
     "symfony/console": "^8.1",
     "symfony/filesystem": "^7.4",
     "symfony/finder": "^8.1",
-    "symfony/string": "^7.4",
+    "symfony/string": "^8.1",
     "vincentlanglet/twig-cs-fixer": "^4.0"
   },
   "scripts": {
