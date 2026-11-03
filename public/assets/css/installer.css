@@ -316,6 +316,11 @@ body {
     box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
 }
 
+[data-theme="dark"] .ins-field select option {
+    background-color: var(--op-bg-card);
+    color: var(--op-text);
+}
+
 .ins-field input::placeholder {
     color: var(--op-text-muted);
 }

@@ -2448,6 +2448,7 @@ code {
 
 .op-input::placeholder {
   color: var(--op-text-muted);
+  opacity: 0.6;
 }
 
 select option {
@@ -2834,6 +2835,11 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.op-form-row > .op-form-group:only-child {
+  flex: 1 1 100%;
+  max-width: 100%;
 }
 
 /* Color picker wrapper */
@@ -4294,6 +4300,17 @@ label.op-toggle-label {
   transform: translateX(20px);
 }
 
+[data-theme="dark"] .op-toggle-switch,
+[data-theme="dark"] .op-toggle-slider {
+  background: #3f3f46;
+  border: 1px solid #52525b;
+}
+
+[data-theme="dark"] .op-toggle-label input:checked+.op-toggle-switch,
+[data-theme="dark"] .op-toggle input:checked+.op-toggle-slider {
+  border-color: transparent;
+}
+
 /* ═══════════════════════════════════════════════════════
    DROPZONE
    ═══════════════════════════════════════════════════════ */
@@ -5469,7 +5486,7 @@ label.op-toggle-label {
 
   .op-main {
     margin-left: 0;
-    max-width: 100vw;
+    max-width: 100%;
     min-height: auto;
     height: auto;
   }
