@@ -122,7 +122,8 @@
                     otpDisplay.style.opacity = "";
                 }
                 if (timerSpan) {timerSpan.style.color = "";}
-                if (otpWrapper) {otpWrapper.style.display = "flex";}\n                let timeLeft = data.expires_in || 300;
+                if (otpWrapper) {otpWrapper.style.display = "flex";}
+                let timeLeft = data.expires_in || 300;
                 if (pairingTimerInterval) {clearInterval(pairingTimerInterval);}
                 pairingTimerInterval = setInterval(() => {
                     timeLeft--;

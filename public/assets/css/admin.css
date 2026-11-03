@@ -4308,6 +4308,7 @@ label.op-toggle-label {
 
 [data-theme="dark"] .op-toggle-label input:checked+.op-toggle-switch,
 [data-theme="dark"] .op-toggle input:checked+.op-toggle-slider {
+  background: var(--op-primary);
   border-color: transparent;
 }
 

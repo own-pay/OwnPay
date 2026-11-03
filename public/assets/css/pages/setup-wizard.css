@@ -299,6 +299,7 @@ input:checked+.op-wizard-slider::before {
 }
 
 [data-theme="dark"] input:checked+.op-wizard-slider {
+    background: var(--op-primary);
     border-color: transparent;
 }
 
