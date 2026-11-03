@@ -29,6 +29,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          ref: dev
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
       - name: Run agent
