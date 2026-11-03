@@ -117,10 +117,12 @@
                     qrImg.style.display = "block";
                 }
                 
-                if (otpDisplay) {otpDisplay.textContent = data.otp;}
-                if (otpWrapper) {otpWrapper.style.display = "flex";}
-                
-                let timeLeft = data.expires_in || 300;
+                if (otpDisplay) {
+                    otpDisplay.textContent = data.otp;
+                    otpDisplay.style.opacity = "";
+                }
+                if (timerSpan) {timerSpan.style.color = "";}
+                if (otpWrapper) {otpWrapper.style.display = "flex";}\n                let timeLeft = data.expires_in || 300;
                 if (pairingTimerInterval) {clearInterval(pairingTimerInterval);}
                 pairingTimerInterval = setInterval(() => {
                     timeLeft--;
