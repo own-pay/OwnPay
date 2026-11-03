@@ -10,6 +10,8 @@
 
     let pairingPollInterval = null;
     let pairingTimerInterval = null;
+    let activePairingController = null;
+    let pairingRenewalTimeout = null;
 
     function copyOtpToClipboard() {
         const otpEl = document.getElementById("op-wizard-otp-display");
@@ -76,6 +78,10 @@
             clearInterval(pairingTimerInterval);
             pairingTimerInterval = null;
         }
+        if (pairingRenewalTimeout) {
+            clearTimeout(pairingRenewalTimeout);
+            pairingRenewalTimeout = null;
+        }
     }
 
     function loadPairingDetails() {
@@ -91,12 +97,16 @@
         if (qrPlaceholder) {qrPlaceholder.style.display = "block";}
         if (otpWrapper) {otpWrapper.style.display = "none";}
 
+        if (activePairingController) {activePairingController.abort();}
+        activePairingController = new AbortController();
+
         fetch("/admin/devices/generate-otp", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRF-Token": window.OP_CSRF || ""
-            }
+            },
+            signal: activePairingController.signal
         })
         .then(res => res.json())
         .then(data => {
@@ -107,9 +117,12 @@
                     qrImg.style.display = "block";
                 }
                 
-                if (otpDisplay) {otpDisplay.textContent = data.otp;}
+                if (otpDisplay) {
+                    otpDisplay.textContent = data.otp;
+                    otpDisplay.style.opacity = "";
+                }
+                if (timerSpan) {timerSpan.style.color = "";}
                 if (otpWrapper) {otpWrapper.style.display = "flex";}
-                
                 let timeLeft = data.expires_in || 300;
                 if (pairingTimerInterval) {clearInterval(pairingTimerInterval);}
                 pairingTimerInterval = setInterval(() => {
@@ -117,10 +130,18 @@
                     if (timeLeft <= 0) {
                         clearInterval(pairingTimerInterval);
                         if (timerSpan) {
-                            timerSpan.textContent = "Expired";
-                            timerSpan.style.color = "#ef4444";
+                            timerSpan.textContent = "Refreshing...";
+                            timerSpan.style.color = "var(--op-warning)";
                         }
                         if (otpDisplay) {otpDisplay.style.opacity = "0.5";}
+                        stopPairingPoll();
+                        pairingRenewalTimeout = setTimeout(() => {
+                            pairingRenewalTimeout = null;
+                            const activePanel = document.getElementById("panel-5");
+                            if (activePanel && activePanel.classList.contains("active")) {
+                                loadPairingDetails();
+                            }
+                        }, 1500);
                     } else {
                         const mins = Math.floor(timeLeft / 60);
                         const secs = timeLeft % 60;
@@ -136,6 +157,7 @@
             }
         })
         .catch(err => {
+            if (err && err.name === "AbortError") {return;}
             console.error(err);
             showWizardError("Network error while generating device pairing OTP.");
         });
@@ -162,6 +184,7 @@
             loadPairingDetails();
         } else {
             stopPairingPoll();
+            if (activePairingController) {activePairingController.abort();}
         }
 
         clearWizardMessages();
@@ -422,6 +445,12 @@
             return;
         }
 
+        onboardingBrandId = Number(onboardingBrandId) || 0;
+        if (!onboardingBrandId || isNaN(onboardingBrandId) || onboardingBrandId <= 0) {
+            showWizardError("Brand not created yet. Please complete the brand step.");
+            return;
+        }
+
         const payload = {
             brand_id: onboardingBrandId,
             gateway_type: selectedGatewayType
@@ -471,6 +500,7 @@
                 btn.innerHTML = 'Save & Continue <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
             }
             if (data.success) {
+                if (data.brand_id) {onboardingBrandId = data.brand_id;}
                 showStep(5);
             } else {
                 showWizardError(data.error || "Failed to save gateway config.");
