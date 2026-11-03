@@ -1,0 +1,35 @@
+name: Dev to main guard
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-source-branch:
+    name: check-source-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Allow dev only, redirect everything else
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Official release PR: dev of this repo to main
+          if [ "$HEAD_REPO" = "$THIS_REPO" ] && [ "$HEAD_REF" = "dev" ]; then
+            echo "OK: release PR from dev."
+            exit 0
+          fi
+
+          # 2. Everyone else: move the PR base to dev
+          gh pr edit "$PR_NUMBER" --repo "$THIS_REPO" --base dev
+          gh pr comment "$PR_NUMBER" --repo "$THIS_REPO" \
+            --body "This PR targeted main, so its base was changed to dev automatically. Contributors must always open PRs against dev." || true
+          echo "Redirected PR #$PR_NUMBER to dev."

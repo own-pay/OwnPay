@@ -158,7 +158,50 @@ final class PluginInstaller
             $zip->close();
             return $this->fail('Failed to create temp directory');
         }
-        $zip->extractTo($tempDir);
+
+        // Extract entries manually so that Windows-style backslash separators are
+        // normalized to forward slashes on every platform. ZipArchive::extractTo
+        // preserves backslashes verbatim on Linux, which would leave files with
+        // literal backslashes in their names and break directory discovery.
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if ($name === false) {
+                continue;
+            }
+
+            $normalizedName = str_replace('\\', '/', $name);
+            if ($normalizedName === '' || str_ends_with($normalizedName, '/')) {
+                if ($normalizedName !== '' && $normalizedName !== '/') {
+                    @mkdir($tempDir . '/' . trim($normalizedName, '/'), 0755, true);
+                }
+                continue;
+            }
+
+            // Guard against traversal even though scanZipSecurity already checked.
+            if (str_contains($normalizedName, '..') || str_starts_with($normalizedName, '/')) {
+                $zip->close();
+                $this->removeDir($tempDir);
+                return $this->fail('ZIP contains path traversal attempt');
+            }
+
+            $targetPath = $tempDir . '/' . $normalizedName;
+            $parentDir = dirname($targetPath);
+            if (!is_dir($parentDir)) {
+                @mkdir($parentDir, 0755, true);
+            }
+
+            $stream = $zip->getStream($name);
+            if ($stream === false) {
+                continue;
+            }
+            $contents = stream_get_contents($stream);
+            fclose($stream);
+            if ($contents === false) {
+                $contents = '';
+            }
+            file_put_contents($targetPath, $contents);
+        }
+
         $zip->close();
         return $tempDir;
     }
