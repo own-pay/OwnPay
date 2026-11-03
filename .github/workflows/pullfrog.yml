@@ -33,7 +33,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
       - name: Run agent
-        uses: pullfrog/pullfrog@v0
+        uses: pullfrog/pullfrog@54516f4396858c4117133fad1eda573a086e72a6 # v0
         with:
           prompt: ${{ inputs.prompt }}
         env:
