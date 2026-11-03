@@ -1,0 +1,41 @@
+# VCS
+.git
+.gitignore
+
+# Secrets / local env
+.env
+.env.local
+.env.*.local
+
+# Dependencies (installed in image / container)
+node_modules
+vendor
+
+# Runtime artifacts
+storage/logs/*
+storage/sessions
+storage/cache
+storage/backups
+storage/framework
+storage/temp
+storage/pdf
+storage/.installed
+storage/languages
+public/assets/uploads
+public/assets/img
+.phpunit.cache
+.vitest
+coverage
+build
+
+# Tooling
+.agents
+.claude
+.planning
+output
+*.log
+*.zip
+*.pem
+.DS_Store
+Thumbs.db
+desktop.ini
