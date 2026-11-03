@@ -65,6 +65,49 @@ flowchart LR
 
 ---
 
+## Docker / Compose (one command)
+
+The fastest way to get a full local stack (app + MySQL 8 + Redis 7) is Docker Compose. Prerequisites: **Docker Desktop** (or Docker Engine) with **Compose v2**, and **Make** (Linux/macOS; on Windows use the direct Compose commands below).
+
+```bash
+# 1. Clone
+git clone https://github.com/own-pay/OwnPay.git
+cd OwnPay
+
+# 2. Start everything
+make dev
+```
+
+`make dev` builds the PHP/Apache image, starts MySQL and Redis, runs `composer install`, and seeds `.env` only if it does not already exist. It does not overwrite an existing `.env`.
+
+Open **<http://localhost:8080>** — you'll be redirected to the **`/install` wizard**. In the database step use host **`db`** (port `3306`), database `ownpay`, user `ownpay`, password `ownpay`. The container's `APP_ENV=development`, cache and queue drivers are wired to Redis automatically.
+
+The container adjusts ownership of `storage/` and `public/` to the web-server user; this is expected for local development.
+
+Stop the stack (data is preserved in the named `db_data` volume):
+
+```bash
+docker compose down
+```
+
+Delete all data (including the database volume):
+
+```bash
+docker compose down -v
+```
+
+### Without `make` (e.g. Windows)
+
+```bash
+docker compose up -d --build --wait
+docker compose exec -T app composer install --no-interaction
+# seed .env only if missing:
+#   copy .env.example .env   (Windows)
+#   cp .env.example .env     (macOS/Linux)
+```
+
+> These credentials and settings are **development-only**. Do not use this stack as production deployment guidance.
+
 ## Platform-specific all-in-one stacks
 
 Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Quick Start still applies — just point the stack's web root at `public/`.
