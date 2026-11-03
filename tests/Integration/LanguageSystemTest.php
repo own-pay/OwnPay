@@ -32,6 +32,10 @@ final class LanguageSystemTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
+        if (!static::$dbAvailable) {
+            parent::tearDown();
+            return;
+        }
         $this->db->execute("DELETE FROM op_languages WHERE code IN ('bn', 'fr', 'testlocale')");
         $this->translationService->clearCache();
         parent::tearDown();
