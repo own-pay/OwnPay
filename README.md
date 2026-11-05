@@ -20,7 +20,7 @@
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](CONTRIBUTING.md)
 
-[![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
+[![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/own-pay/OwnPay)&nbsp;
 
 <br />
 
