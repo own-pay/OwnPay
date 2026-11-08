@@ -2,9 +2,11 @@ name: Auto-merge Dependabot PRs
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, ready_for_review]
     branches: [main, dev]
 
+# gh pr merge --auto uses the GraphQL "enablePullRequestAutoMerge" mutation,
+# which needs BOTH contents: write and pull-requests: write.
 permissions:
   contents: write
   pull-requests: write
@@ -13,18 +15,24 @@ jobs:
   auto-merge:
     name: Auto-merge Dependabot
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    # Use the PR author (not github.actor) so re-runs/rebases by humans don't break it.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto-merge Dependabot PR
-        # Only auto-merge patch/minor (and non-version) updates; major bumps
-        # require human review. `--auto` defers the merge until required status
-        # checks pass, so CI cannot be bypassed.
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --squash "$PR_NUMBER"
+      - name: Enable auto-merge (patch & minor only)
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL"
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip major updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: echo "Major update (${{ steps.metadata.outputs.dependency-names }}) - manual review required."

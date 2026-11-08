@@ -293,6 +293,16 @@ input:checked+.op-wizard-slider::before {
     transform: translateX(20px);
 }
 
+[data-theme="dark"] .op-wizard-slider {
+    background: #3f3f46;
+    border: 1px solid #52525b;
+}
+
+[data-theme="dark"] input:checked+.op-wizard-slider {
+    background: var(--op-primary);
+    border-color: transparent;
+}
+
 /* -- Action Buttons -- */
 .op-wizard-actions {
     display: flex;
@@ -665,7 +675,7 @@ input:checked+.op-wizard-slider::before {
 }
 
 .op-otp-display-span {
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--op-primary) !important;
     letter-spacing: 0.15em;
@@ -861,7 +871,7 @@ input:checked+.op-wizard-slider::before {
 
     /* OTP */
     .op-otp-display-span {
-        font-size: 1.125rem;
+        font-size: 1.5rem;
         letter-spacing: 0.1em;
     }
 

@@ -658,31 +658,35 @@
             <div class="op-card-header"><h3>Email / SMTP Configuration</h3></div>
             <div class="op-card-body">
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-6">
+                    <div class="op-form-group">
                         <label>SMTP Host</label>
                         <input type="text" name="smtp_host" value="{{ settings.smtp_host ?? '' }}" class="op-input" placeholder="smtp.mailtrap.io">
                         <small class="op-text-muted">The hostname of your outgoing SMTP server (e.g. mail.smtpbucket.com).</small>
                     </div>
-                    <div class="op-form-group op-col-6">
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group">
                         <label>SMTP Port</label>
                         <input type="number" name="smtp_port" value="{{ settings.smtp_port ?? 2525 }}" class="op-input" min="1" max="65535">
                         <small class="op-text-muted">The port number required by the mail server (usually 587, 465, or 25).</small>
                     </div>
                 </div>
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-6">
+                    <div class="op-form-group">
                         <label>SMTP Username</label>
                         <input type="text" name="smtp_username" value="{{ settings.smtp_username ?? '' }}" class="op-input">
                         <small class="op-text-muted">The username credential used to authenticate with your SMTP mail server.</small>
                     </div>
-                    <div class="op-form-group op-col-6">
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group">
                         <label>SMTP Password</label>
                         <input type="password" name="smtp_password" value="" class="op-input" autocomplete="new-password">
                         <small class="op-text-muted">The password credential used to authenticate with your SMTP mail server.</small>
                     </div>
                 </div>
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-6">
+                    <div class="op-form-group">
                         <label>SMTP Encryption</label>
                         <select name="smtp_encryption" class="op-input">
                             <option value="none" {{ (settings.smtp_encryption ?? 'tls') == 'none' ? 'selected' : '' }}>None</option>
@@ -691,7 +695,9 @@
                         </select>
                         <small class="op-text-muted">The transport layer security protocol (TLS recommended, SSL, or None).</small>
                     </div>
-                    <div class="op-form-group op-col-6">
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group">
                         <label>Test Target Email Address</label>
                         <div class="op-input-group">
                             <input type="email" id="test-email-target" class="op-input" placeholder="you@domain.com">
@@ -701,12 +707,14 @@
                     </div>
                 </div>
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-6">
+                    <div class="op-form-group">
                         <label>From Email</label>
                         <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="no-reply@ownpay.org">
                         <small class="op-text-muted">The email address from which outgoing system emails appear to be sent.</small>
                     </div>
-                    <div class="op-form-group op-col-6">
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group">
                         <label>From Name</label>
                         <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="Own Pay">
                         <small class="op-text-muted">The friendly sender name associated with outgoing system emails.</small>
