@@ -237,7 +237,15 @@ mysql -u root -p -e "CREATE DATABASE ownpay CHARACTER SET utf8mb4 COLLATE utf8mb
 php -S localhost:8000 -t public      # then open http://localhost:8000 → /install wizard
 ```
 
-> 🛠️ **Full local guide** (Laragon · Herd · native · tunnels · troubleshooting): **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
+Or, with Docker Compose (one command):
+
+```bash
+git clone https://github.com/own-pay/OwnPay.git
+cd OwnPay
+make dev                             # then open http://localhost:8080 → /install wizard
+```
+
+> 🛠️ **Full local guide** (Docker · Laragon · Herd · native · tunnels · troubleshooting): **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
 > 🤝 **Ready to contribute?** Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** — coding standards, workflow & PR process.
 
 Run the same checks CI does before opening a PR:

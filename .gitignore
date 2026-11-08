@@ -60,8 +60,7 @@ CLAUDE.md
 /.docker/
 /docs/images/
 /docs/v2/
-docker-compose.yml
-Dockerfile
+
 
 
 
@@ -87,7 +86,7 @@ Dockerfile
 !/public/assets/uploads/.gitkeep
 
 # Local server/tool configuration.
-.dockerignore
+
 *.log
 *.pid
 *.tmp
