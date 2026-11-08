@@ -99,6 +99,7 @@
 
         if (activePairingController) {activePairingController.abort();}
         activePairingController = new AbortController();
+        const pairingController = activePairingController;
 
         fetch("/admin/devices/generate-otp", {
             method: "POST",
@@ -106,10 +107,15 @@
                 "Content-Type": "application/json",
                 "X-CSRF-Token": window.OP_CSRF || ""
             },
-            signal: activePairingController.signal
+            signal: pairingController.signal
         })
         .then(res => res.json())
         .then(data => {
+            // Ignore stale responses from a superseded/aborted request so a
+            // late-arriving pairing payload cannot overwrite the current panel.
+            if (activePairingController !== pairingController || pairingController.signal.aborted) {
+                return;
+            }
             if (data.success) {
                 if (qrPlaceholder) {qrPlaceholder.style.display = "none";}
                 if (qrImg) {
@@ -157,6 +163,8 @@
             }
         })
         .catch(err => {
+            // Stale/superseded request: do not surface its failure or overwrite state.
+            if (activePairingController !== pairingController) {return;}
             if (err && err.name === "AbortError") {return;}
             console.error(err);
             showWizardError("Network error while generating device pairing OTP.");
