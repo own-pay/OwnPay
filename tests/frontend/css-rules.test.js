@@ -38,3 +38,9 @@ describe('OTP font sizes', () => {
     expect(wizardCss).toContain('.op-otp-display-span {\n        font-size: 1.5rem;');
   });
 });
+
+describe('placeholder contrast', () => {
+  it('reduces placeholder opacity for .op-input', () => {
+    expect(adminCss).toContain('.op-input::placeholder {\n  color: var(--op-text-muted);\n  opacity: 0.6;\n}');
+  });
+});

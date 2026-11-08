@@ -147,6 +147,37 @@ describe('setup-wizard pairing panel', () => {
   });
 });
 
+describe('setup-wizard pairing renewal timeout cleanup', () => {
+  it('clears a pending renewal timeout when pairing stops', async () => {
+    const env = await setupEnv(7);
+    const { dom: d, window: w, document: doc } = env;
+    vi.useFakeTimers();
+
+    const clearTimeoutSpy = vi.spyOn(w, 'clearTimeout');
+
+    w.fetch = vi.fn(() => Promise.resolve({
+      json: () => Promise.resolve({ success: true, otp: '111111', expires_in: 1, qr_svg: '' }),
+    }));
+
+    doc.querySelector('[data-prev-step="5"]').click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // let the first OTP expire, scheduling the 1500ms renewal timeout
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const callsBeforeStop = clearTimeoutSpy.mock.calls.length;
+
+    // navigate away -> stopPairingPoll must clear the pending renewal timeout
+    doc.querySelector('[data-prev-step="1"]').click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(callsBeforeStop);
+
+    d.window.close();
+    vi.useRealTimers();
+  });
+});
+
 describe('setup-wizard gateway brand id', () => {
   it('rejects missing brand id', async () => {
     const { dom, window, document } = await setupEnv(0);
