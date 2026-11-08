@@ -166,7 +166,7 @@ EOT;
     public function execute(array $file, string $adminEmail, string $version): array
     {
         $lockHandle = $this->acquireUpdateLock();
-        if ($lockHandle === false) {
+        if ($lockHandle === false || $lockHandle === null) {
             return ['success' => false, 'error' => 'An update is already in progress.'];
         }
 
