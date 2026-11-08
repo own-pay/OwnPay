@@ -55,7 +55,9 @@ final class AdminPageRendererTest extends IntegrationTestCase
             return;
         }
         $this->db->execute("DELETE FROM op_system_settings WHERE group_name = 'appearance' AND key_name = 'admin_engine'");
-        $this->removeDir($this->logDir);
+        if (isset($this->logDir)) {
+            $this->removeDir($this->logDir);
+        }
         parent::tearDown();
     }
 

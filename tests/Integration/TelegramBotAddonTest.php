@@ -61,7 +61,7 @@ final class TelegramBotAddonTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        if (!static::$dbAvailable) {
+        if (!static::$dbAvailable || !isset($this->db)) {
             parent::tearDown();
             return;
         }

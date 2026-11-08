@@ -40,7 +40,9 @@ final class LanguageSystemTest extends IntegrationTestCase
             return;
         }
         $this->db->execute("DELETE FROM op_languages WHERE code IN ('bn', 'fr', 'testlocale')");
-        $this->translationService->clearCache();
+        if (isset($this->translationService)) {
+            $this->translationService->clearCache();
+        }
         parent::tearDown();
     }
 
