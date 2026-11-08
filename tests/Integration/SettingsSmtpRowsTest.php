@@ -13,10 +13,10 @@ final class SettingsSmtpRowsTest extends TestCase
     {
         $loader = new FilesystemLoader(dirname(__DIR__, 2) . '/templates');
         $twig = new Environment($loader, ['cache' => false]);
-        $twig->addFunction(new \Twig\TwigFunction('hook', fn (string $name) => ''));
+        $twig->addFunction(new \Twig\TwigFunction('hook', fn () => ''));
         $twig->addFunction(new \Twig\TwigFunction('locale', fn (): string => 'en'));
-        $twig->addFunction(new \Twig\TwigFunction('__', fn (string $key, ...$args) => $key));
-        $twig->addFunction(new \Twig\TwigFunction('enqueued_assets', fn (string $type) => '', ['is_safe' => ['html']]));
+        $twig->addFunction(new \Twig\TwigFunction('__', fn (string $key) => $key));
+        $twig->addFunction(new \Twig\TwigFunction('enqueued_assets', fn () => '', ['is_safe' => ['html']]));
         $twig->addFilter(new \Twig\TwigFilter('format_bytes', fn ($bytes) => (string) ((float) ($bytes ?? 0)) . ' B'));
         $twig->addFilter(new \Twig\TwigFilter('time_ago', fn ($v) => (string) $v));
         $twig->addFilter(new \Twig\TwigFilter('datetime', fn ($v) => (string) $v));
