@@ -8,6 +8,7 @@ RUN a2enmod rewrite headers expires deflate
 # System dependencies for PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libargon2-dev \
+        libcap2-bin \
         libcurl4-openssl-dev \
         libfreetype6-dev \
         libjpeg62-turbo-dev \
@@ -17,7 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxml2-dev \
         libzip-dev \
         unzip \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && setcap 'cap_net_bind_service=+ep' /usr/sbin/apache2
 
 # PHP extensions required by OwnPay's installer/runtime
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -46,8 +48,9 @@ RUN printf '%s\n' \
         'chgrp www-data "$APP_DIR" 2>/dev/null || true' \
         'chmod g+w "$APP_DIR" 2>/dev/null || true' \
         'if [ -d "$APP_DIR/storage" ]; then chown -R www-data:www-data "$APP_DIR/storage"; fi' \
-        'if [ -d "$APP_DIR/public" ]; then chown -R www-data:www-data "$APP_DIR/public"; fi' \
-        'exec apache2-foreground' \
+        'mkdir -p /var/run/apache2 /var/log/apache2 /var/lock/apache2' \
+        'chown -R www-data:www-data /var/run/apache2 /var/log/apache2 /var/lock/apache2' \
+        'exec setpriv --reuid=www-data --regid=www-data --clear-groups apache2-foreground' \
     > /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 

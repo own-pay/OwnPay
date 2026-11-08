@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ownpay-dev:latest
-    container_name: ownpay-app
     ports:
       - "127.0.0.1:8080:80"
     volumes:
@@ -34,7 +33,6 @@ services:
 
   db:
     image: mysql:8.0
-    container_name: ownpay-db
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ownpay
@@ -52,7 +50,6 @@ services:
 
   cache:
     image: redis:7-alpine
-    container_name: ownpay-cache
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

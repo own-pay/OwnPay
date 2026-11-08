@@ -82,7 +82,7 @@ make dev
 
 Open **<http://localhost:8080>** - you'll be redirected to the **`/install` wizard**. In the database step use host **`db`** (port `3306`), database `ownpay`, user `ownpay`, password `ownpay`. The container's `APP_ENV=development`, cache and queue drivers are wired to Redis automatically.
 
-The container adjusts ownership of `storage/` and `public/` to the web-server user; this is expected for local development.
+The container adjusts ownership of `storage/` (and the project root group) to the web-server user; this is expected for local development. It does not recursively change ownership of the bind-mounted `public/` tree.
 
 Stop the stack (data is preserved in the named `db_data` volume):
 
