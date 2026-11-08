@@ -191,6 +191,7 @@ ngrok http 8000
 | --------- | ----- |
 | `/install` says an extension is missing | Install the listed `php-*` extension and restart the server. Re-check with `php -m`. |
 | `composer install` fails on `ext-*` | Your CLI PHP lacks an extension. Install it (e.g. `php8.3-bcmath`) - note the **CLI** php.ini may differ from the web one. |
+| PHPUnit fails on `yaml_parse_file` / missing `yaml` | The test suite parses `docker-compose.yml` with the PHP YAML extension. Install `php8.3-yaml` (CLI) and re-run `vendor/bin/phpunit`. |
 | "Could not connect to database" in the wizard | Confirm MySQL is running and the DB exists; on macOS/Linux the default user is often `root` with an empty or socket password. |
 | Blank page / 500 with no detail | Set `APP_DEBUG=true` in `.env` for a detailed dev error page (never in production), check `storage/logs/`. |
 | Installer keeps redirecting after completion | Delete `storage/.installed` only if you intend to reinstall; otherwise clear `storage/cache/`. |
