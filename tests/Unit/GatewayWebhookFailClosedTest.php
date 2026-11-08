@@ -7,10 +7,12 @@ namespace Tests\Unit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+require_once dirname(__DIR__, 2) . '/modules/gateways/apple-pay/ApplePayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/biller-genie/BillerGenieGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/blik/BlikGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/bluesnap/BlueSnapGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/chase-paymentech/ChasePaymentechGateway.php';
+require_once dirname(__DIR__, 2) . '/modules/gateways/coinbase-commerce/CoinbaseGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/cybersource/CybersourceGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/dlocal/DLocalGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/ebanx/EbanxGateway.php';
@@ -19,12 +21,15 @@ require_once dirname(__DIR__, 2) . '/modules/gateways/fastspring/FastSpringGatew
 require_once dirname(__DIR__, 2) . '/modules/gateways/fattmerchant/FattmerchantGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/first-data/FirstDataGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/fiserv/FiservGateway.php';
+require_once dirname(__DIR__, 2) . '/modules/gateways/flutterwave/FlutterwaveGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/giropay/GiropayGateway.php';
+require_once dirname(__DIR__, 2) . '/modules/gateways/google-pay/GooglePayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/global-payments/GlobalPaymentsGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/heartland/HeartlandGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/helcim/HelcimGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/kushki/KushkiGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/moneris/MonerisGateway.php';
+require_once dirname(__DIR__, 2) . '/modules/gateways/myfatoorah/MyfatoorahGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/neteller/NetellerGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/nmi/NmiGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/payline-data/PaylineDataGateway.php';
@@ -45,6 +50,7 @@ require_once dirname(__DIR__, 2) . '/modules/gateways/braintree/BraintreeGateway
 require_once dirname(__DIR__, 2) . '/modules/gateways/btcpay/BTCPayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/checkout-com/CheckoutComGateway.php';
 
+use OwnPay\Modules\Gateways\ApplePay\ApplePayGateway;
 use OwnPay\Modules\Gateways\BillerGenie\BillerGenieGateway;
 use OwnPay\Modules\Gateways\Blik\BlikGateway;
 use OwnPay\Modules\Gateways\BlueSnap\BlueSnapGateway;
@@ -52,6 +58,7 @@ use OwnPay\Modules\Gateways\Braintree\BraintreeGateway;
 use OwnPay\Modules\Gateways\BTCPay\BTCPayGateway;
 use OwnPay\Modules\Gateways\ChasePaymentech\ChasePaymentechGateway;
 use OwnPay\Modules\Gateways\CheckoutCom\CheckoutComGateway;
+use OwnPay\Modules\Gateways\Coinbase\CoinbaseGateway;
 use OwnPay\Modules\Gateways\Cybersource\CybersourceGateway;
 use OwnPay\Modules\Gateways\DLocal\DLocalGateway;
 use OwnPay\Modules\Gateways\Ebanx\EbanxGateway;
@@ -60,12 +67,15 @@ use OwnPay\Modules\Gateways\FastSpring\FastSpringGateway;
 use OwnPay\Modules\Gateways\Fattmerchant\FattmerchantGateway;
 use OwnPay\Modules\Gateways\FirstData\FirstDataGateway;
 use OwnPay\Modules\Gateways\Fiserv\FiservGateway;
+use OwnPay\Modules\Gateways\Flutterwave\FlutterwaveGateway;
 use OwnPay\Modules\Gateways\Giropay\GiropayGateway;
 use OwnPay\Modules\Gateways\GlobalPayments\GlobalPaymentsGateway;
+use OwnPay\Modules\Gateways\GooglePay\GooglePayGateway;
 use OwnPay\Modules\Gateways\Heartland\HeartlandGateway;
 use OwnPay\Modules\Gateways\Helcim\HelcimGateway;
 use OwnPay\Modules\Gateways\Kushki\KushkiGateway;
 use OwnPay\Modules\Gateways\Moneris\MonerisGateway;
+use OwnPay\Modules\Gateways\Myfatoorah\MyfatoorahGateway;
 use OwnPay\Modules\Gateways\Neteller\NetellerGateway;
 use OwnPay\Modules\Gateways\Nmi\NmiGateway;
 use OwnPay\Modules\Gateways\PaylineData\PaylineDataGateway;
@@ -156,6 +166,14 @@ final class GatewayWebhookFailClosedTest extends TestCase
             'braintree' => [BraintreeGateway::class, ['bt-signature' => self::FORGED_SIGNATURE]],
             'btcpay' => [BTCPayGateway::class, ['Btcpay-Sig' => self::FORGED_SIGNATURE]],
             'checkout-com' => [CheckoutComGateway::class, ['Cko-Signature' => self::FORGED_SIGNATURE]],
+
+            // Real signature schemes that used to fail open when no secret was
+            // configured, or that accepted unconditionally.
+            'apple-pay' => [ApplePayGateway::class, ['Stripe-Signature' => self::FORGED_SIGNATURE]],
+            'coinbase-commerce' => [CoinbaseGateway::class, ['X-Cc-Webhook-Signature' => self::FORGED_SIGNATURE]],
+            'flutterwave' => [FlutterwaveGateway::class, ['Verif-Hash' => self::FORGED_SIGNATURE]],
+            'google-pay' => [GooglePayGateway::class, ['Stripe-Signature' => self::FORGED_SIGNATURE]],
+            'myfatoorah' => [MyfatoorahGateway::class, ['MyFatoorah-Signature' => self::FORGED_SIGNATURE]],
         ];
     }
 
