@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: ownpay-dev:latest
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8080
+      APP_DOMAIN: localhost
+      APP_TIMEZONE: Asia/Dhaka
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ownpay
+      DB_USER: ownpay
+      DB_PASS: ownpay
+      DB_PREFIX: op_
+      CACHE_DRIVER: redis
+      QUEUE_DRIVER: redis
+      REDIS_HOST: cache
+      REDIS_PORT: "6379"
+      REDIS_PREFIX: "op:"
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ownpay
+      MYSQL_USER: ownpay
+      MYSQL_PASSWORD: ownpay
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  db_data:
