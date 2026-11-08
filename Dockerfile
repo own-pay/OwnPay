@@ -1,5 +1,12 @@
 FROM php:8.3-apache
 
+# Allow the container user to match the host developer's UID/GID so
+# bind-mounted files (e.g. vendor/) stay owned by the host user.
+ARG UID=1000
+ARG GID=1000
+RUN groupmod -g ${GID} www-data 2>/dev/null || true \
+    && usermod -u ${UID} -g ${GID} www-data 2>/dev/null || true
+
 # Apache document root = public/
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
