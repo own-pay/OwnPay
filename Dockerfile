@@ -48,6 +48,7 @@ RUN printf '%s\n' \
         'chgrp www-data "$APP_DIR" 2>/dev/null || true' \
         'chmod g+w "$APP_DIR" 2>/dev/null || true' \
         'if [ -d "$APP_DIR/storage" ]; then chown -R www-data:www-data "$APP_DIR/storage"; fi' \
+        'if [ -d "$APP_DIR/public/assets/uploads" ]; then chown -R www-data:www-data "$APP_DIR/public/assets/uploads"; fi' \
         'mkdir -p /var/run/apache2 /var/log/apache2 /var/lock/apache2' \
         'chown -R www-data:www-data /var/run/apache2 /var/log/apache2 /var/lock/apache2' \
         'exec setpriv --reuid=www-data --regid=www-data --clear-groups apache2-foreground' \

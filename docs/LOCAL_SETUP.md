@@ -82,7 +82,7 @@ make dev
 
 Open **<http://localhost:8080>** - you'll be redirected to the **`/install` wizard**. In the database step use host **`db`** (port `3306`), database `ownpay`, user `ownpay`, password `ownpay`. The container ships `APP_ENV=development` and Redis cache/queue settings, but these only apply before `.env` exists; the wizard writes production defaults. To run in dev mode with Redis after install, edit `.env` and set `APP_ENV=development`, `APP_DEBUG=true`, `CACHE_DRIVER=redis`, and `QUEUE_DRIVER=redis` (Redis host is already `cache`).
 
-The container adjusts ownership of `storage/` (and the project root group) to the web-server user; this is expected for local development. It does not recursively change ownership of the bind-mounted `public/` tree.
+The container adjusts ownership of `storage/` and `public/assets/uploads/` (and the project root group) to the web-server user; this is expected for local development. It does not recursively change ownership of the rest of the bind-mounted `public/` tree.
 
 Stop the stack (data is preserved in the named `db_data` volume):
 
