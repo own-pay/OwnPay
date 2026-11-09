@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
+use OwnPay\Middleware\PermissionMiddleware;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Auth\AuthSessionService;
 use OwnPay\Service\System\AuditService;
@@ -163,7 +164,7 @@ final class AuthController
         // and must not be treated as an account with no admin access.
         $landingPath = $this->session->isSuperadmin()
             ? '/admin'
-            : $this->resolvePostLoginPath($this->auth->currentPermissions());
+            : $this->resolvePostLoginPath($this->auth->currentPermissions(), $this->session->activeBrandId());
         if ($landingPath === null) {
             $this->auth->logout();
             $loginSlug = $this->resolveLoginSlug();
@@ -302,7 +303,7 @@ final class AuthController
 
         $landingPath = $this->session->isSuperadmin()
             ? '/admin'
-            : $this->resolvePostLoginPath($this->auth->currentPermissions());
+            : $this->resolvePostLoginPath($this->auth->currentPermissions(), $this->session->activeBrandId());
         if ($landingPath === null) {
             $this->auth->logout();
             return $this->renderAdminPage('page/login.twig', [
@@ -321,9 +322,10 @@ final class AuthController
      * /admin causes a valid staff login to end on a 403 page.
      *
      * @param array<int, string> $permissions The role permissions from the session.
+     * @param int|null $activeBrandId Active brand id from the session; 0 is the global view.
      * @return string|null A permitted landing path, or null when the role has no admin access.
      */
-    private function resolvePostLoginPath(array $permissions): ?string
+    private function resolvePostLoginPath(array $permissions, ?int $activeBrandId): ?string
     {
         $landingRoutes = [
             ['dashboard.view', '/admin'],
@@ -351,9 +353,17 @@ final class AuthController
         ];
 
         foreach ($landingRoutes as [$permission, $path]) {
-            if (in_array($permission, $permissions, true)) {
-                return $path;
+            if (!in_array($permission, $permissions, true)) {
+                continue;
             }
+            // PermissionMiddleware bounces a brand-view session off these
+            // routes to /admin, which needs dashboard.view — a role holding
+            // only system.update would land on a 403 instead of a page it can
+            // open. Only the global view (0) may use them.
+            if ($activeBrandId !== 0 && in_array($path, PermissionMiddleware::GLOBAL_ONLY_PREFIXES, true)) {
+                continue;
+            }
+            return $path;
         }
 
         return null;
