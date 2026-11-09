@@ -16,6 +16,7 @@ use OwnPay\Update\BackupService;
 use OwnPay\Update\HealthChecker;
 use OwnPay\Update\MaintenanceMode;
 use OwnPay\Update\UpdateService;
+use OwnPay\Update\ZipUpdateService;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -71,6 +72,7 @@ final class SystemUpdateInstallAuthorizationTest extends TestCase
             new Container(),
             new AdminSession(),
             $this->updater,
+            $this->createStub(ZipUpdateService::class),
             new SettingsRepository($this->createMock(Database::class)),
             new UpdateHistoryRepository($this->createMock(Database::class))
         );
