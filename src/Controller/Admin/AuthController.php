@@ -159,7 +159,11 @@ final class AuthController
         }
 
         $this->audit->log('login.success', 'user', $userId);
-        $landingPath = $this->resolvePostLoginPath($this->auth->currentPermissions());
+        // Mirror the 2FA path: a superadmin may hold no role permissions at all,
+        // and must not be treated as an account with no admin access.
+        $landingPath = $this->session->isSuperadmin()
+            ? '/admin'
+            : $this->resolvePostLoginPath($this->auth->currentPermissions());
         if ($landingPath === null) {
             $this->auth->logout();
             $loginSlug = $this->resolveLoginSlug();
@@ -332,12 +336,17 @@ final class AuthController
             ['brands.view', '/admin/brands'],
             ['settings.view', '/admin/settings'],
             ['api_keys.view', '/admin/api-keys'],
+            // The webhook CRUD screens live under /admin/developer (api_keys.view),
+            // so webhooks.view alone can only open the delivery log.
+            ['webhooks.view', '/admin/webhooks/events'],
             ['sms.view', '/admin/sms-center'],
             ['devices.view', '/admin/devices'],
             ['plugins.view', '/admin/plugins'],
             ['domains.view', '/admin/domains'],
             ['system.reports', '/admin/reports'],
             ['system.audit', '/admin/activities'],
+            ['system.update', '/admin/system-update'],
+            ['system.balance', '/admin/balance-verification'],
             ['admin.access', '/admin/my-account'],
         ];
 

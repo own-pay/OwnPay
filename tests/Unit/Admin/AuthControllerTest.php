@@ -44,4 +44,22 @@ final class AuthControllerTest extends TestCase
 
         self::assertNull($path);
     }
+
+    public function testWebhookAndSystemPermissionsUseTheirOwnLandingPage(): void
+    {
+        $controller = (new ReflectionClass(AuthController::class))->newInstanceWithoutConstructor();
+
+        self::assertSame(
+            '/admin/webhooks/events',
+            $this->landingPath->invoke($controller, ['webhooks.view'])
+        );
+        self::assertSame(
+            '/admin/system-update',
+            $this->landingPath->invoke($controller, ['system.update'])
+        );
+        self::assertSame(
+            '/admin/balance-verification',
+            $this->landingPath->invoke($controller, ['system.balance'])
+        );
+    }
 }
