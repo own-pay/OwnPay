@@ -490,7 +490,13 @@
         // First submit gateway selection via POST form (manual mode needs checkout_hash)
         var payForm = document.createElement("form");
         payForm.method = "POST";
-        payForm.action = basePath + "/pay";
+        var payActionPath = "/checkout/" + (cfg.txnRef || "") + "/pay";
+        try {
+            payActionPath = new URL(basePath + "/pay", window.location.origin).pathname;
+        } catch (e) {
+            // Fallback to a safe same-origin relative path
+        }
+        payForm.action = payActionPath;
         payForm.className = "ck-hidden";
 
         var fields = {
