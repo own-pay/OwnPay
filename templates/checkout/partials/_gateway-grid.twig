@@ -1,7 +1,13 @@
 {# GATEWAY GRIDS - dynamically populated from DB #}
+{% set _defaultTab = 'cards' %}
+{% if gateways.global is empty and gateways.mfs is not empty %}
+    {% set _defaultTab = 'mfs' %}
+{% elseif gateways.global is empty and gateways.mfs is empty and gateways.bank is not empty %}
+    {% set _defaultTab = 'bank' %}
+{% endif %}
 
 {# TAB: CARDS (global gateways) #}
-<div id="t-cards" class="ck-tc">
+<div id="t-cards" class="ck-tc{% if _defaultTab != 'cards' %} ck-hidden{% endif %}">
     <div class="ck-gw-grid" id="cardG">
         {% for gw in gateways.global %}
         <div class="ck-gw" data-action="pick-gw" data-tab="card" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
@@ -26,7 +32,7 @@
 </div>
 
 {# TAB: MFS #}
-<div id="t-mfs" class="ck-tc ck-hidden">
+<div id="t-mfs" class="ck-tc{% if _defaultTab != 'mfs' %} ck-hidden{% endif %}">
     <div class="ck-gw-grid" id="mfsG">
         {% for gw in gateways.mfs %}
         <div class="ck-gw" data-action="pick-gw" data-tab="mfs" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
@@ -51,7 +57,7 @@
 </div>
 
 {# TAB: NET BANKING #}
-<div id="t-bank" class="ck-tc ck-hidden">
+<div id="t-bank" class="ck-tc{% if _defaultTab != 'bank' %} ck-hidden{% endif %}">
     <div class="ck-gw-grid" id="bankG">
         {% for gw in gateways.bank %}
         <div class="ck-gw" data-action="pick-gw" data-tab="bank" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
