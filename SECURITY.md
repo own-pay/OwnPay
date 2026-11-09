@@ -10,8 +10,8 @@ OwnPay is currently in **Public Beta**. Security fixes are provided for the late
 
 | Version | Supported |
 |:---|:---:|
-| `0.1.x` (current beta) | ✅ |
-| `< 0.1.0` (pre-release) | ❌ |
+| `0.2.x` (current beta) | ✅ |
+| `< 0.2.0` (older releases) | ❌ |
 
 Always run the latest tagged release. Once `1.0` ships, this table will track the stable release line.
 

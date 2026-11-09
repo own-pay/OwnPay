@@ -12,7 +12,7 @@ Get **OwnPay** running on your machine for development and contribution — on *
 |------|---------|-----|--------|
 | **PHP** | **8.3+** with `bcmath`, `json`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `curl` | Runtime | [php.net/downloads](https://www.php.net/downloads) · [windows.php.net](https://windows.php.net/download/) |
 | **Composer** | 2.x | PHP dependencies | [getcomposer.org/download](https://getcomposer.org/download/) |
-| **MySQL** *or* **MariaDB** | MySQL 8.0+ / MariaDB 10.4+ | Database | [dev.mysql.com](https://dev.mysql.com/downloads/mysql/) · [mariadb.org](https://mariadb.org/download/) |
+| **MySQL** *or* **MariaDB** | MySQL 8.0+ / MariaDB 10.5+ | Database | [dev.mysql.com](https://dev.mysql.com/downloads/mysql/) · [mariadb.org](https://mariadb.org/download/) |
 | **Git** | any | Clone the repo | [git-scm.com/downloads](https://git-scm.com/downloads) |
 | **Node.js** *(optional)* | 18+ | Only for JS/CSS linting | [nodejs.org](https://nodejs.org/en/download) |
 

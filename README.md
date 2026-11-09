@@ -153,7 +153,7 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 </tr>
 </table>
 
-<div align="center"><sub>Browse the full gateway & add-on catalog at <a href="https://plugins.ownpay.org">plugin.ownpay.org</a>.</sub></div>
+<div align="center"><sub>Browse the full gateway & add-on catalog at <a href="https://plugins.ownpay.org">plugins.ownpay.org</a>.</sub></div>
 
 ---
 
@@ -178,7 +178,7 @@ OwnPay sits on **your** server between your store and the world's payment provid
 
 OwnPay ships as a **self-contained release archive** — the same zip works on **shared hosting, a VPS, or a dedicated server**, and doubles as the installer. No build step required.
 
-> **Requirements:** PHP **8.3+** (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`) · MySQL 8 / MariaDB 10.4+ · HTTPS strongly recommended.
+> **Requirements:** PHP **8.3+** (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`) · MySQL 8 / MariaDB 10.5+ · HTTPS strongly recommended.
 
 <details open>
 <summary><b>🌐 Shared Hosting (cPanel / DirectAdmin — no SSH needed)</b></summary>
@@ -263,7 +263,7 @@ composer lint       # Twig + JS + CSS
 | Component | Technology |
 |:---|:---|
 | Language | PHP 8.3+ &nbsp;·&nbsp; Strict Types |
-| Database | MySQL 8.x / MariaDB 10.4+ |
+| Database | MySQL 8.x / MariaDB 10.5+ |
 | Package Manager | Composer v2 |
 | Migrations | Custom SQL migrations |
 | DI Container | PSR-11 &nbsp;·&nbsp; Custom &nbsp;·&nbsp; Auto-wiring |
@@ -298,7 +298,7 @@ composer lint       # Twig + JS + CSS
 | 🌐 **Website** | [ownpay.org](https://ownpay.org) | Product overview & download |
 | 📖 **Developer Docs / API** | [docs.ownpay.org](https://docs.ownpay.org) | REST API reference |
 | 🎓 **Learn / Guides** | [learn.ownpay.org](https://ownpay.org/docs) | Step-by-step tutorials, how-tos, deployment & integration |
-| 🧩 **Plugins** | [plugin.ownpay.org](https://plugins.ownpay.org) | Gateway & plugins catalog |
+| 🧩 **Plugins** | [plugins.ownpay.org](https://plugins.ownpay.org) | Gateway & plugins catalog |
 | 📰 **Blog & Updates** | [blog.ownpay.org](https://blog.ownpay.org) | Releases, changelog & announcements |
 | ▶️ **Live Demo** | [demo.ownpay.org](https://demo.ownpay.org) | Try it without installing |
 
@@ -312,7 +312,7 @@ composer lint       # Twig + JS + CSS
 <summary><b>What's the current project status?</b></summary>
 <br />
 
-OwnPay is available as **Public Beta v0.1.0** — feature-complete, security-hardened, and ready to self-host. We're collecting real-world feedback on the path to a `1.0` stable release. Grab the [latest release](https://github.com/own-pay/OwnPay/releases/latest) to get started.
+OwnPay is available as **Public Beta v0.2.0** — feature-complete, security-hardened, and ready to self-host. We're collecting real-world feedback on the path to a `1.0` stable release. Grab the [latest release](https://github.com/own-pay/OwnPay/releases/latest) to get started.
 
 </details>
 
@@ -344,7 +344,7 @@ Yes. The release archive bundles all dependencies, so no SSH or Composer is need
 <summary><b>How do I add a new payment gateway?</b></summary>
 <br />
 
-Gateways are plugins. Add a directory under <code>modules/gateways/&lt;slug&gt;/</code> with a <code>manifest.json</code> and an adapter implementing <code>GatewayAdapterInterface</code>. See the gateway guide on <a href="https://plugins.ownpay.org">plugin.ownpay.org</a> and the architecture overview in <a href="docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a>.
+Gateways are plugins. Add a directory under <code>modules/gateways/&lt;slug&gt;/</code> with a <code>manifest.json</code> and an adapter implementing <code>GatewayAdapterInterface</code>. See the gateway guide on <a href="https://plugins.ownpay.org">plugins.ownpay.org</a> and the architecture overview in <a href="docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a>.
 
 </details>
 

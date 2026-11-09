@@ -15,7 +15,7 @@ Most questions are already answered in the docs:
 | 🌐 **[ownpay.org](https://ownpay.org)** | Product overview, download, general info |
 | 📖 **[docs.ownpay.org](https://docs.ownpay.org)** | API reference |
 | 🎓 **[learn.ownpay.org](https://learn.ownpay.org)** | Step-by-step guides & tutorials, deployment & integration docs |
-| 🧩 **[plugin.ownpay.org](https://plugin.ownpay.org)** | Gateways & add-ons catalog |
+| 🧩 **[plugins.ownpay.org](https://plugins.ownpay.org)** | Gateways & add-ons catalog |
 | 📰 **[blog.ownpay.org](https://blog.ownpay.org)** | Release notes, changelog & announcements |
 
 In this repository: **[Local Setup](docs/LOCAL_SETUP.md)** · **[Architecture](docs/ARCHITECTURE.md)** · **[Translations](docs/TRANSLATIONS.md)**

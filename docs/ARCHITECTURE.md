@@ -13,7 +13,7 @@ OwnPay is a **self-hosted, single-owner, multi-brand payment orchestrator** writ
 | Layer | Choice |
 |-------|--------|
 | Language | PHP 8.3+ (`declare(strict_types=1)` everywhere) |
-| Persistence | MySQL 8 / MariaDB 10.4+ (PDO, prepared statements only) |
+| Persistence | MySQL 8 / MariaDB 10.5+ (PDO, prepared statements only) |
 | Templating | Twig 3+ |
 | Front controller | Single entry point `public/index.php` |
 | DI | Custom PSR-11 container (`src/Container.php`) with reflection autowiring |

@@ -1,6 +1,6 @@
 # OwnPay Roadmap
 
-This roadmap shows where OwnPay is headed on the path from **Public Beta v0.1.0** to a stable **1.0** and beyond. It's a living document — priorities shift with community feedback, and dates are intentionally avoided in favor of a quality-driven "ship when it's ready" approach.
+This roadmap shows where OwnPay is headed on the path from **Public Beta v0.2.0** to a stable **1.0** and beyond. It's a living document — priorities shift with community feedback, and dates are intentionally avoided in favor of a quality-driven "ship when it's ready" approach.
 
 > Have an idea or a priority you care about? Open a [discussion](https://github.com/own-pay/OwnPay/discussions) or [feature request](https://github.com/own-pay/OwnPay/issues). The roadmap is shaped by the people who run OwnPay.
 
@@ -8,7 +8,7 @@ This roadmap shows where OwnPay is headed on the path from **Public Beta v0.1.0*
 
 ---
 
-## ✅ Shipped — Public Beta v0.1.0
+## ✅ Shipped — Public Beta v0.2.0
 
 The foundation is live and self-hostable today:
 
@@ -45,7 +45,7 @@ Our focus during the beta period:
 ## 🔭 Next — Toward 1.0 Stable
 
 - 🔭 **1.0 stable release** once the quality bar and feedback goals are met
-- 🔭 **Plugin marketplace** at [plugin.ownpay.org](https://plugin.ownpay.org) — discover & install gateways and add-ons
+- 🔭 **Plugin marketplace** at [plugins.ownpay.org](https://plugins.ownpay.org) — discover & install gateways and add-ons
 - 🔭 **Mobile companion app** general availability
 - 🔭 One-click / scripted **deployment tooling** (VPS provisioning, container images)
 - 🔭 Enhanced reporting, analytics & reconciliation dashboards

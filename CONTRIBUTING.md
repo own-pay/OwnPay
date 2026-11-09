@@ -36,7 +36,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
    git checkout -b feat/short-description
    ```
 
-**Requirements:** PHP 8.3+ (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`), Composer 2, MySQL 8 / MariaDB 10.4+.
+**Requirements:** PHP 8.3+ (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`), Composer 2, MySQL 8 / MariaDB 10.5+.
 
 ---
 
