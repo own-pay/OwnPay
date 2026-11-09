@@ -296,7 +296,18 @@ final class AuthController
         $this->events->doAction('auth.login.success', $user);
         $this->audit->log('login.2fa_verified', 'user', $userIdFromDb);
 
-        return Response::redirect('/admin');
+        $landingPath = $this->session->isSuperadmin()
+            ? '/admin'
+            : $this->resolvePostLoginPath($this->auth->currentPermissions());
+        if ($landingPath === null) {
+            $this->auth->logout();
+            return $this->renderAdminPage('page/login.twig', [
+                'login_url' => '/' . $this->resolveLoginSlug(),
+                'error' => 'Your account has no active admin permissions. Contact an administrator.',
+                'old_email' => $userEmail,
+            ]);
+        }
+        return Response::redirect($landingPath);
     }
 
     /**

@@ -21,6 +21,7 @@ final class OnboardingRouteRedirectTest extends IntegrationTestCase
         if (!static::$dbAvailable) {
             $this->markTestSkipped('Database not available');
         }
+        $_SESSION = ['is_superadmin' => true];
         $container = new Container();
         $bootstrap = require dirname(__DIR__, 2) . '/config/services.php';
         $bootstrap($container);
@@ -42,6 +43,7 @@ final class OnboardingRouteRedirectTest extends IntegrationTestCase
             return;
         }
         $this->settingsRepo->set('system', 'onboarding_completed', '1');
+        $_SESSION = [];
         parent::tearDown();
     }
 
@@ -54,6 +56,17 @@ final class OnboardingRouteRedirectTest extends IntegrationTestCase
 
         $this->assertSame(302, $res->getStatusCode());
         $this->assertSame('/admin/setup-wizard', $res->getHeaders()['Location'] ?? null);
+    }
+
+    public function testStaffDashboardDoesNotRedirectToForbiddenWizard(): void
+    {
+        $_SESSION = ['is_superadmin' => false];
+        $this->settingsRepo->set('system', 'onboarding_completed', '0');
+
+        $res = $this->controller->index(new Request([], [], ['REQUEST_METHOD' => 'GET']));
+
+        $this->assertSame(200, $res->getStatusCode());
+        $this->assertArrayNotHasKey('Location', $res->getHeaders());
     }
 
     public function testWizardRedirectsToDashboardWhenOnboardingComplete(): void

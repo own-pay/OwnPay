@@ -117,7 +117,10 @@ final class DashboardController
         if (!$onboardingCheckRepo instanceof \OwnPay\Repository\SettingsRepository) {
             throw new \RuntimeException('SettingsRepository service unavailable');
         }
-        if ((int) $onboardingCheckRepo->get('system', 'onboarding_completed', '0') === 0) {
+        // The setup wizard is denied to ordinary staff by PermissionMiddleware.
+        if ($this->session->isSuperadmin()
+            && (int) $onboardingCheckRepo->get('system', 'onboarding_completed', '0') === 0
+        ) {
             return Response::redirect('/admin/setup-wizard');
         }
 
