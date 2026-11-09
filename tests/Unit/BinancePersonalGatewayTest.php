@@ -71,6 +71,21 @@ namespace Tests\Unit {
             ];
         }
 
+        public function testConnectionValidationSurvivesMerge(): void
+        {
+            $gateway = new BinancePersonalGateway();
+            self::assertFalse($gateway->testConnection([])['success']);
+            self::assertTrue($gateway->testConnection(['wallet_address' => self::WALLET])['success']);
+            self::$responses = [json_encode(['status' => '1'])];
+            self::assertTrue($gateway->testConnection([
+                'wallet_address' => self::WALLET, 'bscscan_api_key' => 'synthetic', 'mode' => 'live',
+            ])['success']);
+            self::$responses = [json_encode(['status' => '0', 'result' => 'Invalid key'])];
+            self::assertFalse($gateway->testConnection([
+                'wallet_address' => self::WALLET, 'bscscan_api_key' => 'synthetic', 'mode' => 'live',
+            ])['success']);
+        }
+
         public function testRejectsUnsupportedCheckoutAsset(): void
         {
             $gateway = new BinancePersonalGateway();

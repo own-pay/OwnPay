@@ -183,6 +183,13 @@ final class PluginInstaller
                 continue;
             }
 
+            // Retain the source branch's traversal guard after normalizing separators.
+            if (str_contains($normalizedName, '..') || str_starts_with($normalizedName, '/')) {
+                $zip->close();
+                $this->removeDir($tempDir);
+                return $this->fail('ZIP contains path traversal attempt');
+            }
+
             // Ensure parent directory exists
             $parentDir = dirname($targetPath);
             if (!is_dir($parentDir)) {

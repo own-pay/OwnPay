@@ -38,6 +38,11 @@
             <directory>src</directory>
         </include>
     </source>
+    <coverage>
+        <report>
+            <cobertura outputFile="build/coverage/cobertura.xml"/>
+        </report>
+    </coverage>
     <php>
         <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_NAME" value="ownpay_test"/>

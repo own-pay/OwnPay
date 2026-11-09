@@ -6,7 +6,8 @@ export default defineConfig({
     globals: true,
     include: ['tests/frontend/**/*.test.js'],
     coverage: {
-      reporter: ['text', 'json', 'html'],
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'cobertura'],
       include: ['public/assets/js/**/*.js'],
       exclude: ['node_modules/', 'tests/'],
     },
