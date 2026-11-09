@@ -103,10 +103,15 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
         return ['success' => false, 'message' => $errMsg];
     }
 
+    public function supportedCurrencies(): array { return ['BNB']; }
+
     public function initiate(array $params, array $credentials): array
     {
+        if (strtoupper($params['currency']) !== 'BNB') {
+            throw new \RuntimeException('Binance Personal accepts native BNB only.');
+        }
         $walletAddress = $this->getString($credentials['wallet_address'] ?? null);
-        $amount = number_format((float)$params['amount'], 4, '.', '');
+        $amount = $this->toDecimalString($params['amount'], 18);
         $currency = strtoupper($params['currency']);
 
         $formHtml = '
@@ -136,7 +141,7 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
                     </svg>
                 </div>
                 <h3 style="color: #f3ba2f; margin: 0; font-size: 1.6em; font-weight: 700;">BSC Wallet Transfer</h3>
-                <p style="color: #848e9c; font-size: 0.9em; margin-top: 5px;">Transfer to the address below using BNB Smart Chain (BSC/BEP20)</p>
+                <p style="color: #848e9c; font-size: 0.9em; margin-top: 5px;">Transfer to the address below using BNB Smart Chain (native BNB only)</p>
             </div>
             
             <div style="background: #2b2f36; padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 20px;">
@@ -237,6 +242,7 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
                 'success'        => $success,
                 'gateway_trx_id' => $txhash,
                 'amount'         => $expectedAmount,
+                'currency'       => 'BNB',
                 'status'         => $success ? 'completed' : 'failed',
                 'trx_id'         => $trxId,
             ];
@@ -272,12 +278,20 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
         }
 
         $tx = $data['result'];
-        $to = strtolower($this->getString($tx['to'] ?? null));
-        $input = strtolower($this->getString($tx['input'] ?? null));
-
-        // Check if tx is directly sent to our wallet OR if our wallet is in the input data (BEP-20 token transfer)
-        $cleanWallet = str_replace('0x', '', strtolower($walletAddress));
-        $recipientMatches = ($to === strtolower($walletAddress)) || (str_contains($input, $cleanWallet));
+        // Input data is not proof of a token transfer. Only native BNB is accepted.
+        $recipientMatches = preg_match('/^0x[a-fA-F0-9]{40}$/D', $walletAddress) === 1
+            && strtolower($this->getString($tx['to'] ?? null)) === strtolower($walletAddress)
+            && strtolower($this->getString($tx['hash'] ?? null)) === strtolower($txhash)
+            && $this->getString($tx['blockNumber'] ?? null) !== '';
+        $value = $this->getString($tx['value'] ?? null);
+        $receivedAmount = '0';
+        if (preg_match('/^0x[0-9a-fA-F]{1,64}$/D', $value) === 1) {
+            $wei = '0';
+            foreach (str_split(substr($value, 2)) as $digit) {
+                $wei = bcadd(bcmul($wei, '16', 0), (string) hexdec($digit), 0);
+            }
+            $receivedAmount = bcdiv($wei, '1000000000000000000', 18);
+        }
 
         // Check receipt status (success = 1)
         $receiptUrl = $baseUrl . '?' . http_build_query([
@@ -301,12 +315,13 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
             $txSuccess = ($receiptData['result']['status'] ?? '') === '1';
         }
 
-        $success = $recipientMatches && $txSuccess;
+        $success = $recipientMatches && $txSuccess && bccomp($receivedAmount, '0', 18) > 0;
 
         return [
             'success'        => $success,
             'gateway_trx_id' => $txhash,
-            'amount'         => $expectedAmount,
+            'amount'         => $receivedAmount,
+            'currency'       => 'BNB',
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
