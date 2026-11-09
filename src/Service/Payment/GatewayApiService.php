@@ -227,6 +227,19 @@ final class GatewayApiService
                     $verifiedAmountVal = $verification['amount'] ?? null;
                     $verifiedAmountStr = is_scalar($verifiedAmountVal) ? (string) $verifiedAmountVal : '';
                     $expectedStr = is_scalar($expectedVal) ? (string) $expectedVal : '';
+                    // Native chain units must match the stored checkout asset and all 18 decimals.
+                    if ($gatewaySlug === 'binance-personal') {
+                        $expectedCurrency = is_array($meta) && !empty($meta['converted_amount'])
+                            ? ($meta['converted_currency'] ?? null)
+                            : ($transaction['currency'] ?? null);
+                        if (!self::matchesNativeBnbPayment(
+                            $expectedStr, $verifiedAmountStr, $expectedCurrency, $verification['currency'] ?? null
+                        )) {
+                            $amountMismatch = true;
+                            $transaction = null;
+                            return;
+                        }
+                    }
                     if (!is_numeric($verifiedAmountStr) || !is_numeric($expectedStr)
                         || bccomp($verifiedAmountStr, $expectedStr, 2) !== 0
                     ) {
@@ -379,5 +392,16 @@ final class GatewayApiService
         }, $html);
 
         return $html;
+    }
+
+    private static function matchesNativeBnbPayment(
+        string $expectedAmount, string $receivedAmount, mixed $expectedCurrency, mixed $receivedCurrency
+    ): bool {
+        return $expectedCurrency === 'BNB' && $receivedCurrency === 'BNB'
+            && is_numeric($receivedAmount) && is_numeric($expectedAmount)
+            && preg_match('/^\d+(\.\d{1,18})?$/D', $receivedAmount) === 1
+            && preg_match('/^\d+(\.\d{1,18})?$/D', $expectedAmount) === 1
+            && bccomp($receivedAmount, '0', 18) > 0
+            && bccomp($receivedAmount, $expectedAmount, 18) === 0;
     }
 }
