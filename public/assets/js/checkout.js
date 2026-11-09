@@ -490,7 +490,9 @@
         // First submit gateway selection via POST form (manual mode needs checkout_hash)
         var payForm = document.createElement("form");
         payForm.method = "POST";
-        var payActionPath = "/checkout/" + (cfg.txnRef || "") + "/pay";
+        var rawTxnRef = (cfg && cfg.txnRef != null) ? String(cfg.txnRef) : "";
+        var safeTxnRef = /^[A-Za-z0-9_-]+$/.test(rawTxnRef) ? rawTxnRef : "";
+        var payActionPath = "/checkout/" + encodeURIComponent(safeTxnRef) + "/pay";
         try {
             payActionPath = new URL(basePath + "/pay", window.location.origin).pathname;
         } catch (e) {
