@@ -105,6 +105,46 @@ jobs:
           echo "results.sarif is present ($(wc -c < results.sarif) bytes) and valid JSON."
           echo "valid=true" >> "$GITHUB_OUTPUT"
 
+      # CodeQL upload-sarif now rejects SARIF files containing multiple runs
+      # that resolve to the same category. Codacy can emit many runs and often
+      # omits automationDetails.id, so we normalize each run to a unique id.
+      - name: Ensure unique SARIF run categories
+        if: always() && steps.verify_sarif.outputs.valid == 'true'
+        run: |
+          python3 - <<'PY'
+          import json
+
+          path = "results.sarif"
+          with open(path, "r", encoding="utf-8") as f:
+              sarif = json.load(f)
+
+          runs = sarif.get("runs", [])
+          used = set()
+
+          for idx, run in enumerate(runs, start=1):
+              automation = run.get("automationDetails")
+              if not isinstance(automation, dict):
+                  automation = {}
+
+              raw_id = automation.get("id")
+              base_id = str(raw_id).strip() if raw_id else ""
+              if not base_id:
+                  base_id = f"codacy/run-{idx}"
+
+              candidate = base_id
+              suffix = 2
+              while candidate in used:
+                  candidate = f"{base_id}-{suffix}"
+                  suffix += 1
+
+              automation["id"] = candidate
+              run["automationDetails"] = automation
+              used.add(candidate)
+
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(sarif, f, ensure_ascii=False)
+          PY
+
       # Upload the SARIF file generated in the previous step.
       # CodeQL Action v4 is required — v3 is being deprecated in December 2026
       # (see https://github.blog/changelog/2025-10-28-upcoming-deprecation-of-codeql-action-v3/).

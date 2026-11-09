@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
+use OwnPay\Middleware\PermissionMiddleware;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Auth\AuthSessionService;
 use OwnPay\Service\System\AuditService;
@@ -159,7 +160,11 @@ final class AuthController
         }
 
         $this->audit->log('login.success', 'user', $userId);
-        $landingPath = $this->resolvePostLoginPath($this->auth->currentPermissions());
+        // Mirror the 2FA path: a superadmin may hold no role permissions at all,
+        // and must not be treated as an account with no admin access.
+        $landingPath = $this->session->isSuperadmin()
+            ? '/admin'
+            : $this->resolvePostLoginPath($this->auth->currentPermissions(), $this->session->activeBrandId());
         if ($landingPath === null) {
             $this->auth->logout();
             $loginSlug = $this->resolveLoginSlug();
@@ -296,7 +301,18 @@ final class AuthController
         $this->events->doAction('auth.login.success', $user);
         $this->audit->log('login.2fa_verified', 'user', $userIdFromDb);
 
-        return Response::redirect('/admin');
+        $landingPath = $this->session->isSuperadmin()
+            ? '/admin'
+            : $this->resolvePostLoginPath($this->auth->currentPermissions(), $this->session->activeBrandId());
+        if ($landingPath === null) {
+            $this->auth->logout();
+            return $this->renderAdminPage('page/login.twig', [
+                'login_url' => '/' . $this->resolveLoginSlug(),
+                'error' => 'Your account has no active admin permissions. Contact an administrator.',
+                'old_email' => $userEmail,
+            ]);
+        }
+        return Response::redirect($landingPath);
     }
 
     /**
@@ -306,9 +322,10 @@ final class AuthController
      * /admin causes a valid staff login to end on a 403 page.
      *
      * @param array<int, string> $permissions The role permissions from the session.
+     * @param int|null $activeBrandId Active brand id from the session; 0 is the global view.
      * @return string|null A permitted landing path, or null when the role has no admin access.
      */
-    private function resolvePostLoginPath(array $permissions): ?string
+    private function resolvePostLoginPath(array $permissions, ?int $activeBrandId): ?string
     {
         $landingRoutes = [
             ['dashboard.view', '/admin'],
@@ -321,19 +338,32 @@ final class AuthController
             ['brands.view', '/admin/brands'],
             ['settings.view', '/admin/settings'],
             ['api_keys.view', '/admin/api-keys'],
+            // The webhook CRUD screens live under /admin/developer (api_keys.view),
+            // so webhooks.view alone can only open the delivery log.
+            ['webhooks.view', '/admin/webhooks/events'],
             ['sms.view', '/admin/sms-center'],
             ['devices.view', '/admin/devices'],
             ['plugins.view', '/admin/plugins'],
             ['domains.view', '/admin/domains'],
             ['system.reports', '/admin/reports'],
             ['system.audit', '/admin/activities'],
+            ['system.update', '/admin/system-update'],
+            ['system.balance', '/admin/balance-verification'],
             ['admin.access', '/admin/my-account'],
         ];
 
         foreach ($landingRoutes as [$permission, $path]) {
-            if (in_array($permission, $permissions, true)) {
-                return $path;
+            if (!in_array($permission, $permissions, true)) {
+                continue;
             }
+            // PermissionMiddleware bounces a brand-view session off these
+            // routes to /admin, which needs dashboard.view — a role holding
+            // only system.update would land on a 403 instead of a page it can
+            // open. Only the global view (0) may use them.
+            if ($activeBrandId !== 0 && in_array($path, PermissionMiddleware::GLOBAL_ONLY_PREFIXES, true)) {
+                continue;
+            }
+            return $path;
         }
 
         return null;

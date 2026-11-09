@@ -16,6 +16,23 @@ use OwnPay\Http\Response;
 final class PermissionMiddleware
 {
     /**
+     * Route prefixes reachable only from the global "All Brands" view.
+     *
+     * A brand-view session hitting one of these is flashed and redirected to
+     * /admin, so post-login landing choices must consult the same list — a
+     * role holding only system.update would otherwise land on a 403.
+     *
+     * @var list<string>
+     */
+    public const GLOBAL_ONLY_PREFIXES = [
+        '/admin/brands',
+        '/admin/themes',
+        '/admin/system-update',
+        '/admin/balance-verification',
+        '/admin/audit-integrity',
+    ];
+
+    /**
      * @var Container The dependency injection container.
      */
     private Container $container;
@@ -109,16 +126,9 @@ final class PermissionMiddleware
 
             if ($activeBrandId !== null && $activeBrandId > 0) {
                 $path = $request->path();
-                $globalOnlyPrefixes = [
-                    '/admin/brands',
-                    '/admin/themes',
-                    '/admin/system-update',
-                    '/admin/balance-verification',
-                    '/admin/audit-integrity',
-                ];
 
                 if ($path !== '/admin/brands/switch') {
-                    foreach ($globalOnlyPrefixes as $prefix) {
+                    foreach (self::GLOBAL_ONLY_PREFIXES as $prefix) {
                         if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
                             // Allow a brand staff/owner to view and edit their OWN brand profile in brand view
                             if ($prefix === '/admin/brands' && (
