@@ -163,29 +163,39 @@ final class MobileNotificationRepository extends BaseRepository
     /**
      * Acknowledges and marks notifications as read using a whitelist of IDs.
      *
-     * Scopes operations by device_uuid to mitigate Insecure Direct Object Reference (IDOR) 
+     * Scopes operations by device_uuid to mitigate Insecure Direct Object Reference (IDOR)
      * vulnerabilities (preventing cross-device notifications acknowledgment).
+     *
+     * Audit fix DEV-5: the previous signature defaulted $deviceUuid to '' and
+     * silently skipped the device_uuid WHERE clause when the caller passed
+     * nothing - letting any device in a merchant scope ack any notification
+     * owned by any other device in the same merchant. $deviceUuid is now
+     * required; an empty string throws InvalidArgumentException so callers can
+     * never silently degrade into the less-secure unscoped mode.
      *
      * @param list<int> $ids Notification IDs.
      * @param int $merchantId The merchant brand ID.
-     * @param string $deviceUuid Unique identifier string of the device.
+     * @param string $deviceUuid Unique identifier string of the device. Required; must not be empty.
      * @return int Number of acknowledged notification records.
+     * @throws \InvalidArgumentException If $deviceUuid is an empty string.
      */
-    public function acknowledgeIds(array $ids, int $merchantId, string $deviceUuid = ''): int
+    public function acknowledgeIds(array $ids, int $merchantId, string $deviceUuid): int
     {
-        if (empty($ids)) return 0;
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $params = array_merge($ids, [$merchantId]);
-
-        // BUG-007 FIX: Scope by device_uuid when provided
-        $deviceClause = '';
-        if ($deviceUuid !== '') {
-            $deviceClause = ' AND device_uuid = ?';
-            $params[] = $deviceUuid;
+        if ($deviceUuid === '') {
+            // Fail closed: an empty device UUID previously allowed any device
+            // in the merchant scope to ack any notification owned by any other
+            // device in the same merchant (IDOR). Refuse instead of silently
+            // dropping the scoping clause.
+            throw new \InvalidArgumentException('deviceUuid is required for acknowledgeIds() - empty value would skip the device-scoped WHERE clause.');
         }
+        if (empty($ids)) {
+            return 0;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge($ids, [$merchantId, $deviceUuid]);
 
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET is_read = 1, read_at = NOW() WHERE id IN ({$placeholders}) AND merchant_id = ?{$deviceClause}",
+            "UPDATE {$this->table} SET is_read = 1, read_at = NOW() WHERE id IN ({$placeholders}) AND merchant_id = ? AND device_uuid = ?",
             $params
         );
         return $stmt->rowCount();

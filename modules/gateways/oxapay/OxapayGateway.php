@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Oxapay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * OxaPay Crypto Gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
+final class OxapayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -54,6 +55,46 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
                 'required' => true
             ],
         ];
+    }
+
+    /**
+     * Verifies the configured Merchant API Key authenticates against OxaPay's real API via
+     * POST /merchants/balance - a free, read-only, account-scoped call that any valid key can make.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKeyRaw = $credentials['merchant_api_key'] ?? '';
+        $apiKey = is_scalar($apiKeyRaw) ? (string) $apiKeyRaw : '';
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the Merchant API Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.oxapay.com/merchants/balance');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => (string) json_encode(['merchant' => $apiKey, 'currency' => 'USDT']),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach OxaPay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $result = is_array($data) && is_scalar($data['result'] ?? null) ? (string) $data['result'] : '';
+        if ($httpCode === 200 && $result === '100') {
+            return ['success' => true, 'message' => 'Connected successfully to OxaPay.'];
+        }
+        $msg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'OxaPay rejected the provided Merchant API Key.';
+        return ['success' => false, 'message' => $msg];
     }
 
     public function initiate(array $params, array $credentials): array

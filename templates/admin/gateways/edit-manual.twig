@@ -99,8 +99,11 @@
                 </div>
                 <div class="op-form-group op-col-4">
                     <label>SMS Verification</label>
-                    <p class="op-mb-0"><span class="op-badge op-badge-success">Always on</span></p>
-                    <small class="op-text-muted">Mandatory for manual gateways.</small>
+                    <label class="op-checkbox-label">
+                        <input type="checkbox" name="sms_verification" value="1" {{ gateway.sms_verification is defined and gateway.sms_verification ? 'checked' : '' }}>
+                        Enable SMS auto-verification
+                    </label>
+                    <small class="op-text-muted">When enabled, transactions are auto-verified via the companion app's SMS parsing. Disable for manual gateways (e.g. cash-on-delivery, bank deposit with manual receipt upload).</small>
                 </div>
             </div>
             <div class="op-form-row op-mt-3" id="sms-patterns-row">

@@ -54,10 +54,23 @@ final class PluginSandbox
     {
         $real = realpath($path);
         if ($real === false) {
-            $real = realpath(dirname($path));
-            if ($real === false) {
+            // Bug #18 fix: File doesn't exist yet - validate parent directory and basename
+            $parent = realpath(dirname($path));
+            if ($parent === false) {
                 return false;
             }
+            // Verify the parent is within the plugin directory
+            $pluginDirWithSep = rtrim($this->pluginDir, '/\\') . DIRECTORY_SEPARATOR;
+            $pluginDirRtrim = rtrim($this->pluginDir, '/\\');
+            if (!str_starts_with($parent, $pluginDirWithSep) && $parent !== $pluginDirRtrim) {
+                return false;
+            }
+            // Reject basenames with path traversal characters
+            $basename = basename($path);
+            if (str_contains($basename, '..') || str_contains($basename, DIRECTORY_SEPARATOR)) {
+                return false;
+            }
+            $real = $parent;
         }
         $pluginDirWithSep = rtrim($this->pluginDir, '/\\') . DIRECTORY_SEPARATOR;
         return str_starts_with($real, $pluginDirWithSep) || $real === rtrim($this->pluginDir, '/\\');
@@ -85,21 +98,27 @@ final class PluginSandbox
      */
     public function validateSql(string $sql): bool
     {
-        $sql = preg_replace('/\/\*.*?\*\//s', ' ', $sql) ?? $sql;
+        // Bug #1 fix: Do NOT strip MySQL conditional comments (/*!...*/) - they are real SQL.
+        // Only strip true block comments (/* ... */) that do NOT start with !
+        $sql = preg_replace('/\/\*(?!!).*?\*\//s', ' ', $sql) ?? $sql;
+        // Bug #14 fix: Strip # line comments in addition to -- comments
+        $sql = preg_replace('/#[^\n]*/', ' ', $sql) ?? $sql;
         $sql = preg_replace('/--.*$/m', ' ', $sql) ?? $sql;
         $sql = preg_replace('/\s+/', ' ', strtolower(trim($sql))) ?? $sql;
 
         $blocked = [
             'drop', 'truncate', 'alter', 'grant', 'revoke',
-            'load_file', 'into\\s+outfile', 'into\\s+dumpfile',
-            'create\\s+database', 'create\\s+user', 'create\\s+table',
+            'load_file', 'into\s+outfile', 'into\s+dumpfile',
+            'create\s+database', 'create\s+user', 'create\s+table',
+            'create\s+temporary', // Bug #13 fix: Block CREATE TEMPORARY TABLE
         ];
         $pattern = '/\b(' . implode('|', $blocked) . ')\b/i';
         if (preg_match($pattern, $sql)) {
             return false;
         }
 
-        if (preg_match_all('/\bop_(?!plugin)[a-z_]+\b/', $sql, $matches)) {
+        // Bug #2 fix: Only op_plugin_migrations is allowed (not op_plugins or other op_plugin* tables)
+        if (preg_match_all('/\bop_(?!plugin_migrations)[a-z_]+\b/', $sql, $matches)) {
             return false;
         }
 

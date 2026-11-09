@@ -1,0 +1,105 @@
+name: "🔌 Payment Gateway Request"
+description: "Request integration for a new payment gateway, mobile wallet, or local payment method"
+title: "[GATEWAY]: "
+labels: ["gateway-request", "enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🔌 Request a Payment Gateway Integration
+        OwnPay features a modular plugin architecture that allows connecting any global or local payment provider. Use this form to request or propose a new payment gateway adapter.
+
+  - type: input
+    id: gateway-name
+    attributes:
+      label: Gateway / Provider Name
+      description: What is the official name of the payment gateway or mobile wallet?
+      placeholder: "e.g. Adyen, Square, Xendit, Midtrans, Tazapay, Monnify, PhonePe"
+    validations:
+      required: true
+
+  - type: input
+    id: gateway-docs
+    attributes:
+      label: Official Developer Documentation URL
+      description: Link to the gateway's API reference or integration guides.
+      placeholder: "https://docs.provider.com/api"
+    validations:
+      required: true
+
+  - type: textarea
+    id: coverage
+    attributes:
+      label: Geographic Coverage & Supported Currencies
+      description: Which countries, regions, and currencies does this gateway support?
+      placeholder: |
+        - Regions: Southeast Asia (Indonesia, Philippines, Vietnam)
+        - Currencies: IDR, PHP, VND, USD
+    validations:
+      required: true
+
+  - type: dropdown
+    id: integration-flow
+    attributes:
+      label: Primary Integration Flow
+      description: How does the customer complete payments with this provider?
+      options:
+        - Hosted Checkout / External Redirect URL
+        - Direct Server-to-Server API (Elements / Tokenized)
+        - Dynamic QR Code (Scan to Pay)
+        - Webhook / IPN Push Notifications
+        - Mobile App Deep Link / Mobile SDK
+        - Automated SMS / Mobile Agent Verification
+        - Other (Specify in notes)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: capabilities
+    attributes:
+      label: Supported Gateway Capabilities
+      description: Check all features provided by this gateway's API.
+      options:
+        - label: "One-Time Checkout Payments"
+        - label: "Full and Partial Refunds API"
+        - label: "Asynchronous Webhook / IPN Notifications with Signature Verification"
+        - label: "Transaction Status Inquiry / Polling API"
+        - label: "Recurring / Subscription Tokenization"
+        - label: "Payouts / Disbursal API"
+
+  - type: dropdown
+    id: sandbox-access
+    attributes:
+      label: Sandbox / Test Account Availability
+      description: Is there an easily accessible developer sandbox?
+      options:
+        - Yes, free public developer sandbox available immediately
+        - Yes, developer account available upon application
+        - No, but I have a merchant sandbox and can provide test credentials privately
+        - Unknown / Needs investigation
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Implementation & Testing Willingness
+      description: How would you like to participate in bringing this gateway to OwnPay?
+      options:
+        - I want to build the gateway adapter PR myself (following the GatewayAdapterInterface)
+        - I can thoroughly test the adapter in a sandbox or staging environment
+        - I am willing to sponsor or fund the adapter development
+        - Community request only (looking for contributors/maintainers)
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Technical Notes & SDK References
+      description: Any specific PHP SDKs, signature hashing algorithms (e.g. HMAC-SHA256), or webhook payload examples.
+      placeholder: "Provider requires SHA256 HMAC signature verification with header X-Signature..."
+    validations:
+      required: false

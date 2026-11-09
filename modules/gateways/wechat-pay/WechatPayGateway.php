@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\WechatPay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * WeChat Pay Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class WechatPayGateway implements PluginInterface, GatewayAdapterInterface
+final class WechatPayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -51,6 +52,75 @@ final class WechatPayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'private_key', 'label' => 'Merchant Private Key', 'type' => 'textarea', 'required' => true],
             ['name' => 'serial_no', 'label' => 'Certificate Serial Number', 'type' => 'text', 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the merchant private key/serial number authenticate against WeChat Pay's v3 API,
+     * via the platform certificates endpoint - the only WeChat Pay v3 GET endpoint that needs no
+     * request-specific data, so it's safe to call with just the merchant's own credentials.
+     *
+     * Reuses the identical WECHATPAY2-SHA256-RSA2048 signing scheme initiate() already uses,
+     * adapted for a GET request (empty body line in the signed message).
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $mchId = $this->getString($credentials['mch_id'] ?? null);
+        $serialNo = $this->getString($credentials['serial_no'] ?? null);
+        $privateKey = $this->getString($credentials['private_key'] ?? null);
+        if ($mchId === '' || $serialNo === '' || $privateKey === '') {
+            return ['success' => false, 'message' => 'Enter Merchant ID, Certificate Serial Number, and Merchant Private Key before testing the connection.'];
+        }
+
+        $privKeyObj = openssl_pkey_get_private($privateKey);
+        if ($privKeyObj === false) {
+            return ['success' => false, 'message' => 'The provided Merchant Private Key is not a valid PEM private key.'];
+        }
+
+        $timestamp = time();
+        $nonce = uniqid('wx_', true);
+        $path = '/v3/certificates';
+        $message = "GET\n{$path}\n{$timestamp}\n{$nonce}\n\n";
+        $sig = '';
+        openssl_sign($message, $sig, $privKeyObj, OPENSSL_ALGO_SHA256);
+        $signature = base64_encode($sig);
+
+        $authHeader = sprintf(
+            'WECHATPAY2-SHA256-RSA2048 mchid="%s",nonce_str="%s",signature="%s",timestamp="%d",serial_no="%s"',
+            $mchId,
+            $nonce,
+            $signature,
+            $timestamp,
+            $serialNo
+        );
+
+        $ch = curl_init('https://api.mch.weixin.qq.com' . $path);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: ' . $authHeader,
+                'Accept: application/json',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach WeChat Pay - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to WeChat Pay.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'WeChat Pay rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

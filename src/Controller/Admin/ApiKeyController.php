@@ -8,6 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Customer\ApiKeyService;
+use OwnPay\Service\System\AuditService;
 
 /**
  * Class ApiKeyController
@@ -36,17 +37,24 @@ final class ApiKeyController
     private ApiKeyService $keys;
 
     /**
+     * @var AuditService The application audit logging service.
+     */
+    private AuditService $audit;
+
+    /**
      * ApiKeyController constructor.
      *
      * @param Container     $c       The dependency injection container.
      * @param AdminSession  $session The administrative session service.
      * @param ApiKeyService $keys    The API key management service.
+     * @param AuditService  $audit   The application audit logging service.
      */
-    public function __construct(Container $c, AdminSession $session, ApiKeyService $keys)
+    public function __construct(Container $c, AdminSession $session, ApiKeyService $keys, AuditService $audit)
     {
         $this->c       = $c;
         $this->session = $session;
         $this->keys    = $keys;
+        $this->audit   = $audit;
     }
 
     /**
@@ -97,6 +105,22 @@ final class ApiKeyController
             }
         }
 
+        // Security: the 'admin' scope grants unrestricted access to every
+        // /api/v1/admin/* endpoint (AdminBearerAuthMiddleware only checks for
+        // the 'admin' scope string, not for specific permissions). Allowing any
+        // staff member with the 'api_keys.manage' permission to mint an
+        // admin-scoped key would let them self-elevate to full admin-api
+        // control without their role actually holding the underlying
+        // permissions (devices.manage, sms.manage, etc.).
+        // Restrict the 'admin' scope to superadmins only - the same guard that
+        // RolesController::update() applies via $_SESSION['is_superadmin'].
+        // Non-superadmins can still mint read/write keys for routine work.
+        // See audit finding CUS-5 / issue #198.
+        if (in_array('admin', $scopes, true) && !$this->session->isSuperadmin()) {
+            $this->session->flashError('Only superadmins can generate admin-scoped API keys.');
+            return Response::redirect('/admin/developer');
+        }
+
         $key = $this->keys->generate($mid, $label, $scopes);
 
         $_SESSION['_generated_api_key'] = $key['key'];
@@ -124,11 +148,16 @@ final class ApiKeyController
         $brand->resolveFromRequest($req);
         // All Brands view revokes platform-owned keys; a brand view revokes its own.
         $mid = $brand->getWriteMerchantId();
-        $this->keys->revoke($mid, $id);
-        $this->session->flashSuccess('API key revoked');
+        $count = $this->keys->revoke($mid, $id);
+        if ($count === 0) {
+            $this->session->flashError('API key not found or already revoked');
+        } else {
+            $this->session->flashSuccess('API key revoked');
+            $this->audit->log('api_key.revoked', 'api_keys', $id, null, ['merchant_id' => $mid]);
+        }
         $referer = $req->header('Referer');
-        $redirectUrl = str_contains($referer, '/admin/settings') 
-            ? '/admin/settings#tab-api' 
+        $redirectUrl = str_contains($referer, '/admin/settings')
+            ? '/admin/settings#tab-api'
             : '/admin/developer';
         return Response::redirect($redirectUrl);
     }
@@ -151,8 +180,13 @@ final class ApiKeyController
         }
         $brand->resolveFromRequest($req);
         $mid = $brand->getWriteMerchantId();
-        $this->keys->lock($mid, $id);
-        $this->session->flashSuccess('API key locked');
+        $count = $this->keys->lock($mid, $id);
+        if ($count === 0) {
+            $this->session->flashError('API key not found');
+        } else {
+            $this->session->flashSuccess('API key locked');
+            $this->audit->log('api_key.locked', 'api_keys', $id, null, ['merchant_id' => $mid]);
+        }
         $referer = $req->header('Referer');
         $redirectUrl = str_contains($referer, '/admin/settings')
             ? '/admin/settings#tab-api'
@@ -178,8 +212,13 @@ final class ApiKeyController
         }
         $brand->resolveFromRequest($req);
         $mid = $brand->getWriteMerchantId();
-        $this->keys->unlock($mid, $id);
-        $this->session->flashSuccess('API key unlocked');
+        $count = $this->keys->unlock($mid, $id);
+        if ($count === 0) {
+            $this->session->flashError('API key not found');
+        } else {
+            $this->session->flashSuccess('API key unlocked');
+            $this->audit->log('api_key.unlocked', 'api_keys', $id, null, ['merchant_id' => $mid]);
+        }
         $referer = $req->header('Referer');
         $redirectUrl = str_contains($referer, '/admin/settings')
             ? '/admin/settings#tab-api'

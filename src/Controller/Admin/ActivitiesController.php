@@ -123,6 +123,21 @@ final class ActivitiesController
         $oldValues = json_decode($oldValStr, true);
         $newValues = json_decode($newValStr, true);
 
+        // Defense-in-depth: apply LogSanitizer::sanitize() to the decoded
+        // before/after state before passing it to the template. SYS-2 (#384)
+        // already redacts sensitive keys at storage time in
+        // AuditLogRepository::record(), but rows created before that fix
+        // landed (or rows inserted by code paths that bypass the repository)
+        // may still contain plaintext secrets in old_values / new_values.
+        // Sanitizing at display time ensures secrets are never rendered in
+        // the admin's browser, regardless of when the row was written.
+        $oldValuesSanitized = is_array($oldValues)
+            ? \OwnPay\Security\LogSanitizer::sanitize($this->stringifyKeys($oldValues))
+            : [];
+        $newValuesSanitized = is_array($newValues)
+            ? \OwnPay\Security\LogSanitizer::sanitize($this->stringifyKeys($newValues))
+            : [];
+
         // Fetch user name for header details
         $operator = 'System';
         $logUserId = isset($log['user_id']) && is_numeric($log['user_id']) ? (int)$log['user_id'] : 0;
@@ -138,8 +153,27 @@ final class ActivitiesController
 
         return $this->renderAdminPage('admin/activity-details.twig', [
             'log'        => $log,
-            'old_values' => is_array($oldValues) ? $oldValues : [],
-            'new_values' => is_array($newValues) ? $newValues : [],
+            'old_values' => $oldValuesSanitized,
+            'new_values' => $newValuesSanitized,
         ]);
+    }
+
+    /**
+     * Coerces all keys of a decoded JSON array to strings.
+     *
+     * json_decode($json, true) returns integer keys for JSON arrays like
+     * ["a", "b"] (keys 0, 1) which LogSanitizer::sanitize() expects to be
+     * string-keyed. This helper normalizes the shape without altering values.
+     *
+     * @param array<mixed, mixed> $arr
+     * @return array<string, mixed>
+     */
+    private function stringifyKeys(array $arr): array
+    {
+        $out = [];
+        foreach ($arr as $k => $v) {
+            $out[(string) $k] = $v;
+        }
+        return $out;
     }
 }

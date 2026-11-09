@@ -11,7 +11,9 @@ use OwnPay\Http\Response;
 use OwnPay\Middleware\RateLimiterMiddleware;
 use OwnPay\Repository\SettingsRepository;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+#[AllowMockObjectsWithoutExpectations]
 final class RateLimiterMiddlewareTest extends TestCase
 {
     private Container $container;
@@ -150,5 +152,28 @@ final class RateLimiterMiddlewareTest extends TestCase
         $this->assertSame(429, $response->getStatusCode());
         $this->assertStringContainsString('text/html', $response->getHeaders()['Content-Type'] ?? '');
         $this->assertStringContainsString('Too Many Requests', $response->getBody());
+    }
+
+    public function testInstallContinuesWhenRateLimiterBackendIsUnavailable(): void
+    {
+        $dbMockForSettings = $this->createMock(Database::class);
+        $dbMockForSettings->method('fetchOne')->willThrowException(new \RuntimeException('database unavailable'));
+
+        $settings = new SettingsRepository($dbMockForSettings);
+        $this->container->instance(SettingsRepository::class, $settings);
+        $this->container->instance('config.app', []);
+
+        $middleware = new RateLimiterMiddleware($this->container);
+        $req = new Request([], [], [
+            'REQUEST_URI' => '/install/test-db',
+            'REQUEST_METHOD' => 'POST',
+        ]);
+
+        $response = $middleware->handle($req, function (Request $request) {
+            return Response::json(['success' => false, 'error' => 'actual database error'], 500);
+        });
+
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertStringContainsString('actual database error', $response->getBody());
     }
 }

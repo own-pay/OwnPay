@@ -11,7 +11,7 @@ use TwigCsFixer\Token\Tokens;
 use Webmozart\Assert\Assert;
 
 /**
- * Ensures there is no space before and after a punctuation except for ':' and ','.
+ * Ensures there is no space before and after punctuation except for ':' and ','.
  */
 final class PunctuationSpacingRule extends AbstractSpacingRule implements ConfigurableRuleInterface
 {
@@ -20,17 +20,13 @@ final class PunctuationSpacingRule extends AbstractSpacingRule implements Config
         ']' => 0,
         '}' => 0,
         ':' => 0,
-        '.' => 0,
         ',' => 0,
-        '|' => 0,
         '?:' => 0,
     ];
     private const DEFAULT_SPACE_AFTER = [
         '(' => 0,
         '[' => 0,
         '{' => 0,
-        '.' => 0,
-        '|' => 0,
         ':' => 1,
         ',' => 1,
         '?:' => 1,
@@ -41,8 +37,8 @@ final class PunctuationSpacingRule extends AbstractSpacingRule implements Config
      * @param array<string, int|null> $afterOverride
      */
     public function __construct(
-        private array $beforeOverride = [],
-        private array $afterOverride = [],
+        private readonly array $beforeOverride = [],
+        private readonly array $afterOverride = [],
     ) {
     }
 

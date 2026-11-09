@@ -2,7 +2,7 @@
  * Tests for admin.js - Admin panel functions
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
 
@@ -379,6 +379,161 @@ describe('admin.js', () => {
 
       const reinjected = document.querySelector('#op-page-scripts script');
       expect(reinjected.getAttribute('nonce')).toBe('TRUSTED_NONCE');
+    });
+  });
+
+  describe('Modal Focus and Accessibility', () => {
+    beforeEach(() => {
+      document.body.innerHTML = `
+        <button id="trigger-btn" data-open-modal="test-modal">Open Modal</button>
+        <div class="op-modal" id="test-modal" role="dialog" aria-modal="true" hidden>
+          <div class="op-modal-dialog">
+            <button type="button" class="op-modal-close" data-close-modal="test-modal">Close</button>
+            <input type="text" id="modal-input" />
+            <button type="button" id="modal-save">Save</button>
+          </div>
+        </div>
+      `;
+    });
+
+    it('should open modal and capture opener element', () => {
+      const trigger = document.getElementById('trigger-btn');
+      const modal = document.getElementById('test-modal');
+
+      trigger.focus();
+      expect(document.activeElement).toBe(trigger);
+
+      window.openModal('test-modal');
+      expect(modal.hidden).toBe(false);
+      expect(modal._opener).toBe(trigger);
+    });
+
+    it('should restore focus to opener on closeModal', () => {
+      const trigger = document.getElementById('trigger-btn');
+      const modal = document.getElementById('test-modal');
+
+      trigger.focus();
+      window.openModal('test-modal');
+      expect(modal.hidden).toBe(false);
+
+      window.closeModal('test-modal');
+      expect(modal.hidden).toBe(true);
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it('should close topmost modal on Escape key', () => {
+      const trigger = document.getElementById('trigger-btn');
+      const modal = document.getElementById('test-modal');
+
+      trigger.focus();
+      window.openModal('test-modal');
+      expect(modal.hidden).toBe(false);
+
+      const escEvent = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+      document.dispatchEvent(escEvent);
+
+      expect(modal.hidden).toBe(true);
+      expect(document.activeElement).toBe(trigger);
+    });
+  });
+
+  describe('Notification bell navigation', () => {
+    let notifDom;
+    let notifWindow;
+    let notifDocument;
+    let navErrors;
+
+    beforeEach(() => {
+      navErrors = [];
+      const virtualConsole = new VirtualConsole();
+      virtualConsole.on('jsdomError', (err) => {
+        // jsdom reports full-document navigation attempts as "Not implemented".
+        navErrors.push(String(err.message) || String(err));
+      });
+
+      // Test fixture markup: hardcoded, not user-controlled input.
+      notifDom = new JSDOM(`
+        <!DOCTYPE html>
+        <html>
+        <body>
+          <div class="op-notif-panel" id="notification-panel">
+            <div class="op-notif-panel-body">
+              <div class="op-notif-item op-notif-unread" data-id="tx_42" data-url="/admin/transactions/42" role="link" tabindex="0">
+                <div class="op-notif-content"><div class="op-notif-title">Payment Received</div></div>
+                <button class="op-notif-delete" data-id="tx_42">x</button>
+              </div>
+              <div class="op-notif-item" data-id="tx_43" data-url="/admin/transactions/43" role="link" tabindex="0">
+                <div class="op-notif-content"><div class="op-notif-title">Payment Failed</div></div>
+              </div>
+              <div class="op-notif-item" data-id="dsp_1">
+                <div class="op-notif-content"><div class="op-notif-title">Dispute</div></div>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `, {
+        url: 'http://localhost',
+        runScripts: 'dangerously',
+        resources: 'usable',
+        virtualConsole,
+      });
+
+      notifWindow = notifDom.window;
+      notifDocument = notifWindow.document;
+
+      Object.defineProperty(notifWindow, 'localStorage', {
+        value: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
+      });
+      Object.defineProperty(notifWindow, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1024,
+      });
+
+      notifWindow.eval(adminCode);
+    });
+
+    afterEach(() => {
+      notifDom.window.close();
+    });
+
+    it('navigates to the detail page when a row with data-url is clicked', () => {
+      notifDocument.querySelector('.op-notif-item[data-id="tx_43"]').click();
+      expect(navErrors.some((m) => m.includes('navigation'))).toBe(true);
+    });
+
+    it('does not navigate when the row delete button is clicked', () => {
+      notifDocument.querySelector('.op-notif-delete').click();
+      expect(navErrors.filter((m) => m.includes('navigation'))).toHaveLength(0);
+    });
+
+    it('does not navigate for rows without a data-url', () => {
+      notifDocument.querySelector('.op-notif-item[data-id="dsp_1"]').click();
+      expect(navErrors.filter((m) => m.includes('navigation'))).toHaveLength(0);
+    });
+
+    it('navigates on Enter when a row is focused', () => {
+      const item = notifDocument.querySelector('.op-notif-item[data-id="tx_42"]');
+      item.focus();
+      item.dispatchEvent(new notifWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(navErrors.some((m) => m.includes('navigation'))).toBe(true);
+    });
+
+    it('navigates on Space when a row is focused and prevents the default scroll', () => {
+      const item = notifDocument.querySelector('.op-notif-item[data-id="tx_42"]');
+      item.focus();
+      const evt = new notifWindow.KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+      item.dispatchEvent(evt);
+      expect(evt.defaultPrevented).toBe(true);
+      expect(navErrors.some((m) => m.includes('navigation'))).toBe(true);
+    });
+
+    it('does not navigate when Enter is pressed on the delete button', () => {
+      const btn = notifDocument.querySelector('.op-notif-delete');
+      btn.focus();
+      btn.dispatchEvent(new notifWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(navErrors.filter((m) => m.includes('navigation'))).toHaveLength(0);
     });
   });
 });

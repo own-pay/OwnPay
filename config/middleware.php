@@ -98,12 +98,15 @@ return [
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // --- Install: minimal - no DB available yet
-    // RateLimiterMiddleware fails open when its backend is unreachable
-    // (fresh install: no DB), and protects the wizard once a DB exists
-    // the scenario where re-running it would be dangerous.
+    // --- Install: wizard runs before DB config is finalized.
+    // SessionMiddleware is required so CsrfMiddleware can persist a per-install
+    // CSRF token; neither of them touches the database. RateLimiterMiddleware
+    // fails open when its backend is unreachable (fresh install: no DB) and
+    // continues to protect the wizard once a DB exists.
     'install' => [
         \OwnPay\Middleware\SecurityHeadersMiddleware::class,
+        \OwnPay\Middleware\SessionMiddleware::class,
+        \OwnPay\Middleware\CsrfMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 ];

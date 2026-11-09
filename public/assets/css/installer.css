@@ -71,7 +71,6 @@ body {
     justify-content: space-between;
     gap: 24px;
     background: rgb(248 249 252 / 85%);
-    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--op-border);
 }
@@ -84,6 +83,19 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+
+    /* Give way before the toggle does when the header row runs out of room. */
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* The logo was sized with an inline height in the markup, which stopped it scaling and
+   left it cropped once the brand shrank. Sizing it here lets it scale proportionally. */
+.ins-brand img {
+    max-width: 100%;
+    max-height: 32px;
+    width: auto;
+    height: auto;
 }
 
 .ins-logo-fallback {
@@ -107,6 +119,23 @@ body {
     letter-spacing: -0.3px;
 }
 
+/* --- Logo theme visibility (issue #40) ---
+   Two <img> elements are emitted (light + dark variants) so the right logo
+   for the active theme is shown without a flash of the wrong variant on
+   first paint. Only one is ever visible; the other is hidden via these
+   rules driven by the data-theme attribute on <html>. */
+.op-logo-dark {
+    display: none;
+}
+
+[data-theme="dark"] .op-logo-light {
+    display: none;
+}
+
+[data-theme="dark"] .op-logo-dark {
+    display: inline-block;
+}
+
 .ins-name span {
     color: var(--op-text-muted);
     font-weight: 400;
@@ -119,7 +148,11 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
+
+    /* min-width/overflow let the indicator actually give way on narrow headers instead of
+       pushing the toggle out of the box; the step chips themselves keep flex-shrink: 0. */
+    min-width: 0;
+    overflow: hidden;
 }
 
 .ins-step {
@@ -281,6 +314,11 @@ body {
     transition: all 0.2s ease;
     width: 100%;
     box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
+}
+
+[data-theme="dark"] .ins-field select option {
+    background-color: var(--op-bg-card);
+    color: var(--op-text);
 }
 
 .ins-field input::placeholder {
@@ -774,7 +812,18 @@ body {
     background: var(--op-bg-card);
 }
 
-/* --- Responsive --- */
+/* --- Responsive ---
+   The step headers now carry a third fixed-width control (the theme toggle). On those the
+   "OwnPay Setup" wordmark is the first thing to go when the row runs short, so the logo and
+   the step indicator keep their space instead of being cut mid-text. 1024px is where the
+   brand, the four steps and the toggle stop fitting on one line. Scoped with :has() so the
+   brand-only header in locked.php, which has no steps and no toggle, keeps its wordmark. */
+@media (max-width: 1024px) {
+    .ins-header:has(.ins-theme-btn) .ins-name {
+        display: none;
+    }
+}
+
 @media (max-width: 640px) {
     .ins-row {
         flex-direction: column;
@@ -799,6 +848,47 @@ body {
     .ins-steps {
         gap: 4px;
     }
+
+    /* Issue #40: shrink the connector lines on small screens so the four-step
+       indicator fits without horizontal scrolling. The number circles still
+       show, giving users a clear sense of progress without overflowing the
+       viewport or producing a horizontal scrollbar. */
+    .ins-step-line {
+        width: 12px;
+    }
+
+    .ins-step {
+        padding: 4px 6px;
+    }
+
+    .ins-step-num {
+        width: 20px;
+        height: 20px;
+        font-size: 11px;
+    }
+}
+
+/* Extra-small screens (<= 360px): collapse the step indicator to just the
+   active step number to guarantee no horizontal scroll on compact phones.
+   The active step's label is shown inline so the user still knows which
+   step they are on. */
+@media (max-width: 360px) {
+    .ins-steps {
+        /* Hide all steps except the active one. */
+        gap: 0;
+    }
+
+    .ins-step:not(.active) {
+        display: none;
+    }
+
+    .ins-step.active span:not(.ins-step-num) {
+        display: inline;
+    }
+
+    .ins-step-line {
+        display: none;
+    }
 }
 
 /* --- Utility Classes --- */
@@ -811,4 +901,30 @@ body {
     line-height: 1.6;
     margin-bottom: 24px;
     color: var(--op-text-body);
+}
+
+/* --- Theme Toggle Button in Installer ---
+   The toggle is a direct child of .ins-header, not of .ins-steps. Inside .ins-steps
+   (flex-shrink: 0) it became the last item in an already-overflowing justify-content:
+   space-between row, so it was the first thing pushed past the header edge and clipped
+   by body { overflow-x: hidden }. As a direct child with flex-shrink: 0 it stays inside
+   the header's padding box at every width, and .ins-brand / .ins-steps give way instead. */
+.ins-theme-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--op-border);
+    background: var(--op-bg-card);
+    color: var(--op-text-body);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ins-theme-btn:hover {
+    background: var(--op-bg-hover);
+    color: var(--op-text);
 }

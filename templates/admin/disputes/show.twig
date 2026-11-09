@@ -83,6 +83,9 @@
                         </a>
                     </dd>
 
+                    <dt>{{ transaction.gateway_name ?? 'Gateway' }} TRX ID</dt>
+                    <dd><code>{{ transaction.gateway_trx_id ?? '-' }}</code></dd>
+
                     <dt>Original Status</dt>
                     <dd>
                         <span class="op-badge op-badge-{{ transaction.status == 'completed' ? 'success' : (transaction.status == 'pending' ? 'warning' : 'danger') }}">

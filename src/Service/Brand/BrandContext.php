@@ -215,7 +215,17 @@ final class BrandContext
         if (session_status() === PHP_SESSION_ACTIVE) {
             $mode = $_SESSION['brand_view_mode'] ?? 'single';
         }
-        return ($this->getActiveBrandId() === null) || ($mode === 'global');
+        // activeBrandId === 0 is the canonical "All Brands" marker (set by
+        // resolveFromRequest() when merchant_id=0 is passed via the request
+        // attribute, and by tests that explicitly assign
+        // $_SESSION['active_brand_id'] = 0). Treating 0 as global here keeps
+        // isGlobalView() consistent with getWriteMerchantId() (which calls
+        // isGlobalView() first, then falls back to getPlatformId() when the
+        // brand id is 0). Without this, a request with merchant_id=0 would
+        // be treated as brand-scoped, causing platform-owned resources (API
+        // keys, etc.) to be unreachable from the All Brands view.
+        $activeBrandId = $this->getActiveBrandId();
+        return ($activeBrandId === null) || ($activeBrandId === 0) || ($mode === 'global');
     }
 
     /**

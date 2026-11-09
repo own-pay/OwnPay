@@ -20,6 +20,9 @@ final class SecurityHeadersMiddlewareTest extends TestCase
         $this->container = new Container();
         $this->container->instance('config.app', [
             'debug' => false,
+            // Resolve Report-To URL from server-side config (config.app.url),
+            // never from the client-controlled HTTP Host header (SEC-9 / #303).
+            'url' => 'http://ownpay.test',
             'paths' => [
                 'modules' => dirname(__DIR__, 2) . '/modules',
             ]
@@ -66,6 +69,15 @@ final class SecurityHeadersMiddlewareTest extends TestCase
 
     public function testReportToHeaderOnHttps(): void
     {
+        // HTTPS variant: override config.app.url to https://
+        $this->container->instance('config.app', [
+            'debug' => false,
+            'url' => 'https://ownpay.test',
+            'paths' => [
+                'modules' => dirname(__DIR__, 2) . '/modules',
+            ]
+        ]);
+
         $middleware = new SecurityHeadersMiddleware($this->container);
         $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test', 'HTTPS' => 'on']);
 
@@ -85,6 +97,7 @@ final class SecurityHeadersMiddlewareTest extends TestCase
     {
         $this->container->instance('config.app', [
             'debug' => true,
+            'url' => 'http://ownpay.test',
             'paths' => [
                 'modules' => dirname(__DIR__, 2) . '/modules',
             ]
@@ -119,5 +132,40 @@ final class SecurityHeadersMiddlewareTest extends TestCase
         $this->assertStringContainsString('style-src', $csp);
         $this->assertStringContainsString('frame-src', $csp);
         $this->assertStringContainsString('connect-src', $csp);
+    }
+
+    public function testContributorsPathCspAllowsGitHubOrigins(): void
+    {
+        $middleware = new SecurityHeadersMiddleware($this->container);
+        $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test', 'REQUEST_URI' => '/admin/contributors']);
+
+        $response = $middleware->handle($request, function (Request $req) {
+            return new Response('OK', 200);
+        });
+
+        $headers = $response->getHeaders();
+        $csp = $headers['Content-Security-Policy'] ?? '';
+
+        $this->assertStringContainsString(
+            "connect-src 'self' https://api.github.com https://raw.githubusercontent.com",
+            $csp
+        );
+    }
+
+    public function testOtherAdminPathCspConnectSrcStaysSelf(): void
+    {
+        $middleware = new SecurityHeadersMiddleware($this->container);
+        $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test', 'REQUEST_URI' => '/admin/dashboard']);
+
+        $response = $middleware->handle($request, function (Request $req) {
+            return new Response('OK', 200);
+        });
+
+        $headers = $response->getHeaders();
+        $csp = $headers['Content-Security-Policy'] ?? '';
+
+        $this->assertStringContainsString("connect-src 'self'", $csp);
+        $this->assertStringNotContainsString('api.github.com', $csp);
+        $this->assertStringNotContainsString('raw.githubusercontent.com', $csp);
     }
 }

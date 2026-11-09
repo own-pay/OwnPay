@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Paystack;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Paystack Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class PaystackGateway implements PluginInterface, GatewayAdapterInterface
+final class PaystackGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -150,5 +151,45 @@ final class PaystackGateway implements PluginInterface, GatewayAdapterInterface
         $secretKey = $this->getString($credentials['secret_key'] ?? null);
         $computedSig = hash_hmac('sha512', $rawBody, $secretKey);
         return hash_equals($computedSig, $sigHeader);
+    }
+
+    /**
+     * Verifies the configured secret key authenticates against Paystack, without moving money -
+     * a paginated transaction list is available to any valid key regardless of account permissions.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter a Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.paystack.co/transaction?perPage=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $secretKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Paystack - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $mode = str_starts_with($secretKey, 'sk_live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Paystack ({$mode} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'Paystack rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

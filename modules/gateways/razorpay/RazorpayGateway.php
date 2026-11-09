@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Razorpay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Razorpay Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class RazorpayGateway implements PluginInterface, GatewayAdapterInterface
+final class RazorpayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -127,5 +128,45 @@ final class RazorpayGateway implements PluginInterface, GatewayAdapterInterface
         $sigHeader = $this->getString($headers['X-Razorpay-Signature'] ?? $headers['x-razorpay-signature'] ?? null);
         $computedSig = hash_hmac('sha256', $rawBody, $webhookSecret);
         return hash_equals($computedSig, $sigHeader);
+    }
+
+    /**
+     * Verifies the configured Key ID/Key Secret authenticate against Razorpay, without moving
+     * money - a minimal payments listing is available to any valid key.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $keyId = $this->getString($credentials['key_id'] ?? null);
+        $keySecret = $this->getString($credentials['key_secret'] ?? null);
+        if ($keyId === '' || $keySecret === '') {
+            return ['success' => false, 'message' => 'Enter a Key ID and Key Secret before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.razorpay.com/v1/payments?count=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $keyId . ':' . $keySecret,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Razorpay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $mode = str_starts_with($keyId, 'rzp_live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully to Razorpay ({$mode} mode)."];
+        }
+
+        $error = is_array($data) ? $this->getArray($data, 'error') : [];
+        $errMsg = is_scalar($error['description'] ?? null) ? (string) $error['description'] : 'Razorpay rejected the provided Key ID/Key Secret.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

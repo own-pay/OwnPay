@@ -85,7 +85,17 @@ final class NotificationController
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $didVal = $req->getAttribute('device_id');
         $did = is_string($didVal) ? $didVal : '';
-        
+
+        // Audit fix DEV-5: acknowledgeIds() now requires a non-empty device
+        // UUID and throws InvalidArgumentException on empty input. Reject the
+        // request explicitly here with a 400 instead of letting the exception
+        // bubble up as a 500 - the caller (paired companion device) should
+        // never send an ack without a resolved device_id, but if it does we
+        // want a clear, actionable error rather than a stack trace.
+        if ($did === '') {
+            return Response::apiError('DEVICE_REQUIRED', 'device_id could not be resolved from the authenticated session', 'device_id', 400);
+        }
+
         $count = $this->notifRepo->acknowledgeIds($ids, $mid, $did);
         return Response::apiSuccess(['acknowledged' => $count]);
     }

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Paytm;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Paytm payment gateway adapter implementing the secure Redirection Flow using Transaction Tokens.
  */
-final class PaytmGateway implements PluginInterface, GatewayAdapterInterface
+final class PaytmGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -311,6 +312,63 @@ final class PaytmGateway implements PluginInterface, GatewayAdapterInterface
     public function supportedCurrencies(): array
     {
         return ['INR'];
+    }
+
+    /**
+     * Verifies the configured MID/Merchant Key authenticate against Paytm, without creating any
+     * payment - reuses the same transactionStatus lookup verify() calls, against a nonexistent
+     * order ID. A valid signature/credentials produces a normal "order not found" response;
+     * a bad Merchant Key produces a checksum/signature failure instead.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $mid = $this->getString($credentials['mid'] ?? '');
+        $merchantKey = $this->getString($credentials['merchant_key'] ?? '');
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mid === '' || $merchantKey === '') {
+            return ['success' => false, 'message' => 'Enter a Merchant ID (MID) and Merchant Key before testing the connection.'];
+        }
+
+        $body = ['mid' => $mid, 'orderId' => 'OWNPAY-CONNECTION-TEST'];
+        $signature = self::generateSignature((string) json_encode($body), $merchantKey);
+        $payload = ['body' => $body, 'head' => ['signature' => $signature]];
+
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        $ch = curl_init($baseUrl . '/v3/transactionStatus');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => (string) json_encode($payload),
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Paytm - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'message' => 'Paytm returned an invalid response.'];
+        }
+
+        $resInfo = $this->getArray($data, 'body', 'resultInfo');
+        $resultCode = $this->getString($resInfo['resultCode'] ?? '');
+        $resultMsg = $this->getString($resInfo['resultMsg'] ?? '');
+
+        // A signature/auth failure returns a distinct code (e.g. 141/steady "checksum
+        // mismatch"); an unrecognized-but-authenticated order returns 227/status "PENDING"
+        // style "order not found" - both are 200s, so branch on the actual result payload.
+        if ($resultCode !== '' && (str_contains(strtolower($resultMsg), 'checksum') || str_contains(strtolower($resultMsg), 'signature') || str_contains(strtolower($resultMsg), 'mid'))) {
+            return ['success' => false, 'message' => $resultMsg !== '' ? $resultMsg : 'Paytm rejected the provided credentials.'];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to Paytm ({$mode} mode)."];
     }
 
     // --- Native PaytmChecksum Implementation ---

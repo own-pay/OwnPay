@@ -51,17 +51,11 @@ final class Theme implements PluginInterface
             return $features;
         });
 
-        // Enqueue assets
-        $events->addAction('checkout.head', function (): void {
-            echo '<link rel="stylesheet" href="/assets/css/checkout.css">';
-        });
-
-        $events->addAction('checkout.footer', function () use ($container): void {
-            $nonceVal = $container->has('csp_nonce') ? $container->get('csp_nonce') : '';
-            $nonceAttr = is_string($nonceVal) && $nonceVal !== '' ? ' nonce="' . htmlspecialchars($nonceVal, ENT_QUOTES, 'UTF-8') . '"' : '';
-            echo '<script' . $nonceAttr . ' src="/assets/js/op-fetch.js"></script>';
-            echo '<script' . $nonceAttr . ' src="/assets/js/checkout.js"></script>';
-        });
+        // Note: checkout.css, op-fetch.js, and checkout.js are NOT enqueued here - checkout.twig
+        // already loads all three directly with cache-busting `?v=` query strings. Echoing them
+        // again unversioned here (as this used to) double-loads them and, worse, means the
+        // unversioned copies never bust a stale browser cache: a cached copy of checkout.js could
+        // silently reinstall a second, outdated click handler after any JS fix ships.
     }
 
     public function boot(Container $container): void {}

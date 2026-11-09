@@ -1,0 +1,20 @@
+name: Redirect PR base to dev
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  redirect-base:
+    name: Change PR base from main to dev
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main' && github.actor == 'dependabot[bot]'
+    steps:
+      - name: Change base branch to dev
+        run: gh pr edit "$PR_NUMBER" --base dev
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

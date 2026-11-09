@@ -56,7 +56,15 @@ final class BrandThemeService
      *     custom_css: string,
      *     custom_js: string,
      *     footer_text: string,
-     *     show_powered_by: bool
+     *     show_powered_by: bool,
+     *     powered_by_text?: string,
+     *     powered_by_url?: string,
+     *     show_faq?: bool,
+     *     language?: string,
+     *     checkout_success_msg?: string,
+     *     checkout_pending_msg?: string,
+     *     checkout_failed_msg?: string,
+     *     manual_payment_auto_redirect: string
      * }
      */
     public function getBrandTheme(int $merchantId): array
@@ -80,6 +88,10 @@ final class BrandThemeService
                 'custom_js'      => '',
                 'footer_text'    => 'Secured by OwnPay · 256-bit encryption',
                 'show_powered_by'=> true,
+                'powered_by_text'=> '',
+                'powered_by_url' => '',
+                'show_faq'       => true,
+                'manual_payment_auto_redirect' => '0',
             ];
         }
 
@@ -113,10 +125,14 @@ final class BrandThemeService
             'custom_js'      => $this->resolveVal($brandSettings, $merchantJsonSettings, 'custom_js', ''),
             'footer_text'    => $this->resolveVal($brandSettings, $merchantJsonSettings, 'footer_text', 'Secured by ' . (is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : 'OwnPay') . ' · 256-bit encryption'),
             'show_powered_by'=> (bool) ($brandSettings['show_powered_by'] ?? $merchantJsonSettings['show_powered_by'] ?? true),
+            'powered_by_text'=> $this->resolveVal($brandSettings, $merchantJsonSettings, 'powered_by_text', ''),
+            'powered_by_url' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'powered_by_url', ''),
+            'show_faq'       => (bool) ($brandSettings['show_faq'] ?? $merchantJsonSettings['show_faq'] ?? true),
             'language'       => $this->resolveVal($brandSettings, $merchantJsonSettings, 'language', ''),
             'checkout_success_msg' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'checkout_success_msg', ''),
             'checkout_pending_msg' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'checkout_pending_msg', ''),
             'checkout_failed_msg'  => $this->resolveVal($brandSettings, $merchantJsonSettings, 'checkout_failed_msg', ''),
+            'manual_payment_auto_redirect' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'manual_payment_auto_redirect', '0'),
         ];
     }
 
@@ -160,7 +176,8 @@ final class BrandThemeService
      */
     private function resolveVal(array $brandSettings, array $merchantSettings, string $key, string $fallback): string
     {
-        if (!empty($brandSettings[$key])) {
+        // Check key existence instead of value truthiness to properly handle '0' values
+        if ($key !== '' && array_key_exists($key, $brandSettings)) {
             return $brandSettings[$key];
         }
         $val = $merchantSettings[$key] ?? null;

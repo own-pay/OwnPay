@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Locked · OwnPay Setup</title>
-    <link rel="stylesheet" href="/assets/css/installer.css?v=4">
-    <script nonce="<?php echo bin2hex(random_bytes(16)); ?>">
+    <link rel="stylesheet" href="/assets/css/installer.css?v=6">
+    <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
         (function(){var t=localStorage.getItem('op-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
     </script>
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <img src="/assets/img/logo-light.svg" alt="OwnPay" class="op-logo-light" style="height: 32px; width: auto;">
-        <img src="/assets/img/logo-dark.svg" alt="OwnPay" class="op-logo-dark" style="height: 32px; width: auto;">
+        <img src="/assets/img/logo-light.svg?v=002" alt="OwnPay" class="op-logo-light">
+        <img src="/assets/img/logo-dark.svg?v=002" alt="OwnPay" class="op-logo-dark">
         <span class="ins-name">OwnPay <span>Setup</span></span>
     </div>
 </header>

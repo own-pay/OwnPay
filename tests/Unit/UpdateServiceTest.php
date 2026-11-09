@@ -19,6 +19,18 @@ class TestableUpdateService extends UpdateService
     public ?string $mockPackagePath = null;
     public bool $extractPackageCalled = false;
     public bool $runMigrationsCalled = false;
+
+    /**
+     * Substitutes the RSA public key used by UpdateService for signature
+     * verification. Used by testSuccessfulSignatureAndUpdate() to inject
+     * a test-generated key pair so the test does not depend on the
+     * production update_private_key.pem (which is intentionally not
+     * distributed with the repo).
+     */
+    public static function setUpdatePublicKey(string $pem): void
+    {
+        self::$updatePublicKey = $pem;
+    }
     public bool $clearCacheCalled = false;
     public bool $optimizeCalled = false;
 
@@ -243,14 +255,33 @@ class UpdateServiceTest extends TestCase
 
     public function testSuccessfulSignatureAndUpdate(): void
     {
-        $privateKeyPath = dirname(__DIR__, 2) . '/update_private_key.pem';
-        if (!file_exists($privateKeyPath)) {
-            $this->markTestSkipped('update_private_key.pem not found in project root.');
+        // Generate a temporary RSA key pair for this test run and inject
+        // the public key into UpdateService via the protected static
+        // $updatePublicKey property. This avoids the dependency on the
+        // production update_private_key.pem (which is intentionally not
+        // distributed with the repo) while still exercising the full
+        // sign → verify → extract → migrate → cache → optimize path.
+        $keyConfig = [
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ];
+        if (getenv('OPENSSL_CONF') !== false && is_file((string) getenv('OPENSSL_CONF'))) {
+            $keyConfig['config'] = (string) getenv('OPENSSL_CONF');
+        } elseif (is_file(dirname(PHP_BINARY) . '/extras/ssl/openssl.cnf')) {
+            $keyConfig['config'] = dirname(PHP_BINARY) . '/extras/ssl/openssl.cnf';
         }
+        $keyResource = openssl_pkey_new($keyConfig);
+        $this->assertNotFalse($keyResource);
 
-        $privateKeyContent = file_get_contents($privateKeyPath);
+        $privateKeyContent = '';
+        $this->assertTrue(openssl_pkey_export($keyResource, $privateKeyContent, null, $keyConfig));
         $privKeyResource = openssl_pkey_get_private($privateKeyContent);
         $this->assertNotFalse($privKeyResource);
+
+        $keyDetails = openssl_pkey_get_details($keyResource);
+        $this->assertIsArray($keyDetails);
+        $this->assertArrayHasKey('key', $keyDetails);
+        TestableUpdateService::setUpdatePublicKey($keyDetails['key']);
 
         $zipData = file_get_contents($this->tempZipPath);
         $this->assertTrue(openssl_sign($zipData, $signature, $privKeyResource, OPENSSL_ALGO_SHA256));

@@ -7,6 +7,7 @@
  * @copyright    2020 smiley
  * @license      MIT
  */
+declare(strict_types=1);
 
 namespace chillerlan\QRCode\Common;
 
@@ -137,13 +138,10 @@ final class EccLevel{
 	 * Q: 0b11
 	 * H: 0b10
 	 */
-	private int $eccLevel;
+	private int $level;
 
 	/**
 	 * @param int $eccLevel containing the two bits encoding a QR Code's error correction level
-	 *
-	 * @todo: accept string values (PHP8+)
-	 * @see https://github.com/chillerlan/php-qrcode/discussions/160
 	 *
 	 * @throws \chillerlan\QRCode\QRCodeException
 	 */
@@ -153,7 +151,7 @@ final class EccLevel{
 			throw new QRCodeException('invalid ECC level');
 		}
 
-		$this->eccLevel = $eccLevel;
+		$this->level = $eccLevel;
 	}
 
 	/**
@@ -165,14 +163,16 @@ final class EccLevel{
 			self::M => 'M',
 			self::Q => 'Q',
 			self::H => 'H',
-		][$this->eccLevel];
+		][$this->level];
 	}
 
 	/**
 	 * returns the current ECC level
+	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "EccLevel::$level" instead.
 	 */
 	public function getLevel():int{
-		return $this->eccLevel;
+		return $this->level;
 	}
 
 	/**
@@ -190,7 +190,7 @@ final class EccLevel{
 			self::M => 1,
 			self::Q => 2,
 			self::H => 3,
-		][$this->eccLevel];
+		][$this->level];
 	}
 
 	/**

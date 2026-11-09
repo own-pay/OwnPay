@@ -51,6 +51,43 @@
             if (tab) { tab.click(); }
         }
 
+        // --- SMTP Test ----------------------------------------------------------
+        var testSmtpButton = document.getElementById("btn-test-smtp");
+        if (testSmtpButton) {
+            testSmtpButton.addEventListener("click", function () {
+                var target = document.getElementById("test-email-target");
+                var address = target ? target.value.trim() : "";
+                if (!address) {
+                    window.alert("Enter a test recipient email address.");
+                    return;
+                }
+                testSmtpButton.disabled = true;
+                testSmtpButton.textContent = "Sending...";
+                var body = new URLSearchParams({ to: address, _csrf_token: window.OP_CSRF || "" });
+                fetch("/admin/settings/email/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-Token": window.OP_CSRF || ""
+                    },
+                    body: body.toString()
+                }).then(function (response) {
+                    return response.json().then(function (result) {
+                        if (!response.ok || !result.success) {
+                            throw new Error(result.error || "Email test failed.");
+                        }
+                        window.alert("Test email sent successfully.");
+                    });
+                }).catch(function (error) {
+                    window.alert(error.message || "Email test failed.");
+                }).finally(function () {
+                    testSmtpButton.disabled = false;
+                    testSmtpButton.textContent = "Test Connection";
+                });
+            });
+        }
+
         // --- Maintenance Mode Warning Toggle -------------------------------------
         var maintToggle = document.getElementById("maintenance-toggle");
         var maintWarn = document.getElementById("maintenance-warning");
@@ -215,6 +252,36 @@
                 if (form) { form.submit(); }
             });
         }
+
+        // Application logo upload zones
+        [
+            ["app-logo-light-drop-zone", "app-logo-light-file-input", "app-logo-light-upload-form"],
+            ["app-logo-dark-drop-zone", "app-logo-dark-file-input", "app-logo-dark-upload-form"]
+        ].forEach(function (ids) {
+            var dropZone = document.getElementById(ids[0]);
+            var fileInput = document.getElementById(ids[1]);
+            var form = document.getElementById(ids[2]);
+            if (!dropZone || !fileInput || !form) { return; }
+            dropZone.addEventListener("click", function () { fileInput.click(); });
+            dropZone.addEventListener("dragover", function (event) {
+                event.preventDefault();
+                dropZone.classList.add("op-upload-zone-active");
+            });
+            dropZone.addEventListener("dragleave", function () {
+                dropZone.classList.remove("op-upload-zone-active");
+            });
+            dropZone.addEventListener("drop", function (event) {
+                event.preventDefault();
+                dropZone.classList.remove("op-upload-zone-active");
+                if (event.dataTransfer.files.length) {
+                    fileInput.files = event.dataTransfer.files;
+                    form.submit();
+                }
+            });
+            fileInput.addEventListener("change", function () {
+                if (fileInput.files.length) { form.submit(); }
+            });
+        });
 
         // Cron secret toggle click
         const btnToggleCronSecret = document.getElementById("btn-toggle-cron-secret");

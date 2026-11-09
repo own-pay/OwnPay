@@ -16,6 +16,7 @@ final class AuditLogRepository extends BaseRepository
     protected array $fillable = [
         'merchant_id', 'user_id', 'action', 'entity_type', 'entity_id',
         'old_values', 'new_values', 'ip_address', 'user_agent', 'signature',
+        'prev_hash',
     ];
 
     /**
@@ -46,9 +47,30 @@ final class AuditLogRepository extends BaseRepository
         ?string $ip = null,
         ?string $userAgent = null
     ): string {
-        $oldJson = $oldValues !== null ? (string)json_encode($oldValues) : null;
-        $newJson = $newValues !== null ? (string)json_encode($newValues) : null;
+        // Defense-in-depth: redact sensitive keys (password_hash, totp_secret,
+        // api_key, webhook_secret, etc.) BEFORE serializing to JSON. Without
+        // this, the audit log itself becomes a repository of secrets. See
+        // LogSanitizer::REDACT_KEYS for the full list. The signature is also
+        // computed against the sanitized JSON so verifyIntegrity() stays
+        // consistent with what was stored.
+        $sanitizedOld = $oldValues !== null ? \OwnPay\Security\LogSanitizer::sanitize($oldValues) : null;
+        $sanitizedNew = $newValues !== null ? \OwnPay\Security\LogSanitizer::sanitize($newValues) : null;
+
+        $oldJson = $sanitizedOld !== null ? (string)json_encode($sanitizedOld) : null;
+        $newJson = $sanitizedNew !== null ? (string)json_encode($sanitizedNew) : null;
         $ua = $userAgent ? mb_substr($userAgent, 0, 500) : null;
+
+        // SYS-1: Resolve the previous row's signature so we can chain.
+        // The forward hash chain makes deletion/insertion detectable:
+        // each row's signature includes the previous row's signature, so
+        // removing a row breaks the chain link between its predecessor
+        // and successor.
+        $prevRow = $this->db->fetchOne(
+            "SELECT signature FROM {$this->table} ORDER BY id DESC LIMIT 1"
+        );
+        $prevHash = (is_array($prevRow) && isset($prevRow['signature']) && is_string($prevRow['signature']))
+            ? $prevRow['signature']
+            : null;
 
         $signature = $this->calculateSignature(
             $merchantId,
@@ -59,7 +81,8 @@ final class AuditLogRepository extends BaseRepository
             $oldJson,
             $newJson,
             $ip,
-            $ua
+            $ua,
+            $prevHash
         );
 
         return $this->create([
@@ -68,11 +91,12 @@ final class AuditLogRepository extends BaseRepository
             'action'      => $action,
             'entity_type' => $entityType,
             'entity_id'   => $entityId,
-            'old_values'  => $oldValues !== null ? json_encode($oldValues) : null,
-            'new_values'  => $newValues !== null ? json_encode($newValues) : null,
+            'old_values'  => $oldJson,
+            'new_values'  => $newJson,
             'ip_address'  => $ip,
             'user_agent'  => $ua,
             'signature'   => $signature,
+            'prev_hash'   => $prevHash,
         ]);
     }
 
@@ -88,7 +112,8 @@ final class AuditLogRepository extends BaseRepository
         ?string $oldValuesJson,
         ?string $newValuesJson,
         ?string $ip,
-        ?string $userAgent
+        ?string $userAgent,
+        ?string $prevHash = null
     ): string {
         $secret = \OwnPay\Service\System\EnvironmentService::get('AUDIT_HMAC_SECRET');
         if ($secret === '' || strlen($secret) < 32) {
@@ -117,8 +142,14 @@ final class AuditLogRepository extends BaseRepository
             }
         }
 
+        // SYS-1: Include prevHash in the payload so the signature forms
+        // a forward hash chain. Without this, an attacker with DB write
+        // access could DELETE audit log entries without detection - the
+        // verifyIntegrity() scan simply wouldn't see them. With the
+        // chain, deleting a row breaks the link between its predecessor
+        // and successor, which verifyIntegrity() flags as compromised.
         $payload = sprintf(
-            '%s|%s|%s|%s|%s|%s|%s|%s|%s',
+            '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s',
             $merchantId !== null ? (string)$merchantId : '',
             $userId !== null ? (string)$userId : '',
             $action,
@@ -127,7 +158,8 @@ final class AuditLogRepository extends BaseRepository
             $oldNormalized !== null ? (string)$oldNormalized : '',
             $newNormalized !== null ? (string)$newNormalized : '',
             $ip !== null ? $ip : '',
-            $userAgent !== null ? $userAgent : ''
+            $userAgent !== null ? $userAgent : '',
+            $prevHash !== null ? $prevHash : ''
         );
 
         return hash_hmac('sha256', $payload, $secret);
@@ -158,6 +190,12 @@ final class AuditLogRepository extends BaseRepository
         $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY id ASC");
         $compromised = [];
 
+        // SYS-1: Track the previous row's signature so we can verify the
+        // forward hash chain. A row whose prev_hash does not match the
+        // signature of its predecessor indicates either deletion (chain
+        // broken) or insertion (prev_hash forged).
+        $expectedPrevHash = null;
+
         foreach ($rows as $row) {
             $merchantId = isset($row['merchant_id']) && is_scalar($row['merchant_id']) ? (int) $row['merchant_id'] : null;
             $userId = isset($row['user_id']) && is_scalar($row['user_id']) ? (int) $row['user_id'] : null;
@@ -169,10 +207,20 @@ final class AuditLogRepository extends BaseRepository
             $ip = isset($row['ip_address']) && is_scalar($row['ip_address']) ? (string) $row['ip_address'] : null;
             $userAgent = isset($row['user_agent']) && is_scalar($row['user_agent']) ? (string) $row['user_agent'] : null;
             $storedSignature = isset($row['signature']) && is_scalar($row['signature']) ? (string) $row['signature'] : '';
+            $storedPrevHash = isset($row['prev_hash']) && is_scalar($row['prev_hash']) ? (string) $row['prev_hash'] : null;
 
             // Skip entries that were created before the signature column was added (storedSignature === null)
             if ($row['signature'] === null) {
                 continue;
+            }
+
+            // SYS-1: Chain-link check. If the row's stored prev_hash does
+            // not match the signature of the immediately preceding row, the
+            // chain is broken - a row was deleted or inserted between the
+            // predecessor and this row. We mark the row as compromised so
+            // the audit-trail UI surfaces the gap.
+            if ($expectedPrevHash !== null && $storedPrevHash !== null && !hash_equals($expectedPrevHash, $storedPrevHash)) {
+                $compromised[] = $row;
             }
 
             $calculated = $this->calculateSignature(
@@ -184,12 +232,16 @@ final class AuditLogRepository extends BaseRepository
                 $oldValuesJson,
                 $newValuesJson,
                 $ip,
-                $userAgent
+                $userAgent,
+                $storedPrevHash
             );
 
             if (!hash_equals($calculated, $storedSignature)) {
                 $compromised[] = $row;
             }
+
+            // Advance the chain pointer.
+            $expectedPrevHash = $storedSignature;
         }
 
         return $compromised;
@@ -239,6 +291,21 @@ final class AuditLogRepository extends BaseRepository
         return $count;
     }
 
+    /**
+     * Counts audit log rows that do not yet have a cryptographic signature.
+     *
+     * Used by the integrity-scan UI to surface "legacy unsigned rows" as a
+     * separate category that the operator must explicitly review before
+     * signing, rather than silently blessing them via signExistingLogs()
+     * inside the scan() flow.
+     *
+     * @return int Number of rows where signature IS NULL.
+     */
+    public function countUnsigned(): int
+    {
+        return $this->db->count($this->table, 'signature IS NULL');
+    }
+
 
     /**
      * Lists audit log records with sorting and pagination, optionally scoped by merchant ID.
@@ -285,15 +352,29 @@ final class AuditLogRepository extends BaseRepository
     /**
      * Retrieves all audit log entries associated with a specific entity.
      *
+     * Scopes the query by merchant_id (REPO-7) so a future caller that
+     * passes a user-controlled entity_id cannot read another tenant's
+     * audit trail. Pass null for the superadmin "All Brands" view -
+     * consistent with the existing pattern in listPaginated().
+     *
      * @param string $entityType The entity's structural type name.
      * @param int $entityId The primary key identifier of the target entity.
+     * @param int|null $merchantId Scoping merchant ID, or null for all merchants (superadmin).
      * @return array<int, array<string, mixed>> List of matching audit log entries.
      */
-    public function listForEntity(string $entityType, int $entityId): array
+    public function listForEntity(string $entityType, int $entityId, ?int $merchantId = null): array
     {
+        $where = 'entity_type = :et AND entity_id = :eid';
+        $params = ['et' => $entityType, 'eid' => $entityId];
+
+        if ($merchantId !== null) {
+            $where .= ' AND merchant_id = :mid';
+            $params['mid'] = $merchantId;
+        }
+
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE entity_type = :et AND entity_id = :eid ORDER BY created_at DESC",
-            ['et' => $entityType, 'eid' => $entityId]
+            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY created_at DESC",
+            $params
         );
     }
 }

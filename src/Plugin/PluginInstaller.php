@@ -23,7 +23,7 @@ final class PluginInstaller
      *
      * @var array<int, string>
      */
-    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll'];
+    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll', 'php', 'phtml', 'php3', 'php4', 'php5', 'php7', 'pht', 'phps'];
 
     /**
      * Absolute path to the modules directory.
@@ -119,7 +119,8 @@ final class PluginInstaller
     /**
      * Scans ZIP archive entries for path traversal and restricted file extensions.
      *
-     * Mitigates Remote Code Execution (RCE) vectors by blocking phar, shell, and executable files.
+     * Mitigates Remote Code Execution (RCE) vectors by blocking PHP sources, phar, shell,
+     * and other executable files.
      *
      * @param \ZipArchive $zip The active ZIP archive reference.
      * @return array{success: false, error: string}|null Null if clean, or an error array.
@@ -136,9 +137,17 @@ final class PluginInstaller
                 return $this->fail('ZIP contains path traversal attempt');
             }
 
-            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (in_array($ext, self::BLOCKED_EXTENSIONS, true)) {
-                return $this->fail("Blocked file type: .{$ext}");
+            // Every extension segment is checked, not only the last one: web servers resolve
+            // handlers per segment, so `shell.php.jpg` and `shell.php.` still run as PHP.
+            $segments = explode('.', basename($normalizedName));
+            array_shift($segments);
+            foreach ($segments as $segment) {
+                // Trailing dots and spaces are stripped silently by Windows filesystems on
+                // extraction, which would otherwise restore a bare `shell.php` on disk.
+                $ext = strtolower(trim($segment));
+                if (in_array($ext, self::BLOCKED_EXTENSIONS, true)) {
+                    return $this->fail("Blocked file type: .{$ext}");
+                }
             }
         }
         return null;
@@ -159,47 +168,44 @@ final class PluginInstaller
             return $this->fail('Failed to create temp directory');
         }
 
-        // Extract entries manually so that Windows-style backslash separators are
-        // normalized to forward slashes on every platform. ZipArchive::extractTo
-        // preserves backslashes verbatim on Linux, which would leave files with
-        // literal backslashes in their names and break directory discovery.
+        // Extract files individually, normalizing Windows-style backslash
+        // separators to forward slashes so directories are created correctly
         for ($i = 0; $i < $zip->numFiles; $i++) {
-            $name = $zip->getNameIndex($i);
-            if ($name === false) {
+            $rawName = $zip->getNameIndex($i);
+            if ($rawName === false) continue;
+
+            $normalizedName = str_replace('\\', '/', $rawName);
+            $targetPath = $tempDir . '/' . $normalizedName;
+
+            // Skip directory entries - mkdir will create them below
+            if (str_ends_with($normalizedName, '/')) {
+                @mkdir($targetPath, 0755, true);
                 continue;
             }
 
-            $normalizedName = str_replace('\\', '/', $name);
-            if ($normalizedName === '' || str_ends_with($normalizedName, '/')) {
-                if ($normalizedName !== '' && $normalizedName !== '/') {
-                    @mkdir($tempDir . '/' . trim($normalizedName, '/'), 0755, true);
-                }
-                continue;
-            }
-
-            // Guard against traversal even though scanZipSecurity already checked.
+            // Retain the source branch's traversal guard after normalizing separators.
             if (str_contains($normalizedName, '..') || str_starts_with($normalizedName, '/')) {
                 $zip->close();
                 $this->removeDir($tempDir);
                 return $this->fail('ZIP contains path traversal attempt');
             }
 
-            $targetPath = $tempDir . '/' . $normalizedName;
+            // Ensure parent directory exists
             $parentDir = dirname($targetPath);
             if (!is_dir($parentDir)) {
                 @mkdir($parentDir, 0755, true);
             }
 
-            $stream = $zip->getStream($name);
-            if ($stream === false) {
-                continue;
+            // Extract the file content and write to the normalized path
+            $stream = $zip->getStream($rawName);
+            if ($stream !== false) {
+                $dest = fopen($targetPath, 'wb');
+                if ($dest !== false) {
+                    stream_copy_to_stream($stream, $dest);
+                    fclose($dest);
+                }
+                fclose($stream);
             }
-            $contents = stream_get_contents($stream);
-            fclose($stream);
-            if ($contents === false) {
-                $contents = '';
-            }
-            file_put_contents($targetPath, $contents);
         }
 
         $zip->close();
@@ -282,12 +288,36 @@ final class PluginInstaller
                     'error'            => "Plugin '{$manifest->slug}' already installed."
                 ];
             }
+
+            // Bug #10 fix: Preserve plugin storage directory across updates
+            $storageBackup = null;
+            $storageDir = $targetDir . '/storage';
+            if (is_dir($storageDir)) {
+                $storageBackup = sys_get_temp_dir() . '/op_storage_backup_' . $manifest->slug . '_' . bin2hex(random_bytes(4));
+                $this->copyDir($storageDir, $storageBackup);
+            }
+
             $this->removeDir($targetDir);
+
+            // Restore storage after removal
+            if ($storageBackup !== null) {
+                // The new plugin dir will be created below by rename/copyDir
+                // We'll restore storage after deployment
+            }
+        } else {
+            $storageBackup = null;
         }
 
         $pluginDir = $manifest->path;
         if (!rename($pluginDir, $targetDir)) {
             $this->copyDir($pluginDir, $targetDir);
+        }
+
+        // Bug #10 fix: Restore preserved storage after deployment
+        if ($storageBackup !== null && is_dir($storageBackup)) {
+            $newStorageDir = $targetDir . '/storage';
+            $this->copyDir($storageBackup, $newStorageDir);
+            $this->removeDir($storageBackup);
         }
 
         return ['success' => true, 'slug' => $manifest->slug];

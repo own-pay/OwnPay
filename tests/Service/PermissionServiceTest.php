@@ -45,10 +45,23 @@ final class PermissionServiceTest extends TestCase
         $this->assertSame(0, PermissionService::countPermissions('unknown', ['foo', 'bar']));
     }
 
-    public function testHasPermissionAdminAlwaysTrue(): void
+    public function testHasPermissionSystemAdminAlwaysTrue(): void
     {
-        $this->assertTrue(PermissionService::hasPermission([], 'transaction', 'edit', 'admin'));
-        $this->assertTrue(PermissionService::hasPermission([], 'nonexistent', 'delete', 'admin'));
+        // The bypass requires the caller to confirm via a DB lookup that the
+        // role is the platform system 'admin' (is_system = 1) - the name alone
+        // is NOT enough, because a merchant can create a custom role named 'admin'.
+        $this->assertTrue(PermissionService::hasPermission([], 'transaction', 'edit', 'admin', true));
+        $this->assertTrue(PermissionService::hasPermission([], 'nonexistent', 'delete', 'admin', true));
+    }
+
+    public function testHasPermissionCustomRoleNamedAdminDoesNotBypass(): void
+    {
+        // A custom (non-system) role whose NAME happens to be 'admin' must NOT
+        // bypass permission checks. The caller must explicitly pass isSystemRole=true
+        // after verifying the role is the platform system 'admin' via DB lookup.
+        $this->assertFalse(PermissionService::hasPermission([], 'transaction', 'edit', 'admin'));
+        $this->assertFalse(PermissionService::hasPermission([], 'transaction', 'edit', 'admin', false));
+        $this->assertFalse(PermissionService::hasPermission(['resources' => ['transaction' => ['edit' => false]]], 'transaction', 'edit', 'admin'));
     }
 
     public function testHasPermissionStaffWithGrantedAction(): void
@@ -87,9 +100,15 @@ final class PermissionServiceTest extends TestCase
         $this->assertTrue(PermissionService::hasPermission($perms, 'reports', 'view', 'staff'));
     }
 
-    public function testCanAccessPageAdminAlwaysTrue(): void
+    public function testCanAccessPageSystemAdminAlwaysTrue(): void
     {
-        $this->assertTrue(PermissionService::canAccessPage([], 'any-page', 'admin'));
+        $this->assertTrue(PermissionService::canAccessPage([], 'any-page', 'admin', true));
+    }
+
+    public function testCanAccessPageCustomRoleNamedAdminDoesNotBypass(): void
+    {
+        $this->assertFalse(PermissionService::canAccessPage([], 'any-page', 'admin'));
+        $this->assertFalse(PermissionService::canAccessPage([], 'any-page', 'admin', false));
     }
 
     public function testCanAccessPageStaffWithGrantedPage(): void

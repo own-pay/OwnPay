@@ -1,10 +1,18 @@
-{# GATEWAY GRIDS - dynamically populated from DB #}
+{# GATEWAY GRIDS - dynamically populated from DB
+   Issue #565: the category flags, the default pane and the has-any flag are computed
+   once in checkout.twig and passed in so this partial and _gateway-tabs.twig always pick
+   the same visible pane; the `??` fallbacks only kick in when rendered standalone. #}
+{% set hasCards = has_cards ?? (gateways.global|default([]) is not empty) %}
+{% set hasMfs = has_mfs ?? (gateways.mfs|default([]) is not empty) %}
+{% set hasBank = has_bank ?? (gateways.bank|default([]) is not empty) %}
+{% set defaultTab = default_tab ?? (hasCards ? 'cards' : (hasMfs ? 'mfs' : (hasBank ? 'bank' : 'cards'))) %}
+{% set hasAnyGateways = has_any ?? (hasCards or hasMfs or hasBank) %}
 
 {# TAB: CARDS (global gateways) #}
-<div id="t-cards" class="ck-tc">
+<div id="t-cards" class="ck-tc {{ defaultTab != 'cards' ? 'ck-hidden' : '' }}">
     <div class="ck-gw-grid" id="cardG">
         {% for gw in gateways.global %}
-        <div class="ck-gw" data-action="pick-gw" data-tab="card" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
+        <div class="ck-gw{% if gw.disabled is defined and gw.disabled %} ck-gw-disabled{% endif %}" data-action="pick-gw" data-tab="card" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}" {% if gw.disabled is defined and gw.disabled %}data-disabled="1" data-reason="{{ gw.disabled_reason ?? 'Not available for this amount' }}" title="{{ gw.disabled_reason ?? 'Not available for this amount' }}"{% endif %}>
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
@@ -19,17 +27,17 @@
         </div>
         {% endfor %}
         {% if gateways.global is empty %}
-            <p class="ck-empty-gw">{{ lang.no_gateways ?? 'No card gateways configured.' }}</p>
+            <p class="ck-empty-gw">{{ hasAnyGateways ? (lang.no_gateways ?? 'No card gateways configured.') : (lang.no_payment_methods ?? 'No payment methods currently available.') }}</p>
         {% endif %}
     </div>
     <button type="button" id="cardBtn" disabled class="ck-pay-btn ck-pay-disabled">{{ lang.select_gateway ?? 'Select a gateway' }}</button>
 </div>
 
 {# TAB: MFS #}
-<div id="t-mfs" class="ck-tc ck-hidden">
+<div id="t-mfs" class="ck-tc {{ defaultTab != 'mfs' ? 'ck-hidden' : '' }}">
     <div class="ck-gw-grid" id="mfsG">
         {% for gw in gateways.mfs %}
-        <div class="ck-gw" data-action="pick-gw" data-tab="mfs" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
+        <div class="ck-gw{% if gw.disabled is defined and gw.disabled %} ck-gw-disabled{% endif %}" data-action="pick-gw" data-tab="mfs" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}" {% if gw.disabled is defined and gw.disabled %}data-disabled="1" data-reason="{{ gw.disabled_reason ?? 'Not available for this amount' }}" title="{{ gw.disabled_reason ?? 'Not available for this amount' }}"{% endif %}>
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
@@ -51,10 +59,10 @@
 </div>
 
 {# TAB: NET BANKING #}
-<div id="t-bank" class="ck-tc ck-hidden">
+<div id="t-bank" class="ck-tc {{ defaultTab != 'bank' ? 'ck-hidden' : '' }}">
     <div class="ck-gw-grid" id="bankG">
         {% for gw in gateways.bank %}
-        <div class="ck-gw" data-action="pick-gw" data-tab="bank" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
+        <div class="ck-gw{% if gw.disabled is defined and gw.disabled %} ck-gw-disabled{% endif %}" data-action="pick-gw" data-tab="bank" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}" {% if gw.disabled is defined and gw.disabled %}data-disabled="1" data-reason="{{ gw.disabled_reason ?? 'Not available for this amount' }}" title="{{ gw.disabled_reason ?? 'Not available for this amount' }}"{% endif %}>
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}

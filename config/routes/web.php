@@ -127,6 +127,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/disputes', 'Admin\\DisputeController@index', 'admin');
     $router->get('/admin/disputes/{id}', 'Admin\\DisputeController@show', 'admin');
     $router->post('/admin/disputes/{id}/resolve', 'Admin\\DisputeController@resolve', 'admin');
+    // Open a new dispute against a transaction (issue #61 - reachable create path).
+    $router->post('/admin/disputes/create', 'Admin\\DisputeController@create', 'admin');
 
     // Payment Links
     $router->get('/admin/payment-links', 'Admin\\PaymentLinkController@index', 'admin');
@@ -193,6 +195,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/settings', 'Admin\\SettingsController@index', 'admin');
     $router->get('/admin/settings/{tab}', 'Admin\\SettingsController@tab', 'admin');
     $router->post('/admin/settings/save', 'Admin\\SettingsController@save', 'admin');
+    $router->post('/admin/notifications/mark-all-read', 'Admin\\SettingsController@markNotificationsRead', 'admin');
+    $router->post('/admin/settings/email/test', 'Admin\\SettingsController@testEmail', 'admin');
     $router->post('/admin/settings/upload', 'Admin\\SettingsController@upload', 'admin');
     $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
     $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
@@ -279,6 +283,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/activities/{id}/details', 'Admin\\ActivitiesController@details', 'admin');
     $router->get('/admin/audit-integrity', 'Admin\\AuditIntegrityController@scan', 'admin');
     $router->post('/admin/audit-integrity/scan', 'Admin\\AuditIntegrityController@scan', 'admin');
+    $router->post('/admin/audit-integrity/sign-legacy', 'Admin\\AuditIntegrityController@signLegacy', 'admin');
     $router->get('/admin/login-attempts', 'Admin\\LoginAttemptController@index', 'admin');
     $router->post('/admin/login-attempts/unlock', 'Admin\\LoginAttemptController@unlock', 'admin');
 
@@ -306,6 +311,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/plugins/{slug}/restore', 'Admin\\PluginController@restore', 'admin');
     $router->get('/admin/plugins/{slug}/settings', 'Admin\\PluginController@settings', 'admin');
     $router->post('/admin/plugins/{slug}/settings', 'Admin\\PluginController@saveSettings', 'admin');
+    $router->post('/admin/plugins/{slug}/test-connection', 'Admin\\PluginController@testConnection', 'admin');
 
     $router->get('/admin/themes', 'Admin\\ThemeController@index', 'admin');
     $router->get('/admin/themes/install', 'Admin\\ThemeController@installForm', 'admin');
@@ -330,6 +336,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/balance-verification/run', 'Admin\\BalanceVerificationController@run', 'admin');
 
     // ─── Cron endpoint ─────────────────────────────────────────
+    // GET is supported for compatibility with hosting-panel cron services.
+    // POST /cron with X-Cron-Secret or Authorization: Bearer is also supported.
     $router->get('/cron/{secret}', 'Page\\CronController@run', 'cron');
     $router->post('/cron', 'Page\\CronController@run', 'cron');
 

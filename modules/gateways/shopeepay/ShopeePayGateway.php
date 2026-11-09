@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\ShopeePay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * ShopeePay payment gateway adapter using Omise hosted payment sources.
  */
-final class ShopeePayGateway implements PluginInterface, GatewayAdapterInterface
+final class ShopeePayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -257,5 +258,45 @@ final class ShopeePayGateway implements PluginInterface, GatewayAdapterInterface
     public function supportedCurrencies(): array
     {
         return ['THB', 'MYR', 'SGD'];
+    }
+
+    /**
+     * Verifies the configured Omise Secret Key authenticates against Omise's account endpoint,
+     * without moving any money.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter an Omise Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init(self::API_URL . '/account');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Omise - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $mode = str_starts_with($secretKey, 'skey_test') ? 'sandbox' : 'live';
+            return ['success' => true, 'message' => "Connected successfully to Omise/ShopeePay ({$mode} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'Omise rejected the provided Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

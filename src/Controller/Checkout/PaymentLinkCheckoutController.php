@@ -61,6 +61,24 @@ final class PaymentLinkCheckoutController
     }
 
     /**
+     * Resolves per-brand theme/footer settings (footer_text, show_powered_by, powered_by_text,
+     * etc.) for the payment-link templates below - without this, `brand` is never present in
+     * their render context and checkout/layout.twig falls back to its unconditional, unbranded
+     * default footer instead of respecting the merchant's configured settings.
+     *
+     * @param int $mid The merchant/brand identifier.
+     * @return array<string, mixed> Brand theme settings, or [] if unresolvable.
+     */
+    private function loadBrandTheme(int $mid): array
+    {
+        if ($mid <= 0 || !$this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
+            return [];
+        }
+        $themeSvc = $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class);
+        return $themeSvc instanceof \OwnPay\Service\Brand\BrandThemeService ? $themeSvc->getBrandTheme($mid) : [];
+    }
+
+    /**
      * Renders the payment link checkout screen or redirects to the transaction.
      *
      * If the payment link has a fixed amount, it initializes a pending transaction (if one does not
@@ -144,6 +162,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'csrf_token' => $csrf,
                 'error'      => $error,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
 
@@ -221,6 +240,22 @@ final class PaymentLinkCheckoutController
             $brandCtx->setActiveBrandId($merchantId);
         }
 
+        // Security: fixed-amount links must never accept a customer-supplied
+        // amount via POST. The `show()` flow creates the transaction directly
+        // with the stored amount and never renders the amount-entry form, so a
+        // POST to /submit for a fixed-amount link is always an attempt to
+        // tamper with the charged amount (see audit finding PAY-2 / issue #174).
+        // Reject the request outright; do not fall through to amount validation
+        // (which would otherwise accept amount=1 for a $100 fixed link when no
+        // min_amount is configured). The schema column `is_amount_fixed` is a
+        // TINYINT(1) that defaults to 1, so a missing value is treated as fixed.
+        $isFixedRaw = $link['is_amount_fixed'] ?? 1;
+        $isFixed = (is_int($isFixedRaw) || is_string($isFixedRaw) || is_bool($isFixedRaw))
+            && (int) $isFixedRaw === 1;
+        if ($isFixed) {
+            return $this->renderExpired($brandId);
+        }
+
         $amountRaw = $req->post('amount', '0');
         $amountStr = is_string($amountRaw) ? $amountRaw : '0';
         if (!is_numeric($amountStr)) {
@@ -237,6 +272,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'error'      => 'Please enter a valid amount',
                 'csrf_token' => $csrf,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
 
@@ -260,6 +296,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'error'      => "Minimum amount is {$minAmount} {$currency}",
                 'csrf_token' => $csrf,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
         if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amountStr, $maxAmount, 2) > 0) {
@@ -267,6 +304,7 @@ final class PaymentLinkCheckoutController
                 'link'       => $link,
                 'error'      => "Maximum amount is {$maxAmount} {$currency}",
                 'csrf_token' => $csrf,
+                'brand'      => $this->loadBrandTheme($merchantId),
             ]);
         }
 
@@ -323,7 +361,9 @@ final class PaymentLinkCheckoutController
             'status'       => 'expired',
             'status_label' => 'Payment Link Expired',
             'txn'          => [],
-            'brand'        => ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
+            'brand'        => $brandId !== null
+                ? $this->loadBrandTheme($brandId)
+                : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],
         ]);
     }

@@ -11,6 +11,7 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\TransactionRepository;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\AuditLogRepository;
+use OwnPay\Repository\RefundRepository;
 use OwnPay\Service\System\PaginationService;
 use OwnPay\Service\System\AuditService;
 use OwnPay\Event\EventManager;
@@ -64,6 +65,11 @@ final class TransactionController
     private \OwnPay\Core\Database $db;
 
     /**
+     * The refund repository.
+     */
+    private RefundRepository $refunds;
+
+    /**
      * TransactionController constructor.
      *
      * @param Container $c The dependency injection container.
@@ -73,6 +79,7 @@ final class TransactionController
      * @param AuditLogRepository $auditRepo The audit log repository.
      * @param EventManager $events The event manager instance.
      * @param AuditService $audit The audit service instance.
+     * @param RefundRepository $refunds The refund repository.
      */
     public function __construct(
         Container $c,
@@ -82,7 +89,8 @@ final class TransactionController
         AuditLogRepository $auditRepo,
         EventManager $events,
         AuditService $audit,
-        \OwnPay\Core\Database $db
+        \OwnPay\Core\Database $db,
+        RefundRepository $refunds
     ) {
         $this->c         = $c;
         $this->session   = $session;
@@ -92,6 +100,7 @@ final class TransactionController
         $this->events    = $events;
         $this->audit     = $audit;
         $this->db        = $db;
+        $this->refunds   = $refunds;
     }
 
     /**
@@ -129,8 +138,8 @@ final class TransactionController
         $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
 
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
-        if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
-            $transactions = array_map(function (array $txn) use ($enc) {
+        $transactions = array_map(function (array $txn) use ($enc) {
+            if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
                 if (!empty($txn['customer_name']) && is_string($txn['customer_name'])) {
                     try {
                         $txn['customer_name'] = $enc->decrypt($txn['customer_name']);
@@ -140,9 +149,28 @@ final class TransactionController
                 } else {
                     $txn['customer_name'] = '-';
                 }
-                return $txn;
-            }, $transactions);
-        }
+            }
+            // For manual gateways, fallback to metadata if gateway_trx_id or sender_account is empty
+            if (!empty($txn['metadata'])) {
+                $meta = is_string($txn['metadata']) ? json_decode($txn['metadata'], true) : $txn['metadata'];
+                if (is_array($meta)) {
+                    $payDetails = (isset($meta['payment_details']) && is_array($meta['payment_details'])) ? $meta['payment_details'] : [];
+                    if (empty($txn['gateway_trx_id'])) {
+                        $manualTrx = $payDetails['transaction_id'] ?? ($meta['transaction_id'] ?? null);
+                        if (is_string($manualTrx) && trim($manualTrx) !== '') {
+                            $txn['gateway_trx_id'] = trim($manualTrx);
+                        }
+                    }
+                    if (empty($txn['sender_account'])) {
+                        $senderNum = $payDetails['sender_number'] ?? ($meta['sender_number'] ?? null);
+                        if (is_string($senderNum) && trim($senderNum) !== '') {
+                            $txn['sender_account'] = trim($senderNum);
+                        }
+                    }
+                }
+            }
+            return $txn;
+        }, $transactions);
 
         $gateways = $this->txns->getDistinctGateways($isGlobal ? null : $mid);
 
@@ -222,12 +250,56 @@ final class TransactionController
 
         $smsData  = $this->smsRepo->listForTransaction($id);
         $auditLog = $this->auditRepo->listForEntity('transaction', $id);
+        $refundsRepo = $isGlobal ? $this->refunds->forAllTenants() : $this->refunds->forTenant($recordMid);
+        $refunds  = $refundsRepo->listFiltered(['transaction_id' => $id], 50, 0);
+
+        // Same accounting RefundService::create() itself enforces (pending + completed count
+        // against the limit) - shown here so the admin sees the real remaining refundable amount
+        // rather than the transaction's full original amount once a prior refund exists.
+        $totalRefundedRaw = $refundsRepo->getTotalRefundedAmount($id, $recordMid);
+        $totalRefunded = is_numeric($totalRefundedRaw) ? $totalRefundedRaw : '0.00';
+        $txnAmountVal = $txn['amount'] ?? '0.00';
+        $txnAmountStr = is_scalar($txnAmountVal) && is_numeric((string) $txnAmountVal) ? (string) $txnAmountVal : '0.00';
+        /** @var numeric-string $totalRefunded */
+        /** @var numeric-string $txnAmountStr */
+        $remainingRefundable = bcsub($txnAmountStr, $totalRefunded, 2);
+        if (bccomp($remainingRefundable, '0.00', 2) < 0) {
+            $remainingRefundable = '0.00';
+        }
+
+        // Extract manual payment submission details (e.g. sender_number, transaction_id, etc.)
+        $paymentDetails = [];
+        if (!empty($txn['metadata'])) {
+            $meta = is_string($txn['metadata']) ? json_decode($txn['metadata'], true) : $txn['metadata'];
+            if (is_array($meta)) {
+                if (isset($meta['payment_details']) && is_array($meta['payment_details'])) {
+                    $paymentDetails = $meta['payment_details'];
+                } elseif (!empty($meta['sender_number']) || !empty($meta['transaction_id'])) {
+                    $paymentDetails = array_filter([
+                        'sender_number'  => $meta['sender_number'] ?? null,
+                        'transaction_id' => $meta['transaction_id'] ?? null,
+                    ]);
+                }
+            }
+        }
+
+        // If manual gateway transaction, ensure gateway_trx_id and sender_account are populated from payment_details if empty
+        if (empty($txn['gateway_trx_id']) && !empty($paymentDetails['transaction_id'])) {
+            $txn['gateway_trx_id'] = $paymentDetails['transaction_id'];
+        }
+        if (empty($txn['sender_account']) && !empty($paymentDetails['sender_number'])) {
+            $txn['sender_account'] = $paymentDetails['sender_number'];
+        }
 
         return $this->renderAdminPage('admin/transactions/edit.twig', [
-            'txn'         => $txn,
-            'sms_data'    => $smsData,
-            'audit_log'   => $auditLog,
-            'active_page' => 'transactions',
+            'txn'                  => $txn,
+            'payment_details'      => $paymentDetails,
+            'sms_data'             => $smsData,
+            'audit_log'            => $auditLog,
+            'refunds'              => $refunds,
+            'total_refunded'       => $totalRefunded,
+            'remaining_refundable' => $remainingRefundable,
+            'active_page'          => 'transactions',
         ]);
     }
 

@@ -214,6 +214,9 @@ final class TapPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'amount' => '0.00', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,
@@ -279,7 +282,9 @@ final class TapPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
+            return false;
         }
 
         // Retrieve the signature header (case-insensitive checking)

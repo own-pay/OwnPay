@@ -92,4 +92,18 @@ final class AuditService
     {
         return $this->repo->signExistingLogs();
     }
+
+    /**
+     * Counts audit log rows that do not yet have a cryptographic signature.
+     *
+     * Surfaces "legacy unsigned rows" as a separate category for the
+     * integrity-scan UI so the operator can review them before explicitly
+     * signing - instead of scan() silently blessing them.
+     *
+     * @return int Number of rows where signature IS NULL.
+     */
+    public function countUnsigned(): int
+    {
+        return $this->repo->countUnsigned();
+    }
 }

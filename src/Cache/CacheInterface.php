@@ -28,6 +28,24 @@ interface CacheInterface
     public function set(string $key, mixed $value, int $ttl = 3600): void;
 
     /**
+     * Atomically store a value only if the key does not already exist.
+     *
+     * Implementations MUST make this atomic across concurrent processes /
+     * threads so it can be used as a distributed lock primitive (e.g. for
+     * TOTP replay protection). Returns true if the value was stored, false
+     * if the key already existed (and therefore the value was NOT stored).
+     *
+     * Expired entries are treated as non-existent (i.e. an expired key does
+     * NOT cause add() to fail - the new value replaces it atomically).
+     *
+     * @param string $key
+     * @param mixed  $value Must be serializable
+     * @param int    $ttl   Time-to-live in seconds. 0 = forever.
+     * @return bool True if the value was stored, false if the key already existed.
+     */
+    public function add(string $key, mixed $value, int $ttl = 3600): bool;
+
+    /**
      * Check if a key exists and is not expired.
      */
     public function has(string $key): bool;

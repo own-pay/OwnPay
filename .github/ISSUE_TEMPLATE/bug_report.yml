@@ -1,21 +1,25 @@
-name: Bug report
-description: Create a report to help us improve
-title: "[BUG] "
-labels: ["bug"]
+name: "🐛 Bug Report"
+description: "Report an issue, bug, or unexpected behavior to help improve OwnPay"
+title: "[BUG]: "
+labels: ["bug", "needs-triage"]
 assignees: []
+
 body:
   - type: markdown
     attributes:
       value: |
-        ### 🛡️ Security Note
-        If you found a security vulnerability, please **DO NOT** use this form. Instead, follow the instructions in our [Security Policy](https://github.com/own-pay/OwnPay/blob/main/SECURITY.md).
+        ### 🛡️ Thank you for helping improve OwnPay!
+        Before reporting, please verify that this issue has not already been reported by searching existing [Issues](https://github.com/own-pay/OwnPay/issues) or [Discussions](https://github.com/own-pay/OwnPay/discussions).
+        
+        > **🔒 Found a security vulnerability?** Please **DO NOT** use this public form. Submit a private report via [GitHub Security Advisories](https://github.com/own-pay/OwnPay/security/advisories/new) or email **[security@ownpay.org](mailto:security@ownpay.org)**.
 
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: A clear and concise description of what the bug is.
-      placeholder: Describe the issue...
+      label: Bug Description
+      description: Provide a clear and concise description of what the bug is.
+      placeholder: |
+        A clear description of what went wrong, including what you were trying to accomplish when the issue occurred...
     validations:
       required: true
 
@@ -23,13 +27,12 @@ body:
     id: reproduction
     attributes:
       label: Steps to Reproduce
-      description: Steps to reproduce the behavior.
+      description: Detailed step-by-step instructions to reproduce the behavior.
       placeholder: |
-        1. Go to '...'
-        2. Click on '....'
-        3. Scroll down to '....'
-        4. See error
-        5. Screenshot or screen record (if applicable)
+        1. Navigate to 'Admin > Gateways > bKash'
+        2. Click on 'Configure Credentials'
+        3. Enter credentials and click 'Save Changes'
+        4. Observe the error response...
     validations:
       required: true
 
@@ -37,79 +40,149 @@ body:
     id: expected
     attributes:
       label: Expected Behavior
-      description: A clear and concise description of what you expected to happen.
+      description: What did you expect to happen?
+      placeholder: |
+        The credentials should save successfully and the gateway status should toggle to active.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened instead?
+      placeholder: |
+        A 500 error page was rendered with a message in the storage logs...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Subsystem / Component
+      description: Which area of OwnPay does this bug affect?
+      options:
+        - Core Kernel / Routing / Middleware
+        - Payment Gateways & Adapters
+        - Checkout Flow & Payment Intent
+        - Admin Panel & Dashboard UI
+        - Mobile App & SMS Automation
+        - REST API & Webhooks
+        - Double-Entry Ledger & Financial Bookkeeping
+        - Invoicing & Subscriptions
+        - Customer Management & KYC
+        - Database Schema & Migrations
+        - Installer & Self-Updater
+        - Translations & Localization
+        - Other / Not Sure
     validations:
       required: true
 
   - type: dropdown
     id: brand-scope
     attributes:
-      label: Brand Scope
-      description: Does this affect a specific brand or the entire platform?
+      label: Store & Brand Scope
+      description: Does this issue affect platform-wide settings or a specific brand/store?
       options:
-        - All Brands (platform-wide)
-        - Single Brand (specify below)
-        - Not applicable / Unknown
+        - All Brands (Platform-wide / Global view)
+        - Single Brand (Store-specific)
+        - White-Label Custom Domain
+        - Not Applicable / Unknown
     validations:
       required: true
 
-  - type: textarea
+  - type: input
     id: brand-name
     attributes:
-      label: Affected Brand(s)
-      description: If single-brand, which brand/merchant is affected?
-      placeholder: e.g. MyStore, ShopABC
+      label: Affected Brand Name (Optional)
+      description: If single-brand, what is the brand name or slug?
+      placeholder: "e.g. MyStore, TechMart"
     validations:
       required: false
 
   - type: dropdown
     id: deployment
     attributes:
-      label: Deployment Type
-      description: How is OwnPay deployed?
+      label: Deployment Environment
+      description: How is your OwnPay instance hosted?
       options:
-        - Docker
-        - Shared Hosting
-        - Control Panel (if shared hosting)
-        - VPS / Dedicated Server
-        - Local (Laragon / XAMPP / Valet)
+        - Docker / Docker Compose
+        - VPS / Dedicated Server (Ubuntu / Debian / RHEL / AlmaLinux)
+        - Shared Hosting (cPanel / DirectAdmin / Plesk)
+        - Local Development (Laragon / XAMPP / Valet / Herd)
+        - Cloud / Kubernetes
         - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Please provide technical details about your setup.
+      placeholder: |
+        - OwnPay Version: 0.1.0-beta
+        - PHP Version: 8.3.x
+        - Database & Version: MySQL 8.0 / MariaDB 10.11
+        - Web Server: Nginx / Apache / Caddy
+        - Operating System: Ubuntu 24.04 LTS / Windows 11
+        - Browser (if UI related): Chrome 127 / Firefox 128 / Safari 17
     validations:
       required: true
 
   - type: dropdown
     id: gateway
     attributes:
-      label: Payment Gateway
-      description: Which gateway is involved (if applicable)?
+      label: Payment Gateway Involved (If Applicable)
+      description: Select the payment gateway related to this bug.
       options:
-        - Not gateway-related
+        - Not Gateway Related
         - Stripe
         - PayPal
+        - bKash
+        - Nagad
+        - Rocket
+        - Upay
         - Razorpay
         - Mollie
-        - Other (specify below)
-      multiple: true
+        - Cashfree
+        - Paystack
+        - Flutterwave
+        - Cryptomus / Crypto
+        - Manual / Custom Offline Gateway
+        - Other (Specify in description)
     validations:
       required: false
 
   - type: textarea
-    id: environment
-    attributes:
-      label: Environment
-      description: Please provide details about your environment.
-      placeholder: |
-        - OwnPay Version:
-        - PHP Version:
-        - Database & Version:
-        - Webserver:
-        - OS:
-        - Browser (if applicable):
-    validations:
-      required: true
-
-  - type: textarea
     id: logs
     attributes:
-      label: Logs(storages/logs) / Screenshots
-      description: Add any logs or screenshots that might help us understand the issue.
+      label: Error Logs & Stack Traces (storage/logs)
+      description: Paste relevant logs from `storage/logs/` or browser developer console. Please strip any private API keys or passwords.
+      render: shell
+      placeholder: |
+        [2026-08-16 12:00:00] local.ERROR: Uncaught PDOException: ... in /src/...
+    validations:
+      required: false
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or Screen Recordings (Optional)
+      description: Drag and drop relevant images or video links here.
+      placeholder: "Drop images or paste media links here..."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-Submission Checklist
+      description: Please confirm the following before submitting.
+      options:
+        - label: I have searched existing issues and verified this is not a duplicate.
+          required: true
+        - label: I have verified that this is a bug in OwnPay and not a local misconfiguration.
+          required: true
+        - label: I have removed all sensitive information (passwords, private API keys, tokens) from the logs above.
+          required: true

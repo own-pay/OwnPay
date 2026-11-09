@@ -77,6 +77,40 @@ trait GatewayDefaults
     }
 
     /**
+     * Default refund-status-query capability flag: false.
+     *
+     * Adapters that implement a refund-status API should override this to
+     * return true and implement getRefundStatus(). The default false tells
+     * RefundReconciliationJob to skip gateway probing for this adapter and
+     * fall back to the 24-hour stale-pending auto-fail backstop.
+     *
+     * @return bool Always false by default.
+     */
+    public function supportsRefundStatus(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Default refund-status query stub: returns null (unknown).
+     *
+     * Adapters that expose a refund-status API should override
+     * {@see supportsRefundStatus()} to return true and implement this method
+     * to return one of 'succeeded', 'failed', 'pending', 'not_found'. The
+     * default null return is treated by RefundReconciliationJob as "status
+     * cannot be determined - log a warning and skip" so the merchant's
+     * balance is not prematurely released.
+     *
+     * @param string $gatewayRefundId The gateway-side refund identifier (or transaction ID fallback).
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return string|null Always null by default.
+     */
+    public function getRefundStatus(string $gatewayRefundId, array $credentials): ?string
+    {
+        return null;
+    }
+
+    /**
      * Checks support for standard gateway capabilities, defaulting to false.
      *
      * @param string $feature Name of the capability (e.g., 'refund', 'subscription').

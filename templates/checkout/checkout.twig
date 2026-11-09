@@ -2,17 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
-    <title>{{ lang.checkout ?? 'Secure Checkout' }} — {{ brand.name }}</title>
+    <title>{{ lang.checkout ?? 'Secure Checkout' }} - {{ brand.name }}</title>
     {% if brand.favicon|default('') %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/fonts.css?v=001">
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
     <link rel="stylesheet" href="/assets/css/reset.css?v=016">
     <link rel="stylesheet" href="/assets/css/animations.css?v=014">
-    <link rel="stylesheet" href="/assets/css/checkout.css?v=016">
+    <link rel="stylesheet" href="/assets/css/checkout.css?v=017">
     {{ enqueued_assets('style') }}
     <meta name="csrf-token" content="{{ csrf_token }}">
     {{ hook('checkout.head')|raw }}
@@ -22,10 +20,10 @@
     <div class="ck-toast" id="cToast">{{ lang.copied ?? 'Copied!' }}</div>
 
     <div id="checkoutShell" class="ck-shell">
-        {# LEFT PANEL — Order Summary (desktop) #}
+        {# LEFT PANEL - Order Summary (desktop) #}
         {% include 'checkout/partials/_left-panel.twig' %}
 
-        {# RIGHT PANEL — Payment #}
+        {# RIGHT PANEL - Payment #}
         <div class="ck-right">
             {% include 'checkout/partials/_top-bar.twig' %}
 
@@ -38,11 +36,24 @@
                     {% include 'checkout/partials/_express-checkout.twig' %}
                 {% endif %}
 
+                {# Gateway tabs and grids.
+                   The active-category flags and the server-rendered default (initially visible)
+                   pane are computed ONCE here and handed to both partials, so the tab bar and the
+                   gateway grids can never disagree about which tabs exist or which pane is visible.
+                   They drifted before (issue #565): the tab bar gated on category availability while
+                   the grids kept forcing the empty "Cards" pane as the visible default, which hid
+                   every active non-card method until a card gateway was enabled. #}
+                {% set hasCards = gateways.global|default([]) is not empty %}
+                {% set hasMfs = gateways.mfs|default([]) is not empty %}
+                {% set hasBank = gateways.bank|default([]) is not empty %}
+                {% set checkoutDefaultTab = hasCards ? 'cards' : (hasMfs ? 'mfs' : (hasBank ? 'bank' : 'cards')) %}
+                {% set checkoutHasAnyGateways = hasCards or hasMfs or hasBank %}
+
                 {# Gateway tabs #}
-                {% include 'checkout/partials/_gateway-tabs.twig' %}
+                {% include 'checkout/partials/_gateway-tabs.twig' with {'has_cards': hasCards, 'has_mfs': hasMfs, 'has_bank': hasBank, 'default_tab': checkoutDefaultTab} %}
 
                 {# Gateway grids #}
-                {% include 'checkout/partials/_gateway-grid.twig' %}
+                {% include 'checkout/partials/_gateway-grid.twig' with {'has_cards': hasCards, 'has_mfs': hasMfs, 'has_bank': hasBank, 'has_any': checkoutHasAnyGateways, 'default_tab': checkoutDefaultTab} %}
             </div>
 
             {% include 'checkout/partials/_footer.twig' %}
@@ -63,13 +74,13 @@
          data-manual-gateways="{{ manual_gateways|default('{}')|escape('html_attr') }}"
          data-brand-color="{{ brand.color ?? '#0D9488' }}"
          data-brand-accent-color="{{ brand.accent_color ?? brand.color ?? '#0D9488' }}"
-         data-custom-css="{{ brand.custom_css|default('') }}"
-         data-custom-js="{{ brand.custom_js|default('') }}">
+         data-custom-css="{{ brand.custom_css|default('')|escape('html_attr') }}"
+         data-custom-js="{{ brand.custom_js|default('')|escape('html_attr') }}">
     </div>
     <div id="op-extra-fields">{{ hook('checkout.form.fields')|raw }}</div>
 
     <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
-    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js?v=001"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js?v=002"></script>
     {{ enqueued_assets('script') }}
     {{ hook('checkout.footer')|raw }}
 </body>

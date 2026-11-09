@@ -54,9 +54,14 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
 
     private function insertTransaction(string $trxId, string $status, string $gateway = 'bkash-api', ?int $intentId = null): int
     {
+        // The cooldown inside reactivateForRetry() is `updated_at < NOW() - INTERVAL 10 MINUTE`
+        // (issue #338, PAY-10). A freshly inserted row has updated_at = NOW() by default,
+        // which would never satisfy that predicate and the test would always see `false`.
+        // We therefore back-date the row's updated_at by 15 minutes so the revert path
+        // is actually exercised.
         $this->db->execute(
-            "INSERT INTO op_transactions (merchant_id, uuid, trx_id, payment_intent_id, gateway_slug, amount, net_amount, currency, status, method)
-             VALUES (:mid, UUID(), :trx, :pi, :gw, 100.00, 100.00, 'BDT', :status, 'api')",
+            "INSERT INTO op_transactions (merchant_id, uuid, trx_id, payment_intent_id, gateway_slug, amount, net_amount, currency, status, method, updated_at)
+             VALUES (:mid, UUID(), :trx, :pi, :gw, 100.00, 100.00, 'BDT', :status, 'api', DATE_SUB(NOW(), INTERVAL 15 MINUTE))",
             ['mid' => $this->merchantId, 'trx' => $trxId, 'pi' => $intentId, 'gw' => $gateway, 'status' => $status]
         );
         $row = $this->db->fetchOne("SELECT id FROM op_transactions WHERE trx_id = :t", ['t' => $trxId]);
@@ -66,9 +71,11 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
 
     private function insertIntent(string $token, string $status): int
     {
+        // Same cooldown rationale as insertTransaction(): back-date updated_at so
+        // the revert path inside PaymentIntentRepository::reactivateForRetry() fires.
         $this->db->execute(
-            "INSERT INTO op_payment_intents (merchant_id, uuid, token, amount, currency, status, expires_at)
-             VALUES (:mid, UUID(), :token, 100.00, 'BDT', :status, DATE_ADD(NOW(), INTERVAL 1 DAY))",
+            "INSERT INTO op_payment_intents (merchant_id, uuid, token, amount, currency, status, expires_at, updated_at)
+             VALUES (:mid, UUID(), :token, 100.00, 'BDT', :status, DATE_ADD(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 15 MINUTE))",
             ['mid' => $this->merchantId, 'token' => $token, 'status' => $status]
         );
         $row = $this->db->fetchOne("SELECT id FROM op_payment_intents WHERE token = :t", ['t' => $token]);
@@ -80,7 +87,7 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
     {
         $this->insertTransaction('zzretry-txn-1', 'processing');
 
-        $reverted = $this->txnRepo->reactivateForRetry('zzretry-txn-1');
+        $reverted = $this->txnRepo->reactivateForRetry('zzretry-txn-1', $this->merchantId);
 
         $this->assertTrue($reverted);
         $row = $this->db->fetchOne("SELECT status FROM op_transactions WHERE trx_id = :t", ['t' => 'zzretry-txn-1']);
@@ -92,7 +99,7 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
     {
         $this->insertTransaction('zzretry-txn-2', $status);
 
-        $reverted = $this->txnRepo->reactivateForRetry('zzretry-txn-2');
+        $reverted = $this->txnRepo->reactivateForRetry('zzretry-txn-2', $this->merchantId);
 
         $this->assertFalse($reverted, "Must not revert a '{$status}' transaction");
         $row = $this->db->fetchOne("SELECT status FROM op_transactions WHERE trx_id = :t", ['t' => 'zzretry-txn-2']);
@@ -111,7 +118,7 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
     {
         $this->insertIntent('zzretry-intent-1', 'processing');
 
-        $reverted = $this->intentRepo->reactivateForRetry('zzretry-intent-1');
+        $reverted = $this->intentRepo->reactivateForRetry('zzretry-intent-1', $this->merchantId);
 
         $this->assertTrue($reverted);
         $row = $this->db->fetchOne("SELECT status FROM op_payment_intents WHERE token = :t", ['t' => 'zzretry-intent-1']);
@@ -123,7 +130,7 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
     {
         $this->insertIntent('zzretry-intent-2', $status);
 
-        $reverted = $this->intentRepo->reactivateForRetry('zzretry-intent-2');
+        $reverted = $this->intentRepo->reactivateForRetry('zzretry-intent-2', $this->merchantId);
 
         $this->assertFalse($reverted, "Must not revert a '{$status}' intent");
         $row = $this->db->fetchOne("SELECT status FROM op_payment_intents WHERE token = :t", ['t' => 'zzretry-intent-2']);
@@ -140,7 +147,7 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
         $intentId = $this->insertIntent('zzretry-intent-3', 'processing');
         $this->insertTransaction('zzretry-txn-3', 'processing', 'bkash-api', $intentId);
 
-        $reverted = $this->txnRepo->reactivateForRetryByIntentId($intentId);
+        $reverted = $this->txnRepo->reactivateForRetryByIntentId($intentId, $this->merchantId);
 
         $this->assertTrue($reverted);
         $row = $this->db->fetchOne("SELECT status FROM op_transactions WHERE trx_id = :t", ['t' => 'zzretry-txn-3']);
@@ -152,7 +159,7 @@ final class CheckoutReactivateForRetryTest extends IntegrationTestCase
         $intentId = $this->insertIntent('zzretry-intent-4', 'completed');
         $this->insertTransaction('zzretry-txn-4', 'completed', 'bkash-api', $intentId);
 
-        $reverted = $this->txnRepo->reactivateForRetryByIntentId($intentId);
+        $reverted = $this->txnRepo->reactivateForRetryByIntentId($intentId, $this->merchantId);
 
         $this->assertFalse($reverted);
         $row = $this->db->fetchOne("SELECT status FROM op_transactions WHERE trx_id = :t", ['t' => 'zzretry-txn-4']);

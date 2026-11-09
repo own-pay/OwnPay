@@ -166,6 +166,8 @@
                                         </div>
                                     {% endif %}
 
+                                    {# Installing a release replaces application code on disk, so only a superadmin may trigger it. SystemUpdateController@install independently rejects every other caller with 403. #}
+                                    {% if is_superadmin %}
                                     <div class="op-slide-to-upgrade-container">
                                         <div class="op-slide-track" id="op-slide-track">
                                             <div class="op-slide-thumb" id="op-slide-thumb">
@@ -176,6 +178,16 @@
                                             <div class="op-slide-text">Slide to Confirm Upgrade</div>
                                         </div>
                                     </div>
+                                    {% else %}
+                                    <div class="op-alert op-alert-warning op-premium-alert op-mb-4">
+                                        <div class="op-alert-icon">
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                        </div>
+                                        <div class="op-alert-content">
+                                            A superadmin account must install this update.
+                                        </div>
+                                    </div>
+                                    {% endif %}
 
                                     <form method="POST" action="/admin/system-update/check" class="op-mt-2">
                                         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

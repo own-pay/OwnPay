@@ -37,9 +37,14 @@ final class GatewayApiService
     private FeeService $fees;
 
     /**
-     * @var LedgerService Service layer for bookkeeping and ledger accounting.
+     * @var LedgerService Service layer for posting ledger balances.
      */
     private LedgerService $ledger;
+
+    /**
+     * @var \OwnPay\Service\System\Logger|null Optional logger for diagnostics.
+     */
+    private ?\OwnPay\Service\System\Logger $logger = null;
 
     /**
      * GatewayApiService constructor.
@@ -55,13 +60,15 @@ final class GatewayApiService
         GatewayRepository $gateways,
         TransactionService $transactions,
         FeeService $fees,
-        LedgerService $ledger
+        LedgerService $ledger,
+        ?\OwnPay\Service\System\Logger $logger = null
     ) {
         $this->bridge = $bridge;
         $this->gateways = $gateways;
         $this->transactions = $transactions;
         $this->fees = $fees;
         $this->ledger = $ledger;
+        $this->logger = $logger;
     }
 
     /**
@@ -160,9 +167,10 @@ final class GatewayApiService
      * @param array<string, mixed> $callbackData Incoming callback request payload parameters.
      * @param bool $webhookVerified True only when the caller has already validated the
      *                              payload's cryptographic webhook signature for this gateway.
+     * @param string|null $expectedTrxId Expected OwnPay reference for a browser-return callback.
      * @return array{success: bool, error?: string, transaction?: array<string, mixed>} Verification response.
      */
-    public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData, bool $webhookVerified = false): array
+    public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData, bool $webhookVerified = false, ?string $expectedTrxId = null): array
     {
         unset($callbackData['_op_webhook_verified']);
         if ($webhookVerified) {
@@ -175,21 +183,15 @@ final class GatewayApiService
             return ['success' => false, 'error' => 'Verification failed'];
         }
 
-        $trxId = '';
-        $trxIdFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id'];
-        foreach ($trxIdFields as $field) {
-            $fieldVal = $callbackData[$field] ?? null;
-            if (is_scalar($fieldVal) && $fieldVal !== '') {
-                $trxId = (string) $fieldVal;
-                break;
+        $trxId = $this->resolveTransactionReference($verification, $callbackData, $expectedTrxId);
+        if ($trxId === null) {
+            if ($this->logger instanceof \OwnPay\Service\System\Logger) {
+                $verifiedPresent = isset($verification['verified_trx_id']) && is_string($verification['verified_trx_id']) && $verification['verified_trx_id'] !== '';
+                $this->logger->warning(
+                    "Gateway callback verified transaction reference mismatch: gateway={$gatewaySlug}, expected=" . ($expectedTrxId === '' ? '<empty>' : ($expectedTrxId ?? '<null>')) . ', verified_trx_id_present=' . ($verifiedPresent ? 'true' : 'false')
+                );
             }
-        }
-
-        if ($trxId === '') {
-            $vTrx = $verification['trx_id'] ?? null;
-            if (is_scalar($vTrx) && (string) $vTrx !== '') {
-                $trxId = (string) $vTrx;
-            }
+            return ['success' => false, 'error' => 'Verified transaction reference mismatch'];
         }
 
         $gwTrxId = $verification['gateway_trx_id'] ?? null;
@@ -199,7 +201,8 @@ final class GatewayApiService
         $amountMismatch = false;
 
         try {
-            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, $gatewaySlug, &$transaction, &$amountMismatch) {
+            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, $gatewaySlug, $expectedTrxId, &$transaction, &$amountMismatch) {
+
                 if ($trxId !== '') {
                     $transaction = $db->fetchOne(
                         "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
@@ -207,7 +210,7 @@ final class GatewayApiService
                     );
                 }
 
-                if ($transaction === null && is_string($gwTrxId) && $gwTrxId !== '') {
+                if ($transaction === null && $expectedTrxId === null && is_string($gwTrxId) && $gwTrxId !== '') {
                     $transaction = $db->fetchOne(
                         "SELECT * FROM op_transactions WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1 FOR UPDATE",
                         ['gtid' => $gwTrxId, 'mid' => $merchantId]
@@ -254,6 +257,7 @@ final class GatewayApiService
                         $feeVal = $transaction['fee'] ?? '0.00';
                         $cur = $transaction['currency'] ?? 'BDT';
                         if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
+                            $this->persistGatewayTrxId((int) $txnId, $merchantId, $gwTrxId, $transaction);
                             $this->transactions->complete((int) $txnId, $merchantId);
 
                             // Record in ledger
@@ -283,6 +287,49 @@ final class GatewayApiService
         }
 
         return ['success' => false, 'error' => 'Transaction not found or already processed'];
+    }
+
+    /**
+     * Resolves the OwnPay reference used to settle a verified callback.
+     *
+     * Browser returns must bind the provider result to the transaction loaded by the status URL;
+     * webhook callers without an expected reference retain the existing payload resolution.
+     *
+     * @param array<string, mixed> $verification Result returned by the gateway adapter.
+     * @param array<string, mixed> $callbackData Original callback payload.
+     * @param string|null $expectedTrxId Expected OwnPay reference for a browser-return callback.
+     * @return string|null Resolved reference, or null when a browser return is not bound.
+     */
+    private function resolveTransactionReference(array $verification, array $callbackData, ?string $expectedTrxId): ?string
+    {
+        if ($expectedTrxId !== null) {
+            $verifiedTrxId = $verification['verified_trx_id'] ?? null;
+            if ($expectedTrxId === '' || !is_string($verifiedTrxId) || $verifiedTrxId === ''
+                || !hash_equals($expectedTrxId, $verifiedTrxId)
+            ) {
+                return null;
+            }
+
+            return $expectedTrxId;
+        }
+
+        $trxId = '';
+        foreach (['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id'] as $field) {
+            $fieldVal = $callbackData[$field] ?? null;
+            if (is_scalar($fieldVal) && $fieldVal !== '') {
+                $trxId = (string) $fieldVal;
+                break;
+            }
+        }
+
+        if ($trxId === '') {
+            $vTrx = $verification['trx_id'] ?? null;
+            if (is_scalar($vTrx) && (string) $vTrx !== '') {
+                $trxId = (string) $vTrx;
+            }
+        }
+
+        return $trxId;
     }
 
     /**
@@ -321,10 +368,41 @@ final class GatewayApiService
     }
 
     /**
+     * Persists the gateway-side transaction reference for reconciliation and audit.
+     *
+     * @param int $transactionId The transaction primary key.
+     * @param int $merchantId The merchant/brand scope.
+     * @param mixed $gatewayTrxId The gateway-side reference returned by verification.
+     * @param array<string, mixed> $transaction The locked transaction row.
+     * @return void
+     */
+    private function persistGatewayTrxId(int $transactionId, int $merchantId, mixed $gatewayTrxId, array $transaction): void
+    {
+        if (!is_string($gatewayTrxId) || $gatewayTrxId === '') {
+            return;
+        }
+
+        $existing = $transaction['gateway_trx_id'] ?? null;
+        if (is_string($existing) && $existing !== '') {
+            return;
+        }
+
+        $db = \OwnPay\Core\Database::getInstance();
+        $db->execute(
+            "UPDATE op_transactions SET gateway_trx_id = :gtid
+             WHERE id = :id AND merchant_id = :mid AND (gateway_trx_id IS NULL OR gateway_trx_id = '')",
+            ['gtid' => $gatewayTrxId, 'id' => $transactionId, 'mid' => $merchantId]
+        );
+    }
+
+    /**
      * Determines whether a webhook/callback is allowed to complete the given transaction.
      *
-     * `pending` transactions are always eligible (pre-existing behavior, unrelated to the guard
-     * below). Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
+     * `pending` transactions with no gateway recorded yet are always eligible, preserving
+     * the original pre-PAY-17 behavior for genuinely new rows. A `pending` row that still
+     * carries a non-empty `gateway_slug` is only eligible for that same gateway - accepting
+     * a stale callback from an abandoned gateway would hijack the completion (PAY-17).
+     * Once a real gateway attempt has been recorded (`processing`/`callback_processing`),
      * the callback's gateway must match the transaction's CURRENT `gateway_slug` - this prevents
      * a late/stale webhook from a gateway the customer has since abandoned (e.g. went back to
      * checkout and picked a different gateway) from completing the transaction under the wrong
@@ -341,6 +419,10 @@ final class GatewayApiService
             return false;
         }
         if ($status === 'pending') {
+            $slug = $transaction['gateway_slug'] ?? null;
+            if (is_string($slug) && $slug !== '') {
+                return $slug === $gatewaySlug;
+            }
             return true;
         }
         return ($transaction['gateway_slug'] ?? null) === $gatewaySlug;

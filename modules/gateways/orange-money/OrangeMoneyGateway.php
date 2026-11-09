@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\OrangeMoney;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Orange Money Web Payment API Gateway Adapter.
  */
-final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterface
+final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -125,6 +126,32 @@ final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterfa
         }
 
         throw new \RuntimeException('Orange Money OAuth error: Failed to parse access token.');
+    }
+
+    /**
+     * Verifies the configured Consumer Key/Secret authenticate against Orange's real OAuth2 API
+     * by reusing the same getAccessToken() call initiate()/verify() rely on.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? '');
+        $clientSecret = $this->getString($credentials['client_secret'] ?? '');
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter the Consumer Key and Consumer Secret before testing the connection.'];
+        }
+
+        try {
+            $token = $this->getAccessToken($credentials);
+        } catch (\RuntimeException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        return $token !== ''
+            ? ['success' => true, 'message' => 'Connected successfully to Orange Money.']
+            : ['success' => false, 'message' => 'Orange Money rejected the provided Consumer Key/Secret.'];
     }
 
     public function initiate(array $params, array $credentials): array
@@ -251,6 +278,9 @@ final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterfa
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'amount' => '0.00', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,
@@ -335,9 +365,12 @@ final class OrangeMoneyGateway implements PluginInterface, GatewayAdapterInterfa
         ];
     }
 
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     public function supports(string $feature): bool

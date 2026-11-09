@@ -15,7 +15,7 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
 {
     private Database $db;
     private ManualGatewayRepository $repo;
-    private int $brandId = 1;
+    private int $brandId = 2;
     private int $platformId = 0;
 
     protected function setUp(): void
@@ -28,6 +28,10 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
 
         $this->db = Database::getInstance();
         $this->repo = new ManualGatewayRepository($this->db);
+
+        // Ensure a non-platform brand merchant exists so brand-scoped
+        // operations target a different row than the platform template.
+        $this->ensureMerchant($this->brandId);
 
         $row = $this->db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1");
         $platformId = ($row !== null && isset($row['id']) && is_scalar($row['id'])) ? (int) $row['id'] : 0;
@@ -88,7 +92,7 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
         $result = $this->repo->listActiveForCheckout($this->brandId, $this->platformId);
 
         $gw = $this->findSlug($result, 'zztest-both');
-        $this->assertNotNull($gw, 'Gateway must be offered at checkout');
+        $this->assertNotNull($gw, 'Configured and active brand gateway must be offered at checkout');
         $this->assertSame($this->brandId, (int) $gw['merchant_id'], 'Brand account must win - funds route to the brand');
         $this->assertStringContainsString('BRAND-ACCT-both', (string) $gw['instructions']);
 
@@ -101,16 +105,14 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
         $this->assertSame(1, $count, 'A slug must collapse to a single effective gateway');
     }
 
-    public function testPlatformTemplateUsedWhenBrandHasNoAccount(): void
+    public function testPlatformTemplateNotOfferedWhenBrandHasNotConfigured(): void
     {
         $this->insertGateway($this->platformId, 'zztest-tmpl', 'PLATFORM-ACCT-tmpl');
 
         $result = $this->repo->listActiveForCheckout($this->brandId, $this->platformId);
 
         $gw = $this->findSlug($result, 'zztest-tmpl');
-        $this->assertNotNull($gw, 'Unconfigured brand falls back to the platform template');
-        $this->assertSame($this->platformId, (int) $gw['merchant_id']);
-        $this->assertStringContainsString('PLATFORM-ACCT-tmpl', (string) $gw['instructions']);
+        $this->assertNull($gw, 'Opt-in model: Unconfigured platform template must NOT be offered on brand checkout');
     }
 
     public function testBrandOnlyLegacySlugPreserved(): void
@@ -120,7 +122,7 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
         $result = $this->repo->listActiveForCheckout($this->brandId, $this->platformId);
 
         $gw = $this->findSlug($result, 'zztest-brandonly');
-        $this->assertNotNull($gw, 'A brand-only (legacy) gateway must still be offered');
+        $this->assertNotNull($gw, 'A brand-only gateway must still be offered');
         $this->assertSame($this->brandId, (int) $gw['merchant_id']);
         $this->assertStringContainsString('BRAND-ACCT-legacy', (string) $gw['instructions']);
     }
@@ -129,12 +131,12 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
     {
         $this->insertGateway($this->platformId, 'zztest-inactive', 'PLATFORM-ACCT-inactive', 'inactive');
 
-        $result = $this->repo->listActiveForCheckout($this->brandId, $this->platformId);
+        $result = $this->repo->listActiveForCheckout($this->platformId, $this->platformId);
 
         $this->assertNull($this->findSlug($result, 'zztest-inactive'), 'Inactive templates must not be offered');
     }
 
-    public function testBrandInactiveAccountFallsBackToPlatform(): void
+    public function testBrandDisabledAccountNotOfferedAndNeverFallsBackToPlatform(): void
     {
         $this->insertGateway($this->platformId, 'zztest-binactive', 'PLATFORM-ACCT-binactive');
         $this->insertGateway($this->brandId, 'zztest-binactive', 'BRAND-ACCT-binactive', 'inactive');
@@ -142,8 +144,17 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
         $result = $this->repo->listActiveForCheckout($this->brandId, $this->platformId);
 
         $gw = $this->findSlug($result, 'zztest-binactive');
-        $this->assertNotNull($gw, 'A disabled brand account falls back to the active platform template');
+        $this->assertNull($gw, 'A disabled brand account must NOT be offered at checkout and must never fall back to platform');
+    }
+
+    public function testPlatformOwnerStoreShowsPlatformTemplate(): void
+    {
+        $this->insertGateway($this->platformId, 'zztest-platform-store', 'PLATFORM-ACCT-store');
+
+        $result = $this->repo->listActiveForCheckout($this->platformId, $this->platformId);
+
+        $gw = $this->findSlug($result, 'zztest-platform-store');
+        $this->assertNotNull($gw, 'Platform owner store checkout must offer platform templates');
         $this->assertSame($this->platformId, (int) $gw['merchant_id']);
-        $this->assertStringContainsString('PLATFORM-ACCT-binactive', (string) $gw['instructions']);
     }
 }

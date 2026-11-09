@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Shurjopay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * shurjoPay Gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
+final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -279,6 +280,37 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         return false;
+    }
+
+    /**
+     * Verifies the configured Username/Password authenticate against shurjoPay - reuses the same
+     * get_token call initiate()/verify() already make, without creating any payment.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $username = is_scalar($credentials['username'] ?? null) ? (string) $credentials['username'] : '';
+        $password = is_scalar($credentials['password'] ?? null) ? (string) $credentials['password'] : '';
+        if ($username === '' || $password === '') {
+            return ['success' => false, 'message' => 'Enter a Username and Password before testing the connection.'];
+        }
+
+        $mode = $credentials['store_mode'] ?? 'sandbox';
+        $baseUrl = $mode === 'live' ? 'https://engine.shurjopayment.com' : 'https://sandbox.shurjopayment.com';
+
+        $tokenData = $this->getToken($username, $password, $baseUrl);
+        $tokenRaw = $tokenData['token'] ?? '';
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : '';
+
+        if ($token !== '') {
+            $modeStr = is_scalar($mode) ? (string) $mode : 'sandbox';
+            return ['success' => true, 'message' => "Connected successfully to shurjoPay ({$modeStr} mode)."];
+        }
+
+        $msg = is_array($tokenData) && is_scalar($tokenData['message'] ?? null) ? (string) $tokenData['message'] : 'shurjoPay rejected the provided Username/Password.';
+        return ['success' => false, 'message' => $msg];
     }
 
     /** @return array<string, mixed>|null */

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Klarna;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Klarna Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class KlarnaGateway implements PluginInterface, GatewayAdapterInterface
+final class KlarnaGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -131,6 +132,64 @@ final class KlarnaGateway implements PluginInterface, GatewayAdapterInterface
             'form_html' => $formHtml,
             'session_id' => $sessionId,
         ];
+    }
+
+    /**
+     * Verifies the API username/password authenticate against Klarna via HTTP Basic auth.
+     * Klarna's Payments API has no dedicated read-only ping endpoint, so this creates a
+     * minimal payment session (like initiate() does) - it does not move money, since no
+     * money changes hands until a shopper actually authorizes a session.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $username = $this->getString($credentials['username'] ?? null);
+        $password = $this->getString($credentials['password'] ?? null);
+        $mode = $this->getString($credentials['mode'] ?? null);
+
+        if ($username === '' || $password === '') {
+            return ['success' => false, 'message' => 'Enter API Username and API Password before testing the connection.'];
+        }
+
+        $baseUrl = $mode === 'live' ? 'https://api.klarna.com' : 'https://api.playground.klarna.com';
+
+        $ch = curl_init($baseUrl . '/payments/v1/sessions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $username . ':' . $password,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'purchase_country'  => 'DE',
+                'purchase_currency' => 'EUR',
+                'locale'            => 'de-DE',
+                'order_amount'      => 100,
+                'order_lines'       => [[
+                    'name'         => 'Connection Test',
+                    'quantity'     => 1,
+                    'unit_price'   => 100,
+                    'total_amount' => 100,
+                ]],
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Klarna - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        if ($httpCode === 401) {
+            return ['success' => false, 'message' => 'Klarna rejected the API Username/Password.'];
+        }
+
+        $modeLabel = $mode === 'live' ? 'live' : 'test';
+        return ['success' => true, 'message' => "Connected successfully to Klarna ({$modeLabel} mode)."];
     }
 
     public function verify(array $callbackData, array $credentials): array

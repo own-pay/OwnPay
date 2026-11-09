@@ -8,6 +8,7 @@
  * @copyright    2021 smiley
  * @license      Apache-2.0
  */
+declare(strict_types=1);
 
 namespace chillerlan\QRCode\Common;
 
@@ -107,6 +108,7 @@ final class ECICharset{
 
 	/**
 	 * Returns the current character set ID
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "ECICharset::$charsetID" instead.
 	 */
 	public function getID():int{
 		return $this->charsetID;
@@ -118,7 +120,7 @@ final class ECICharset{
 	 * @see \mb_convert_encoding()
 	 * @see \iconv()
 	 */
-	public function getName():?string{
+	public function getName():string|null{
 		return (self::MB_ENCODINGS[$this->charsetID] ?? null);
 	}
 

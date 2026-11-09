@@ -14,9 +14,13 @@ use ReflectionClass;
  * Part of the checkout back-navigation fix: once a customer can return to checkout and pick a
  * DIFFERENT gateway while their first attempt is still `processing`, a late/stale webhook from
  * the ABANDONED first gateway must not be allowed to complete the transaction under the wrong
- * gateway's identity. `pending` transactions are untouched (pre-existing behavior, unrelated to
- * this bug) - the guard only applies once a real gateway attempt (`processing`/
- * `callback_processing`) has been recorded.
+ * gateway's identity.
+ *
+ * Issue #345 (PAY-17): the `pending` eligibility rule was tightened - a `pending` row with a
+ * NON-empty `gateway_slug` is no longer auto-eligible for any gateway's callback. Only truly
+ * unclaimed `pending` rows (NULL or empty `gateway_slug`) accept any callback. A non-empty
+ * slug on a `pending` row indicates the row was reverted from `processing` without clearing
+ * the slug, and a stale callback from the abandoned gateway must not hijack the completion.
  */
 final class GatewayApiServiceCompletionEligibilityTest extends TestCase
 {
@@ -51,10 +55,29 @@ final class GatewayApiServiceCompletionEligibilityTest extends TestCase
         $this->assertFalse($this->isEligible(['status' => 'callback_processing', 'gateway_slug' => 'bkash-api'], 'nagad-api'));
     }
 
-    public function testPendingTransactionEligibleRegardlessOfGatewaySlug(): void
+    public function testPendingTransactionWithEmptySlugEligibleForAnyGateway(): void
     {
-        // Pre-existing behavior, unrelated to this fix - must not change.
-        $this->assertTrue($this->isEligible(['status' => 'pending', 'gateway_slug' => 'bkash-api'], 'nagad-api'));
+        // Truly unclaimed: no gateway has ever been recorded against this row, so any
+        // gateway's webhook may complete it. This is the original pre-PAY-17 behavior
+        // for genuinely new pending rows, preserved as a sub-case of the new rule.
+        $this->assertTrue($this->isEligible(['status' => 'pending', 'gateway_slug' => ''], 'nagad-api'));
+        $this->assertTrue($this->isEligible(['status' => 'pending', 'gateway_slug' => null], 'bkash-api'));
+        $this->assertTrue($this->isEligible(['status' => 'pending'], 'bkash-api'));
+    }
+
+    public function testPendingTransactionWithNonEmptySlugNotEligibleWhenGatewayMismatched(): void
+    {
+        // PAY-17: a pending row that still carries a non-empty gateway_slug must NOT
+        // be eligible for a webhook from a different gateway. Such a row was likely
+        // reverted from processing without clearing the slug; accepting a stale
+        // callback from the abandoned gateway would hijack the completion.
+        $this->assertFalse($this->isEligible(['status' => 'pending', 'gateway_slug' => 'bkash-api'], 'nagad-api'));
+    }
+
+    public function testPendingTransactionWithNonEmptySlugEligibleWhenGatewayMatches(): void
+    {
+        // The original gateway can still complete its own reverted transaction.
+        $this->assertTrue($this->isEligible(['status' => 'pending', 'gateway_slug' => 'bkash-api'], 'bkash-api'));
     }
 
     public function testTerminalStatusNeverEligible(): void

@@ -62,9 +62,15 @@ final class CoreExtension extends AbstractExtension
      * compliance and prevent script injection.
      *
      * @param string $extraClass Optional CSS class names to append to the attribution container.
+     * @param string $customText Optional brand-configured override for the attribution label
+     *                           (Admin > Settings > Checkout > "Custom 'Powered by' Text"). When
+     *                           non-empty, replaces the default "OwnPay" wording, rendered bold.
+     * @param string $customUrl Optional brand-configured link target for $customText. Only
+     *                          http(s) URLs are honored; anything else is dropped and the label
+     *                          renders as plain bold text with no link.
      * @return string The generated HTML footer attribution markup.
      */
-    public function renderFooter(string $extraClass = ''): string
+    public function renderFooter(string $extraClass = '', string $customText = '', string $customUrl = ''): string
     {
         $rawUrl = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: $this->appUrl;
         $urlStr = is_string($rawUrl) ? $rawUrl : '';
@@ -73,6 +79,24 @@ final class CoreExtension extends AbstractExtension
         $token = hash('sha256', $this->appVersion . '|' . $appUrl . '|ownpay-footer');
 
         $class = 'op-powered-by' . ($extraClass ? ' ' . htmlspecialchars($extraClass, ENT_QUOTES) : '');
+
+        if (trim($customText) !== '') {
+            $labelHtml = '<strong>' . htmlspecialchars($customText, ENT_QUOTES) . '</strong>';
+            $urlStr = trim($customUrl);
+            if ($urlStr !== '' && preg_match('#^https?://#i', $urlStr) === 1) {
+                $labelHtml = sprintf(
+                    '<a href="%s" target="_blank" rel="noopener">%s</a>',
+                    htmlspecialchars($urlStr, ENT_QUOTES),
+                    $labelHtml
+                );
+            }
+            return sprintf(
+                '<span class="%s" data-op-token="%s">Powered by %s</span>',
+                $class,
+                htmlspecialchars($token, ENT_QUOTES),
+                $labelHtml
+            );
+        }
 
         return sprintf(
             '<span class="%s" data-op-token="%s">Powered by <a href="https://ownpay.org" target="_blank" rel="noopener">OwnPay</a> v%s</span>',

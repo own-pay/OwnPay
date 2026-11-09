@@ -23,12 +23,27 @@ final class DomainRepository extends BaseRepository
     /**
      * Finds a domain record by hostname.
      *
-     * @param string $domain The target domain hostname.
+     * Matching is **case-insensitive** (issues #74/#80): DNS is case-insensitive
+     * by specification, so `Brand.com`, `brand.com`, and `BRAND.COM` all refer to
+     * the same origin. A case-sensitive (BINARY) match here would silently fail to
+     * resolve a configured domain when the client sent a different casing,
+     * routing the customer to a 404 instead of their checkout page. Mirrors the
+     * pattern already used by SmsTemplateRepository::findBySender().
+     *
+     * IDN (internationalized domain name) handling: when the PHP `intl` extension
+     * is available, callers should pass the ASCII (punycode) form of the host.
+     * The middleware performs that conversion before lookup so the same record
+     * matches both the unicode and punycode representations.
+     *
+     * @param string $domain The target domain hostname (already lowercased + ASCII-normalized by the caller).
      * @return array<string, mixed>|null Domain database record, or null if not found.
      */
     public function findByDomain(string $domain): ?array
     {
-        return $this->findBy('domain', $domain);
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE LOWER(domain) = LOWER(:domain) LIMIT 1",
+            ['domain' => $domain]
+        );
     }
 
     /**

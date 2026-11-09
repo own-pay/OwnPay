@@ -190,8 +190,16 @@ final class EventManager
 
             $brandId = $brandContext->getActiveBrandId();
             return $pluginRegistry->isPluginActive($owner, $brandId);
-        } catch (\Throwable) {
-            return true;
+        } catch (\Throwable $e) {
+            // Fail closed (audit CORE-3): previously returned true on
+            // any throwable raised during BrandContext::getActiveBrandId()
+            // or PluginRegistry::isPluginActive() lookups, causing a
+            // plugin the merchant had deactivated (or whose manifest is
+            // corrupt) to keep running hooks. Log the error so the
+            // operator can see why the plugin was suspended, then treat
+            // it as inactive.
+            $this->logHookError('isOwnerActive', $owner, $e);
+            return false;
         } finally {
             $this->resolvingOwnerActive = false;
         }

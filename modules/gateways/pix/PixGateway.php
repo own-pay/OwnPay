@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Pix;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Pix Dynamic Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class PixGateway implements PluginInterface, GatewayAdapterInterface
+final class PixGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -128,5 +129,45 @@ final class PixGateway implements PluginInterface, GatewayAdapterInterface
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         return false;
+    }
+
+    /**
+     * Verifies the configured Mercado Pago Access Token authenticates against Mercado Pago's
+     * account-info endpoint, without moving money.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $accessToken = $this->getString($credentials['access_token'] ?? null);
+        if ($accessToken === '') {
+            return ['success' => false, 'message' => 'Enter a Mercado Pago Access Token before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.mercadopago.com/users/me');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $accessToken],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Mercado Pago - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data)) {
+            $siteId = is_scalar($data['site_id'] ?? null) ? (string) $data['site_id'] : '';
+            return ['success' => true, 'message' => 'Connected successfully to Mercado Pago Pix' . ($siteId !== '' ? " ({$siteId})" : '') . '.'];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null)
+            ? (string) $data['message']
+            : 'Mercado Pago rejected the provided Access Token.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

@@ -126,7 +126,10 @@ final class GatewayConfigRepository extends BaseRepository
     /**
      * Lists active gateways for the public checkout flow, stripping sensitive fields.
      *
-     * Prevents leakage of encrypted credentials and internal settings to client-facing Twig views.
+     * Prevents leakage of encrypted credentials to client-facing Twig views. `settings` IS
+     * included - unlike credentials_enc it's never encrypted/secret, and holds only the
+     * merchant's admin-configured display_name/display_logo overrides consumed (and stripped
+     * back out) by CheckoutController before the gateway list reaches any template.
      *
      * @return array<int, array<string, mixed>> List of public-safe gateway configs.
      */
@@ -134,7 +137,7 @@ final class GatewayConfigRepository extends BaseRepository
     {
         $mid = $this->requireTenant();
         $rows = $this->db->fetchAll(
-            "SELECT gc.id, gc.merchant_id, gc.mode, gc.status, g.slug, g.name, g.type, g.logo_path
+            "SELECT gc.id, gc.merchant_id, gc.mode, gc.status, gc.settings, g.slug, g.name, g.type, g.logo_path
              FROM {$this->table} gc
              JOIN op_gateways g ON g.id = gc.gateway_id
              WHERE (gc.merchant_id = :mid OR gc.merchant_id IS NULL) AND gc.status = 'active'

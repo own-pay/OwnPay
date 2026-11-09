@@ -113,6 +113,18 @@ class PairedDeviceRepository extends BaseRepository
      */
     public function updateHeartbeat(string $deviceId): void
     {
+        // Scope by merchant_id when a tenant is bound (defense-in-depth: even
+        // though device_id is a random 128-bit UUID, a future collision or a
+        // non-random device_id path would otherwise cross-update heartbeats
+        // across tenants). The global fallback preserves the All-Brands /
+        // platform (NULL merchant_id) heartbeat path. Mirrors findByUuid().
+        if ($this->tenantId !== null) {
+            $this->db->update(
+                "UPDATE {$this->table} SET last_heartbeat = NOW() WHERE device_id = :did AND merchant_id = :mid",
+                ['did' => $deviceId, 'mid' => $this->tenantId]
+            );
+            return;
+        }
         $this->db->update(
             "UPDATE {$this->table} SET last_heartbeat = NOW() WHERE device_id = :did",
             ['did' => $deviceId]

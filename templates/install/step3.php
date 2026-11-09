@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Admin Account · OwnPay Setup</title>
-    <link rel="stylesheet" href="/assets/css/installer.css?v=4">
-    <script nonce="<?php echo bin2hex(random_bytes(16)); ?>">
+    <link rel="stylesheet" href="/assets/css/installer.css?v=6">
+    <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
         (function(){var t=localStorage.getItem('op-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
     </script>
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <img src="/assets/img/logo-light.svg" alt="OwnPay" class="op-logo-light" style="height: 32px; width: auto;">
-        <img src="/assets/img/logo-dark.svg" alt="OwnPay" class="op-logo-dark" style="height: 32px; width: auto;">
+        <img src="/assets/img/logo-light.svg?v=002" alt="OwnPay" class="op-logo-light">
+        <img src="/assets/img/logo-dark.svg?v=002" alt="OwnPay" class="op-logo-dark">
         <span class="ins-name">OwnPay <span>Setup</span></span>
     </div>
     <div class="ins-steps">
@@ -26,6 +26,10 @@
         <div class="ins-step-line"></div>
         <div class="ins-step"><span class="ins-step-num">4</span><span>Settings</span></div>
     </div>
+    <button id="insThemeToggle" type="button" class="ins-theme-btn" aria-label="Toggle theme" title="Toggle theme">
+        <svg id="insMoon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <svg id="insSun" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none;"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+    </button>
 </header>
 
 <main class="ins-main">
@@ -48,7 +52,8 @@
             </div>
             <div class="ins-field">
                 <label for="admin_password">Password</label>
-                <input id="admin_password" name="password" type="password" required minlength="8" placeholder="Minimum 8 characters">
+                <input id="admin_password" name="password" type="password" required minlength="12" placeholder="Minimum 12 characters">
+                <small style="display:block;margin-top:6px;color:var(--text-muted);font-size:.82rem;">Use at least 12 characters and include any 3: uppercase, lowercase, number, symbol.</small>
                 <div class="ins-pw-meter" id="pwMeter">
                     <div class="ins-pw-bar"></div>
                 </div>
@@ -64,13 +69,58 @@
 <div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v<?php echo \OwnPay\Support\Version::CURRENT; ?></div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+(function(){
+    var btn = document.getElementById('insThemeToggle');
+    if (!btn) return;
+    var moon = document.getElementById('insMoon');
+    var sun = document.getElementById('insSun');
+    function updateIcons(theme) {
+        if (theme === 'dark') {
+            moon.style.display = 'none';
+            sun.style.display = 'block';
+        } else {
+            moon.style.display = 'block';
+            sun.style.display = 'none';
+        }
+    }
+    updateIcons(document.documentElement.getAttribute('data-theme'));
+    btn.addEventListener('click', function(){
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('op-theme', next);
+        updateIcons(next);
+    });
+})();
+
+window.OP_CSRF_TOKEN = <?php echo json_encode($csrf_token ?? '', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+function opFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.OP_CSRF_TOKEN
+    });
+    return fetch(url, opts);
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function setMsgError(msgEl, title, detail) {
+    msgEl.className = 'ins-msg ins-msg-err';
+    msgEl.innerHTML = '<strong>' + escapeHtml(title) + '</strong><br>' + escapeHtml(detail);
+}
 // Password strength meter
 document.getElementById('admin_password').addEventListener('input', function() {
     var meter = document.getElementById('pwMeter');
     var val = this.value;
     meter.className = 'ins-pw-meter';
     if (val.length === 0) return;
-    if (val.length < 8) { meter.classList.add('ins-pw-weak'); return; }
+    if (val.length < 12) { meter.classList.add('ins-pw-weak'); return; }
     var score = 0;
     if (/[a-z]/.test(val)) score++;
     if (/[A-Z]/.test(val)) score++;
@@ -94,10 +144,22 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
     var fd = new FormData(this), body = {};
     fd.forEach(function(v, k) { body[k] = v; });
 
+    var pw = String(body.password || '');
+    var classes = 0;
+    if (/[A-Z]/.test(pw)) classes++;
+    if (/[a-z]/.test(pw)) classes++;
+    if (/[0-9]/.test(pw)) classes++;
+    if (/[^A-Za-z0-9]/.test(pw)) classes++;
+    if (pw.length < 12 || classes < 3) {
+        setMsgError(msg, 'Password Policy', 'Password must be at least 12 characters and include any 3 of: uppercase, lowercase, number, symbol.');
+        btn.disabled = false;
+        btnText.textContent = 'Create Admin Account →';
+        return;
+    }
+
     try {
-        var r = await fetch('/install/create-admin', {
+        var r = await opFetch('/install/create-admin', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         
@@ -106,8 +168,7 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
         try {
             d = JSON.parse(text);
         } catch (e) {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            setMsgError(msg, 'Server Error', text.substring(0, 300) || 'Invalid response from server.');
             btn.disabled = false;
             btnText.textContent = 'Create Admin Account →';
             return;
@@ -119,14 +180,12 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
             btnText.textContent = 'Success! Redirecting...';
             setTimeout(function() { location.href = '?step=4'; }, 1000);
         } else {
-            msg.className = 'ins-msg ins-msg-err';
-            msg.innerHTML = '<strong>Account Creation Failed</strong><br>' + (d.error || 'Could not create the admin account. The email or username may already be taken.');
+            setMsgError(msg, 'Account Creation Failed', d.error || 'Could not create the admin account. The email or username may already be taken.');
             btn.disabled = false;
             btnText.textContent = 'Create Admin Account →';
         }
     } catch (err) {
-        msg.className = 'ins-msg ins-msg-err';
-        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Could not reach the server. Ensure your PHP server is running.');
+        setMsgError(msg, 'Network Error', err.message || 'Could not reach the server. Ensure your PHP server is running.');
         btn.disabled = false;
         btnText.textContent = 'Create Admin Account →';
     }

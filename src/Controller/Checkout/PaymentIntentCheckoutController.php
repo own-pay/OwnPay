@@ -162,8 +162,11 @@ final class PaymentIntentCheckoutController
         if ($intentStatus === 'processing') {
             $intentIdVal = $intent['id'] ?? 0;
             $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
-            if ($this->intents->reactivateForRetry($token)) {
-                $this->txnRepo->reactivateForRetryByIntentId($intentId);
+            // REPO-6 (issue #461): reactivateForRetry now requires merchant_id for tenant scoping.
+            $reactivateMidVal = $intent['merchant_id'] ?? 0;
+            $reactivateMid = (is_int($reactivateMidVal) || is_string($reactivateMidVal)) ? (int) $reactivateMidVal : 0;
+            if ($reactivateMid > 0 && $this->intents->reactivateForRetry($token, $reactivateMid)) {
+                $this->txnRepo->reactivateForRetryByIntentId($intentId, $reactivateMid);
                 $intent = $this->paymentService->findByToken($token);
                 if (!$intent) {
                     return $this->renderStatus($token, 'expired');
@@ -280,9 +283,25 @@ final class PaymentIntentCheckoutController
             $gateways[$cat][] = $gw;
         }
 
+        $bridge = $this->c->has(\OwnPay\Gateway\GatewayBridge::class) ? $this->c->get(\OwnPay\Gateway\GatewayBridge::class) : null;
+        $bridge = $bridge instanceof \OwnPay\Gateway\GatewayBridge ? $bridge : null;
         foreach ($apiGateways as $gw) {
+            $gw = $this->applyGatewayDisplayOverride($gw);
             $slugVal = $gw['slug'] ?? '';
             $slug = is_string($slugVal) ? $slugVal : '';
+
+            // Gateways that would reject this amount outright (e.g. Stripe's per-currency floor)
+            // stay visible but disabled/faded with an explanatory note, instead of either being
+            // hidden entirely or letting the customer hit a raw API error after selecting one -
+            // see StripeGateway::minimumChargeAmount().
+            if ($bridge !== null) {
+                $minimum = $bridge->minimumChargeAmount($slug, $mid, $intentCurrency);
+                if ($minimum !== null && is_numeric($minimum) && is_numeric($intentAmount) && bccomp($intentAmount, $minimum, 8) < 0) {
+                    $gw['disabled'] = true;
+                    $gw['disabled_reason'] = sprintf('Amount is below the %s %s minimum for this gateway', $minimum, strtoupper($intentCurrency));
+                }
+            }
+
             $cat = $categoryMap[$slug] ?? 'global';
             if (!isset($gateways[$cat])) {
                 $cat = 'global';
@@ -334,14 +353,23 @@ final class PaymentIntentCheckoutController
                 $instructions = [$instructionsObj];
             }
 
-            $paymentNumber = '';
-            foreach ($inputFields as $field) {
-                if (is_array($field)) {
-                    if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
-                        $paymentNumberVal = $field['value'] ?? $field['default'] ?? '';
-                        $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
-                        break;
+            $paymentNumberVal = $gw['payment_number'] ?? '';
+            $paymentNumber = is_string($paymentNumberVal) ? trim($paymentNumberVal) : '';
+            if ($paymentNumber === '') {
+                foreach ($inputFields as $field) {
+                    if (is_array($field)) {
+                        if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
+                            $fieldVal = $field['value'] ?? $field['default'] ?? '';
+                            $paymentNumber = is_string($fieldVal) ? trim($fieldVal) : '';
+                            break;
+                        }
                     }
+                }
+            }
+            if ($paymentNumber === '') {
+                $instrRaw = is_string($instructionsRaw) ? $instructionsRaw : '';
+                if (preg_match('/(?:01[3-9]\d{8}|01[3-9]\d{2}-\d{6})/i', $instrRaw, $matches)) {
+                    $paymentNumber = $matches[0];
                 }
             }
 
@@ -369,6 +397,9 @@ final class PaymentIntentCheckoutController
             $gwColorsStr = is_string($gwColorsRaw) ? $gwColorsRaw : '{}';
             $gwColors = json_decode($gwColorsStr, true);
 
+            $logoPathVal = $gw['logo_path'] ?? null;
+            $qrCodePathVal = $gw['qr_code_path'] ?? null;
+
             $manualDetails[$slug] = [
                 'name'               => is_string($gw['name'] ?? null) ? $gw['name'] : '',
                 'input_fields'       => $inputFields,
@@ -377,6 +408,13 @@ final class PaymentIntentCheckoutController
                 'payment_number'     => $paymentNumber,
                 'converted_amount'   => $convAmount,
                 'converted_currency' => $convCurrency,
+                // Issue #58: classic checkout already includes these keys; the
+                // PaymentIntent flow omitted them, so the shared checkout.js
+                // renderer never found logo_path/qr_code_path and silently
+                // dropped both the logo and the QR code on API-initiated
+                // checkouts. Mirroring the classic payload shape fixes both.
+                'logo_path'          => is_string($logoPathVal) ? $logoPathVal : null,
+                'qr_code_path'       => is_string($qrCodePathVal) ? $qrCodePathVal : null,
             ];
         }
 
@@ -412,6 +450,9 @@ final class PaymentIntentCheckoutController
 
         $intentSymbol = $intent['currency_symbol'];
 
+        $brandNameVal = $brand['name'] ?? null;
+        $brandName = (is_string($brandNameVal) && $brandNameVal !== '') ? $brandNameVal : 'OwnPay';
+
         $jsConfig = [
             'txnRef'                => $intentToken,
             'checkoutBasePath'      => '/checkout/intent/' . $token,
@@ -422,6 +463,7 @@ final class PaymentIntentCheckoutController
             'timeoutSeconds'        => $timerSeconds,
             'timeoutRemaining'      => $remaining,
             'gatewayMeta'           => $gatewayMeta,
+            'brandName'             => $brandName,
         ];
 
         // Extract and decode payment invoice line items from intent metadata.
@@ -457,7 +499,7 @@ final class PaymentIntentCheckoutController
             'brand'           => $brand,
             'items'           => $items,
             'faqs'            => $faqs,
-            'show_faq'        => $this->settings->get('checkout', 'show_faq', '1') === '1',
+            'show_faq'        => (bool) ($brand['show_faq'] ?? true),
             'config'          => $jsConfig,
             'checkout_hash'   => $checkoutHash,
             'manual_gateways' => json_encode($manualDetails, JSON_HEX_TAG | JSON_HEX_AMP),
@@ -679,9 +721,52 @@ final class PaymentIntentCheckoutController
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
         if ($gatewayMode === 'manual') {
+            // Assert the submitted gateway is one of this merchant's actually-configured
+            // active manual gateways and enforce configured min_amount/max_amount limits
+            // (issue #57). Without this guard, an arbitrary client-supplied string would
+            // be stored as gateway_slug and configured amount limits would be silently
+            // ignored - matching the gap that existed in CheckoutController::pay().
+            $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
+            $activeManualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
+            $selectedGw = null;
+            foreach ($activeManualGateways as $gw) {
+                if (($gw['slug'] ?? '') === $gateway) {
+                    $selectedGw = $gw;
+                    break;
+                }
+            }
+            if ($selectedGw === null) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+                }
+                return $this->renderStatus($token, 'expired', $intent);
+            }
+
+            // Enforce configured min_amount / max_amount using the post-conversion
+            // amount the gateway will actually see (matches the currency the limits
+            // were configured in - admin sets limits in the gateway's home currency).
+            $limitError = $this->validateManualGatewayAmount($selectedGw, $amount);
+            if ($limitError !== null) {
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => $limitError], 422);
+                }
+                return $this->renderStatus($token, 'expired', $intent);
+            }
+
             $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'awaiting_verification', $mid);
             $details = $req->post('payment_details', []);
             if (!empty($details) && is_array($details)) {
+                $updateFields = [];
+                if (!empty($details['transaction_id']) && is_string($details['transaction_id'])) {
+                    $updateFields['gateway_trx_id'] = trim($details['transaction_id']);
+                }
+                if (!empty($details['sender_number']) && is_string($details['sender_number'])) {
+                    $updateFields['sender_account'] = trim($details['sender_number']);
+                }
+                if (!empty($updateFields)) {
+                    $this->txnRepo->forTenant($mid)->updateScoped($txnId, $updateFields);
+                }
+
                 $metaRaw = $intent['metadata'] ?? '{}';
                 $metaStr = is_string($metaRaw) ? $metaRaw : '{}';
                 $metaObj = json_decode($metaStr, true);
@@ -748,20 +833,29 @@ final class PaymentIntentCheckoutController
                                     if ($currSvc instanceof \OwnPay\Service\Payment\CurrencyService) {
                                         $converted = $currSvc->convert($payAmount, $payCurrency, $targetCurrency);
                                         if ($converted !== '0') {
-                                            // Record pre-conversion amount and exchange rate variables for financial audit trails.
-                                            $txnMetaRaw = $txn['metadata'] ?? '{}';
-                                            $txnMetaStr = is_string($txnMetaRaw) ? $txnMetaRaw : '{}';
-                                            $existingMeta = json_decode($txnMetaStr, true);
-                                            $existingMeta = is_array($existingMeta) ? $existingMeta : [];
-                                            $existingMeta['original_amount'] = $payAmount;
-                                            $existingMeta['original_currency'] = $payCurrency;
-                                            $existingMeta['exchange_rate'] = $currSvc->getRate($targetCurrency);
-                                            $existingMeta['converted_amount'] = $converted;
-                                            $existingMeta['converted_currency'] = $targetCurrency;
-                                            $this->db->execute(
-                                                "UPDATE op_transactions SET metadata = :meta WHERE id = :id AND merchant_id = :mid",
-                                                ['meta' => json_encode($existingMeta), 'id' => $txnId, 'mid' => $mid]
-                                            );
+                                            // PAY-18: record pre-conversion amount, the effective cross
+                                            // rate (target-rate / source-rate, both relative to the system
+                                            // base) and the post-conversion amount/currency for audit. The
+                                            // previous code stored getRate($targetCurrency) which is the
+                                            // rate of the TARGET relative to the system BASE, not relative
+                                            // to the source currency - misleading for reconciliation when
+                                            // neither leg is the system base (e.g. EUR->BDT when the base
+                                            // is USD). The write is routed through
+                                            // TransactionRepository::updateMetadata() so it merges with
+                                            // concurrent metadata writers via the same array_merge contract
+                                            // used everywhere else, instead of a one-off direct SQL write.
+                                            $sourceRate = $currSvc->getRate($payCurrency);
+                                            $targetRate = $currSvc->getRate($targetCurrency);
+                                            $effectiveRate = $sourceRate !== '0'
+                                                ? bcdiv($targetRate, $sourceRate, 8)
+                                                : $targetRate;
+                                            $this->txnRepo->updateMetadata($txnId, [
+                                                'original_amount'    => $payAmount,
+                                                'original_currency'  => $payCurrency,
+                                                'exchange_rate'      => $effectiveRate,
+                                                'converted_amount'   => $converted,
+                                                'converted_currency' => $targetCurrency,
+                                            ], $mid);
                                             $payAmount = $converted;
                                             $payCurrency = $targetCurrency;
                                         }
@@ -874,17 +968,34 @@ final class PaymentIntentCheckoutController
             return Response::redirect("/checkout/intent/{$token}");
         }
 
-        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
+        // See CheckoutController::status() for why this triggers on any query params rather than
+        // a hardcoded param name - different gateways (bKash's paymentID, etc.) redirect back
+        // with different identifier params, and hardcoding one leaves every other gateway's
+        // successful payment stuck in 'processing' forever.
+        //
+        // Stripe is excluded: its redirect param (session_id) is customer-browser-suppliable, and
+        // StripeGateway::verify() only checks amount + gateway match before completing - it does
+        // NOT check that the session's own metadata.trx_id matches the transaction being
+        // completed, and gateway_trx_id has no uniqueness constraint. A customer could otherwise
+        // pay for one checkout and replay that session_id against a second, same-amount
+        // 'processing' checkout to complete it for free. Stripe must only ever complete via the
+        // signed, Stripe-initiated webhook, where the session referenced is never customer-chosen.
+        $reqQuery = $req->query();
+        $hasCallbackParams = is_array($reqQuery) && $reqQuery !== [];
+        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? $req->query('session_id') ?? '';
         $callbackPaymentId = is_string($callbackPaymentIdVal) ? $callbackPaymentIdVal : '';
         $callbackStatusVal = $req->query('status') ?? '';
         $callbackStatus = is_string($callbackStatusVal) ? $callbackStatusVal : '';
 
-        if ($callbackPaymentId !== '' && $intentStatus === 'processing') {
+        if ($hasCallbackParams && $intentStatus === 'processing') {
             // Retrieve corresponding active transaction context record.
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'processing' ORDER BY id DESC LIMIT 1",
                 ['pi' => $intentId, 'mid' => $mid]
             );
+            if (is_array($txn) && ($txn['gateway_slug'] ?? '') === 'stripe') {
+                $txn = null;
+            }
 
             if ($txn && $this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
                 $txnIdVal = $txn['id'] ?? 0;
@@ -904,16 +1015,15 @@ final class PaymentIntentCheckoutController
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
-                        $reqQuery = $req->query();
-                        $callbackData = array_merge(is_array($reqQuery) ? $reqQuery : [], [
+                        $callbackData = array_merge($reqQuery, [
                             'paymentID' => $callbackPaymentId,
-                            'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);
                         $gatewayVal = $txn['gateway_slug'] ?? '';
                         $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
                         if ($gateway !== '') {
-                            $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                            $expectedTrxId = is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '';
+                            $result = $svc->handleCallback($mid, $gateway, $callbackData, false, $expectedTrxId);
 
                             if ($result['success']) {
                                 $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'completed']);
@@ -997,6 +1107,44 @@ final class PaymentIntentCheckoutController
 
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+
+        // PAY-3: Guard the cancel against non-cancellable intent states. The
+        // previous implementation unconditionally set status='cancelled'
+        // whether the intent was pending, processing (gateway in-flight),
+        // completed, paid, or expired. A customer holding the intent token
+        // (exposed in the checkout URL /checkout/intent/{token}) could POST
+        // to /cancel after a successful payment and mark the intent
+        // cancelled, producing state inconsistency: txn completed but intent
+        // cancelled. For `processing` intents we additionally gate on the
+        // absence of an in-flight transaction - if a txn has already moved
+        // past `pending` (e.g. `processing` / `awaiting_verification` /
+        // `completed`) the gateway callback is in flight and we must not
+        // flip the intent to cancelled.
+        $currentStatusVal = $intent['status'] ?? '';
+        $currentStatus = is_string($currentStatusVal) ? $currentStatusVal : '';
+        $cancellable = ['pending', 'processing'];
+        if (!in_array($currentStatus, $cancellable, true)) {
+            // Render the actual current status so the customer sees the real
+            // state (paid / expired / etc.) instead of a misleading cancelled.
+            return $this->renderStatus($token, $currentStatus !== '' ? $currentStatus : 'expired', $intent);
+        }
+
+        if ($currentStatus === 'processing') {
+            // Refuse to cancel if any child transaction has progressed past
+            // `pending` - the gateway is in flight and the cancel would race
+            // the success callback.
+            $inFlightTxn = $this->db->fetchOne(
+                "SELECT id FROM op_transactions
+                 WHERE payment_intent_id = :pi AND merchant_id = :mid
+                   AND status NOT IN ('pending','cancelled')
+                 LIMIT 1",
+                ['pi' => $intentId, 'mid' => $mid]
+            );
+            if (is_array($inFlightTxn) && isset($inFlightTxn['id'])) {
+                return $this->renderStatus($token, 'processing', $intent);
+            }
+        }
+
         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'cancelled']);
 
         // Terminate active child transactions mapped to the cancelled checkout intent.
@@ -1035,6 +1183,31 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
+        // Issue #344 (PAY-16): enforce the same HMAC handshake that pay(),
+        // expressPay(), and cancel() require, so that anyone with only the
+        // intent token (from a shared screenshot, referrer leak, or log file)
+        // cannot POST arbitrary sender_number / transaction_id values to
+        // overwrite the metadata.verification block on a transaction they do
+        // not own. Mirrors the check added to CheckoutController::manualVerify().
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
+        $expectedHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+            }
+            return $this->renderStatus($token, 'expired');
+        }
+
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $intentIdVal = $intent['id'] ?? 0;
@@ -1052,8 +1225,11 @@ final class PaymentIntentCheckoutController
         $txnIdVal = $txn['id'] ?? 0;
         $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
+        $senderNumberRaw = $req->input('sender_number', '');
+        $senderNumber = is_string($senderNumberRaw) ? trim($senderNumberRaw) : '';
+
         $verifyData = [
-            'sender_number'  => $req->input('sender_number', ''),
+            'sender_number'  => $senderNumber,
             'transaction_id' => $req->input('transaction_id', ''),
             'submitted_at'   => DateHelper::now(),
         ];
@@ -1065,6 +1241,17 @@ final class PaymentIntentCheckoutController
         $existingMeta['verification'] = $verifyData;
 
         $this->txnRepo->setStatusWithMeta($txnId, 'pending_review', $existingMeta, $mid);
+
+        // Persist the customer-supplied sender number into the dedicated
+        // op_transactions.sender_account column (issue #56). Mirrors the
+        // classic CheckoutController::manualVerify() behaviour so both flows
+        // expose the value to admin UI, notification bell, and downstream
+        // consumers that read sender_account directly.
+        if ($senderNumber !== '') {
+            $this->txnRepo->forTenant($mid)->updateScoped($txnId, [
+                'sender_account' => $senderNumber,
+            ]);
+        }
 
         // Elevate checkout intent status to reflect review processing.
         $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
@@ -1096,7 +1283,7 @@ final class PaymentIntentCheckoutController
                 $intent = $row;
             }
         }
-        $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
+        $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => '', 'manual_payment_auto_redirect' => '0'];
 
         $txn = null;
         if ($intent) {
@@ -1152,6 +1339,43 @@ final class PaymentIntentCheckoutController
             }
         }
 
+        // ── Manual-pending detection ─────────────────────────────────────────
+        // 'awaiting_verification' and 'pending_review' are exclusively manual payment
+        // statuses. 'processing' after a manual submit also counts (txn is still
+        // awaiting_verification or pending_review at that point).
+        $isManualPending = in_array($status, ['awaiting_verification', 'pending_review'], true);
+        if (!$isManualPending && $status === 'processing') {
+            $txnStatus = is_string($txn['status'] ?? null) ? $txn['status'] : '';
+            if (in_array($txnStatus, ['awaiting_verification', 'pending_review'], true)) {
+                $isManualPending = true;
+            }
+        }
+
+        // ── Per-brand setting (from op_merchants.settings JSON) ──────────────
+        // Read from $brand which loadBrand() already resolved for this $mid.
+        // Falls back to '0' (OFF) if key missing — safe for existing brands.
+        $manualAutoRedirectVal = $brand['manual_payment_auto_redirect'] ?? '0';
+        $allowManualRedirect = is_string($manualAutoRedirectVal) && $manualAutoRedirectVal === '1';
+
+        // ── Determine effective redirect URL & status ───────────────────────
+        // For manual-pending with redirect disabled: suppress countdown entirely
+        // by passing empty merchant_redirect_url (template condition fails: 'and merchant_redirect_url').
+        // For manual-pending with redirect enabled: pass status='pending' to merchant
+        // so their platform (e.g. WooCommerce) keeps the order as pending — never 'processing'.
+        // API gateway flow is NOT affected (isManualPending = false for those paths).
+        $effectiveRedirectUrl = $targetUrl;
+        $effectiveIntentStatus = $status;
+
+        if ($isManualPending) {
+            if (!$allowManualRedirect) {
+                // Suppress countdown block entirely
+                $effectiveRedirectUrl = '';
+            } else {
+                // Redirect allowed — but ALWAYS send status=pending to merchant
+                $effectiveIntentStatus = 'pending';
+            }
+        }
+
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         $brandId = $mid > 0 ? $mid : null;
@@ -1165,11 +1389,12 @@ final class PaymentIntentCheckoutController
                 'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
                 'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
-            'merchant_redirect_url' => $targetUrl,
+            'merchant_redirect_url' => $effectiveRedirectUrl,
             'intent_payment_id'     => $intent['uuid'] ?? '',
             'intent_token'          => $ref,
-            'intent_status'         => $status,
+            'intent_status'         => $effectiveIntentStatus,
             'is_intent'             => true,
+            'is_manual_pending'     => $isManualPending,
         ]);
     }
 
@@ -1417,5 +1642,45 @@ final class PaymentIntentCheckoutController
         }
 
         return Response::json(['success' => false, 'error' => 'Payment service is not configured.'], 500);
+    }
+
+    /**
+     * Validates a transaction amount against a manual gateway's configured limits.
+     *
+     * Mirrors {@see \OwnPay\Controller\Checkout\CheckoutController::validateManualGatewayAmount()}
+     * so both checkout flows enforce the same min_amount/max_amount rules (issue #57).
+     * Comparisons use bccomp with 2-decimal precision; float math is forbidden
+     * for money per the project conventions.
+     *
+     * @param array<string, mixed> $gateway The manual gateway row, including min_amount/max_amount.
+     * @param string $amount The transaction amount as a numeric string.
+     * @return string|null Error message when out of range, null when acceptable.
+     */
+    private function validateManualGatewayAmount(array $gateway, string $amount): ?string
+    {
+        if (!is_numeric($amount)) {
+            return 'Invalid amount.';
+        }
+
+        $minRaw = $gateway['min_amount'] ?? '0';
+        $minAmount = (is_string($minRaw) || is_int($minRaw) || is_float($minRaw)) ? (string) $minRaw : '0';
+        if (!is_numeric($minAmount)) {
+            $minAmount = '0';
+        }
+
+        $maxRaw = $gateway['max_amount'] ?? '0';
+        $maxAmount = (is_string($maxRaw) || is_int($maxRaw) || is_float($maxRaw)) ? (string) $maxRaw : '0';
+        if (!is_numeric($maxAmount)) {
+            $maxAmount = '0';
+        }
+
+        if (bccomp($minAmount, '0', 2) > 0 && bccomp($amount, $minAmount, 2) < 0) {
+            return "Amount must be at least {$minAmount}.";
+        }
+        if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amount, $maxAmount, 2) > 0) {
+            return "Amount must not exceed {$maxAmount}.";
+        }
+
+        return null;
     }
 }

@@ -26,6 +26,11 @@ class Database
     private PDO $pdo;
 
     /**
+     * Configured application table prefix.
+     */
+    private string $tablePrefix = 'op_';
+
+    /**
      * @var self|null The singleton instance used for testing/fallback context.
      */
     private static ?self $instance = null;
@@ -49,10 +54,15 @@ class Database
      * Database constructor.
      *
      * @param PDO $pdo The underlying PDO connection.
+     * @param string $tablePrefix The configured application table prefix.
      */
-    public function __construct(PDO $pdo)
+    public function __construct(PDO $pdo, string $tablePrefix = 'op_')
     {
         $this->pdo = $pdo;
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $tablePrefix)) {
+            throw new \InvalidArgumentException('Invalid database table prefix.');
+        }
+        $this->tablePrefix = $tablePrefix;
     }
 
     /**
@@ -104,11 +114,26 @@ class Database
      * Creates and stores a singleton instance from connection parameters.
      * Used by integration tests that cannot access the DI container.
      *
-     * @param string $host   The database host.
-     * @param string $name   The database name.
-     * @param string $user   The database username.
-     * @param string $pass   The database password.
-     * @param int    $port   The database port.
+     * The default PDO option set only set errmode/fetch-mode/emulate-prepares;
+     * it omitted any connection timeout, any TLS configuration, and any
+     * persistent-connection toggle. This made remote-DB deployments either
+     * hang for the full MySQL default 10s connect_timeout during bootstrap
+     * (no application-level override) or traverse the wire in cleartext.
+     *
+     * The caller may now pass:
+     *   - $options[PDO::ATTR_TIMEOUT] (default 5) - connect timeout in seconds.
+     *   - $options[PDO::ATTR_PERSISTENT] (default false) - set true for
+     *     long-running CLI/cron workers to reuse pooled connections.
+     *   - $sslCa (path to a PEM-encoded CA bundle) - when non-null, TLS is
+     *     enabled with server-cert verification pinned to the supplied CA.
+     *
+     * @param string                                                $host    The database host.
+     * @param string                                                $name    The database name.
+     * @param string                                                $user    The database username.
+     * @param string                                                $pass    The database password.
+     * @param int                                                   $port    The database port.
+     * @param array<int, int|bool|string>                           $options PDO driver options (merged over defaults).
+     * @param string|null                                           $sslCa   Optional path to a CA bundle for TLS verification.
      * @return self The initialized Database instance.
      */
     public static function init(
@@ -116,15 +141,42 @@ class Database
         string $name,
         string $user,
         string $pass,
-        int $port = 3306
+        int $port = 3306,
+        array $options = [],
+        ?string $sslCa = null
     ): self {
         $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
-        $pdo = new PDO($dsn, $user, $pass, [
+
+        // Sensible defaults that the caller may override via $options.
+        $defaults = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
-        self::$instance = new self($pdo);
+            // Cap connect_timeout at 5s so a hung/unreachable DB fails fast
+            // during bootstrap instead of stalling the full request.
+            PDO::ATTR_TIMEOUT            => 5,
+        ];
+
+        if ($sslCa !== null && $sslCa !== '') {
+            // Enable TLS with server-cert verification pinned to the supplied
+            // CA bundle so remote-DB credentials cannot be sniffed/MITM'd.
+            $defaults[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                $defaults[\constant('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')] = true;
+            }
+        }
+
+        // Caller-provided options override the defaults.
+        $merged = $defaults;
+        foreach ($options as $key => $value) {
+            $merged[$key] = $value;
+        }
+
+        $pdo = new PDO($dsn, $user, $pass, $merged);
+        $prefix = is_string($_ENV['DB_PREFIX'] ?? null) && $_ENV['DB_PREFIX'] !== ''
+            ? $_ENV['DB_PREFIX']
+            : (getenv('DB_PREFIX') ?: 'op_');
+        self::$instance = new self($pdo, $prefix);
         return self::$instance;
     }
 
@@ -211,9 +263,64 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
-        // Fire db.query.before filter - plugins can modify SQL/params
-        // Guard prevents infinite recursion when hook listeners query DB
-        if ($this->events !== null && !$this->firingHooks) {
+        $canonicalSql = $sql;
+        // DB-1: The db.query.before filter previously fired on EVERY query,
+        // including core-originated queries against sensitive tables
+        // (op_api_keys, op_users, op_merchant_users, op_password_resets,
+        // op_audit_log, op_sessions). A malicious plugin could register a
+        // filter that rewrote `SELECT api_key FROM op_api_keys WHERE id=:id`
+        // into `SELECT api_key FROM op_api_keys WHERE 1=1` and exfiltrate
+        // every API key, or rewrite `UPDATE op_transactions SET status=
+        // 'completed' WHERE id=:id AND merchant_id=:mid` to drop the tenant
+        // guard. The sandbox check on line 238-247 only ran when the active
+        // owner was a plugin - for core-originated queries, no sandbox
+        // validation happened at all, and the rewritten SQL was executed
+        // verbatim.
+        //
+        // We now refuse to fire the db.query.before filter for queries that
+        // touch any table in a hardcoded PROTECTED_TABLES list, regardless
+        // of the active owner. Plugins can still observe/profiling queries
+        // against non-protected tables, but cannot rewrite queries that
+        // touch credentials, sessions, audit logs, or user accounts.
+        $protectedTables = [
+            'op_api_keys',
+            'op_users',
+            'op_merchant_users',
+            'op_password_resets',
+            'op_audit_log',
+            'op_sessions',
+            'op_password_resets',
+            'op_totp_secrets',
+        ];
+        $sqlLower = strtolower($canonicalSql);
+        $isProtected = false;
+        foreach ($protectedTables as $table) {
+            if (str_contains($sqlLower, $table)) {
+                $isProtected = true;
+                break;
+            }
+        }
+
+        // Validate plugin SQL before applying a custom prefix; otherwise a
+        // plugin could evade the canonical core-table restrictions.
+        if ($this->registry !== null && $this->events !== null) {
+            $activeOwner = $this->events->getActiveOwner();
+            if ($activeOwner !== 'core') {
+                $sandbox = $this->registry->getSandbox($activeOwner);
+                if ($sandbox !== null && !$sandbox->validateSql($canonicalSql)) {
+                    throw new \RuntimeException(
+                        "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
+                    );
+                }
+            }
+        }
+
+        $sql = $this->applyTablePrefix($sql);
+
+        // Fire db.query.before filter - plugins can modify SQL/params.
+        // Guard prevents infinite recursion when hook listeners query DB.
+        // DB-1: skip the filter entirely for queries against protected tables.
+        if (!$isProtected && $this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
             try {
                 /** @var array<string, mixed> $queryData */
@@ -229,21 +336,6 @@ class Database
                 }
             } finally {
                 $this->firingHooks = false;
-            }
-        }
-
-        // Validate SQL query safety if executed within plugin context.
-        if ($this->registry !== null && $this->events !== null) {
-            $activeOwner = $this->events->getActiveOwner();
-            if ($activeOwner !== 'core') {
-                $sandbox = $this->registry->getSandbox($activeOwner);
-                if ($sandbox !== null) {
-                    if (!$sandbox->validateSql($sql)) {
-                        throw new \RuntimeException(
-                            "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
-                        );
-                    }
-                }
             }
         }
 
@@ -279,6 +371,35 @@ class Database
         }
 
         return $stmt;
+    }
+
+    /**
+     * Rewrites core table identifiers from the canonical op_ prefix to the
+     * configured prefix. SQL values and comments are intentionally untouched.
+     *
+     * @param string $sql SQL statement containing canonical table identifiers.
+     * @return string SQL statement using the configured table prefix.
+     */
+    private function applyTablePrefix(string $sql): string
+    {
+        if ($this->tablePrefix === 'op_') {
+            return $sql;
+        }
+
+        $rewritten = preg_replace_callback(
+            '/(?P<q>`)(?P<name>op_[a-z_][a-z0-9_]*)\k<q>'
+            . '|(?P<pre>[\s(])(?P<bare>op_[a-z_][a-z0-9_]*)/i',
+            function (array $match): string {
+                if ($match['q'] !== '') {
+                    $name = $match['name'];
+                    return $match['q'] . $this->tablePrefix . substr($name, 3) . $match['q'];
+                }
+                return $match['pre'] . $this->tablePrefix . substr($match['bare'], 3);
+            },
+            $sql
+        );
+
+        return is_string($rewritten) ? $rewritten : $sql;
     }
 
     /**
@@ -390,10 +511,17 @@ class Database
     /**
      * Checks if a row exists in the database.
      *
+     * SECURITY: The $where argument is concatenated directly into the SQL
+     * string. Callers MUST NOT interpolate user input into $where - only
+     * literal SQL fragments with :named placeholders bound via $params are
+     * permitted. A runtime assertion rejects obvious SQL-injection markers
+     * (statement separator, comment markers, NUL/control bytes) as a
+     * defence-in-depth guardrail against future callers that take a shortcut.
+     *
      * @param string $table  The table name.
-     * @param string $where  The SQL WHERE clause.
+     * @param string $where  The SQL WHERE clause. Use :named placeholders only; never interpolate user input.
      * @param array<string|int, mixed>  $params The parameters to bind.
-     * @throws \InvalidArgumentException If table name contains forbidden characters.
+     * @throws \InvalidArgumentException If table name or WHERE clause contains forbidden characters.
      * @return bool True if row exists, false otherwise.
      */
     public function exists(string $table, string $where, array $params = []): bool
@@ -402,6 +530,7 @@ class Database
         if (!preg_match('/^[a-zA-Z0-9_`]+$/', $table)) {
             throw new \InvalidArgumentException('Invalid table name: ' . $table);
         }
+        self::assertSafeWhereClause($where);
         $sql = "SELECT 1 FROM {$table} WHERE {$where} LIMIT 1";
         return $this->fetchColumn($sql, $params) !== null;
     }
@@ -409,10 +538,17 @@ class Database
     /**
      * Counts rows matching selection parameters.
      *
+     * SECURITY: The $where argument is concatenated directly into the SQL
+     * string. Callers MUST NOT interpolate user input into $where - only
+     * literal SQL fragments with :named placeholders bound via $params are
+     * permitted. A runtime assertion rejects obvious SQL-injection markers
+     * (statement separator, comment markers, NUL/control bytes) as a
+     * defence-in-depth guardrail against future callers that take a shortcut.
+     *
      * @param string $table  The table name.
-     * @param string $where  The SQL WHERE clause.
+     * @param string $where  The SQL WHERE clause. Use :named placeholders only; never interpolate user input.
      * @param array<string|int, mixed>  $params The parameters to bind.
-     * @throws \InvalidArgumentException If table name contains forbidden characters.
+     * @throws \InvalidArgumentException If table name or WHERE clause contains forbidden characters.
      * @return int The row count.
      */
     public function count(string $table, string $where = '1=1', array $params = []): int
@@ -421,9 +557,60 @@ class Database
         if (!preg_match('/^[a-zA-Z0-9_`]+$/', $table)) {
             throw new \InvalidArgumentException('Invalid table name: ' . $table);
         }
+        self::assertSafeWhereClause($where);
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
         $val = $this->fetchColumn($sql, $params);
         return is_scalar($val) ? (int) $val : 0;
+    }
+
+    /**
+     * Defence-in-depth guard for the $where clause accepted by exists()/count().
+     *
+     * Rejects obvious SQL-injection markers (the semicolon statement
+     * separator, the double-dash and slash-star/star-slash comment markers,
+     * and NUL/control bytes other than the whitespace chars that legitimately
+     * appear in WHERE clauses). Legitimate WHERE fragments built with :named
+     * placeholders and quoted SQL literals (e.g. status IN ('open',
+     * 'under_review')) pass through unchanged.
+     *
+     * This is NOT a complete SQL-injection defence - the only safe pattern is
+     * to bind all user-derived values via $params. The guard exists solely to
+     * turn an accidental caller shortcut into a loud failure rather than a
+     * silent exploit.
+     *
+     * @param string $where The WHERE clause to validate.
+     * @throws \InvalidArgumentException If the WHERE clause contains forbidden tokens.
+     * @return void
+     */
+    private static function assertSafeWhereClause(string $where): void
+    {
+        if ($where === '') {
+            return;
+        }
+        // Reject statement separators and SQL comment markers - no legitimate
+        // WHERE clause needs them.
+        if (
+            str_contains($where, ';')
+            || str_contains($where, '--')
+            || str_contains($where, '/*')
+            || str_contains($where, '*/')
+        ) {
+            throw new \InvalidArgumentException(
+                'Refusing to execute WHERE clause containing SQL statement/comment markers; '
+                . 'use :named placeholders for all user-supplied values.'
+            );
+        }
+        // Reject NUL and other C0 control bytes except tab/newline/CR (which
+        // are whitespace and may legitimately appear in multi-line clauses).
+        for ($i = 0, $len = strlen($where); $i < $len; $i++) {
+            $ord = ord($where[$i]);
+            if ($ord < 0x20 && $ord !== 0x09 && $ord !== 0x0A && $ord !== 0x0D) {
+                throw new \InvalidArgumentException(
+                    'Refusing to execute WHERE clause containing control bytes; '
+                    . 'use :named placeholders for all user-supplied values.'
+                );
+            }
+        }
     }
 
     /**

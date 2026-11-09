@@ -11,10 +11,10 @@ name: ESLint
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "main", "dev" ]
+    branches: ["main", "dev"]
   schedule:
     - cron: '36 6 * * 1'
 
@@ -32,18 +32,18 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24'
+          node-version: '26'
           cache: 'npm'
 
       - name: Install NPM dependencies
         run: |
           npm ci
-          npm install @microsoft/eslint-formatter-sarif@3.1.0
+          npm install --no-save @microsoft/eslint-formatter-sarif@3.1.0
 
       - name: Run ESLint
         env:
@@ -80,7 +80,7 @@ jobs:
           echo "valid=true" >> "$GITHUB_OUTPUT"
 
       - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           sarif_file: eslint-results.sarif
           wait-for-processing: true

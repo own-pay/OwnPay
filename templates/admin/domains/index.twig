@@ -36,7 +36,7 @@
             </button>
         </div>
 
-        {% include 'admin/domains/_manage-panel.twig' with {d: d, csrf_token: csrf_token, server_ip: server_ip} %}
+        {% include 'admin/domains/_manage-panel.twig' with {d: d, csrf_token: csrf_token, server_ip: server_ip, cname_target: cname_target, server_ip_proxied: server_ip_proxied} %}
     </div>
 {% else %}
     <div class="op-empty op-card op-p-6">No custom domains added yet. Click <strong>"+ Add Domain"</strong> above to get started.</div>
@@ -44,12 +44,12 @@
 </div>
 
 {# -- Add Domain Wizard Modal ------------------------------------ #}
-<div class="op-modal" id="add-domain-modal" hidden>
+<div class="op-modal" id="add-domain-modal" role="dialog" aria-modal="true" aria-labelledby="add-domain-modal-title" hidden>
     <div class="op-modal-backdrop" data-close-modal="add-domain-modal"></div>
     <div class="op-modal-dialog">
         <div class="op-modal-header">
-            <h3>Add Custom Domain</h3>
-            <button class="op-modal-close" type="button" data-close-modal="add-domain-modal">×</button>
+            <h3 id="add-domain-modal-title">Add Custom Domain</h3>
+            <button class="op-modal-close" type="button" data-close-modal="add-domain-modal" aria-label="Close modal">×</button>
         </div>
 
         <div class="op-wizard-progress">
@@ -111,11 +111,17 @@
                 <div class="op-label">Step 3 of 3</div>
                 <h4>Point your A or CNAME record</h4>
                 <div class="op-dns-record-details">
-                    <div>Option A - CNAME target: <code id="wizard-cname">testing.ownpay.org</code>
+                    <div>Option A - CNAME target: <code id="wizard-cname">{{ cname_target }}</code>
                         <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="wizard-cname">Copy</button></div>
                     <div>Option B - A record IP: <code id="wizard-a">{{ server_ip }}</code>
                         <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="wizard-a">Copy</button></div>
                 </div>
+                {% if server_ip_proxied %}
+                <div class="op-alert op-alert-warning op-mt-3">
+                    The IP above is a <strong>Cloudflare edge address</strong> (your parent domain is proxied through Cloudflare), not your origin server — brand-domain A records pointing at it can never match DNS verification.
+                    Set <code>APP_SERVER_IP</code> to your server's real IPv4 in <code>.env</code>, then point the brand domain's A record at that IP (DNS only, grey cloud).
+                </div>
+                {% endif %}
                 <div class="op-alert op-alert-info op-mt-3">DNS propagation takes 5-30 minutes. You can close this and verify later from the domain's DNS Setup tab.</div>
                 <div class="op-wizard-verify-result" id="wizard-verify-result"></div>
             </div>

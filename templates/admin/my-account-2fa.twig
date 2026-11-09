@@ -20,12 +20,18 @@
     <div class="op-card-body">
         <p class="op-text-muted">Your account is protected with TOTP-based two-factor authentication.</p>
         <hr class="op-divider">
-        <p><strong>To disable 2FA,</strong> enter your current password below:</p>
+        <p><strong>To disable 2FA,</strong> enter your current password AND a fresh 6-digit TOTP code from your authenticator. Both are required as step-up authentication (PCI-DSS 8.4.2).</p>
         <form method="POST" action="/admin/my-account/2fa/disable" class="op-form op-form-2fa" data-confirm="Disable 2FA? Your account will be less secure.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <div class="op-form-group">
                 <label>Current Password</label>
                 <input type="password" name="password" class="op-input" required autocomplete="current-password">
+            </div>
+            <div class="op-form-group">
+                <label>TOTP Code</label>
+                <input type="text" name="totp_code" class="op-input op-verify-input" placeholder="000000"
+                       maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"
+                       inputmode="numeric" required>
             </div>
             <button type="submit" class="op-btn op-btn-danger">Disable 2FA</button>
         </form>
@@ -41,8 +47,12 @@
                 <h4>Step 1 - Scan QR Code</h4>
                 <p class="op-text-muted">Open your authenticator app (Google Authenticator, Authy, etc.) and scan this QR code.</p>
                 <div class="op-2fa-qr op-2fa-qr-container">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ qr_uri|url_encode }}"
+                    {% if qr_data_uri %}
+                    <img src="{{ qr_data_uri }}"
                           alt="2FA QR Code" width="200" height="200" class="op-qr-img">
+                    {% else %}
+                    <p class="op-text-muted">QR code could not be rendered. Please enter the code manually below.</p>
+                    {% endif %}
                 </div>
                 <details class="op-mt-2">
                     <summary class="op-text-muted op-cursor-pointer op-details-summary">Can't scan? Enter this code manually</summary>

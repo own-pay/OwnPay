@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\MercadoPago;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Mercado Pago Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class MercadoPagoGateway implements PluginInterface, GatewayAdapterInterface
+final class MercadoPagoGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -98,6 +99,46 @@ final class MercadoPagoGateway implements PluginInterface, GatewayAdapterInterfa
             'redirect_url' => $initPoint,
             'session_id'   => $sessionId,
         ];
+    }
+
+    /**
+     * Verifies the Access Token authenticates against MercadoPago's account API - GET
+     * /users/me is a free, read-only call that returns the account owning the token.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $accessToken = $this->getString($credentials['access_token'] ?? null);
+        if ($accessToken === '') {
+            return ['success' => false, 'message' => 'Enter an Access Token before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.mercadopago.com/users/me');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $accessToken],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Mercado Pago - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $nickname = is_array($data) && is_scalar($data['nickname'] ?? null) ? (string) $data['nickname'] : '';
+            $suffix = $nickname !== '' ? " ({$nickname})" : '';
+            return ['success' => true, 'message' => "Connected successfully to Mercado Pago{$suffix}."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Mercado Pago rejected the provided Access Token.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function verify(array $callbackData, array $credentials): array

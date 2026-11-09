@@ -71,6 +71,22 @@ final class StatusGuard
     }
 
     /**
+     * Evaluates if a paired device is in a valid state for authentication.
+     *
+     * Uses an allowlist (status must be exactly 'active') rather than a denylist
+     * so that any new or unexpected status (pending, suspended, lost, inactive,
+     * revoked, etc.) fails closed. This prevents tokens bound to a device in any
+     * non-active state from being accepted by JwtAuthMiddleware.
+     *
+     * @param string $status The paired device status string from the database.
+     * @return bool True only when the status is exactly 'active'.
+     */
+    public static function isDeviceStatusValid(string $status): bool
+    {
+        return $status === 'active';
+    }
+
+    /**
      * Asserts that an entity state is active, throwing an exception upon failure.
      *
      * @param array{status?: string} $entity The entity array to check.

@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/assets/css/reset.css?v=017">
     <link rel="stylesheet" href="/assets/css/animations.css?v=015">
     <link rel="stylesheet" href="/assets/css/utilities.css?v=015">
-    <link rel="stylesheet" href="/assets/css/admin.css?v=058">
+    <link rel="stylesheet" href="/assets/css/admin.css?v=061">
     {{ enqueued_assets('style') }}
     <meta name="csrf-token" content="{{ csrf_token }}">
     <script nonce="{{ csp_nonce }}" src="/assets/js/theme-init.js"></script>
@@ -22,6 +22,7 @@
     {{ hook('admin.head')|raw }}
 </head>
 <body class="op-admin">
+    <a href="#op-main-content" class="op-skip-link">Skip to main content</a>
     <div class="op-layout">
         {% include 'admin/layout/sidebar.twig' %}
 
@@ -30,17 +31,17 @@
             {% include 'admin/layout/notification_panel.twig' %}
             <div class="op-notif-panel-backdrop" id="notif-backdrop"></div>
 
-            <main class="op-content t-panel-slide" data-open="false">
+            <main id="op-main-content" class="op-content t-panel-slide" data-open="false">
                 {% if flash_success is defined and flash_success %}
-                <div class="op-alert op-alert-success op-alert-dismissible">
-                    {{ flash_success }}
-                    <button type="button" class="op-alert-close">×</button>
+                <div class="op-alert op-alert-success op-alert-dismissible" role="alert">
+                    <span>{{ flash_success }}</span>
+                    <button type="button" class="op-alert-close" aria-label="Dismiss message">&times;</button>
                 </div>
                 {% endif %}
                 {% if flash_error is defined and flash_error %}
-                <div class="op-alert op-alert-danger op-alert-dismissible">
-                    {{ flash_error }}
-                    <button type="button" class="op-alert-close">×</button>
+                <div class="op-alert op-alert-danger op-alert-dismissible" role="alert">
+                    <span>{{ flash_error }}</span>
+                    <button type="button" class="op-alert-close" aria-label="Dismiss error">&times;</button>
                 </div>
                 {% endif %}
 
@@ -53,7 +54,7 @@
 
     {% include 'admin/layout/modals.twig' %}
 
-    <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=048"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=051"></script>
     {{ enqueued_assets('script') }}
     <div id="op-page-scripts">{% block scripts %}{% endblock %}</div>
     {{ hook('admin.footer')|raw }}

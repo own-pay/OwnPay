@@ -270,6 +270,26 @@ final class InvoiceService
             $status = 'draft';
         }
 
+        // Issue #339 (PAY-11): once an invoice is 'paid' it must not be re-opened
+        // into a non-terminal state. Allowing 'paid' -> 'sent' / 'draft' / 'overdue'
+        // would re-arm the checkout payment flow on an invoice the customer has
+        // already settled, enabling a second payment (and a double-credit to the
+        // merchant's ledger once the second payment completes).
+        //
+        // The only legitimate transition out of 'paid' is to 'cancelled' (void)
+        // - e.g. when an admin reverses a chargeback or marks the payment as
+        // fraudulent. The 'cancelled' status is itself terminal in the
+        // $allowedStatuses list above, so the customer cannot re-pay a voided
+        // invoice either.
+        $currentStatusVal = $invoice['status'] ?? '';
+        $currentStatus = is_scalar($currentStatusVal) ? (string) $currentStatusVal : '';
+        if ($currentStatus === 'paid' && !in_array($status, ['paid', 'cancelled'], true)) {
+            throw new \InvalidArgumentException(
+                "Cannot re-open a paid invoice (target status '{$status}'). "
+                . "Void it (status='cancelled') first if you need to reverse the payment."
+            );
+        }
+
         $customerId = !empty($data['customer_id']) ? (int) $data['customer_id'] : null;
         $dueDate    = !empty($data['due_date']) ? $data['due_date'] : null;
         $notes      = !empty($data['notes']) ? $data['notes'] : null;

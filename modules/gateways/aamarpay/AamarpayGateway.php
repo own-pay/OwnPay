@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Aamarpay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Aamarpay payment gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
+final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -51,6 +52,53 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'signature_key', 'label' => 'Signature Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Aamarpay has no dedicated account/ping endpoint - the trxcheck API is the only
+     * authenticated, GET-style endpoint available. Queries it with a request_id that cannot
+     * exist; any structured JSON response (rather than a connection failure or an HTML error
+     * page) confirms the store_id/signature_key pair is being accepted by the API.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $storeId = is_scalar($credentials['store_id'] ?? null) ? (string) $credentials['store_id'] : '';
+        $signatureKey = is_scalar($credentials['signature_key'] ?? null) ? (string) $credentials['signature_key'] : '';
+        if ($storeId === '' || $signatureKey === '') {
+            return ['success' => false, 'message' => 'Enter Store ID and Signature Key before testing the connection.'];
+        }
+
+        $mode = $credentials['mode'] ?? 'sandbox';
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $url = $baseUrl . '/api/v1/trxcheck/request.php?' . http_build_query([
+            'request_id'    => 'op_test_connection_' . bin2hex(random_bytes(6)),
+            'store_id'      => $storeId,
+            'signature_key' => $signatureKey,
+            'type'          => 'json',
+        ]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Aamarpay - check the server\'s network connectivity.'];
+        }
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data)) {
+            return ['success' => true, 'message' => 'Connected successfully to Aamarpay (' . (is_scalar($mode) ? (string) $mode : 'sandbox') . ' mode).'];
+        }
+
+        return ['success' => false, 'message' => 'Aamarpay did not accept the request - check the Store ID and Signature Key.'];
     }
 
     public function initiate(array $params, array $credentials): array

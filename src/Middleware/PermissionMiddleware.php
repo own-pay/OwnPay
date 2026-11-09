@@ -55,6 +55,58 @@ final class PermissionMiddleware
         if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
             $brandCtx->resolveFromRequest($request);
             $activeBrandId = $brandCtx->getActiveBrandId();
+
+            // Security: cross-brand privilege-escalation guard (audit finding
+            // BRD-2 / issue #238). Public checkout controllers call
+            // BrandContext::setActiveBrandId($mid) to set the rendering brand
+            // context, which writes $mid into $_SESSION['active_brand_id']. If
+            // a non-superadmin brand-A staff member visits a public checkout
+            // URL for brand B (on the master domain, where DomainMiddleware
+            // does not set the merchant_id request attribute), their session's
+            // active_brand_id is silently overwritten to brand B - and every
+            // subsequent /admin/* request is then scoped to brand B, leaking
+            // cross-brand data.
+            //
+            // BrandController::switchBrand already enforces that non-superadmins
+            // can only switch to their own auth_merchant_id. This middleware
+            // enforces the same invariant on every /admin/* request: if the
+            // active_brand_id does not match the caller's auth_merchant_id (and
+            // the caller is not a superadmin), reset the session back to the
+            // caller's home brand, log the event to the audit trail, and flash
+            // a security warning.
+            //
+            // This check runs BEFORE the global-only-route block below so that
+            // a poisoned session is reset on the first /admin/* request rather
+            // than after a misleading "only accessible in Global View" redirect.
+            if ($activeBrandId !== null && $activeBrandId > 0 && session_status() === PHP_SESSION_ACTIVE) {
+                $authMerchantIdVal = $_SESSION['auth_merchant_id'] ?? null;
+                $authMerchantId = is_scalar($authMerchantIdVal) ? (int) $authMerchantIdVal : 0;
+                $isSuperadmin = !empty($_SESSION['is_superadmin']);
+                if (!$isSuperadmin && $authMerchantId > 0 && $activeBrandId !== $authMerchantId) {
+                    $userId = is_scalar($userId) ? (int) $userId : null;
+                    $audit = $this->container->get(\OwnPay\Service\System\AuditService::class);
+                    if ($audit instanceof \OwnPay\Service\System\AuditService) {
+                        $audit->log(
+                            'security.brand_context_reset',
+                            'session',
+                            $userId,
+                            ['active_brand_id' => $activeBrandId],
+                            ['active_brand_id' => $authMerchantId]
+                        );
+                    }
+                    // Reset to the caller's legitimate home brand.
+                    $brandCtx->setActiveBrandId($authMerchantId);
+                    $session = $this->container->get(\OwnPay\Service\Admin\AdminSession::class);
+                    if ($session instanceof \OwnPay\Service\Admin\AdminSession) {
+                        $session->flashError('Brand context was reset to your home brand due to a security check.');
+                    }
+                    if ($request->expectsJson()) {
+                        return Response::json(['success' => false, 'message' => 'Brand context was reset to your home brand due to a security check.'], 403);
+                    }
+                    return Response::redirect('/admin');
+                }
+            }
+
             if ($activeBrandId !== null && $activeBrandId > 0) {
                 $path = $request->path();
                 $globalOnlyPrefixes = [
@@ -64,10 +116,19 @@ final class PermissionMiddleware
                     '/admin/balance-verification',
                     '/admin/audit-integrity',
                 ];
-                
+
                 if ($path !== '/admin/brands/switch') {
                     foreach ($globalOnlyPrefixes as $prefix) {
                         if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                            // Allow a brand staff/owner to view and edit their OWN brand profile in brand view
+                            if ($prefix === '/admin/brands' && (
+                                $path === "/admin/brands/{$activeBrandId}" ||
+                                $path === "/admin/brands/{$activeBrandId}/edit" ||
+                                $path === "/admin/brands/{$activeBrandId}/update"
+                            )) {
+                                continue;
+                            }
+
                             $session = $this->container->get(\OwnPay\Service\Admin\AdminSession::class);
                             if ($session instanceof \OwnPay\Service\Admin\AdminSession) {
                                 $session->flashError('This page is only accessible in Global View.');
@@ -198,10 +259,11 @@ final class PermissionMiddleware
         $map = [
             // Dashboard routes mapped to permission map
             '/admin/transactions'         => 'transactions.view',
+            '/admin/payment-intents'      => 'transactions.view',
             '/admin/refunds'              => 'transactions.view',
             '/admin/invoices'             => 'invoices.view',
             '/admin/payment-links'        => 'payment_links.view',
-            '/admin/disputes'             => 'disputes.view',
+            '/admin/disputes'             => 'transactions.view',
             '/admin/customers'            => 'customers.view',
             '/admin/gateways'             => 'gateways.view',
             '/admin/staff'                => 'staff.view',
@@ -214,7 +276,7 @@ final class PermissionMiddleware
             '/admin/devices'              => 'devices.view',
             '/admin/plugins'              => 'plugins.view',
             '/admin/themes'               => 'plugins.view',
-            '/admin/appearance'           => 'plugins.view',
+            '/admin/appearance'           => 'settings.view',
             '/admin/system-update'        => 'system.update',
             '/admin/activities'           => 'system.audit',
             '/admin/audit-integrity'      => 'system.audit',
@@ -223,8 +285,16 @@ final class PermissionMiddleware
             '/admin/domains'              => 'domains.view',
             '/admin/balance-verification' => 'system.balance',
             '/admin/roles'                => 'staff.view',
+            // Webhook CRUD is mounted under /admin/developer, but it is gated by the
+            // dedicated webhooks.* slugs (seeded in database/seeds/roles.sql) rather
+            // than api_keys.*. This entry must stay ABOVE '/admin/developer': the
+            // prefix loop below walks the map in declaration order and returns the
+            // first match, so a later '/admin/developer' entry would otherwise win.
+            '/admin/developer/webhooks'   => 'webhooks.view',
             '/admin/developer'            => 'api_keys.view',
             '/admin/gateway-webhooks'     => 'api_keys.view',
+            '/admin/webhooks'             => 'webhooks.view',
+            '/admin/notifications'        => 'admin.access',
             '/admin/ledger'               => 'system.reports',
             '/admin/currencies'           => 'settings.view',
             '/admin/my-account'           => 'admin.access',
@@ -237,16 +307,36 @@ final class PermissionMiddleware
             return 'brands.view';
         }
 
+        // SEC-5: Treat every non-safe HTTP method as state-changing. The
+        // previous implementation only upgraded .view -> .manage for POST,
+        // which left PUT/PATCH/DELETE authorized at .view level - a user
+        // granted only read-only access to a resource could DELETE or PUT it.
+        // RFC 9110 §9.2.1 defines GET/HEAD/OPTIONS as "safe" (no state
+        // change); every other method is treated as state-changing here.
+        $stateChanging = !in_array($method, ['GET', 'HEAD', 'OPTIONS'], true);
+
+        // A brand owner/staff viewing or updating their own brand profile uses settings.view / settings.manage
+        $activeBrandId = null;
+        if ($this->container->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+            $activeBrandId = $brandCtx instanceof \OwnPay\Service\Brand\BrandContext ? $brandCtx->getActiveBrandId() : null;
+        }
+        if ($activeBrandId !== null && $activeBrandId > 0) {
+            if ($path === "/admin/brands/{$activeBrandId}" || $path === "/admin/brands/{$activeBrandId}/edit" || $path === "/admin/brands/{$activeBrandId}/update") {
+                return $stateChanging ? 'settings.manage' : 'settings.view';
+            }
+        }
+
         // Check exact match first
         if (isset($map[$path])) {
             $perm = $map[$path];
-            if ($method === 'POST') {
+            if ($stateChanging) {
                 $perm = str_replace('.view', '.manage', $perm);
             }
             return $perm;
         }
 
-        // Check prefix match - POST uses .manage
+        // Check prefix match - state-changing methods use .manage
         foreach ($map as $prefix => $perm) {
             // Do not match the base '/admin' as a dynamic prefix.
             // This prevents unmapped paths under /admin/ from falling back to dashboard.view/manage
@@ -254,7 +344,7 @@ final class PermissionMiddleware
                 continue;
             }
             if (str_starts_with($path, $prefix . '/')) {
-                if ($method === 'POST') {
+                if ($stateChanging) {
                     return str_replace('.view', '.manage', $perm);
                 }
                 return $perm;

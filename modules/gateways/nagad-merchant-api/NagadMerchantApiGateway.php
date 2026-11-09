@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\NagadMerchantApi;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Nagad Merchant API payment gateway adapter implementing Nagad's RSA-encrypted checkout flow.
  */
-final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterInterface
+final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -304,6 +305,86 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             'redirect_url' => $callBackUrlStr,
             'session_id'   => $paymentReferenceId,
         ];
+    }
+
+    /**
+     * Verifies the merchant ID, app account, and RSA key pair authenticate against Nagad by
+     * running only Step 1 (Initialize) of the checkout flow - the same step initiate() runs
+     * first. This exercises the RSA signing/encryption and merchant credentials together, but
+     * never reaches Step 2 (Complete), so no payment reference is ever finalized or charged.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $merchantId = is_scalar($credentials['nagad_merchant_id'] ?? null) ? (string) $credentials['nagad_merchant_id'] : '';
+        $publicKey = is_scalar($credentials['nagad_public_key'] ?? null) ? (string) $credentials['nagad_public_key'] : '';
+        $privateKey = is_scalar($credentials['nagad_private_key'] ?? null) ? (string) $credentials['nagad_private_key'] : '';
+        $appAccount = is_scalar($credentials['nagad_app_account'] ?? null) ? (string) $credentials['nagad_app_account'] : '';
+
+        if ($merchantId === '' || $publicKey === '' || $privateKey === '' || $appAccount === '') {
+            return ['success' => false, 'message' => 'Enter App Account, Merchant ID, and both RSA keys before testing the connection.'];
+        }
+
+        $mode = $credentials['nagad_mode'] ?? 'sandbox';
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        $invoice = 'OPTEST' . substr((string) time(), -8);
+
+        $sensitiveData = [
+            'merchantId' => $merchantId,
+            'datetime'   => date('YmdHis'),
+            'orderId'    => $invoice,
+            'challenge'  => $this->generateRandomString(40),
+        ];
+        $sensitiveJson = (string) json_encode($sensitiveData);
+
+        try {
+            $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, $publicKey);
+            $signature = $this->signWithPrivateKey($sensitiveJson, $privateKey);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        $ch = curl_init($baseUrl . 'check-out/initialize/' . $merchantId . '/' . $invoice);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-KM-Api-Version: v-0.2.0',
+                'X-KM-IP-V4: ' . $this->getClientIp(),
+                'X-KM-Client-Type: PC_WEB',
+            ],
+            CURLOPT_POSTFIELDS => (string) json_encode([
+                'accountNumber' => $appAccount,
+                'dateTime'      => date('YmdHis'),
+                'sensitiveData' => $encryptedSensitiveData,
+                'signature'     => $signature,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Nagad - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $sensitiveDataStr = is_array($data) && is_scalar($data['sensitiveData'] ?? null) ? (string) $data['sensitiveData'] : '';
+
+        if ($httpCode === 200 && $sensitiveDataStr !== '') {
+            $modeLabel = $mode === 'live' ? 'live' : 'sandbox';
+            return ['success' => true, 'message' => "Connected successfully to Nagad ({$modeLabel} mode)."];
+        }
+
+        $reason = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Nagad rejected the provided credentials.';
+        return ['success' => false, 'message' => $reason];
     }
 
     /**

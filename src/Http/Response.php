@@ -120,22 +120,8 @@ final class Response
         if ($field !== null) {
             $error['field'] = $field;
         }
-        
-        $requestId = null;
-        if (function_exists('apache_request_headers')) {
-            $apacheHeaders = apache_request_headers();
-            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
-        }
-        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
-            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
-        }
-        if (!$requestId) {
-            try {
-                $requestId = bin2hex(random_bytes(16));
-            } catch (\Throwable) {
-                $requestId = uniqid('req_', true);
-            }
-        }
+
+        $requestId = self::resolveRequestId();
 
         $payload = [
             'success'    => false,
@@ -156,21 +142,7 @@ final class Response
      */
     public static function apiErrors(array $errors, int $status = 422, array $headers = []): self
     {
-        $requestId = null;
-        if (function_exists('apache_request_headers')) {
-            $apacheHeaders = apache_request_headers();
-            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
-        }
-        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
-            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
-        }
-        if (!$requestId) {
-            try {
-                $requestId = bin2hex(random_bytes(16));
-            } catch (\Throwable) {
-                $requestId = uniqid('req_', true);
-            }
-        }
+        $requestId = self::resolveRequestId();
 
         $formatted = [];
         foreach ($errors as $err) {
@@ -205,6 +177,53 @@ final class Response
             'request_id' => $requestId,
         ];
         return self::json($payload, $status, $headers);
+    }
+
+    /**
+     * Resolves a sanitized request_id for inclusion in JSON error payloads.
+     *
+     * Reads the client-supplied X-Request-ID header (apache_request_headers()
+     * when available, falling back to $_SERVER['HTTP_X_REQUEST_ID']) and
+     * reflects it in the JSON response so a customer reporting an error can
+     * quote the same ID that the operator sees in logs. Because the header is
+     * fully user-controlled, it is:
+     *
+     *   1. Filtered to a strict allow-list charset [a-zA-Z0-9-_] so control
+     *      bytes, header-injection attempts, and Unicode glyphs that
+     *      downstream JSON parsers / log viewers might mishandle are stripped
+     *      before reflection.
+     *   2. Truncated to 64 characters so an attacker cannot amplify error
+     *      response size by sending a 1MB X-Request-ID.
+     *   3. Replaced with a fresh random ID when the sanitized result is empty
+     *      (so every error response carries a non-empty correlation handle).
+     *
+     * @return string The sanitized or freshly-generated request ID.
+     */
+    private static function resolveRequestId(): string
+    {
+        $requestId = null;
+        if (function_exists('apache_request_headers')) {
+            $apacheHeaders = apache_request_headers();
+            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
+        }
+        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
+            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
+        }
+
+        if (is_string($requestId) && $requestId !== '') {
+            // Strip everything outside the safe charset and cap at 64 chars
+            // so a huge X-Request-ID cannot amplify the response body.
+            $sanitized = substr(preg_replace('/[^a-zA-Z0-9\-_]/', '', $requestId) ?? '', 0, 64);
+            if ($sanitized !== '') {
+                return $sanitized;
+            }
+        }
+
+        try {
+            return bin2hex(random_bytes(16));
+        } catch (\Throwable) {
+            return uniqid('req_', true);
+        }
     }
 
     /**
@@ -249,6 +268,12 @@ final class Response
     /**
      * Creates a file download attachment response instance.
      *
+     * The Content-Disposition header is built per RFC 6266 / RFC 5987: an
+     * ASCII-safe fallback `filename` is always emitted (non-ASCII bytes
+     * replaced with `_`) plus a `filename*=UTF-8''<percent-encoded>` parameter
+     * for non-ASCII filenames so browsers render CJK/accented/emoji names
+     * correctly instead of garbling or truncating them.
+     *
      * @param string $filePath The absolute filesystem path to the file.
      * @param string $filename The recommended filename for client download.
      * @param string $contentType The HTTP Content-Type header value. Defaults to 'application/octet-stream'.
@@ -262,9 +287,48 @@ final class Response
         $body = (string) file_get_contents($filePath);
         $response = new self($body, 200);
         $response->headers['Content-Type'] = $contentType;
-        $response->headers['Content-Disposition'] = 'attachment; filename="' . addslashes($filename) . '"';
+        $response->headers['Content-Disposition'] = self::buildContentDisposition($filename);
         $response->headers['Content-Length'] = (string) strlen($body);
         return $response;
+    }
+
+    /**
+     * Builds an RFC 6266 / RFC 5987-compliant Content-Disposition header value
+     * for an attachment download filename.
+     *
+     * Emits both an ASCII-only `filename="..."` fallback (non-ASCII bytes
+     * replaced with `_` so the value stays inside a quoted-string) and a
+     * `filename*=UTF-8''<percent-encoded>` parameter for non-ASCII names.
+     * `addslashes()` was previously used, which broke on UTF-8 filenames
+     * (browsers truncated or garbled at the first non-ASCII byte).
+     *
+     * @param string $filename The client-recommended download filename.
+     * @return string The full `attachment; filename="..."; filename*=UTF-8''...` value.
+     */
+    private static function buildContentDisposition(string $filename): string
+    {
+        // ASCII-only fallback: replace any byte outside the printable ASCII
+        // range (0x20-0x7E) with an underscore. Also strip `"` and `\` so the
+        // quoted-string stays well-formed without addslashes() (which would
+        // mangle UTF-8 multibyte sequences by backslash-escaping individual
+        // bytes).
+        $ascii = preg_replace('/[^\x20-\x7E]/', '_', $filename) ?? '';
+        $ascii = str_replace(['"', '\\'], '_', $ascii);
+        if ($ascii === '') {
+            $ascii = 'download';
+        }
+
+        // RFC 5987 percent-encoded UTF-8 form. rawurlencode encodes every byte
+        // outside the unreserved set (A-Za-z0-9-._~) so the result is safe to
+        // embed in a header value without further escaping.
+        $encoded = rawurlencode($filename);
+
+        // If the filename is pure ASCII, the `filename*` parameter is redundant
+        // and only the legacy `filename` form is required.
+        if ($encoded === $filename) {
+            return 'attachment; filename="' . $ascii . '"';
+        }
+        return 'attachment; filename="' . $ascii . '"; filename*=UTF-8\'\'' . $encoded;
     }
 
     /**

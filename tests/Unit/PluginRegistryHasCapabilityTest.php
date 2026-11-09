@@ -10,7 +10,9 @@ use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\PluginRegistry;
 use OwnPay\Repository\PluginRepository;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+#[AllowMockObjectsWithoutExpectations]
 final class PluginRegistryHasCapabilityTest extends TestCase
 {
     private function makeRegistry(): PluginRegistry

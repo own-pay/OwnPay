@@ -16,6 +16,8 @@ use OwnPay\Repository\SmsTemplateRepository;
  */
 final class SmsTemplateController
 {
+    use AdminScopeAwareTrait;
+
     /**
      * @var SmsTemplateRepository The SMS template repository.
      */
@@ -53,11 +55,33 @@ final class SmsTemplateController
      */
     public function update(Request $req): Response
     {
+        $scopeErr = $this->requireAdminScope($req);
+        if ($scopeErr !== null) {
+            return $scopeErr;
+        }
+
         $id  = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
         $bodyArr = is_array($body) ? $body : [];
+
+        // Allowed statuses for op_sms_templates.status (API-16): without this
+        // validation a caller could store any arbitrary string ('activee', '1',
+        // 'true', ...) which would then silently fail to match the
+        // `status = 'active'` filter used by the SMS parser at runtime,
+        // effectively disabling matching for that template without any error.
+        $allowedStatuses = ['active', 'inactive', 'draft'];
+        if (array_key_exists('status', $bodyArr)
+            && !in_array($bodyArr['status'], $allowedStatuses, true)
+        ) {
+            return Response::apiError(
+                'invalid_status',
+                'Invalid status. Allowed values: active, inactive, draft.',
+                null,
+                422
+            );
+        }
 
         $data = [];
         $allowed = ['gateway_slug', 'sender_pattern', 'amount_regex', 'trx_id_regex', 'sender_regex', 'priority', 'status'];

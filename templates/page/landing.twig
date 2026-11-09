@@ -22,8 +22,8 @@
         <nav class="op-landing-nav">
             <a href="/" class="op-logo">
                 {% if site_logo is defined and site_logo %}
-                    <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-light" style="max-height: 32px; width: auto; display: inline-block; vertical-align: middle;">
-                    <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-dark" style="max-height: 32px; width: auto; vertical-align: middle;">
+                    <img src="{{ app_logo_light }}" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-light" style="max-height: 32px; width: auto; display: inline-block; vertical-align: middle;">
+                    <img src="{{ app_logo_dark }}" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-dark" style="max-height: 32px; width: auto; vertical-align: middle;">
                 {% else %}
                     <span class="op-logo-icon">OP</span>
                 {% endif %}

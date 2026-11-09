@@ -17,6 +17,8 @@ use OwnPay\Service\Domain\DomainService;
  */
 final class DomainController
 {
+    use AdminScopeAwareTrait;
+
     /**
      * @var Container The dependency injection container.
      */
@@ -48,6 +50,11 @@ final class DomainController
      */
     public function verify(Request $req): Response
     {
+        $scopeErr = $this->requireAdminScope($req);
+        if ($scopeErr !== null) {
+            return $scopeErr;
+        }
+
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();

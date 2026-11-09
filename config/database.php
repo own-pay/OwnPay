@@ -12,6 +12,7 @@ declare(strict_types=1);
  */
 return [
     'driver'   => 'mysql',
+    'prefix'   => $_ENV['DB_PREFIX'] ?? getenv('DB_PREFIX') ?: 'op_',
     'host'     => $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1',
     'port'     => (int) (is_string($port = $_ENV['DB_PORT'] ?? getenv('DB_PORT')) ? $port : 3306),
     'database' => $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'ownpay',

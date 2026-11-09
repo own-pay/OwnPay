@@ -10,17 +10,23 @@
 
 **The self-hosted, open-source payment gateway automation platform.**
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=19&duration=2800&pause=1000&color=0066FF&center=true&vCenter=true&width=620&lines=Public+Beta+v0.2.0+%E2%80%94+Out+Now+%F0%9F%9A%80;Payment+Infrastructure.+Reimagined.;Self-Hosted+%E2%80%A2+Open+Source+%E2%80%A2+Forever+Free.;Multi-Brand+%E2%80%A2+120%2B+Gateways+%E2%80%A2+Developer-First.)](https://ownpay.org)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=19&duration=2800&pause=1000&color=0066FF&center=true&vCenter=true&width=620&lines=Public+Beta+v0.1.0+%E2%80%94+Out+Now+%F0%9F%9A%80;Payment+Infrastructure.+Reimagined.;Self-Hosted+%E2%80%A2+Open+Source+%E2%80%A2+Forever+Free.;Multi-Brand+%E2%80%A2+120%2B+Gateways+%E2%80%A2+Developer-First.)](https://ownpay.org)
 
 <br />
 
+<a href="https://www.producthunt.com/products/ownpay?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ownpay" target="_blank" rel="noopener noreferrer"><img alt="OwnPay - Self-hosted, open-source payment gateway software | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1223841&amp;theme=light&amp;t=1786871746374"></a>
 
 [![Release](https://img.shields.io/badge/Public%20Beta-v0.2.0-22C55E?style=for-the-badge&logo=rocket&logoColor=white)](https://github.com/own-pay/OwnPay/releases/latest)
 [![License](https://img.shields.io/badge/License-AGPL%20v3.0-3B82F6?style=for-the-badge)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](CONTRIBUTING.md)
 
-[![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
+[![Codacy Security Scan](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml/badge.svg?branch=main)](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml) [![CI](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml) [![CodeQL](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql) [![ESLint](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml) [![Semgrep](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml)
+
+[![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=flat-square&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers) [![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-6E56CF)](https://deepwiki.com/own-pay/OwnPay)&nbsp;
+[![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=flat-square&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;
+[![Issues](https://img.shields.io/github/issues/own-pay/OwnPay?style=flat-square&label=Issues&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/issues)&nbsp;
+[![Last Commit](https://img.shields.io/github/last-commit/own-pay/OwnPay?style=flat-square&label=Last%20Commit&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/commits)
 
 <br />
 
@@ -231,7 +237,15 @@ mysql -u root -p -e "CREATE DATABASE ownpay CHARACTER SET utf8mb4 COLLATE utf8mb
 php -S localhost:8000 -t public      # then open http://localhost:8000 → /install wizard
 ```
 
-> 🛠️ **Full local guide** (Laragon · Herd · native · tunnels · troubleshooting): **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
+Or, with Docker Compose (one command):
+
+```bash
+git clone https://github.com/own-pay/OwnPay.git
+cd OwnPay
+make dev                             # then open http://localhost:8080 → /install wizard
+```
+
+> 🛠️ **Full local guide** (Docker · Laragon · Herd · native · tunnels · troubleshooting): **[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
 > 🤝 **Ready to contribute?** Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** — coding standards, workflow & PR process.
 
 Run the same checks CI does before opening a PR:
@@ -365,34 +379,40 @@ OwnPay is shipping toward a stable **1.0**. Highlights on the horizon: a public 
 ➡️ **See the full [ROADMAP.md](ROADMAP.md)** for what's planned, in progress, and shipped.
 
 ---
-<!-- SPONSORS-START -->
-<!-- This section is auto-generated. Do not edit manually. -->
-<!-- Edit sponsor.json in the own-pay/.github repo to update. -->
+
+## <a id="sponsors"></a>💛 Sponsors
+
+*OwnPay is made possible by the generous support of our sponsors.*
 
 <div align="center">
 
-### Elite Sponsor
+<br />
 
-<a href="https://namepart.com/aff.php?aff=268" target="_blank" rel="noopener noreferrer"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="40" alt="Namepart - Powering open-source fintech infrastructure"></a>
+**⚡ Elite Sponsor**
 
-<br>
+<br />
 
-### Platinum Sponsors
+<a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="40" alt="Namepart" /></a>
 
-<a href="https://portal.hostever.com/aff.php?aff=1882" target="_blank" rel="noopener noreferrer"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.hostever.com/storage/2022/07/hostever-logo-white.svg"><source media="(prefers-color-scheme: light)" srcset="https://www.hostever.com/storage/2022/07/hostever-logo-black.svg"><img src="https://www.hostever.com/storage/2022/07/hostever-logo-black.svg" height="35" alt="Hostever"></picture></a>
+<br /><br />
 
-<br>
+**🤝 Community Sponsors**
 
-### Community Sponsors
+<br />
 
-<a href="https://client.flexohost.com/aff.php?aff=19" target="_blank" rel="noopener noreferrer"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="28" alt="FlexoHost"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://hostazy.com.bd/aff.php?aff=7" target="_blank" rel="noopener noreferrer"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="28" alt="Hostazy"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://banglahoster.net/billing/aff.php?aff=1" target="_blank" rel="noopener noreferrer"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="28" alt="Bangla Hoster"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://hostsite24.com" target="_blank" rel="noopener noreferrer"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="28" alt="HostSite24"></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.rayanhoster.com" target="_blank" rel="noopener noreferrer"><img src="https://res.cloudinary.com/dvj5lfwjf/image/upload/v1780857381/rayanhoster/uvfas9pobgpxubxkinrr.png" height="28" alt="Rayan Hoster"></a>
+<p align="center">
+  <a href="https://hostever.com"><img src="https://www.hostever.com/storage/2022/07/hostever-logo-black-white.svg" height="30" alt="Hostever" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.flexohost.com"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="30" alt="FlexoHost" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="30" alt="Hostazy" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://banglahoster.net"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="30" alt="Bangla Hoster" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://hostsite24.com"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="30" alt="HostSite24" /></a> &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.rayanhoster.com"><img src="https://res.cloudinary.com/dvj5lfwjf/image/upload/v1780857381/rayanhoster/uvfas9pobgpxubxkinrr.png" height="30" alt="Rayan Hoster" /></a>
+</p>
 
-<br>
-
-<sub>Want your logo here? <a href="https://ownpay.org/donate"><b>Become a Sponsor</b></a></sub>
+<sub>Want your logo here? &nbsp;→&nbsp; <a href="https://ownpay.org/donate"><b>Become a Sponsor</b></a></sub>
 
 </div>
-<!-- SPONSORS-END -->
+
 ---
 
 ## <a id="contributors"></a>👥 Contributors

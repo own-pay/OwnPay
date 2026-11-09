@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\NowPayments;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * NOWPayments Crypto Gateway - PluginInterface + GatewayAdapterInterface.
  */
-final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterface
+final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -67,6 +68,48 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
                 'required' => true
             ],
         ];
+    }
+
+    /**
+     * Verifies the configured API Key authenticates against NOWPayments' real API via
+     * GET /v1/balance - a free, read-only, account-scoped call that any valid key can make.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKeyRaw = $credentials['now_payment_api_key'] ?? '';
+        $apiKey = is_scalar($apiKeyRaw) ? (string) $apiKeyRaw : '';
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the NOWPayments API Key before testing the connection.'];
+        }
+
+        $mode = $credentials['now_payment_mode'] ?? 'sandbox';
+        $baseUrl = $mode === 'live' ? 'https://api.nowpayments.io/v1/' : 'https://api-sandbox.nowpayments.io/v1/';
+
+        $ch = curl_init($baseUrl . 'balance');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['x-api-key: ' . $apiKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach NOWPayments - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200) {
+            $modeStr = is_scalar($mode) ? (string) $mode : 'sandbox';
+            return ['success' => true, 'message' => "Connected successfully to NOWPayments ({$modeStr} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'NOWPayments rejected the provided API Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

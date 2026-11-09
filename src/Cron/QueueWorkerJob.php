@@ -79,8 +79,8 @@ final class QueueWorkerJob
                AND attempts < :max
                AND (available_at IS NULL OR available_at <= NOW())
              ORDER BY priority DESC, created_at ASC
-             LIMIT {$batchSize}",
-            ['max' => self::MAX_ATTEMPTS]
+             LIMIT :lim",
+            ['max' => self::MAX_ATTEMPTS, 'lim' => $batchSize]
         );
 
         $processed = 0;

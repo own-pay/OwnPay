@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\TouchNGo;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Touch 'n Go eWallet payment gateway adapter using Stripe PaymentIntents.
  */
-final class TouchNGoGateway implements PluginInterface, GatewayAdapterInterface
+final class TouchNGoGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -52,6 +53,45 @@ final class TouchNGoGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'secret_key', 'label' => 'Stripe Secret Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the underlying Stripe secret key authenticates, via the same free, read-only
+     * balance lookup used by the Stripe gateway module itself.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter a Stripe Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init(self::API_URL . '/balance');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $secretKey . ':',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Stripe - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            $mode = str_starts_with($secretKey, 'sk_live_') ? 'live' : 'test';
+            return ['success' => true, 'message' => "Connected successfully via Stripe ({$mode} mode)."];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_array($data['error'] ?? null) && is_scalar($data['error']['message'] ?? null)
+            ? (string) $data['error']['message']
+            : 'Stripe rejected the provided credentials.';
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

@@ -9,14 +9,15 @@ use Twig\Loader\FilesystemLoader;
 
 final class DomainsManagePanelTest extends TestCase
 {
-    private function renderPanel(array $d): string
+    private function renderPanel(array $d, array $extra = []): string
     {
         $loader = new FilesystemLoader(dirname(__DIR__, 2) . '/templates');
         $twig = new Environment($loader, ['cache' => false]);
 
-        return $twig->render('admin/domains/_manage-panel.twig', [
+        return $twig->render('admin/domains/_manage-panel.twig', array_merge([
             'd' => $d, 'csrf_token' => 'test-token', 'server_ip' => '127.0.0.1',
-        ]);
+            'cname_target' => 'pay.ownpay.test', 'server_ip_proxied' => false,
+        ], $extra));
     }
 
     public function testHasThreeScopedTabs(): void
@@ -49,6 +50,24 @@ final class DomainsManagePanelTest extends TestCase
         $this->assertStringContainsString('automatically re-checked hourly', $html);
         $this->assertStringContainsString('automatically removed', $html);
         $this->assertStringContainsString('not checked automatically', $html);
+        $this->assertStringContainsString('pay.ownpay.test', $html);
+        $this->assertStringNotContainsString('testing.ownpay.org', $html);
+    }
+
+    public function testDnsSetupTabWarnsAboutCloudflareProxiedIp(): void
+    {
+        $d = [
+            'id' => 7, 'domain' => 'pay.acme.com', 'type' => 'checkout',
+            'redirect_url' => null, 'status' => 'pending', 'ssl_status' => 'none',
+            'dns_verified' => 0, 'is_primary' => false, 'verification_token' => 'op-verify-xyz',
+        ];
+
+        $html = $this->renderPanel($d, ['server_ip' => '104.16.0.1', 'server_ip_proxied' => true]);
+        $this->assertStringContainsString('Cloudflare edge address', $html);
+        $this->assertStringContainsString('APP_SERVER_IP', $html);
+
+        $plain = $this->renderPanel($d);
+        $this->assertStringNotContainsString('Cloudflare edge address', $plain);
     }
 
     public function testDangerZoneHasOnlyRemoveDomainNoManualOverride(): void

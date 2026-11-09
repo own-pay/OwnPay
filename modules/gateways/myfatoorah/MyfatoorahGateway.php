@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Myfatoorah;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * MyFatoorah V2 API Gateway Adapter.
  */
-final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterface
+final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -173,6 +174,56 @@ final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterfac
         throw new \RuntimeException('MyFatoorah error: Failed to parse invoice URL. ' . $msg);
     }
 
+    /**
+     * Verifies the API Token authenticates against MyFatoorah, without creating any invoice.
+     * Reuses the same read-only GetPaymentStatus lookup verify() uses, but for a bogus payment
+     * id - MyFatoorah returns HTTP 401 for a bad API Token, and a 200 with IsSuccess=false (or
+     * an error about the key not existing) for a valid token against an unknown payment.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $apiKey = $this->getString($credentials['api_key'] ?? '');
+        if ($apiKey === '') {
+            return ['success' => false, 'message' => 'Enter the API Token before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $ch = curl_init($baseUrl . '/v2/GetPaymentStatus');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Failed to initialize the connection test request.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode(['Key' => 'op-test-connection', 'KeyType' => 'PaymentId']),
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $apiKey,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach MyFatoorah - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        if ($httpCode === 401) {
+            return ['success' => false, 'message' => 'MyFatoorah rejected the API Token.'];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to MyFatoorah ({$mode} mode)."];
+    }
+
     public function verify(array $callbackData, array $credentials): array
     {
         $apiKey = $this->getString($credentials['api_key'] ?? '');
@@ -204,6 +255,9 @@ final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterfac
                     'amount'         => '0.00',
                     'status'         => 'failed',
                 ];
+            }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'amount' => '0.00', 'status' => 'failed'];
             }
             return [
                 'success'        => true,
@@ -280,7 +334,9 @@ final class MyfatoorahGateway implements PluginInterface, GatewayAdapterInterfac
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? '');
         if ($webhookSecret === '') {
-            return true;
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
+            return false;
         }
 
         $receivedSignature = $headers['MyFatoorah-Signature'] ?? $headers['myfatoorah-signature'] ?? '';

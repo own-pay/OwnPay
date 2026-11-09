@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Sezzle;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Sezzle Gateway Adapter.
  */
-final class SezzleGateway implements PluginInterface, GatewayAdapterInterface
+final class SezzleGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -173,5 +174,52 @@ final class SezzleGateway implements PluginInterface, GatewayAdapterInterface
         $expectedSignature = hash_hmac('sha256', $rawBody, $privateKey);
 
         return hash_equals($expectedSignature, $signature);
+    }
+
+    /**
+     * Verifies the configured Public/Private Key authenticate against Sezzle - reuses the same
+     * JWT authentication call initiate() makes, without creating a checkout session.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $publicKey = $this->getString($credentials['public_key'] ?? null);
+        $privateKey = $this->getString($credentials['private_key'] ?? null);
+        if ($publicKey === '' || $privateKey === '') {
+            return ['success' => false, 'message' => 'Enter a Public Key and Private Key before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $baseUrl = $mode === 'live' ? 'https://gateway.sezzle.com' : 'https://sandbox.gateway.sezzle.com';
+
+        $ch = curl_init("{$baseUrl}/v2/authentication");
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'public_key'  => $publicKey,
+                'private_key' => $privateKey,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Sezzle - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $token = is_array($data) ? $this->getString($data['token'] ?? null) : '';
+        if ($httpCode === 200 && $token !== '') {
+            return ['success' => true, 'message' => "Connected successfully to Sezzle ({$mode} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Sezzle rejected the provided Public Key/Private Key.';
+        return ['success' => false, 'message' => $errMsg];
     }
 }

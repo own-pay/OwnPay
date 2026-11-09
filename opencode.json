@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": [".github/skills"],
+  "permission": {
+    "edit": {
+      "vendor/**": "deny",
+      "**/vendor/**": "deny",
+      "node_modules/**": "deny",
+      "**/node_modules/**": "deny",
+      ".env": "deny",
+      "**/.env": "deny",
+      "storage/**": "deny",
+      "**/storage/**": "deny"
+    }
+  }
+}

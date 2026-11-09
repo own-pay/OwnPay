@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Cashfree;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Cashfree payment gateway adapter implementing the API v2023-08-01 flow.
  */
-final class CashfreeGateway implements PluginInterface, GatewayAdapterInterface
+final class CashfreeGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -302,5 +303,52 @@ final class CashfreeGateway implements PluginInterface, GatewayAdapterInterface
     public function supportedCurrencies(): array
     {
         return ['INR'];
+    }
+
+    /**
+     * Verifies the Client ID/Secret by looking up a non-existent order id - Cashfree returns
+     * 401 for bad credentials, or a 404 "order not found" once authentication itself succeeds.
+     * No order is created.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $clientId = $this->getString($credentials['client_id'] ?? '');
+        $clientSecret = $this->getString($credentials['client_secret'] ?? '');
+        if ($clientId === '' || $clientSecret === '') {
+            return ['success' => false, 'message' => 'Enter Client ID and Client Secret before testing the connection.'];
+        }
+
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+
+        $ch = curl_init($baseUrl . '/orders/OWNPAY_CONNECTION_TEST');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'x-client-id: ' . $clientId,
+                'x-client-secret: ' . $clientSecret,
+                'x-api-version: 2023-08-01',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Cashfree - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 401) {
+            $msg = is_array($data) ? $this->getString($data['message'] ?? '') : '';
+            return ['success' => false, 'message' => $msg !== '' ? $msg : 'Cashfree rejected the provided Client ID/Secret.'];
+        }
+
+        return ['success' => true, 'message' => "Connected successfully to Cashfree ({$mode} mode)."];
     }
 }

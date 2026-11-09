@@ -66,10 +66,19 @@ final class PluginViewRenderer
         }
 
         if ($pluginDir !== null) {
-            $phpFile = $pluginDir . '/views/' . $template . '.php';
-            if (file_exists($phpFile)) {
-                return $this->renderPhp($phpFile, $data);
+            // Bug #3 fix: Prevent path traversal in template parameter
+            $safeTemplate = str_replace(['..', '\\'], '', $template);
+            $safeTemplate = ltrim($safeTemplate, '/');
+            $phpFile = $pluginDir . '/views/' . $safeTemplate . '.php';
+
+            // Verify the resolved path stays within the plugin views directory
+            $realPluginViews = realpath($pluginDir . '/views');
+            $realPhpFile = realpath($phpFile);
+            if ($realPluginViews !== false && $realPhpFile !== false
+                && str_starts_with($realPhpFile, $realPluginViews . DIRECTORY_SEPARATOR)) {
+                return $this->renderPhp($realPhpFile, $data);
             }
+            // If realpath fails (file doesn't exist), fall through to throw below
         }
 
         throw new \RuntimeException("View not found: {$template} for plugin {$pluginSlug}");

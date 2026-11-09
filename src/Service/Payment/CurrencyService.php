@@ -176,14 +176,37 @@ final class CurrencyService
             }
         }
 
-        // Apply exchange rates
+        // Apply exchange rates. Two row shapes are honoured so that an import job
+        // whose upstream base differs from the system base does not silently break
+        // CurrencyService::convert() for any non-base source currency (audit finding
+        // PAY-14):
+        //   (a) base_currency = system base, target_currency = X  -> rate(X vs base)
+        //   (b) base_currency = X, target_currency = system base  -> inverse rate
+        //       for X (1 / rate) so getRate(X) still resolves through the base.
         foreach ($rates as $rate) {
             $base = $rate['base_currency'] ?? '';
             $target = $rate['target_currency'] ?? '';
             $rateVal = $rate['rate'] ?? '0';
-            if (is_string($base) && is_string($target) && is_scalar($rateVal)) {
-                if ($base === $this->baseCurrency && isset($this->currencies[$target])) {
-                    $this->currencies[$target]['rate'] = (string) $rateVal;
+            if (!is_string($base) || !is_string($target) || !is_scalar($rateVal)) {
+                continue;
+            }
+            $rateStr = (string) $rateVal;
+            // Skip non-positive rates - they cannot be inverted safely.
+            if (!is_numeric($rateStr) || bccomp($rateStr, '0', 8) <= 0) {
+                continue;
+            }
+            if ($base === $this->baseCurrency && isset($this->currencies[$target])) {
+                $this->currencies[$target]['rate'] = $rateStr;
+                continue;
+            }
+            // Reverse-direction row: store the inverse rate for the base currency
+            // (e.g. row base_currency='BDT', target_currency='USD', rate='0.0091'
+            // with system base 'USD' yields rate('BDT') = 1 / 0.0091 ~= 109.89011).
+            // Only populate when no forward rate has already been set (forward wins).
+            if ($target === $this->baseCurrency && isset($this->currencies[$base])) {
+                $current = $this->currencies[$base]['rate'];
+                if ($current === '0') {
+                    $this->currencies[$base]['rate'] = bcdiv('1', $rateStr, 8);
                 }
             }
         }

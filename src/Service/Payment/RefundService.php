@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 use OwnPay\Gateway\GatewayBridge;
+use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Repository\RefundRepository;
 use OwnPay\Repository\TransactionRepository;
 use InvalidArgumentException;
@@ -40,23 +41,31 @@ final class RefundService
     private LedgerService $ledger;
 
     /**
+     * @var AuditLogRepository System audit log recorder.
+     */
+    private AuditLogRepository $audit;
+
+    /**
      * RefundService constructor.
      *
      * @param RefundRepository $refunds Repository managing refunds.
      * @param TransactionRepository $transactions Repository managing transaction records.
      * @param GatewayBridge $bridge Payment gateway adapter orchestration bridge.
      * @param LedgerService $ledger Service posting ledger balances.
+     * @param AuditLogRepository $audit System audit log recorder.
      */
     public function __construct(
         RefundRepository $refunds,
         TransactionRepository $transactions,
         GatewayBridge $bridge,
-        LedgerService $ledger
+        LedgerService $ledger,
+        AuditLogRepository $audit
     ) {
         $this->refunds = $refunds;
         $this->transactions = $transactions;
         $this->bridge = $bridge;
         $this->ledger = $ledger;
+        $this->audit = $audit;
     }
 
     /**
@@ -68,9 +77,11 @@ final class RefundService
      *
      * @param int $merchantId The ID of the merchant/brand.
      * @param array{transaction_id: int|string, amount?: float|int|string|null, reason?: string} $data Input refund options.
-     * @return array<string, mixed> The generated refund record fields.
+     * @return array<string, mixed> The generated refund record fields. A gateway decline or error
+     *                              is NOT thrown - it is returned as status 'failed' with
+     *                              'failure_reason' set; callers must check the status field.
      * @throws InvalidArgumentException If the transaction does not exist, is not completed, or the amount exceeds the limit.
-     * @throws RuntimeException If the downstream payment gateway adapter execution throws an error.
+     * @throws RuntimeException If refund bookkeeping fails unexpectedly (not for gateway declines).
      */
     public function create(int $merchantId, array $data): array
     {
@@ -182,6 +193,15 @@ final class RefundService
             $gwTrxIdVal = $txn['gateway_trx_id'] ?? $txn['trx_id'] ?? '';
             $gwTrxId = is_scalar($gwTrxIdVal) ? (string)$gwTrxIdVal : '';
 
+            // Some gateways' refund APIs (e.g. bKash) require the original checkout session id
+            // in addition to the settled transaction id - recover it from where initiate() stashed it.
+            $gwSessionId = null;
+            $metaRawForSession = $txn['metadata'] ?? null;
+            $metaForSession = is_string($metaRawForSession) ? json_decode($metaRawForSession, true) : null;
+            if (is_array($metaForSession) && isset($metaForSession['gateway_session_id']) && is_scalar($metaForSession['gateway_session_id'])) {
+                $gwSessionId = (string) $metaForSession['gateway_session_id'];
+            }
+
             return [
                 'refund' => $refund,
                 'refund_id' => (int)$id,
@@ -190,6 +210,7 @@ final class RefundService
                 'currency' => $currency,
                 'gateway_slug' => $gwSlug,
                 'gateway_trx_id' => $gwTrxId,
+                'gateway_session_id' => $gwSessionId,
                 'orig_amount' => $origAmount,
             ];
         });
@@ -200,24 +221,51 @@ final class RefundService
         $currency = $preparation['currency'];
         $gwSlug = $preparation['gateway_slug'];
         $gwTrxId = $preparation['gateway_trx_id'];
+        $gwSessionId = $preparation['gateway_session_id'];
         $origAmount = $preparation['orig_amount'];
 
+        $this->audit->record(
+            $merchantId,
+            null,
+            'transaction.refund_requested',
+            'transaction',
+            $txnId,
+            null,
+            ['refund_id' => $refundId, 'amount' => $amountStr, 'currency' => $currency, 'reason' => $data['reason'] ?? '']
+        );
+
         $gatewaySuccess = false;
-        $gatewayError = null;
+        $gatewayFailureReason = null;
+        $gatewayRefundId = null;
 
         try {
             $result = $this->bridge->refund(
                 $gwSlug,
                 $merchantId,
                 $gwTrxId,
-                $amountStr
+                $amountStr,
+                $gwSessionId
             );
             $gatewaySuccess = (bool) ($result['success'] ?? false);
+            if ($gatewaySuccess) {
+                $refundIdVal = $result['refund_id'] ?? null;
+                $gatewayRefundId = is_scalar($refundIdVal) && (string) $refundIdVal !== '' ? (string) $refundIdVal : null;
+            } else {
+                $errorVal = $result['error'] ?? null;
+                $gatewayFailureReason = is_scalar($errorVal) && (string) $errorVal !== ''
+                    ? (string) $errorVal
+                    : 'Gateway declined the refund without a specific reason.';
+            }
         } catch (\Throwable $e) {
-            $gatewayError = $e;
+            $gatewayFailureReason = $e->getMessage();
         }
 
-        $refund = $db->transaction(function () use ($db, $merchantId, $refundId, $txnId, $amountStr, $currency, $origAmount, $gatewaySuccess, $gatewayError) {
+        // Note: gateway outcome is never re-thrown here. A declined/errored refund is a normal,
+        // expected result - it's recorded as status 'failed' with failure_reason and returned like
+        // any other outcome, so the caller reads $refund['status'] instead of relying on an
+        // exception (which previously caused this whole transaction, including the 'failed' status
+        // write, to roll back - silently leaving the refund stuck on 'pending').
+        $refund = $db->transaction(function () use ($db, $merchantId, $refundId, $txnId, $amountStr, $currency, $origAmount, $gatewaySuccess, $gatewayFailureReason, $gatewayRefundId) {
             $refRecord = $db->fetchOne(
                 "SELECT * FROM op_refunds WHERE id = :id AND merchant_id = :mid FOR UPDATE",
                 ['id' => $refundId, 'mid' => $merchantId]
@@ -229,7 +277,8 @@ final class RefundService
             if ($gatewaySuccess) {
                 $this->refunds->forTenant($merchantId)->updateScoped($refundId, [
                     'status' => 'completed',
-                    'processed_at' => DateHelper::nowMicro()
+                    'processed_at' => DateHelper::nowMicro(),
+                    'gateway_refund_id' => $gatewayRefundId,
                 ]);
 
                 $this->ledger->recordRefund($merchantId, $refundId, $txnId, $amountStr, $currency);
@@ -240,7 +289,7 @@ final class RefundService
                 );
                 if ($txn) {
                     $totalRefundedVal = $db->fetchColumn(
-                        "SELECT COALESCE(SUM(amount), 0) FROM op_refunds 
+                        "SELECT COALESCE(SUM(amount), 0) FROM op_refunds
                          WHERE transaction_id = :txid AND merchant_id = :mid AND status = 'completed'",
                         ['txid' => $txnId, 'mid' => $merchantId]
                     );
@@ -256,7 +305,8 @@ final class RefundService
                 }
             } else {
                 $this->refunds->forTenant($merchantId)->updateScoped($refundId, [
-                    'status' => 'failed'
+                    'status' => 'failed',
+                    'failure_reason' => $gatewayFailureReason,
                 ]);
             }
 
@@ -265,12 +315,41 @@ final class RefundService
                 throw new RuntimeException("Refund record not found after finalization");
             }
 
-            if ($gatewayError !== null) {
-                throw new RuntimeException('Gateway refund failed: ' . $gatewayError->getMessage());
-            }
-
             return $finalRefund;
         });
+
+        // Recorded against entity_type 'transaction' (not 'refund') so the refund shows up in the
+        // same audit trail the admin transaction detail page already reads via
+        // AuditLogRepository::listForEntity('transaction', $id) - mirroring how
+        // TransactionService::complete()/fail() log against the transaction itself.
+        if ($gatewaySuccess) {
+            $this->audit->record(
+                $merchantId,
+                null,
+                'transaction.refunded',
+                'transaction',
+                $txnId,
+                null,
+                ['refund_id' => $refundId, 'amount' => $amountStr, 'currency' => $currency, 'gateway_refund_id' => $gatewayRefundId]
+            );
+        } else {
+            $this->audit->record(
+                $merchantId,
+                null,
+                'transaction.refund_failed',
+                'transaction',
+                $txnId,
+                null,
+                ['refund_id' => $refundId, 'amount' => $amountStr, 'currency' => $currency, 'reason' => $gatewayFailureReason]
+            );
+        }
+
+        $transaction = $this->transactions->forTenant($merchantId)->findScoped($txnId);
+        if (is_array($transaction)) {
+            $refund['transaction_trx_id'] = $transaction['trx_id'] ?? null;
+            $refund['gateway_trx_id'] = $transaction['gateway_trx_id'] ?? null;
+            $refund['gateway_name'] = $transaction['gateway_name'] ?? ($transaction['gateway_slug'] ?? null);
+        }
 
         return $refund;
     }

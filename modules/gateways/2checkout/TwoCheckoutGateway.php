@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class TwoCheckoutGateway implements PluginInterface, GatewayAdapterInterface
+final class TwoCheckoutGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -108,6 +109,51 @@ final class TwoCheckoutGateway implements PluginInterface, GatewayAdapterInterfa
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    /**
+     * Verifies the Merchant Code/Secret Key authenticate against 2Checkout's REST API, using its
+     * X-Avangate-Authentication HMAC scheme (code/date/hash), against a lightweight read-only
+     * products listing - no order is created.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $code = $this->getString($credentials['merchant_code'] ?? null);
+        $secretKey = $this->getString($credentials['secret_key'] ?? null);
+        if ($code === '' || $secretKey === '') {
+            return ['success' => false, 'message' => 'Enter Merchant Code and Secret Key before testing the connection.'];
+        }
+
+        $date = gmdate('D, d M Y H:i:s T');
+        $hash = hash_hmac('md5', strlen($code) . $code . strlen($date) . $date, $secretKey);
+        $authHeader = 'code="' . $code . '" date="' . $date . '" hash="' . $hash . '"';
+
+        $ch = curl_init('https://api.2checkout.com/rest/6.0/products/?pageNumber=1&itemsPerPage=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-Avangate-Authentication: ' . $authHeader,
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach 2Checkout - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 200) {
+            return ['success' => true, 'message' => 'Connected successfully to 2Checkout.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['Message'] ?? null) ? (string) $data['Message'] : ('2Checkout rejected the provided credentials (HTTP ' . $httpCode . ').');
+        return ['success' => false, 'message' => $errMsg];
     }
 
     /**

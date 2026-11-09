@@ -1,0 +1,67 @@
+name: "📖 Documentation Improvement"
+description: "Suggest improvements, report errors, or request new guides for OwnPay documentation"
+title: "[DOCS]: "
+labels: ["documentation"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 📖 Improve OwnPay Documentation
+        Clear and accurate documentation makes open source payment infrastructure accessible to everyone. Thank you for reporting a gap, inaccuracy, or idea for improvement!
+
+  - type: input
+    id: page-url
+    attributes:
+      label: Documentation Page / URL
+      description: Which page or section in the documentation is affected?
+      placeholder: "e.g. https://ownpay.org/docs/api/webhooks or docs/LOCAL_SETUP.md"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Issue Category
+      description: What type of documentation issue is this?
+      options:
+        - Outdated Information or Deprecated Syntax
+        - Missing Guide, Tutorial, or Example
+        - Typo, Grammar, or Formatting Issue
+        - API Specification / Request & Response Discrepancy
+        - Broken Link, Image, or Asset
+        - Translation / Localization Improvement
+        - Architecture or Security Clarification
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Content / What is wrong?
+      description: Describe what is incorrect, missing, or confusing.
+      placeholder: "The webhook verification guide currently shows [...] which does not match the actual signature format..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-content
+    attributes:
+      label: Suggested Improvement / Proposed Content
+      description: What should the documentation say instead? Provide code snippets or text if possible.
+      placeholder: 'Update the code snippet to use \OwnPay\Security\SecurityHelpers::verifyHmac() with [...]'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution Willingness
+      description: Would you like to submit a Pull Request to fix this?
+      options:
+        - Yes, I would like to submit a PR with this update!
+        - No, just reporting the issue for the documentation team.
+    validations:
+      required: true

@@ -22,7 +22,8 @@ final class DomainsAddWizardTest extends TestCase
             'app_name' => 'OwnPay', 'app_version' => '0.2.0', 'csrf_token' => 'test-token',
             'current_user' => ['name' => 'Test'], 'is_superadmin' => true,
             'flash_success' => null, 'flash_error' => null,
-            'active_page' => 'domains', 'server_ip' => '127.0.0.1', 'domains' => [],
+            'active_page' => 'domains', 'server_ip' => '127.0.0.1',
+            'cname_target' => 'pay.ownpay.test', 'server_ip_proxied' => false, 'domains' => [],
         ], $context));
     }
 

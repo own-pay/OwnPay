@@ -7,10 +7,15 @@
  * @copyright    2021 smiley
  * @license      MIT
  */
+declare(strict_types=1);
 
 namespace chillerlan\QRCode\Common;
 
+use chillerlan\QRCode\QROptions;
+use chillerlan\Settings\SettingsContainerInterface;
+
 /**
+ * Interface for the luminance sources
  */
 interface LuminanceSourceInterface{
 
@@ -18,19 +23,25 @@ interface LuminanceSourceInterface{
 	 * Fetches luminance data for the underlying bitmap. Values should be fetched using:
 	 * `int luminance = array[y * width + x] & 0xff`
 	 *
-	 * @return array A row-major 2D array of luminance values. Do not use result $length as it may be
+	 * @return int[] A row-major 2D array of luminance values. Do not use result $length as it may be
 	 *         larger than $width * $height bytes on some platforms. Do not modify the contents
 	 *         of the result.
+	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "LuminanceSourceInterface::$luminances" instead.
 	 */
 	public function getLuminances():array;
 
 	/**
 	 * @return int The width of the bitmap.
+	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "LuminanceSourceInterface::$width" instead.
 	 */
 	public function getWidth():int;
 
 	/**
 	 * @return int The height of the bitmap.
+	 *
+	 * @deprecated 6.0.1 This method will be removed. In v7, use the property "LuminanceSourceInterface::$height" instead.
 	 */
 	public function getHeight():int;
 
@@ -43,7 +54,7 @@ interface LuminanceSourceInterface{
 	 *
 	 * @param int $y  The row to fetch, which must be in [0,getHeight())
 	 *
-	 * @return array An array containing the luminance data.
+	 * @return int[] An array containing the luminance data.
 	 * @throws \chillerlan\QRCode\Decoder\QRCodeDecoderException
 	 */
 	public function getRow(int $y):array;
@@ -51,11 +62,11 @@ interface LuminanceSourceInterface{
 	/**
 	 * Creates a LuminanceSource instance from the given file
 	 */
-	public static function fromFile(string $path):self;
+	public static function fromFile(string $path, SettingsContainerInterface|QROptions $options = new QROptions):static;
 
 	/**
 	 * Creates a LuminanceSource instance from the given data blob
 	 */
-	public static function fromBlob(string $blob):self;
+	public static function fromBlob(string $blob, SettingsContainerInterface|QROptions $options = new QROptions):static;
 
 }

@@ -58,13 +58,31 @@
             document.head.appendChild(style);
         }
 
-        // Inject Custom JS if present (CSP nonce required for security)
+        // Inject Custom JS if present.
+        //
+        // SECURITY (TMPL-4): brand-controlled custom_js is intentionally
+        // injected WITHOUT the page's CSP nonce. The checkout page CSP is
+        // `script-src 'self' 'nonce-{$nonce}'` (see
+        // SecurityHeadersMiddleware::handle()), so a nonce-less <script>
+        // tag is blocked by the browser unless the operator has explicitly
+        // opted in by adding 'unsafe-inline' to script-src via the
+        // 'checkout.csp.sources' filter hook (e.g. through a plugin).
+        //
+        // Previously the script carried the page's CSP nonce, which gave
+        // brand admins (or anyone who compromised a brand admin account)
+        // same-origin JavaScript execution on every customer checkout page
+        // for that brand - including pages where customers enter card
+        // numbers, OTPs, and MFS PINs. Such a script could exfiltrate form
+        // fields, redirect to phishing pages, or modify the payment amount
+        // before submission.
+        //
+        // By removing the nonce, custom_js is now blocked by default. To
+        // re-enable it for a specific deployment, the operator must
+        // explicitly add 'unsafe-inline' to script-src on checkout pages,
+        // which is a deliberate, auditable security tradeoff.
         var customJs = dataEl.getAttribute("data-custom-js");
-        if (customJs && nonce) {
-            // SECURITY: Only allow custom JS when CSP nonce is present
-            // This prevents execution if nonce is missing or compromised
+        if (customJs) {
             var script = document.createElement("script");
-            script.setAttribute("nonce", nonce);
             script.textContent = customJs;
             document.body.appendChild(script);
         }
@@ -96,7 +114,7 @@
         if (storedExpiry) {
             expiryTimestamp = Number(storedExpiry);
         } else {
-            // First visit — use server-calculated remaining, store expiry
+            // First visit - use server-calculated remaining, store expiry
             expiryTimestamp = Date.now() + serverRemaining * 1000;
             if (serverRemaining > 0) {
                 localStorage.setItem(storageKey, String(expiryTimestamp));
@@ -526,14 +544,39 @@
     // ---------- MODALS ----------
     var MODAL_CLOSE_DUR_MS = 150; // Matches --modal-close-dur in checkout.css (.ck-modal.is-closing)
 
+    // The modals declare aria-modal="true", which promises that everything outside the dialog
+    // is unavailable while it is open. That promise only holds if focus actually stays inside,
+    // so mirror admin.js: remember the opener, move focus in, contain Tab, restore on close.
+    function mdlFocusable(container) {
+        return Array.prototype.slice.call(
+            container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        ).filter(function (el) {
+            return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+        });
+    }
+
     window.openMdl = function (id) {
         var e = document.getElementById(id);
         if (!e) {return;}
+        e._opener = document.activeElement;
         e.classList.remove("ck-hidden");
         // Force a reflow so the display:none -> flex change is committed before adding
         // "is-open", otherwise the opacity/transform transition collapses into an instant jump.
         void e.offsetWidth;
         e.classList.add("is-open");
+        // Focus the first control inside the dialog (the header close button) so keyboard and
+        // screen-reader users land in the content aria-modal claims is the only part of.
+        var focusables = mdlFocusable(e);
+        var focusEl = focusables.length > 0 ? focusables[0] : e;
+        if (focusEl && typeof focusEl.focus === "function") {
+            setTimeout(function () {
+                try {
+                    focusEl.focus();
+                } catch {
+                    // Ignore focus exceptions from detached/hidden elements
+                }
+            }, 10);
+        }
     };
     window.closeMdl = function (id) {
         var e = document.getElementById(id);
@@ -545,6 +588,16 @@
         setTimeout(function () {
             e.classList.remove("is-closing");
             e.classList.add("ck-hidden");
+            // Hand focus back to whatever opened the dialog, otherwise it lands on <body>
+            // and keyboard users restart at the top of the checkout.
+            if (e._opener && typeof e._opener.focus === "function") {
+                try {
+                    e._opener.focus();
+                } catch {
+                    // Ignore focus exceptions
+                }
+                e._opener = null;
+            }
         }, MODAL_CLOSE_DUR_MS);
     };
 
@@ -642,6 +695,10 @@
         } else if (action === "go-tab") {
             window.goT(target.getAttribute("data-tab-name"));
         } else if (action === "pick-gw") {
+            if (target.getAttribute("data-disabled") === "1") {
+                showCheckoutError(target.getAttribute("data-reason") || "This gateway isn't available for this amount.");
+                return;
+            }
             window.pickGW(
                 target,
                 target.getAttribute("data-tab"),
@@ -671,6 +728,45 @@
                 details.classList.add("is-open");
                 details.style.maxHeight = details.scrollHeight + "px";
                 target.setAttribute("aria-expanded", "true");
+            }
+        }
+    });
+
+    // Escape closes the topmost open modal; Tab wraps inside it. Both are required for
+    // aria-modal="true" to be honest - without them focus walks straight out of the dialog
+    // into the checkout behind it. Mirrors the admin.js modal handler.
+    document.addEventListener("keydown", function (e) {
+        var openModals = Array.prototype.slice.call(document.querySelectorAll(".ck-modal.is-open"));
+        if (openModals.length === 0) {
+            return;
+        }
+        var activeModal = openModals[openModals.length - 1];
+
+        if (e.key === "Escape") {
+            e.preventDefault();
+            window.closeMdl(activeModal.id);
+            return;
+        }
+
+        if (e.key === "Tab") {
+            var focusables = mdlFocusable(activeModal);
+            if (focusables.length === 0) {
+                e.preventDefault();
+                return;
+            }
+            var first = focusables[0];
+            var last = focusables[focusables.length - 1];
+
+            if (e.shiftKey) {
+                if (document.activeElement === first || !activeModal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last || !activeModal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         }
     });

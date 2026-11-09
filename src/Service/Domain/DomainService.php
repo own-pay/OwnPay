@@ -5,6 +5,7 @@ namespace OwnPay\Service\Domain;
 
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\DomainRepository;
+use OwnPay\Service\System\HttpClient;
 use OwnPay\Support\DateHelper;
 
 /**
@@ -15,6 +16,43 @@ use OwnPay\Support\DateHelper;
  */
 final class DomainService
 {
+    /**
+     * Cloudflare's published public IPv4 ranges (https://www.cloudflare.com/ips-v4).
+     *
+     * @var array<int, string>
+     */
+    private const CLOUDFLARE_IPV4_CIDRS = [
+        '103.21.244.0/22',
+        '103.22.200.0/22',
+        '103.31.4.0/22',
+        '104.16.0.0/13',
+        '104.24.0.0/14',
+        '108.162.192.0/18',
+        '131.0.72.0/22',
+        '141.101.64.0/18',
+        '162.158.0.0/15',
+        '172.64.0.0/13',
+        '173.245.48.0/20',
+        '188.114.96.0/20',
+        '190.93.240.0/20',
+        '197.234.240.0/22',
+        '198.41.128.0/17',
+    ];
+
+    /**
+     * Public-IP echo service used to discover the origin's egress IPv4 when the
+     * web server does not expose a public SERVER_ADDR (e.g. php-fpm behind
+     * nginx on a reverse-proxied / NAT'd host).
+     */
+    private const PUBLIC_IP_SERVICE_URL = 'https://icanhazip.com';
+
+    /**
+     * Transfer timeout (seconds) for the public-IP echo request. Deliberately
+     * short: the hint must not block admin page renders waiting on a slow
+     * third-party service.
+     */
+    private const PUBLIC_IP_SERVICE_TIMEOUT = 3;
+
     /**
      * @var DomainRepository Repository interface for domain records.
      */
@@ -40,10 +78,12 @@ final class DomainService
     /**
      * Resolves the platform's own host from configuration for DNS A-record hints.
      *
-     * The request Host header is attacker-controlled, so it must not drive
-     * gethostbyname() lookups (DNS exfiltration / probing). The configured
-     * APP_DOMAIN / APP_URL is authoritative; the request host is used only as a
-     * last resort when neither is set (misconfigured install).
+     * The configured APP_DOMAIN / APP_URL is authoritative. The request Host
+     * header is intentionally NOT consulted: it is attacker-controlled and must
+     * never drive gethostbyname() lookups (DNS exfiltration / probing SSRF,
+     * audit DOM-4). On misconfigured installs (neither env var set) we fall
+     * back to the loopback address so the IP hint degrades to '127.0.0.1'
+     * rather than leaking through client-controlled input.
      *
      * @return string The hostname to resolve to the server IP.
      */
@@ -62,12 +102,167 @@ final class DomainService
         }
 
         if ($host === '') {
-            $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-            $host = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
+            // No configured host: degrade to a placeholder rather than trusting
+            // the attacker-controlled Host header. gethostbyname('127.0.0.1')
+            // returns '127.0.0.1' verbatim, which is a safe hint value.
+            return '127.0.0.1';
         }
 
         $parsed = parse_url("https://{$host}", PHP_URL_HOST);
         return is_string($parsed) ? $parsed : '127.0.0.1';
+    }
+
+    /**
+     * Resolves the server IP shown as the custom-domain A-record hint and used
+     * for A-record verification.
+     *
+     * Resolution order:
+     *  1. An explicit APP_SERVER_IP override, when it is a valid IPv4 - the
+     *     most deterministic option for operators who need a pinned value.
+     *  2. The web server's SERVER_ADDR, when it is a public IPv4. The web
+     *     server sets this from the network interface that served the request,
+     *     so it stays the origin server's own address even when APP_DOMAIN is
+     *     fronted by a CDN / reverse proxy (e.g. Cloudflare) - unlike
+     *     gethostbyname(APP_DOMAIN), which would return the proxy's edge IP and
+     *     silently break DNS verification (DOM-5).
+     *  3. A public-IP echo service (https://icanhazip.com) when SERVER_ADDR is
+     *     missing or private (php-fpm behind nginx on a proxied / NAT'd host).
+     *     Because the request leaves from the origin itself, the service returns
+     *     the server's genuine public egress IPv4.
+     *  4. 127.0.0.1 as a last-resort hint when nothing above resolves.
+     *
+     * Only configuration and the server's own network state determine the
+     * result; the request Host header is never consulted.
+     *
+     * @return string The dotted-quad IPv4 hint.
+     */
+    public function serverIp(): string
+    {
+        $overrideVal = $_ENV['APP_SERVER_IP'] ?? getenv('APP_SERVER_IP') ?: '';
+        $override = is_string($overrideVal) ? trim($overrideVal) : '';
+        if ($override !== '' && filter_var($override, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+            return $override;
+        }
+
+        $serverAddrVal = $_SERVER['SERVER_ADDR'] ?? '';
+        $serverAddr = is_string($serverAddrVal) ? trim($serverAddrVal) : '';
+        if ($serverAddr !== '' && self::isPublicIpv4($serverAddr)) {
+            return $serverAddr;
+        }
+
+        $egress = '';
+        try {
+            $response = (new HttpClient(self::PUBLIC_IP_SERVICE_TIMEOUT))->get(self::PUBLIC_IP_SERVICE_URL);
+            $egress = trim($response['body']);
+        } catch (\Throwable) {
+            // Unreachable / blocked echo service must never break a page render
+            // or a DNS verification; degrade to the loopback hint below.
+        }
+        if ($egress !== '' && self::isPublicIpv4($egress)) {
+            return $egress;
+        }
+
+        return '127.0.0.1';
+    }
+
+    /**
+     * Rejects loopback, private, and reserved IPv4 addresses.
+     *
+     * @param string $ip A dotted-quad IPv4 address.
+     * @return bool True only when the address is in public IPv4 space.
+     */
+    private static function isPublicIpv4(string $ip): bool
+    {
+        return filter_var(
+            $ip,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
+    }
+
+    /**
+     * Resolves the CNAME target used as the custom-domain routing hint.
+     *
+     * Returned from configuration (APP_DOMAIN / APP_URL) instead of a
+     * hardcoded value so self-hosted installations show a correct target.
+     *
+     * @return string The host customers should CNAME their domain to.
+     */
+    public function cnameTarget(): string
+    {
+        return $this->resolveServerHost();
+    }
+
+    /**
+     * Detects whether an IP address is a Cloudflare edge address.
+     *
+     * Used to flag when the A-record hint resolved from APP_DOMAIN is a proxy
+     * address instead of the origin server (DOM-5).
+     *
+     * @param string $ip A dotted-quad IPv4 address.
+     * @return bool True if the address falls inside a published Cloudflare IPv4 range.
+     */
+    public static function isCloudflareIp(string $ip): bool
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+            return false;
+        }
+
+        $ipBytes = inet_pton($ip);
+        if ($ipBytes === false) {
+            return false;
+        }
+
+        foreach (self::CLOUDFLARE_IPV4_CIDRS as $cidr) {
+            if (str_contains($cidr, '/') === false) {
+                continue;
+            }
+            [$network, $bitsStr] = explode('/', $cidr, 2);
+            $prefix = (int) $bitsStr;
+            $netBytes = inet_pton($network);
+            if ($netBytes === false || !self::isValidIpv4Prefix($prefix)) {
+                continue;
+            }
+            if (self::ipv4PrefixMatch($ipBytes, $netBytes, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Compares the leading $prefix bits of two packed IPv4 addresses.
+     *
+     * @param string $ip   Packed 4-byte IPv4 address (inet_pton output).
+     * @param string $net  Packed 4-byte IPv4 network address.
+     * @param int    $prefix Number of leading bits that must match (0-32).
+     * @return bool True when both addresses share the given prefix.
+     */
+    private static function ipv4PrefixMatch(string $ip, string $net, int $prefix): bool
+    {
+        $fullBytes = (int) ($prefix / 8);
+        $remain = $prefix % 8;
+
+        for ($i = 0; $i < $fullBytes; $i++) {
+            if ($ip[$i] !== $net[$i]) {
+                return false;
+            }
+        }
+
+        if ($remain > 0) {
+            $mask = (0xFF << (8 - $remain)) & 0xFF;
+            if ((ord($ip[$fullBytes]) & $mask) !== (ord($net[$fullBytes]) & $mask)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function isValidIpv4Prefix(int $prefix): bool
+    {
+        return $prefix >= 0 && $prefix <= 32;
     }
 
     public function __construct(
@@ -115,7 +310,7 @@ final class DomainService
 
         $this->events->doAction('domain.mapped', $domain, $merchantId);
 
-        $serverIp = gethostbyname($this->resolveServerHost());
+        $serverIp = $this->serverIp();
 
         return [
             'success'            => true,
@@ -160,8 +355,21 @@ final class DomainService
             ];
         }
 
-        $serverIp = gethostbyname($this->resolveServerHost());
+        $serverIp = $this->serverIp();
         $aRecordOk = $this->dnsVerifier->verifyARecord($domainName, $serverIp);
+
+        if (!$aRecordOk) {
+            // A-record check is gating: the domain must actually route traffic
+            // to this OwnPay server before we mark it verified/active. Previously
+            // dns_verified was set to 1 unconditionally and only a non-blocking
+            // warning was returned, which let DomainMiddleware accept requests
+            // for domains whose DNS still pointed elsewhere (audit DOM-3).
+            return [
+                'success' => false,
+                'error'   => "TXT record verified, but the A record for {$domainName} does not point to {$serverIp}. "
+                    . 'Update your DNS A record to the OwnPay server IP and re-run verification.',
+            ];
+        }
 
         $this->domains->forTenant($merchantId)->updateScoped($domainId, [
             'dns_verified'    => 1,
@@ -170,13 +378,6 @@ final class DomainService
         ]);
 
         $this->events->doAction('domain.verified', $domainName, $merchantId);
-
-        if (!$aRecordOk) {
-            return [
-                'success' => true,
-                'warning' => "TXT verified! But A record does not point to {$serverIp}. Checkout pages won't work until DNS propagates.",
-            ];
-        }
 
         return ['success' => true];
     }

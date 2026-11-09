@@ -45,7 +45,15 @@ final class ThemeSecurityScannerTest extends TestCase
     private function writeTemplate(string $relativePath, string $content): void
     {
         $fullPath = $this->tmpDir . '/' . $relativePath;
-        mkdir(dirname($fullPath), 0777, true);
+        $dir = dirname($fullPath);
+        // Suppress "File exists" warning when the directory was already
+        // created by setUp() or a previous writeTemplate() call. mkdir()
+        // emits E_WARNING on the second call even though the directory
+        // already exists, which PHPUnit surfaces as a test-level warning.
+        // The third argument (`recursive`) lets us create nested parents.
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
         file_put_contents($fullPath, $content);
     }
 

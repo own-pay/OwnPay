@@ -68,7 +68,7 @@ final class SmsDataController
         $statusVal = $req->query('status', '');
         $status = is_string($statusVal) && $statusVal !== '' ? $statusVal : null;
 
-        // All-Brands (global) view lists captures across every brand — including platform-owned captures
+        // All-Brands (global) view lists captures across every brand - including platform-owned captures
         // from devices paired under "All Brands" (stored under the platform merchant), which is exactly
         // where the companion app's SMS land. A specific brand view scopes to that brand only.
         if ($this->isGlobalBrandView()) {

@@ -9,13 +9,14 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
 /**
  * Ebanx Payment Gateway Adapter.
  */
-final class EbanxGateway implements PluginInterface, GatewayAdapterInterface
+final class EbanxGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -171,6 +172,9 @@ final class EbanxGateway implements PluginInterface, GatewayAdapterInterface
                     'status'         => 'failed',
                 ];
             }
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
@@ -223,11 +227,68 @@ final class EbanxGateway implements PluginInterface, GatewayAdapterInterface
         return ['success' => false];
     }
 
+    /**
+     * Verifies the Integration Key authenticates against EBANX's query API, using a probe hash
+     * that won't match any real payment - EBANX distinguishes "invalid integration key" from
+     * "hash not found" in its response, so either outcome tells us whether the key is valid.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $integrationKey = $this->getString($credentials['integration_key'] ?? '');
+        if ($integrationKey === '') {
+            return ['success' => false, 'message' => 'Enter an Integration Key before testing the connection.'];
+        }
+
+        $endpoint = $this->getEndpoint($credentials, '/ws/query');
+        $ch = curl_init($endpoint);
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Could not initialize the connection test.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'integration_key' => $integrationKey,
+                'hash'            => 'op-test-connection-probe',
+            ]),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false || $response === '') {
+            return ['success' => false, 'message' => 'Could not reach EBANX - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'message' => 'EBANX returned an unreadable response.'];
+        }
+
+        $statusMessage = strtolower($this->getString($data['status_message'] ?? ''));
+        if (str_contains($statusMessage, 'integration key')) {
+            return ['success' => false, 'message' => 'EBANX rejected the provided Integration Key.'];
+        }
+
+        $status = $this->getString($data['status'] ?? '');
+        if ($status === 'SUCCESS' || $status === 'ERROR') {
+            // Any structured status response - even "hash not found" - means the key authenticated.
+            return ['success' => true, 'message' => 'Connected successfully to EBANX.'];
+        }
+
+        return ['success' => false, 'message' => 'EBANX rejected the provided credentials.'];
+    }
+
+    /**
+     * Fails closed: no signature verification is implemented for this gateway yet.
+     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Ebanx notifies via callback variables or post body
-        // We verify the hash from webhook request by calling the query status API
-        return true;
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void

@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Flutterwave;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -12,11 +13,11 @@ use OwnPay\Event\EventManager;
 
 /**
  * Flutterwave Payment Gateway Adapter.
- * 
+ *
  * Implements strict type system, PCI-DSS compliance signature checking,
  * and secure backchannel payment status verification.
  */
-final class FlutterwaveGateway implements PluginInterface, GatewayAdapterInterface
+final class FlutterwaveGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -145,11 +146,51 @@ final class FlutterwaveGateway implements PluginInterface, GatewayAdapterInterfa
         ];
     }
 
+    /**
+     * Verifies the Secret Key authenticates against Flutterwave's Balances API (read-only)
+     * without creating any charge.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $secretKey = is_scalar($credentials['secret_key'] ?? null) ? (string) $credentials['secret_key'] : '';
+        if ($secretKey === '') {
+            return ['success' => false, 'message' => 'Enter the Secret Key before testing the connection.'];
+        }
+
+        $ch = curl_init('https://api.flutterwave.com/v3/balances');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $secretKey],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Flutterwave - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        if ($httpCode === 200 && is_array($data) && ($data['status'] ?? '') === 'success') {
+            $mode = str_starts_with($secretKey, 'FLWSECK_TEST') ? 'test' : 'live';
+            return ['success' => true, 'message' => "Connected successfully to Flutterwave ({$mode} mode)."];
+        }
+
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : 'Flutterwave rejected the provided Secret Key.';
+        return ['success' => false, 'message' => $errMsg];
+    }
+
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $expectedHash = $this->getString($credentials['secret_hash'] ?? null);
         if ($expectedHash === '') {
-            return true;
+            // Fail closed: with no shared secret configured there is nothing to
+            // verify the signature against, so the payload stays untrusted.
+            return false;
         }
         $sigHeader = $this->getString($headers['Verif-Hash'] ?? $headers['verif-hash'] ?? null);
         return hash_equals($expectedHash, $sigHeader);

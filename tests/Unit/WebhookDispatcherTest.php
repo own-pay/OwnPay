@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use OwnPay\Core\Database;
 use OwnPay\Event\EventManager;
 use OwnPay\Security\UrlValidator;
 use OwnPay\Service\System\Logger;
 use OwnPay\Service\Notification\WebhookDispatcher;
 
+#[AllowMockObjectsWithoutExpectations]
 class WebhookDispatcherTest extends TestCase
 {
     public function testHmacSigning(): void

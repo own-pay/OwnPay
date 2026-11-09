@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Affirm;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * Affirm Gateway Adapter.
  */
-final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
+final class AffirmGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -47,6 +48,51 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'private_key', 'label' => 'Private Key', 'type' => 'password', 'required' => true],
             ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the public/private key pair against Affirm's read API. There is no dedicated
+     * ping/account endpoint, so this requests a definitely-nonexistent transaction id: a 404
+     * confirms the keys authenticated and reached the API, while a 401 means they were rejected.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $mode = $this->getString($credentials['mode'] ?? null);
+        $publicKey = $this->getString($credentials['public_key'] ?? null);
+        $privateKey = $this->getString($credentials['private_key'] ?? null);
+        if ($publicKey === '' || $privateKey === '') {
+            return ['success' => false, 'message' => 'Enter Public Key and Private Key before testing the connection.'];
+        }
+
+        $baseUrl = $mode === 'live' ? 'https://api.affirm.com' : 'https://sandbox.affirm.com';
+
+        $ch = curl_init($baseUrl . '/api/v1/transactions/0000000000000000');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_USERPWD        => $publicKey . ':' . $privateKey,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Affirm - check the server\'s network connectivity.'];
+        }
+        if ($httpCode === 404) {
+            return ['success' => true, 'message' => 'Connected successfully to Affirm (' . ($mode === 'live' ? 'live' : 'sandbox') . ' mode).'];
+        }
+        if ($httpCode === 401 || $httpCode === 403) {
+            return ['success' => false, 'message' => 'Affirm rejected the provided Public/Private Key pair.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $errMsg = is_array($data) && is_scalar($data['message'] ?? null) ? (string) $data['message'] : ('Unexpected response from Affirm (HTTP ' . $httpCode . ').');
+        return ['success' => false, 'message' => $errMsg];
     }
 
     public function initiate(array $params, array $credentials): array

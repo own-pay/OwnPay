@@ -86,6 +86,18 @@ final class JwtAuthMiddleware
             ], 401);
         }
 
+        // Reject refresh tokens used for direct API access (SEC-1).
+        // Refresh tokens carry typ=refresh and are only accepted by /auth/refresh
+        // to mint a new short-lived access token. Without this check a stolen
+        // refresh token would grant 30 days of API access.
+        $typ = isset($payload->typ) && is_string($payload->typ) ? $payload->typ : null;
+        if ($typ !== \OwnPay\Service\Auth\JwtService::TYPE_ACCESS) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid token type',
+            ], 401);
+        }
+
         $mid = (int) $payload->mid;
         $did = (string) $payload->did;
 
@@ -105,13 +117,18 @@ final class JwtAuthMiddleware
             ], 401);
         }
 
-        // Check device not revoked before granting access
+        // Check device is in an active state before granting access.
+        // Allowlist check via StatusGuard: any status other than 'active'
+        // (revoked, pending, inactive, suspended, lost, etc.) fails closed.
         $deviceRepo = $this->container->get(\OwnPay\Repository\PairedDeviceRepository::class);
         if (!$deviceRepo instanceof \OwnPay\Repository\PairedDeviceRepository) {
             throw new \RuntimeException("PairedDeviceRepository not found in container");
         }
         $device = $deviceRepo->forTenant($mid)->findByDeviceId($did);
-        if ($device === null || ($device['status'] ?? '') === 'revoked') {
+        $deviceStatus = is_array($device) && isset($device['status']) && is_string($device['status'])
+            ? $device['status']
+            : '';
+        if ($device === null || !\OwnPay\Service\Auth\StatusGuard::isDeviceStatusValid($deviceStatus)) {
             return Response::json([
                 'success' => false,
                 'message' => 'Device revoked or not found',

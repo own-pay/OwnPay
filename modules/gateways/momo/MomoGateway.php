@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Momo;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -13,7 +14,7 @@ use OwnPay\Event\EventManager;
 /**
  * MoMo Vietnam E-wallet payment gateway adapter.
  */
-final class MomoGateway implements PluginInterface, GatewayAdapterInterface
+final class MomoGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -161,6 +162,72 @@ final class MomoGateway implements PluginInterface, GatewayAdapterInterface
             'redirect_url' => $payUrl,
             'session_id'   => $orderId,
         ];
+    }
+
+    /**
+     * Verifies the Partner Code/Access Key/Secret Key authenticate against MoMo, without
+     * creating any payment. Reuses the same signed status-query endpoint verify() uses, but for
+     * a random/nonexistent order id - MoMo returns a signature/auth error (resultCode 41/42-style)
+     * for bad credentials and an "order not found" resultCode for valid ones, both read-only.
+     *
+     * @param array<string, mixed> $credentials Decrypted (or freshly-submitted, unsaved) credentials.
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $partnerCode = $this->getString($credentials['partner_code'] ?? '');
+        $accessKey = $this->getString($credentials['access_key'] ?? '');
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+
+        if ($partnerCode === '' || $accessKey === '' || $secretKey === '') {
+            return ['success' => false, 'message' => 'Enter Partner Code, Access Key, and Secret Key before testing the connection.'];
+        }
+
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        $orderId = 'op_test_connection_' . uniqid();
+        $requestId = 'req_check_' . time();
+
+        $rawHash = "accessKey={$accessKey}&orderId={$orderId}&partnerCode={$partnerCode}&requestId={$requestId}";
+        $signature = hash_hmac('sha256', $rawHash, $secretKey);
+
+        $ch = curl_init($baseUrl . '/v2/gateway/api/query');
+        if ($ch === false) {
+            return ['success' => false, 'message' => 'Failed to initialize the connection test request.'];
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => (string) json_encode([
+                'partnerCode' => $partnerCode,
+                'requestId'   => $requestId,
+                'orderId'     => $orderId,
+                'signature'   => $signature,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach MoMo - ' . ($err ?: 'unknown network error') . '.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $resultCode = is_array($data) ? $this->getInt($data['resultCode'] ?? -1) : -1;
+        $message = is_array($data) ? $this->getString($data['message'] ?? '') : '';
+
+        // resultCode 1023 = "Transaction not found" (MoMo's genuine "order id doesn't exist"
+        // response) - it only ever appears once the signature has already validated, so it
+        // proves the credentials are authentic despite the fake order id.
+        if ($httpCode < 400 && ($resultCode === 1023 || $resultCode === 0)) {
+            return ['success' => true, 'message' => "Connected successfully to MoMo ({$mode} mode)."];
+        }
+
+        return ['success' => false, 'message' => $message !== '' ? $message : 'MoMo rejected the provided credentials.'];
     }
 
     public function verify(array $callbackData, array $credentials): array

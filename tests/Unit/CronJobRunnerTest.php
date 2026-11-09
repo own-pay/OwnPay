@@ -103,13 +103,16 @@ class CronJobRunnerTest extends TestCase
 
         $controller = new \OwnPay\Controller\Page\CronController($container);
 
+        // CRON-2: the GET /cron/{secret} route was removed because URL paths
+        // leak into web server access logs. The secret must now be supplied
+        // via the X-Cron-Secret (or Authorization: Bearer) header on a POST.
         $req = new \OwnPay\Http\Request(
             server: [
-                'REQUEST_METHOD' => 'GET',
-                'REQUEST_URI' => '/cron/test-secret-123'
+                'REQUEST_METHOD' => 'POST',
+                'REQUEST_URI' => '/cron',
+                'HTTP_X_CRON_SECRET' => 'test-secret-123',
             ]
         );
-        $req->setRouteParams(['secret' => 'test-secret-123']);
 
         $response = $controller->run($req);
         $this->assertSame(200, $response->getStatusCode());

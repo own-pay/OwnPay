@@ -27,12 +27,13 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: dev
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
       - name: Run agent
-        uses: pullfrog/pullfrog@v0
+        uses: pullfrog/pullfrog@54516f4396858c4117133fad1eda573a086e72a6 # v0
         with:
           prompt: ${{ inputs.prompt }}
         env:

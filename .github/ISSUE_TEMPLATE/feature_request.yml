@@ -1,73 +1,115 @@
-name: Feature request
-description: Suggest an idea for OwnPay
-title: "[FEATURE] "
-labels: ["enhancement"]
+name: "💡 Feature Request"
+description: "Suggest an idea, architectural enhancement, or new capability for OwnPay"
+title: "[FEATURE]: "
+labels: ["enhancement", "needs-triage"]
 assignees: []
+
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 💡 Propose a New Feature or Improvement
+        Thank you for helping shape the future of OwnPay! Please provide as much detail as possible so the community and maintainers can evaluate the proposal effectively.
+
   - type: textarea
     id: problem
     attributes:
-      label: Is your feature request related to a problem?
-      description: A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+      label: Problem Statement / Friction Point
+      description: Is your feature request related to a specific problem or limitation?
+      placeholder: |
+        I encounter friction when trying to [...] because the current workflow requires [...]
     validations:
       required: true
 
   - type: textarea
     id: solution
     attributes:
-      label: Describe the solution you'd like
-      description: A clear and concise description of what you want to happen.
+      label: Proposed Solution / Desired Feature
+      description: A clear and concise description of what you want OwnPay to do.
+      placeholder: |
+        I would like OwnPay to provide [...] which works by [...]
+    validations:
+      required: true
+
+  - type: textarea
+    id: business-value
+    attributes:
+      label: Business Value & Use Case
+      description: Why is this feature important? What workflow, operational cost, or security posture does it improve?
+      placeholder: |
+        - Streamlines multi-brand reconciliation by 50%
+        - Enables automated payouts for regional merchants
+        - Improves customer checkout completion rates
+    validations:
+      required: true
+
+  - type: dropdown
+    id: user-roles
+    attributes:
+      label: Target User Persona
+      description: Who will interact with or benefit from this feature?
+      multiple: true
+      options:
+        - Super Administrator (Platform Owner)
+        - Brand / Store Staff (Scoped Admin)
+        - End Customer / Payer (Checkout UI)
+        - External Developer / API Consumer
+        - Plugin / Gateway Developer
+        - Operations / DevOps Engineer
     validations:
       required: true
 
   - type: dropdown
     id: brand-scope
     attributes:
-      label: Brand Scope
-      description: Should this apply to all brands or just one?
+      label: Architectural Scope
+      description: Where does this feature belong architecturally?
       options:
-        - All Brands (platform-wide)
-        - Single Brand
-        - Not applicable / Unknown
+        - Platform-wide (All Brands / Global scope)
+        - Brand-specific (Scoped to individual stores)
+        - Custom Domain / White-Label checkout
+        - Gateway Plugin / Modular Addon
+        - Core Infrastructure / Database / Ledger
+        - CLI / Developer Tooling
     validations:
       required: true
-
-  - type: dropdown
-    id: user-role
-    attributes:
-      label: Primary User Role
-      description: Who would use this feature?
-      options:
-        - Platform Admin
-        - Brand Staff
-        - End Customer (checkout)
-        - API Consumer
-        - Other
-      multiple: true
-    validations:
-      required: true
-
-  - type: textarea
-    id: use-case
-    attributes:
-      label: Use Case / Business Value
-      description: Why is this important? What workflow does it improve?
-      placeholder: e.g. Reduces manual reconciliation for multi-gateway merchants...
-    validations:
-      required: false
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Describe alternatives you've considered
-      description: A clear and concise description of any alternative solutions or features you've considered.
+      label: Alternatives Considered
+      description: What alternative solutions, workarounds, or existing tools have you considered?
+      placeholder: |
+        We considered using an external webhook dispatcher or a manual cron job, but that lacks [...]
     validations:
       required: false
 
   - type: textarea
+    id: design-mockups
+    attributes:
+      label: UI/UX Mockups, Wireframes, or API Contracts (Optional)
+      description: Attach UI wireframes, flow diagrams, or proposed API endpoints if applicable.
+      placeholder: "Drop images, wireframes, or pseudo-code API snippets here..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution Willingness
+      description: Are you interested in contributing to this feature?
+      options:
+        - Yes, I would love to submit a Pull Request for this!
+        - Yes, I can help test and review PRs for this feature.
+        - Yes, I am open to sponsoring or funding development.
+        - No, I am just sharing an idea for the community to consider.
+    validations:
+      required: true
+
+  - type: textarea
     id: context
     attributes:
-      label: Additional context
-      description: Add any other context or screenshots about the feature request here.
+      label: Additional Context
+      description: Any other context, references to similar platforms, or specifications.
     validations:
       required: false

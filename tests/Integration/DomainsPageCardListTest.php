@@ -23,6 +23,7 @@ final class DomainsPageCardListTest extends TestCase
             'current_user' => ['name' => 'Test'], 'is_superadmin' => true,
             'flash_success' => null, 'flash_error' => null,
             'active_page' => 'domains', 'server_ip' => '127.0.0.1',
+            'cname_target' => 'pay.ownpay.test', 'server_ip_proxied' => false,
         ], $context));
     }
 
@@ -50,6 +51,26 @@ final class DomainsPageCardListTest extends TestCase
         $html = $this->renderTemplate(['domains' => []]);
         $this->assertStringNotContainsString('Custom Domain DNS Configuration Guide', $html);
         $this->assertStringNotContainsString('Automatic Check: Run by background cron', $html);
+    }
+
+    public function testCnameTargetIsNotHardcoded(): void
+    {
+        $html = $this->renderTemplate(['domains' => []]);
+        $this->assertStringNotContainsString('testing.ownpay.org', $html);
+        $this->assertStringContainsString('pay.ownpay.test', $html);
+    }
+
+    public function testCloudflareProxyWarningHiddenWhenDirectDns(): void
+    {
+        $html = $this->renderTemplate(['domains' => []]);
+        $this->assertStringNotContainsString('Cloudflare edge address', $html);
+    }
+
+    public function testCloudflareProxyWarningShownWhenProxied(): void
+    {
+        $html = $this->renderTemplate(['domains' => [], 'server_ip_proxied' => true]);
+        $this->assertStringContainsString('Cloudflare edge address', $html);
+        $this->assertStringContainsString('APP_SERVER_IP', $html);
     }
 
     public function testEmptyStateWhenNoDomains(): void

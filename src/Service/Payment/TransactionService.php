@@ -90,12 +90,13 @@ final class TransactionService
      *
      * @param int $transactionId The unique ID of the transaction.
      * @param int $merchantId The ID of the merchant/brand.
+     * @param string|null $gatewayTrxId The gateway's own transaction/reference ID, when known.
      * @return array<string, mixed> The completed transaction record fields.
      */
-    public function complete(int $transactionId, int $merchantId): array
+    public function complete(int $transactionId, int $merchantId, ?string $gatewayTrxId = null): array
     {
         $repo = $this->transactions->forTenant($merchantId);
-        $affected = $repo->markCompletedIfNotTerminal($transactionId);
+        $affected = $repo->markCompletedIfNotTerminal($transactionId, $gatewayTrxId);
         $transaction = $repo->findScoped($transactionId);
         if ($transaction === null) {
             throw new \RuntimeException('Failed to retrieve completed transaction.');
@@ -148,6 +149,19 @@ final class TransactionService
         $this->events->doAction('payment.transaction.failed', $transaction);
 
         return $transaction;
+    }
+
+    /**
+     * Merges additional key-value pairs into a transaction's JSON metadata.
+     *
+     * @param int $transactionId The unique ID of the transaction.
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param array<string, mixed> $metadata New key-value pairs to merge in (existing keys survive).
+     * @return void
+     */
+    public function updateMetadata(int $transactionId, int $merchantId, array $metadata): void
+    {
+        $this->transactions->updateMetadata($transactionId, $metadata, $merchantId);
     }
 
     /**

@@ -133,6 +133,7 @@ final class BrandController
         $timezoneField = $data['timezone'] ?? 'Asia/Dhaka';
         $currencyField = $data['default_currency'] ?? 'BDT';
         $statusField = $data['status'] ?? 'active';
+        $languageField = $data['language'] ?? 'en';
 
         $defaultSettings = [
             'logo' => null,
@@ -141,13 +142,14 @@ final class BrandController
             'accent_color' => '#0F766E',
             'support_email' => is_string($emailField) ? $emailField : '',
             'footer_text' => '',
-            'language' => 'en',
+            'language' => is_string($languageField) && $languageField !== '' ? $languageField : 'en',
             'checkout_success_msg' => '',
             'checkout_pending_msg' => '',
             'checkout_failed_msg' => '',
             'custom_css' => '',
             'custom_js' => '',
             'show_powered_by' => 0,
+            'manual_payment_auto_redirect' => '0',
         ];
 
         $merchantId = (int) $this->merchants->createMerchant([
@@ -186,6 +188,16 @@ final class BrandController
             $paymentLinkService->ensureDefault($merchantId, $name, $slug, $currency);
         }
 
+        // Auto-seed conflict-free default roles for the new brand
+        try {
+            $db = $this->c->get(\OwnPay\Core\Database::class);
+            if ($db instanceof \OwnPay\Core\Database) {
+                RolesController::seedDefaultRolesForBrand($db, $merchantId);
+            }
+        } catch (\Throwable) {
+            // Non-blocking
+        }
+
         $this->session->flashSuccess('Brand created successfully');
         return Response::redirect('/admin/brands');
     }
@@ -200,6 +212,13 @@ final class BrandController
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
+        $isSuperAdmin = $this->session->isSuperadmin();
+        $authMerchantId = $this->session->merchantId() ?? 0;
+        if (!$isSuperAdmin && $id !== $authMerchantId) {
+            $this->session->flashError('Permission denied to access this brand');
+            return Response::redirect('/admin');
+        }
+
         $brand = $this->merchants->findWithDomain($id);
 
         if (!$brand) {
@@ -236,6 +255,13 @@ final class BrandController
     public function update(Request $req): Response
     {
         $id   = (int) $req->param('id');
+        $isSuperAdmin = $this->session->isSuperadmin();
+        $authMerchantId = $this->session->merchantId() ?? 0;
+        if (!$isSuperAdmin && $id !== $authMerchantId) {
+            $this->session->flashError('Permission denied to access this brand');
+            return Response::redirect('/admin');
+        }
+
         $postData = $req->post();
         $data = is_array($postData) ? $postData : [];
         
@@ -261,6 +287,16 @@ final class BrandController
         $timezoneField = $data['timezone'] ?? 'Asia/Dhaka';
         $currencyField = $data['default_currency'] ?? 'BDT';
         $statusField = $data['status'] ?? 'active';
+        $languageField = $data['language'] ?? '';
+
+        $settingsVal = $existing['settings'] ?? '';
+        $settingsArr = is_string($settingsVal) && $settingsVal !== '' ? json_decode($settingsVal, true) : [];
+        if (!is_array($settingsArr)) {
+            $settingsArr = [];
+        }
+        if (is_string($languageField) && $languageField !== '') {
+            $settingsArr['language'] = $languageField;
+        }
 
         $updateData = [
             'name'             => $name,
@@ -270,7 +306,7 @@ final class BrandController
             'default_currency' => is_string($currencyField) ? $currencyField : 'BDT',
             'status'           => is_string($statusField) ? $statusField : 'active',
             'logo_path'        => $existing['logo_path'],
-            'settings'         => $existing['settings'],
+            'settings'         => json_encode($settingsArr, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         ];
         $this->merchants->updateBrand($id, $updateData);
 
@@ -318,7 +354,7 @@ final class BrandController
     public function switchBrand(Request $req): Response
     {
         $id = $req->post('brand_id');
-        $isSuperAdmin = !empty($_SESSION['is_superadmin']);
+        $isSuperAdmin = $this->session->isSuperadmin();
         $authMerchantId = $_SESSION['auth_merchant_id'] ?? 0;
         $homeMerchantId = is_scalar($authMerchantId) && is_numeric($authMerchantId) ? (int) $authMerchantId : 0;
 
@@ -368,7 +404,17 @@ final class BrandController
     }
 
     /**
-     * Removes a brand instance and cascades records via foreign key constraints.
+     * Removes a brand instance.
+     *
+     * Deletion is BLOCKED when the brand has any financial history
+     * (transactions, refunds, disputes, customers, invoices, payment links,
+     * or non-zero ledger balances). This protects the audit trail required by
+     * PCI-DSS requirement 10 (≥1 year retention) and tax-law record-retention
+     * mandates (typically 5–7 years). Brands with no financial activity
+     * (e.g. created in error) can still be deleted.
+     *
+     * See audit finding BRD-1 / issue #237 for the full impact analysis of the
+     * previous unconditional CASCADE delete.
      *
      * @param Request $req The incoming HTTP request.
      *
@@ -399,16 +445,93 @@ final class BrandController
             return Response::redirect('/admin/brands');
         }
 
-        // Hard delete brand + cascade handled by DB FK constraints
+        // Integrity: refuse to delete a brand that has any financial history.
+        // CASCADE deletion would destroy transactions, refunds, double-entry
+        // ledger rows, disputes, customers, invoices, and webhook delivery
+        // logs - violating PCI-DSS, tax-law, and chargeback-defense retention
+        // requirements. The admin must first archive/migrate those records to
+        // a cold-storage table (out of scope for this controller).
         $db = $this->c->get(\OwnPay\Core\Database::class);
-        if ($db instanceof \OwnPay\Core\Database) {
-            $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            $this->session->flashError('Database service unavailable; cannot verify brand is safe to delete');
+            return Response::redirect('/admin/brands');
         }
+
+        $blockers = $this->collectDeletionBlockers($db, $id);
+        if (!empty($blockers)) {
+            $brandNameVal = $brand['name'] ?? '';
+            $brandName = is_string($brandNameVal) ? $brandNameVal : '';
+            $this->audit->log('brand.delete_blocked', 'merchant', $id, null, [
+                'name' => $brandName,
+                'blockers' => $blockers,
+            ]);
+            $summary = implode(', ', $blockers);
+            $this->session->flashError(
+                "Cannot delete brand '{$brandName}': it has financial history ({$summary}). "
+                . 'Archive or migrate those records before deletion.'
+            );
+            return Response::redirect('/admin/brands');
+        }
+
+        // No financial history - safe to hard-delete. Cascade handled by DB FK constraints.
+        $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
 
         $brandNameVal = $brand['name'] ?? '';
         $brandName = is_string($brandNameVal) ? $brandNameVal : '';
         $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brandName]);
         $this->session->flashSuccess("Brand '{$brandName}' deleted");
         return Response::redirect('/admin/brands');
+    }
+
+    /**
+     * Collects the list of financial-history blockers that prevent brand deletion.
+     *
+     * Returns a non-empty array of human-readable blocker descriptions when the
+     * brand has any dependent financial records. Returns an empty array when the
+     * brand is safe to hard-delete.
+     *
+     * @param \OwnPay\Core\Database $db The database wrapper.
+     * @param int $id The merchant/brand ID.
+     * @return list<string> List of blocker descriptions; empty when safe to delete.
+     */
+    private function collectDeletionBlockers(\OwnPay\Core\Database $db, int $id): array
+    {
+        $checks = [
+            ['op_transactions', 'transactions'],
+            ['op_refunds', 'refunds'],
+            ['op_disputes', 'disputes'],
+            ['op_invoices', 'invoices'],
+            ['op_payment_links', 'payment links'],
+            ['op_payment_intents', 'payment intents'],
+            ['op_customers', 'customers'],
+            ['op_webhooks', 'webhook deliveries'],
+            ['op_api_keys', 'API keys'],
+            ['op_merchant_users', 'staff accounts'],
+            ['op_fee_rules', 'fee rules'],
+        ];
+
+        $blockers = [];
+        foreach ($checks as [$table, $label]) {
+            $count = $db->fetchOne("SELECT COUNT(*) AS c FROM {$table} WHERE merchant_id = :mid", ['mid' => $id]);
+            $countVal = $count['c'] ?? 0;
+            $countInt = is_numeric($countVal) ? (int) $countVal : 0;
+            if ($countInt > 0) {
+                $blockers[] = "{$countInt} {$label}";
+            }
+        }
+
+        // Non-zero ledger account balances would silently disappear under CASCADE
+        // delete, so they get their own explicit check.
+        $balances = $db->fetchOne(
+            "SELECT COALESCE(SUM(balance), 0) AS total FROM op_ledger_accounts WHERE merchant_id = :mid",
+            ['mid' => $id]
+        );
+        $totalVal = $balances['total'] ?? 0;
+        $totalStr = is_numeric($totalVal) ? (string) $totalVal : '0';
+        if (bccomp($totalStr, '0', 2) !== 0) {
+            $blockers[] = "non-zero ledger balance ({$totalStr})";
+        }
+
+        return $blockers;
     }
 }

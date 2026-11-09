@@ -9,6 +9,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\TransactionService;
 
@@ -18,7 +19,7 @@ use OwnPay\Service\Payment\TransactionService;
  * Implements strict PSR-4 type compliance, timing-safe webhook signing,
  * and sandboxed backchannel payment status checks.
  */
-final class HelcimGateway implements PluginInterface, GatewayAdapterInterface
+final class HelcimGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -108,6 +109,14 @@ final class HelcimGateway implements PluginInterface, GatewayAdapterInterface
     {
         // Global and NA payment aggregators are currency-agnostic and permit dynamic conversions.
         return [];
+    }
+
+    public function testConnection(array $credentials): array
+    {
+        return [
+            'success' => false,
+            'message' => 'Helcim connection testing is not supported yet.',
+        ];
     }
 
     /**
@@ -239,26 +248,11 @@ final class HelcimGateway implements PluginInterface, GatewayAdapterInterface
     }
 
     /**
-     * Validates webhook signatures.
+     * Fails closed: no signature verification is implemented for this gateway yet.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'X-Helcim-Signature';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
-            return false;
-        }
-
-        // Webhook timing-safe validation check simulation
-        return true;
+        return false;
     }
 
     /**

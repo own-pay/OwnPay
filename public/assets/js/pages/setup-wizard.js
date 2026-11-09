@@ -10,13 +10,15 @@
 
     let pairingPollInterval = null;
     let pairingTimerInterval = null;
+    let activePairingController = null;
+    let pairingRenewalTimeout = null;
 
     function copyOtpToClipboard() {
         const otpEl = document.getElementById("op-wizard-otp-display");
         const otpText = otpEl ? otpEl.textContent : "";
         if (otpText && otpText !== "------") {
             // admin.js (which defines window.opCopyText) always loads before
-            // this page script — see #op-page-scripts in wizard.twig — so no
+            // this page script - see #op-page-scripts in wizard.twig - so no
             // typeof guard/fallback is needed. The old fallback called
             // navigator.clipboard.writeText() directly with no .catch(),
             // silently stranding the user mid-onboarding on any rejection
@@ -76,6 +78,10 @@
             clearInterval(pairingTimerInterval);
             pairingTimerInterval = null;
         }
+        if (pairingRenewalTimeout) {
+            clearTimeout(pairingRenewalTimeout);
+            pairingRenewalTimeout = null;
+        }
     }
 
     function loadPairingDetails() {
@@ -91,15 +97,25 @@
         if (qrPlaceholder) {qrPlaceholder.style.display = "block";}
         if (otpWrapper) {otpWrapper.style.display = "none";}
 
+        if (activePairingController) {activePairingController.abort();}
+        activePairingController = new AbortController();
+        const pairingController = activePairingController;
+
         fetch("/admin/devices/generate-otp", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRF-Token": window.OP_CSRF || ""
-            }
+            },
+            signal: pairingController.signal
         })
         .then(res => res.json())
         .then(data => {
+            // Ignore stale responses from a superseded/aborted request so a
+            // late-arriving pairing payload cannot overwrite the current panel.
+            if (activePairingController !== pairingController || pairingController.signal.aborted) {
+                return;
+            }
             if (data.success) {
                 if (qrPlaceholder) {qrPlaceholder.style.display = "none";}
                 if (qrImg) {
@@ -107,9 +123,12 @@
                     qrImg.style.display = "block";
                 }
                 
-                if (otpDisplay) {otpDisplay.textContent = data.otp;}
+                if (otpDisplay) {
+                    otpDisplay.textContent = data.otp;
+                    otpDisplay.style.opacity = "";
+                }
+                if (timerSpan) {timerSpan.style.color = "";}
                 if (otpWrapper) {otpWrapper.style.display = "flex";}
-                
                 let timeLeft = data.expires_in || 300;
                 if (pairingTimerInterval) {clearInterval(pairingTimerInterval);}
                 pairingTimerInterval = setInterval(() => {
@@ -117,10 +136,18 @@
                     if (timeLeft <= 0) {
                         clearInterval(pairingTimerInterval);
                         if (timerSpan) {
-                            timerSpan.textContent = "Expired";
-                            timerSpan.style.color = "#ef4444";
+                            timerSpan.textContent = "Refreshing...";
+                            timerSpan.style.color = "var(--op-warning)";
                         }
                         if (otpDisplay) {otpDisplay.style.opacity = "0.5";}
+                        stopPairingPoll();
+                        pairingRenewalTimeout = setTimeout(() => {
+                            pairingRenewalTimeout = null;
+                            const activePanel = document.getElementById("panel-5");
+                            if (activePanel && activePanel.classList.contains("active")) {
+                                loadPairingDetails();
+                            }
+                        }, 1500);
                     } else {
                         const mins = Math.floor(timeLeft / 60);
                         const secs = timeLeft % 60;
@@ -136,6 +163,9 @@
             }
         })
         .catch(err => {
+            // Stale/superseded request: do not surface its failure or overwrite state.
+            if (activePairingController !== pairingController) {return;}
+            if (err && err.name === "AbortError") {return;}
             console.error(err);
             showWizardError("Network error while generating device pairing OTP.");
         });
@@ -162,6 +192,7 @@
             loadPairingDetails();
         } else {
             stopPairingPoll();
+            if (activePairingController) {activePairingController.abort();}
         }
 
         clearWizardMessages();
@@ -422,6 +453,12 @@
             return;
         }
 
+        onboardingBrandId = Number(onboardingBrandId) || 0;
+        if (!onboardingBrandId || isNaN(onboardingBrandId) || onboardingBrandId <= 0) {
+            showWizardError("Brand not created yet. Please complete the brand step.");
+            return;
+        }
+
         const payload = {
             brand_id: onboardingBrandId,
             gateway_type: selectedGatewayType
@@ -471,6 +508,7 @@
                 btn.innerHTML = 'Save & Continue <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
             }
             if (data.success) {
+                if (data.brand_id) {onboardingBrandId = data.brand_id;}
                 showStep(5);
             } else {
                 showWizardError(data.error || "Failed to save gateway config.");
@@ -689,7 +727,7 @@
             finishBtn.addEventListener("click", completeWizard);
         }
 
-        // Mark step 1 active on first render — the tracker has no server-rendered
+        // Mark step 1 active on first render - the tracker has no server-rendered
         // active state, only showStep() toggles it, so it must run once on load.
         showStep(1);
     });

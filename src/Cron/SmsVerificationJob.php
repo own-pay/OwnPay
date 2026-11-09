@@ -139,9 +139,22 @@ final class SmsVerificationJob
                     $receivedAt = isset($sms['received_at']) && is_scalar($sms['received_at']) ? (string) $sms['received_at'] : null;
 
                     if ($isAllBrands) {
-                        if ($receivedAt !== null) {
-                            $transaction = $this->transactions->findPendingMatchGlobal($amount, $gatewaySlug ?? '', $receivedAt);
-                        }
+                        // CRON-5: Removed the `if ($receivedAt !== null)` guard.
+                        // The previous implementation silently dropped amount-
+                        // matching for all-brands SMS whose parser could not
+                        // extract a timestamp (e.g. the SMS body had no
+                        // parseable date - SmsParserService::normalizeTimestamp
+                        // is documented as lossy). The corresponding pending
+                        // transaction stayed unresolved, the customer's payment
+                        // was never auto-verified, and the merchant had to
+                        // manually verify it - a silent data-loss bug affecting
+                        // only the all-brands device path (the most common
+                        // deployment for small merchants). The repository
+                        // method findPendingMatchGlobal() already handles the
+                        // null-timestamp case safely with an ambiguity-guarded
+                        // count query, so the guard was an unnecessary
+                        // restriction.
+                        $transaction = $this->transactions->findPendingMatchGlobal($amount, $gatewaySlug ?? '', $receivedAt);
                     } else {
                         $transaction = $this->transactions->findPendingMatch($smsMerchantId, $amount, $gatewaySlug ?? '', $receivedAt);
                     }
@@ -166,6 +179,50 @@ final class SmsVerificationJob
 
                     try {
                         $this->db->transaction(function () use ($smsId, $transactionId, $resolvedBrand, $needsRebind, $txAmount, $txFee, $txCurrency) {
+                            // SMS-5: Lock the transaction row for the duration
+                            // of this DB transaction. The previous implementation
+                            // read $transaction['status'] BEFORE the DB transaction
+                            // opened (stale fetch), then unconditionally called
+                            // transactionService->complete() + ledgerService->recordPaymentReceived().
+                            // complete() internally calls markCompletedIfNotTerminal()
+                            // (an atomic UPDATE … WHERE status NOT IN (terminal))
+                            // which returns 0 affected rows when another worker
+                            // already completed the txn - but the cron did NOT
+                            // check that return value, so it credited the ledger
+                            // a second time. Two concurrent workers (or a worker
+                            // racing an admin matchSms call) processing two
+                            // different SMS that matched the same transaction
+                            // would each link their own SMS row, each call
+                            // complete() (second is a no-op), and each call
+                            // recordPaymentReceived() - crediting the merchant
+                            // ledger twice for one payment.
+                            $lockedTxn = $this->db->fetchOne(
+                                "SELECT id, status FROM op_transactions
+                                 WHERE id = :tid AND merchant_id = :mid
+                                 LIMIT 1 FOR UPDATE",
+                                ['tid' => $transactionId, 'mid' => $resolvedBrand]
+                            );
+                            if ($lockedTxn === null) {
+                                throw new \RuntimeException('Transaction disappeared during SMS verification.');
+                            }
+                            $lockedStatus = isset($lockedTxn['status']) && is_scalar($lockedTxn['status'])
+                                ? (string) $lockedTxn['status']
+                                : '';
+                            if ($lockedStatus !== 'pending') {
+                                // Another worker already completed this txn
+                                // between our stale fetch and the FOR UPDATE
+                                // lock. Link the SMS row so the audit trail
+                                // shows we attempted the match, but do NOT
+                                // credit the ledger again.
+                                if ($needsRebind) {
+                                    $this->smsParsed->rebindToBrand($smsId, $transactionId, $resolvedBrand);
+                                } else {
+                                    $this->smsParsed->forTenant($resolvedBrand)
+                                        ->linkToTransaction($smsId, $transactionId);
+                                }
+                                return;
+                            }
+
                             if ($needsRebind) {
                                 $this->smsParsed->rebindToBrand($smsId, $transactionId, $resolvedBrand);
                             } else {

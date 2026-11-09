@@ -120,3 +120,82 @@ describe('setup-wizard.js', () => {
     vi.useRealTimers();
   });
 });
+
+describe('setup-wizard.js gateway brand-id guard', () => {
+  let dom, window, document;
+
+  function makeDom(brandId) {
+    const html = `
+      <!DOCTYPE html>
+      <html><body>
+        <div id="op-setup-wizard">
+          <div class="op-wizard-tracker">
+            <div class="op-wizard-tracker-node" data-step="1"></div>
+            <div class="op-wizard-tracker-node" data-step="2"></div>
+            <div class="op-wizard-tracker-node" data-step="3"></div>
+            <div class="op-wizard-tracker-node" data-step="4"></div>
+            <div class="op-wizard-tracker-node" data-step="5"></div>
+          </div>
+          <div class="op-wizard-panel" id="panel-1"></div>
+          <div class="op-wizard-panel" id="panel-4">
+            <div class="op-choice-card" data-gateway="stripe" id="choice-stripe">Stripe</div>
+            <input id="stripe_key" value="pk_test" />
+            <input id="stripe_secret" value="sk_test" />
+            <button id="btn-save-gateway">Save</button>
+          </div>
+          <div class="op-wizard-panel" id="panel-5"></div>
+          <div id="wizard-error" style="display:none"><span id="wizard-error-text"></span></div>
+          <div id="wizard-success" style="display:none"><span id="wizard-success-text"></span></div>
+        </div>
+      </body></html>
+    `;
+    dom = new JSDOM(html, { url: 'http://localhost/admin/setup-wizard', runScripts: 'dangerously', resources: 'usable' });
+    window = dom.window;
+    document = window.document;
+    window.OP_ONBOARDING_BRAND_ID = brandId;
+    window.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ success: true, brand_id: 99 }) }));
+    const jsPath = path.join(__dirname, '../../public/assets/js/pages/setup-wizard.js');
+    const jsCode = fs.readFileSync(jsPath, 'utf-8');
+    window.eval(jsCode);
+    window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
+  }
+
+  afterEach(() => {
+    if (dom) { dom.window.close(); }
+  });
+
+  it('rejects gateway submission when brand id is zero', () => {
+    makeDom(0);
+    document.getElementById('choice-stripe').click();
+    document.getElementById('btn-save-gateway').click();
+
+    const errEl = document.getElementById('wizard-error');
+    expect(errEl.style.display).toBe('flex');
+    expect(document.getElementById('wizard-error-text').textContent).toContain('Brand not created yet');
+    expect(window.fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects gateway submission when brand id is negative', () => {
+    makeDom(-5);
+    document.getElementById('choice-stripe').click();
+    document.getElementById('btn-save-gateway').click();
+
+    const errEl = document.getElementById('wizard-error');
+    expect(errEl.style.display).toBe('flex');
+    expect(window.fetch).not.toHaveBeenCalled();
+  });
+
+  it('submits gateway with the brand id and advances on success', async () => {
+    makeDom(42);
+    document.getElementById('choice-stripe').click();
+    document.getElementById('btn-save-gateway').click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(window.fetch).toHaveBeenCalledWith(
+      '/admin/setup-wizard/setup-gateway',
+      expect.objectContaining({ body: JSON.stringify({ brand_id: 42, gateway_type: 'stripe', stripe_key: 'pk_test', stripe_secret: 'sk_test' }) })
+    );
+    const errEl = document.getElementById('wizard-error');
+    expect(errEl.style.display).toBe('none');
+  });
+});

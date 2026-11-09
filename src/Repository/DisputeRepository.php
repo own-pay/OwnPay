@@ -72,23 +72,36 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Resolves an open dispute, setting the final status and evidence.
+     * Resolves an active dispute, setting the final status and evidence.
      *
      * Uses microsecond-precision timestamps.
+     *
+     * State-machine guard (issue #337, PAY-9): the UPDATE is restricted to
+     * disputes whose status is still 'open' or 'under_review'. An already-
+     * resolved dispute ('won', 'lost', 'closed') is left untouched so that:
+     *   - the original resolution evidence is preserved,
+     *   - resolved_at is not overwritten,
+     *   - the dispute.resolved event is not re-fired by the service layer.
      *
      * @param int $id Primary key identifier of the dispute.
      * @param string $status Target dispute resolution status.
      * @param string|null $evidence Optional JSON-encoded resolution evidence details.
-     * @return void
+     * @return int Number of affected rows (0 when the dispute is already resolved
+     *             or does not belong to the active tenant - callers must surface
+     *             this as a user-facing error rather than silently succeed).
      */
-    public function resolve(int $id, string $status, ?string $evidence = null): void
+    public function resolve(int $id, string $status, ?string $evidence = null): int
     {
-        $this->db->execute("
+        $stmt = $this->db->execute("
             UPDATE {$this->table}
             SET status = :st, evidence = :ev,
                 resolved_at = NOW(6), updated_at = NOW(6)
             WHERE id = :id AND merchant_id = :mid
+              AND status IN ('open', 'under_review')
         ", ['st' => $status, 'ev' => $evidence, 'id' => $id, 'mid' => $this->requireTenant()]);
+
+        $count = $stmt->rowCount();
+        return $count > 0 ? $count : 0;
     }
 
     /**

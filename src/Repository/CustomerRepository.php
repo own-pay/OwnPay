@@ -18,7 +18,7 @@ final class CustomerRepository extends BaseRepository
     protected string $table = 'op_customers';
     protected array $fillable = [
         'merchant_id', 'uuid', 'name_enc', 'email_enc', 'email_hash',
-        'phone_enc', 'phone_hash', 'metadata',
+        'phone_enc', 'phone_hash', 'address_enc', 'metadata', 'status',
     ];
 
     /**
@@ -31,8 +31,12 @@ final class CustomerRepository extends BaseRepository
      */
     public function findByEmailHash(string $hash): ?array
     {
+        // Audit fix CUS-4: exclude soft-deleted rows. CustomerPiiService::delete()
+        // now nulls email_hash/phone_hash when soft-deleting, but defending in
+        // depth here means even a legacy delete (or a future regression) cannot
+        // resurrect a forgotten customer via the lookup path.
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE email_hash = :h AND merchant_id = :mid LIMIT 1",
+            "SELECT * FROM {$this->table} WHERE email_hash = :h AND merchant_id = :mid AND status != 'deleted' LIMIT 1",
             ['h' => $hash, 'mid' => $this->requireTenant()]
         );
     }
@@ -47,8 +51,10 @@ final class CustomerRepository extends BaseRepository
      */
     public function findByPhoneHash(string $hash): ?array
     {
+        // Audit fix CUS-4: exclude soft-deleted rows so a forgotten
+        // customer's phone cannot be resolved via this lookup path.
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE phone_hash = :h AND merchant_id = :mid LIMIT 1",
+            "SELECT * FROM {$this->table} WHERE phone_hash = :h AND merchant_id = :mid AND status != 'deleted' LIMIT 1",
             ['h' => $hash, 'mid' => $this->requireTenant()]
         );
     }
@@ -56,15 +62,21 @@ final class CustomerRepository extends BaseRepository
     /**
      * Lists customers with transaction statistics, sorting, and pagination.
      *
-     * Performs blind-indexed email hash search if query is provided.
+     * Performs a blind-indexed email-hash search when a non-empty $emailHash is
+     * supplied. The caller is responsible for computing the hash via
+     * CustomerPiiService::hashEmailForSearch() (or FieldEncryptor::hash()) so the
+     * algorithm matches the one used at customer-write time. Prior to audit fix
+     * API-12 this method computed the hash internally with plain hash('sha256', ...)
+     * which never matched the HMAC-SHA256 hash persisted at write time, so admin
+     * dashboard customer search by email was broken.
      *
-     * @param int $merchantId Active brand/store identifier context.
-     * @param string $query Optional search query (matches against email hash).
+     * @param int $merchantId Active brand/store identifier context (null for global All Brands view).
+     * @param string $emailHash Optional pre-computed email hash (HMAC-SHA256). Empty string for no filter.
      * @param int $page Page number (1-indexed).
      * @param int $perPage Maximum items per page.
      * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} Pagination envelope.
      */
-    public function paginateWithStats(?int $merchantId, string $query, int $page, int $perPage): array
+    public function paginateWithStats(?int $merchantId, string $emailHash, int $page, int $perPage): array
     {
         // merchantId === null => global "All Brands" view: aggregate across all brands.
         $conds = [];
@@ -73,9 +85,9 @@ final class CustomerRepository extends BaseRepository
             $conds[] = "c.merchant_id = :mid";
             $params['mid'] = $merchantId;
         }
-        if ($query !== '') {
-            // Email hash lookup only - cannot search encrypted name/phone by plaintext
-            $emailHash = hash('sha256', strtolower(trim($query)));
+        if ($emailHash !== '') {
+            // Email hash lookup only - cannot search encrypted name/phone by plaintext.
+            // Caller has already HMAC-hashed the query so it matches the stored email_hash column.
             $conds[] = "c.email_hash = :q";
             $params['q'] = $emailHash;
         }

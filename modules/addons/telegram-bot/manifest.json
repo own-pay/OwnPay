@@ -28,6 +28,7 @@
   "settings": {
     "bot_token": "",
     "chat_id": "",
+    "webhook_secret": "",
     "alert_on_success": true,
     "alert_on_failure": true,
     "enabled": false

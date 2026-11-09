@@ -50,7 +50,7 @@
         {% if current_user.two_fa_enabled %}
             <p class="op-text-success">✓ 2FA is enabled on your account.</p>
             <p class="op-text-muted op-mt-2">To disable 2FA, confirm your current password:</p>
-            <form method="POST" action="/admin/my-account/2fa/disable" class="op-form" style="max-width:400px;" onsubmit="return confirm('Disable 2FA? Your account will be less secure.')">
+            <form method="POST" action="/admin/my-account/2fa/disable" class="op-form" style="max-width:400px;" data-confirm="Disable 2FA? Your account will be less secure.">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <div class="op-form-group">
                     <label>Current Password</label>

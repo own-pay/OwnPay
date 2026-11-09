@@ -35,6 +35,27 @@ final class InstallerController
     private ?bool $dbProbeResult = null;
 
     /**
+     * @var bool|null Memoized result for temp-env superadmin existence probe.
+     */
+    private ?bool $tempEnvAdminProbeResult = null;
+
+    /**
+     * Default allowlist of DB hosts the installer will connect to.
+     *
+     * The installer runs on the OwnPay server and connects to the DB using
+     * user-supplied credentials. Without an allowlist, a CSRF attacker can
+     * make the OwnPay server initiate an outbound MySQL connection to an
+     * attacker-controlled rogue MySQL server, which can capture the
+     * supplied credentials AND trigger LOAD DATA LOCAL INFILE to read
+     * arbitrary files from the OwnPay server (CVE-2017-15945-class).
+     *
+     * Operators who need to point the installer at a remote DB (e.g. a
+     * managed RDS instance) can set the OWNPAY_INSTALLER_ALLOWED_DB_HOSTS
+     * env var to a comma-separated list of additional allowed hostnames.
+     */
+    private const DEFAULT_ALLOWED_DB_HOSTS = ['127.0.0.1', 'localhost', '::1'];
+
+    /**
      * InstallerController constructor.
      */
     public function __construct()
@@ -52,7 +73,10 @@ final class InstallerController
     public function show(Request $req): Response
     {
         if ($this->isInstalled($req)) {
-            return Response::html($this->renderPhpTemplate('install/locked.php', []));
+            $lockedNonce = $req->getAttribute('csp_nonce');
+            return Response::html($this->renderPhpTemplate('install/locked.php', [
+                'csp_nonce' => is_string($lockedNonce) ? $lockedNonce : '',
+            ]));
         }
         $stepQuery = $req->query('step', '1');
         $stepVal = (is_int($stepQuery) || is_string($stepQuery) || is_numeric($stepQuery)) ? (int) $stepQuery : 1;
@@ -63,6 +87,9 @@ final class InstallerController
         if ($step >= 3 && !file_exists($tempEnv)) {
             return Response::redirect('/install?step=2');
         }
+        if ($step >= 4 && !$this->tempEnvHasSuperadmin()) {
+            return Response::redirect('/install?step=3');
+        }
 
         $data = match ($step) {
             1       => ['requirements' => $this->checkRequirements()],
@@ -71,6 +98,18 @@ final class InstallerController
         $data['step'] = $step;
         $nonceVal = $req->getAttribute('csp_nonce');
         $data['csp_nonce'] = is_string($nonceVal) ? $nonceVal : '';
+        // CSRF protection is enforced by CsrfMiddleware on every install POST.
+        // The token must be rendered into the page so the AJAX wizard can echo
+        // it back via the X-CSRF-Token header. The session is started by
+        // SessionMiddleware which now runs in the 'install' middleware group.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (!isset($_SESSION['_csrf_token']) || !is_string($_SESSION['_csrf_token']) || $_SESSION['_csrf_token'] === '') {
+                $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+            }
+            $data['csrf_token'] = $_SESSION['_csrf_token'];
+        } else {
+            $data['csrf_token'] = '';
+        }
         return Response::html($this->renderPhpTemplate("install/step{$step}.php", $data));
     }
 
@@ -117,11 +156,25 @@ final class InstallerController
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
+        // SECURITY (audit INST-7): allowlist the DB host so a CSRF attacker
+        // cannot make the OwnPay server initiate an outbound MySQL connection
+        // to a rogue server that captures credentials and triggers
+        // LOAD DATA LOCAL INFILE file disclosure.
+        if (!$this->isDbHostAllowed($host)) {
+            return Response::json([
+                'success' => false,
+                'error' => 'DB host is not in the installer allowlist. Set OWNPAY_INSTALLER_ALLOWED_DB_HOSTS to permit a remote DB.',
+            ], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 5,
+                // Disable LOCAL INFILE: a rogue MySQL server can otherwise
+                // request LOAD DATA LOCAL INFILE '/etc/passwd' and read
+                // arbitrary files from the OwnPay server.
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             
             $mysqlVersion = $pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
@@ -195,7 +248,7 @@ final class InstallerController
         $prefixVal    = $body['prefix'] ?? null;
         $prefix       = is_string($prefixVal) ? trim($prefixVal) : 'op_';
         $overwriteVal = $body['confirm_overwrite'] ?? null;
-        $overwrite    = (is_int($overwriteVal) || is_string($overwriteVal) || is_numeric($overwriteVal)) ? (bool)$overwriteVal : false;
+        $overwrite    = $overwriteVal === true || $overwriteVal === 1 || $overwriteVal === '1' || $overwriteVal === 'true';
 
         if (!$name || !$user) {
             return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
@@ -206,10 +259,22 @@ final class InstallerController
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
         }
+        // SECURITY (audit INST-7): allowlist the DB host (same guard as
+        // testDatabase - see that method for rationale).
+        if (!$this->isDbHostAllowed($host)) {
+            return Response::json([
+                'success' => false,
+                'error' => 'DB host is not in the installer allowlist. Set OWNPAY_INSTALLER_ALLOWED_DB_HOSTS to permit a remote DB.',
+            ], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                // Disable LOCAL INFILE: a rogue MySQL server can otherwise
+                // request LOAD DATA LOCAL INFILE '/etc/passwd' and read
+                // arbitrary files from the OwnPay server.
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             
             $dbCheck = $pdo->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
@@ -238,24 +303,75 @@ final class InstallerController
             }
 
             if ($prefix !== 'op_') {
-                $sql = str_replace('`op_', "`{$prefix}", $sql);
+                // Replace backticked, single-quoted, and bare table-prefix
+                // references. The naive `str_replace('`op_', "`$prefix", $sql)`
+                // only handled the backticked form and silently missed any
+                // single-quoted or unquoted references (e.g. inside
+                // REFERENCES clauses, comments, or default-value strings),
+                // leaving the schema half-prefixed and causing "table not
+                // found" errors at runtime. The prefix is validated against
+                // /^[a-z0-9_]{1,30}$/i above, so it is safe to interpolate
+                // into the replacement without further escaping.
+                $sql = preg_replace_callback(
+                    '/(?P<q>[`\'])(?P<name>op_[a-z_][a-z0-9_]*)\k<q>'
+                    . '|(?P<pre>[\s(])(?P<bare>op_[a-z_][a-z0-9_]*)/i',
+                    static function (array $m) use ($prefix): string {
+                        if ($m['q'] !== '') {
+                            return $m['q'] . $prefix . substr($m['name'], 3) . $m['q'];
+                        }
+                        return $m['pre'] . $prefix . substr($m['bare'], 3);
+                    },
+                    $sql
+                ) ?? $sql;
             }
+
+            // InnoDB requires foreign-key constraint names to be unique within
+            // the database, so namespace schema constraints for every install.
+            $sql = preg_replace_callback(
+                '/(?P<head>\bCONSTRAINT\s+)(?P<quote>`?)(?P<name>[a-z0-9_]+)(?P=quote)/i',
+                static function (array $m) use ($prefix): string {
+                    return $m['head'] . $m['quote'] . $prefix . $m['name'] . $m['quote'];
+                },
+                $sql
+            ) ?? $sql;
 
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
-            $existing = [];
-            $showTablesStmt = $pdo->query("SHOW TABLES");
-            if ($showTablesStmt !== false) {
-                $existing = $showTablesStmt->fetchAll(\PDO::FETCH_COLUMN);
-            }
-            foreach ($existing as $table) {
-                $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
-            }
+            try {
+                $existing = [];
+                $showTablesStmt = $pdo->query("SHOW FULL TABLES");
+                if ($showTablesStmt !== false) {
+                    $existing = $showTablesStmt->fetchAll(\PDO::FETCH_NUM);
+                }
+                // Installation is explicitly destructive after overwrite confirmation.
+                // Drop views first, then tables, so old prefixes and other schemas cannot remain.
+                foreach ($existing as $entry) {
+                    $object = $entry[0] ?? null;
+                    $type = strtoupper((string) ($entry[1] ?? 'BASE TABLE'));
+                    if (!is_string($object) || $object === '') {
+                        continue;
+                    }
+                    $quoted = str_replace('`', '``', $object);
+                    if ($type === 'VIEW') {
+                        $pdo->exec("DROP VIEW IF EXISTS `{$quoted}`");
+                    }
+                }
+                foreach ($existing as $entry) {
+                    $object = $entry[0] ?? null;
+                    $type = strtoupper((string) ($entry[1] ?? 'BASE TABLE'));
+                    if (!is_string($object) || $object === '' || $type === 'VIEW') {
+                        continue;
+                    }
+                    $quoted = str_replace('`', '``', $object);
+                    $pdo->exec("DROP TABLE IF EXISTS `{$quoted}`");
+                }
 
-            $statements = $this->parseSqlStatements($sql);
-            foreach ($statements as $stmt) {
-                $pdo->exec($stmt);
+                $statements = $this->parseSqlStatements($sql);
+                foreach ($statements as $stmt) {
+                    $pdo->exec($stmt);
+                }
+            } finally {
+                $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
             }
-            $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
             $env = 'DB_HOST=' . $this->envToken($host) . "\n"
                  . 'DB_PORT=' . $this->envToken((string) $port) . "\n"
                  . 'DB_NAME=' . $this->envToken($name) . "\n"
@@ -337,8 +453,61 @@ final class InstallerController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return Response::json(['success' => false, 'error' => 'Invalid email'], 422);
         }
-        if (strlen($password) < 8) {
-            return Response::json(['success' => false, 'error' => 'Password min 8 chars'], 422);
+        // Audit fix INST-8: the previous check only enforced strlen >= 8,
+        // so passwords like 'password' or '12345678' were accepted for
+        // the superadmin account - the highest-privilege credential in
+        // the system (unrestricted access to ALL merchant data, ALL
+        // brands, ALL financial operations). Mirrors the
+        // StaffController::create() policy (audit STF-2):
+        //   - minimum length 12 characters
+        //   - at least 3 of 4 character classes (uppercase, lowercase,
+        //     digit, symbol)
+        //   - reject passwords that embed the admin's own identity
+        //     fields or the product name
+        // HIBP k-anonymity check is intentionally omitted: the installer
+        // may run in air-gapped deployments where outbound HTTPS to
+        // api.pwnedpasswords.com is unavailable. The complexity + length
+        // + context checks above are the deterministic, side-effect-free
+        // baseline.
+        if (strlen($password) < 12) {
+            return Response::json(['success' => false, 'error' => 'Password must be at least 12 characters.'], 422);
+        }
+        $classesMet = 0;
+        if (preg_match('/[A-Z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[a-z]/', $password)) {
+            $classesMet++;
+        }
+        if (preg_match('/[0-9]/', $password)) {
+            $classesMet++;
+        }
+        // Symbols: anything that is not a letter or digit.
+        if (preg_match('/[^A-Za-z0-9]/', $password)) {
+            $classesMet++;
+        }
+        if ($classesMet < 3) {
+            return Response::json(['success' => false, 'error' => 'Password must use at least 3 of the 4 character classes: uppercase, lowercase, digits, symbols.'], 422);
+        }
+        // Context-aware blocklist: reject passwords that embed the admin's
+        // own identity fields or the product name. These are the first
+        // guesses an attacker would try once they know the admin's email.
+        $pwLower = strtolower($password);
+        $forbiddenSubstrings = ['ownpay'];
+        $forbiddenSubstrings[] = strtolower($name);
+        $forbiddenSubstrings[] = strtolower($username);
+        if (str_contains($email, '@')) {
+            $emailUser = strtolower(explode('@', $email, 2)[0]);
+            if ($emailUser !== '') {
+                $forbiddenSubstrings[] = $emailUser;
+            }
+        }
+        foreach ($forbiddenSubstrings as $needle) {
+            // Skip short needles - they would cause false positives
+            // (e.g. name "Jo" rejecting any password containing "jo").
+            if (strlen($needle) >= 4 && str_contains($pwLower, $needle)) {
+                return Response::json(['success' => false, 'error' => 'Password must not contain your name, username, email, or "ownpay".'], 422);
+            }
         }
 
         $envFile = $this->rootDir . '/storage/.env.temp';
@@ -357,10 +526,21 @@ final class InstallerController
             $dbUser = $env['DB_USER'] ?? 'root';
             $dbPass = $env['DB_PASS'] ?? '';
             $p      = $env['DB_PREFIX'] ?? 'op_';
+            if (!preg_match('/^[a-z0-9_]{1,30}$/i', $p)) {
+                return Response::json(['success' => false, 'error' => 'Invalid database prefix configuration.'], 500);
+            }
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-                $dbUser, $dbPass
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth -
+                    // the host was allowlisted at importSchema time, but a
+                    // rogue MySQL server could still request file reads).
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             $now = DateHelper::now();
@@ -409,15 +589,27 @@ final class InstallerController
 
             // 5. Seed default permissions
             $permissions = [
+                ['dashboard.view',        'View Dashboard',            'dashboard'],
+                ['dashboard.stats',       'View Statistics',           'dashboard'],
                 ['admin.access',          'Admin Access',             'system'],
                 ['transactions.view',     'View Transactions',        'payments'],
                 ['transactions.manage',   'Manage Transactions',      'payments'],
+                ['transactions.update',   'Update Transactions',      'payments'],
+                ['transactions.export',   'Export Transactions',      'payments'],
                 ['invoices.view',         'View Invoices',            'payments'],
                 ['invoices.manage',       'Manage Invoices',          'payments'],
+                ['invoices.create',       'Create Invoices',           'payments'],
+                ['invoices.update',       'Update Invoices',           'payments'],
+                ['invoices.delete',       'Delete Invoices',           'payments'],
                 ['payment_links.view',    'View Payment Links',       'payments'],
                 ['payment_links.manage',  'Manage Payment Links',     'payments'],
+                ['payment_links.create',  'Create Payment Links',     'payments'],
+                ['payment_links.update',  'Update Payment Links',     'payments'],
+                ['payment_links.delete',  'Delete Payment Links',     'payments'],
                 ['customers.view',        'View Customers',           'people'],
                 ['customers.manage',      'Manage Customers',         'people'],
+                ['customers.create',      'Create Customers',         'people'],
+                ['customers.update',      'Update Customers',         'people'],
                 ['gateways.view',         'View Gateways',            'gateways'],
                 ['gateways.manage',       'Manage Gateways',          'gateways'],
                 ['brands.view',           'View Brands',              'people'],
@@ -425,10 +617,19 @@ final class InstallerController
                 ['brands.access_all',     'Access All Brands view',   'people'],
                 ['staff.view',            'View Staff',               'people'],
                 ['staff.manage',          'Manage Staff',             'people'],
+                ['staff.create',          'Create Staff',              'people'],
+                ['staff.update',          'Update Staff',              'people'],
+                ['staff.delete',          'Delete Staff',              'people'],
+                ['merchants.view',        'View Merchants',            'merchants'],
+                ['merchants.create',      'Create Merchants',          'merchants'],
+                ['merchants.update',      'Update Merchants',            'merchants'],
                 ['settings.view',         'View Settings',            'system'],
                 ['settings.manage',       'Manage Settings',          'system'],
+                ['settings.update',       'Update Settings',            'system'],
                 ['api_keys.view',         'View API Keys',            'developers'],
                 ['api_keys.manage',       'Manage API Keys',          'developers'],
+                ['webhooks.view',         'View Webhooks',              'developers'],
+                ['webhooks.manage',       'Manage Webhooks',            'developers'],
                 ['sms.view',              'View SMS',                 'mobile'],
                 ['sms.manage',            'Manage SMS',               'mobile'],
                 ['devices.view',          'View Devices',             'mobile'],
@@ -500,6 +701,9 @@ final class InstallerController
         if (!file_exists($tempEnv)) {
             return Response::json(['success' => false, 'error' => 'Complete previous steps'], 400);
         }
+        if (!$this->tempEnvHasSuperadmin()) {
+            return Response::json(['success' => false, 'error' => 'Complete admin step first'], 400);
+        }
 
         try {
             $appKey          = 'base64:' . base64_encode(random_bytes(32));
@@ -513,9 +717,24 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
 
-            $httpHostRaw = $req->server('HTTP_HOST') ?: 'localhost';
+            // SECURITY (audit INST-10): do NOT trust the client-controlled
+            // Host header or X-Forwarded-Proto for the APP_URL/APP_DOMAIN
+            // values written permanently to .env. A poisoned
+            // `Host: evil.com` + `X-Forwarded-Proto: https` would write
+            // APP_URL=https://evil.com - every subsequent password-reset
+            // email would leak its token to the attacker, and webhook
+            // callbacks would be poisoned.
+            //
+            // Use SERVER_NAME first (set by the web server config -
+            // nginx `server_name` / Apache `ServerName`, NOT client-
+            // controlled) and only fall back to HTTP_HOST if the server
+            // did not set SERVER_NAME. Use Request::scheme() (which only
+            // honours X-Forwarded-Proto when REMOTE_ADDR is in the
+            // TRUSTED_PROXIES env var - see Request::isTrustedProxy()).
+            $serverName = $req->server('SERVER_NAME');
+            $httpHostRaw = $serverName !== '' ? $serverName : ($req->server('HTTP_HOST') ?: 'localhost');
             $httpHost = preg_match('/^[A-Za-z0-9.\-]+(:[0-9]{1,5})?$/', $httpHostRaw) === 1 ? $httpHostRaw : 'localhost';
-            $scheme = ($req->server('HTTPS') === 'on' || $req->server('HTTP_X_FORWARDED_PROTO') === 'https') ? 'https' : 'http';
+            $scheme = $req->scheme();
             $appUrl = "{$scheme}://{$httpHost}";
             $appDomain = parse_url($appUrl, PHP_URL_HOST) ?: $httpHost;
 
@@ -576,7 +795,24 @@ final class InstallerController
                 }
             }
             $finalContent = implode("\n", $lines);
-            
+
+            // SECURITY (audit INST-12): back up any existing .env before
+            // overwriting. Without this, a re-run of finalize() (e.g.
+            // after the marker file was accidentally deleted and the DB
+            // was briefly unreachable, so isInstalled() returned false)
+            // would silently clobber the existing .env with freshly-
+            // generated crypto keys - making all field-encrypted PII
+            // permanently unreadable and breaking the audit chain HMAC
+            // verification (SYS-1).
+            $envBackup = null;
+            if (file_exists($finalEnv)) {
+                $envBackup = $finalEnv . '.bak.' . time();
+                if (!@rename($finalEnv, $envBackup)) {
+                    return Response::json(['success' => false, 'error' => 'A .env file already exists and could not be backed up. Manually rename or delete .env before re-running the installer.'], 409);
+                }
+                error_log('[OwnPay] SECURITY (audit INST-12): backed up existing .env to ' . $envBackup . ' before finalize() overwrite.');
+            }
+
             file_put_contents($finalEnv, $finalContent, LOCK_EX);
             @chmod($finalEnv, 0640);
 
@@ -586,10 +822,19 @@ final class InstallerController
             $dbUser = $dbEnv['DB_USER'] ?? 'root';
             $dbPass = $dbEnv['DB_PASS'] ?? '';
             $p      = $dbEnv['DB_PREFIX'] ?? 'op_';
+            if (!preg_match('/^[a-z0-9_]{1,30}$/i', $p)) {
+                return Response::json(['success' => false, 'error' => 'Invalid database prefix configuration.'], 500);
+            }
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-                $dbUser, $dbPass
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    // Disable LOCAL INFILE (audit INST-7, defense-in-depth).
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
@@ -602,6 +847,8 @@ final class InstallerController
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
+                ['branding', 'app_logo_light',  '/assets/img/logo-light.svg?v=002', 'string'],
+                ['branding', 'app_logo_dark',   '/assets/img/logo-dark.svg?v=002',  'string'],
                 ['branding', 'primary_color',   '#6366f1',               'string'],
                 ['branding', 'footer_text',     "\u00a9 2025 {$appName}",  'string'],
                 ['mail',     'driver',          'smtp',                    'string'],
@@ -611,6 +858,7 @@ final class InstallerController
                 ['payment',  'success_url',     '',                        'string'],
                 ['payment',  'cancel_url',      '',                        'string'],
                 ['general',  'base_currency',   $currency,                 'string'],
+                ['general',  'exchange_rate_mode', 'auto',                'string'],
             ];
             $stmt = $pdo->prepare("INSERT IGNORE INTO {$p}system_settings (group_name, key_name, value, type) VALUES (?,?,?,?)");
             foreach ($seeds as $s) {
@@ -620,7 +868,7 @@ final class InstallerController
             // Bootstrap languages folder and copy master en.json
             $languagesDir = $this->rootDir . '/storage/languages';
             if (!is_dir($languagesDir)) {
-                @mkdir($languagesDir, 0755, true);
+                @mkdir($languagesDir, 0750, true);
             }
             $masterEn = $this->rootDir . '/config/languages/en.json';
             $destEn = $languagesDir . '/en.json';
@@ -629,11 +877,36 @@ final class InstallerController
                 @chmod($destEn, 0664);
             }
 
+            // Seed default languages so brand checkouts have a populated language dropdown
+            $langs = [
+                ['en', 'English', '1'],
+                ['bn', 'Bengali', '0'],
+                ['hi', 'Hindi',   '0'],
+                ['ar', 'Arabic',  '0'],
+            ];
+            $ls = $pdo->prepare("INSERT IGNORE INTO {$p}languages (code, name, status, is_default, translations) VALUES (?,?,'active',?,'{}')");
+            foreach ($langs as $l) {
+                $ls->execute($l);
+            }
+
             file_put_contents($this->markerFile, "Installed: " . DateHelper::iso() . "\nVersion: " . Version::CURRENT . "\n", LOCK_EX);
             @chmod($this->markerFile, 0640);
             @unlink($tempEnv);
 
-            return Response::json(['success' => true, 'message' => 'Installation complete']);
+            // Best-effort initial exchange rate sync: populate op_exchange_rates so
+            // non-base-currency conversions work immediately on a fresh install.
+            // Uses the same CurrencyUpdateJob as the manual "Sync rates" action and
+            // the cron job. A failure is non-fatal - it only logs, and rates can be
+            // synced later from the admin panel or via cron. The sync runs after the
+            // .env and marker are committed so an interrupted install is never
+            // re-armed by a mid-sync failure.
+            $this->syncInitialExchangeRates($pdo, $p);
+
+            $response = ['success' => true, 'message' => 'Installation complete'];
+            if ($envBackup !== null) {
+                $response['env_backup'] = $envBackup;
+            }
+            return Response::json($response);
         } catch (\Throwable $e) {
             $msg = $e->getMessage();
             if (str_contains($msg, 'Access denied')) {
@@ -642,6 +915,42 @@ final class InstallerController
                 $error = 'Installation failed. Please check your database settings and try again.';
             }
             return Response::json(['success' => false, 'error' => $error], 500);
+        }
+    }
+
+    /**
+     * Best-effort initial exchange rate synchronization at install time.
+     *
+     * Populates op_exchange_rates immediately after a fresh install so
+     * non-base-currency conversions work out of the box. Runs the same
+     * CurrencyUpdateJob as the manual "Sync rates" action and the cron
+     * job. A failure must never block or re-arm installation - it only
+     * logs, and rates can be synced later from the admin panel or cron.
+     *
+     * The Database wrapper rewrites the job's canonical op_* table
+     * references to the install's configured prefix, so this works for
+     * both the default prefix and a custom DB_PREFIX.
+     *
+     * @param \PDO   $pdo    The database connection opened by finalize().
+     * @param string $prefix The validated table prefix parsed from .env.temp.
+     * @return void
+     */
+    private function syncInitialExchangeRates(\PDO $pdo, string $prefix): void
+    {
+        try {
+            $db = new \OwnPay\Core\Database($pdo, $prefix);
+            // Bounded timeouts keep an offline/air-gapped install from stalling
+            // the finalize response: the job itself already treats a fetch
+            // failure as non-fatal.
+            $http = new \OwnPay\Service\System\HttpClient(5, 3);
+            $job = new \OwnPay\Cron\CurrencyUpdateJob($db, $http);
+            $result = $job->run(true);
+            if (empty($result['success'])) {
+                $error = is_string($result['error'] ?? null) ? $result['error'] : 'unknown error';
+                error_log("[OwnPay] Installer: initial exchange rate sync failed - {$error}");
+            }
+        } catch (\Throwable $e) {
+            error_log('[OwnPay] Installer: initial exchange rate sync failed - ' . $e->getMessage());
         }
     }
 
@@ -762,29 +1071,63 @@ final class InstallerController
             return $this->dbProbeResult;
         }
 
-        $host = $_ENV['DB_HOST'] ?? null;
-        $name = $_ENV['DB_NAME'] ?? null;
-        $user = $_ENV['DB_USER'] ?? null;
+        $host = $_ENV['DB_HOST'] ?? (getenv('DB_HOST') ?: null);
+        $name = $_ENV['DB_NAME'] ?? (getenv('DB_NAME') ?: null);
+        $user = $_ENV['DB_USER'] ?? (getenv('DB_USER') ?: null);
         if (!is_string($host) || $host === '' || !is_string($name) || $name === '' || !is_string($user) || $user === '') {
             return $this->dbProbeResult = false;
         }
-        $passVal = $_ENV['DB_PASS'] ?? '';
+        $passVal = $_ENV['DB_PASS'] ?? (getenv('DB_PASS') ?: '');
         $pass = is_string($passVal) ? $passVal : '';
-        $portVal = $_ENV['DB_PORT'] ?? 3306;
+        $portVal = $_ENV['DB_PORT'] ?? (getenv('DB_PORT') ?: 3306);
         $port = is_scalar($portVal) ? (int) $portVal : 3306;
-        $prefixVal = $_ENV['DB_PREFIX'] ?? 'op_';
+        $prefixVal = $_ENV['DB_PREFIX'] ?? (getenv('DB_PREFIX') ?: 'op_');
         $prefix = is_string($prefixVal) && preg_match('/^[a-z0-9_]{1,30}$/i', $prefixVal) ? $prefixVal : 'op_';
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 2,
+                // Disable LOCAL INFILE (audit INST-7, defense-in-depth -
+                // host comes from the live .env, but a rogue upstream
+                // MySQL server could still request file reads).
+                \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
             ]);
             $stmt = $pdo->query("SELECT 1 FROM `{$prefix}merchant_users` WHERE is_superadmin = 1 LIMIT 1");
             return $this->dbProbeResult = ($stmt !== false && $stmt->fetch() !== false);
         } catch (\Throwable) {
             return $this->dbProbeResult = false;
         }
+    }
+
+    /**
+     * Returns true if the given DB host is on the installer allowlist.
+     *
+     * The default allowlist permits only loopback hosts (127.0.0.1,
+     * localhost, ::1). Operators who need to point the installer at a
+     * remote DB (e.g. a managed RDS instance) can set the
+     * OWNPAY_INSTALLER_ALLOWED_DB_HOSTS env var to a comma-separated
+     * list of additional allowed hostnames/IPs.
+     *
+     * @param string $host The candidate DB host (already trimmed).
+     * @return bool True if the host is allowed.
+     */
+    private function isDbHostAllowed(string $host): bool
+    {
+        if ($host === '') {
+            return false;
+        }
+        $allowed = self::DEFAULT_ALLOWED_DB_HOSTS;
+        $extra = $_ENV['OWNPAY_INSTALLER_ALLOWED_DB_HOSTS'] ?? (getenv('OWNPAY_INSTALLER_ALLOWED_DB_HOSTS') ?: '');
+        if (is_string($extra) && $extra !== '') {
+            foreach (explode(',', $extra) as $h) {
+                $h = trim($h);
+                if ($h !== '') {
+                    $allowed[] = strtolower($h);
+                }
+            }
+        }
+        return in_array(strtolower($host), $allowed, true);
     }
 
     /**
@@ -826,6 +1169,56 @@ final class InstallerController
         ob_start();
         include $file;
         return ob_get_clean() ?: '';
+    }
+
+    /**
+     * Checks whether the DB from storage/.env.temp already contains a superadmin user.
+     *
+     * @return bool True when installer step 3 completed successfully.
+     */
+    private function tempEnvHasSuperadmin(): bool
+    {
+        if ($this->tempEnvAdminProbeResult !== null) {
+            return $this->tempEnvAdminProbeResult;
+        }
+
+        $tempEnv = $this->rootDir . '/storage/.env.temp';
+        if (!file_exists($tempEnv)) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
+
+        $env = $this->parseTempEnv($tempEnv);
+        if (empty($env)) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
+
+        $dbHost = $env['DB_HOST'] ?? 'localhost';
+        $dbPort = $env['DB_PORT'] ?? '3306';
+        $dbName = $env['DB_NAME'] ?? 'ownpay';
+        $dbUser = $env['DB_USER'] ?? 'root';
+        $dbPass = $env['DB_PASS'] ?? '';
+        $prefix = $env['DB_PREFIX'] ?? 'op_';
+
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
+
+        try {
+            $pdo = new \PDO(
+                "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
+                $dbUser,
+                $dbPass,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    \PDO::ATTR_TIMEOUT => 3,
+                    \PDO::MYSQL_ATTR_LOCAL_INFILE => false,
+                ]
+            );
+            $stmt = $pdo->query("SELECT 1 FROM `{$prefix}merchant_users` WHERE is_superadmin = 1 LIMIT 1");
+            return $this->tempEnvAdminProbeResult = ($stmt !== false && $stmt->fetch() !== false);
+        } catch (\Throwable) {
+            return $this->tempEnvAdminProbeResult = false;
+        }
     }
 
     /**

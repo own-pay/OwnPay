@@ -61,6 +61,7 @@ final class EmailNotificationService
             }
 
             $trxId    = $this->strVal($transaction['trx_id'] ?? '');
+            $gatewayTrxId = $this->strVal($transaction['gateway_trx_id'] ?? '');
             $amount   = $this->strVal($transaction['amount'] ?? '0.00');
             $currency = $this->strVal($transaction['currency'] ?? 'BDT');
             $gateway  = $this->strVal($transaction['gateway_slug'] ?? '');
@@ -68,6 +69,7 @@ final class EmailNotificationService
 
             $html = $this->renderer->render('email/payment_received.twig', [
                 'trx_id'     => $trxId,
+                'gateway_trx_id' => $gatewayTrxId,
                 'amount'     => $amount,
                 'currency'   => $currency,
                 'gateway'    => $gateway,
@@ -109,7 +111,10 @@ final class EmailNotificationService
             }
 
             $refundId = $this->strVal($refund['id'] ?? '');
-            $txnId    = $this->strVal($refund['transaction_id'] ?? '');
+            $txnId    = $this->strVal($refund['transaction_trx_id'] ?? ($refund['transaction_id'] ?? ''));
+            $gatewayName = $this->strVal($refund['gateway_name'] ?? ($refund['gateway_slug'] ?? 'Gateway'));
+            $gatewayTrxId = $this->strVal($refund['gateway_trx_id'] ?? '');
+            $gatewayRefundId = $this->strVal($refund['gateway_refund_id'] ?? '');
             $amount   = $this->strVal($refund['amount'] ?? '0.00');
             $reason   = $this->strVal($refund['reason'] ?? '');
             $created  = $this->strVal($refund['created_at'] ?? '');
@@ -117,6 +122,9 @@ final class EmailNotificationService
             $html = $this->renderer->render('email/refund_processed.twig', [
                 'refund_id'      => $refundId,
                 'transaction_id' => $txnId,
+                'gateway_name'   => $gatewayName,
+                'gateway_trx_id' => $gatewayTrxId,
+                'gateway_refund_id' => $gatewayRefundId,
                 'amount'         => $amount,
                 'reason'         => $reason,
                 'created_at'     => $created,

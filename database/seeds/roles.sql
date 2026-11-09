@@ -40,6 +40,7 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 ('staff.delete', 'Delete Staff', 'staff'),
 ('brands.view', 'View Brands', 'brands'),
 ('brands.manage', 'Manage Brands', 'brands'),
+('brands.access_all', 'Access All Brands view', 'brands'),
 -- Merchants
 ('merchants.view', 'View Merchants', 'merchants'),
 ('merchants.create', 'Create Merchants', 'merchants'),

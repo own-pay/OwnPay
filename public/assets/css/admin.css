@@ -5,6 +5,31 @@
    Glassmorphic / Neo-Modern Design System
    ═══════════════════════════════════════════════════════ */
 
+/* Skip-to-content link: visually hidden until focused (WCAG 2.4.1) */
+.op-skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 8px 16px;
+  margin: 8px;
+  background: var(--op-primary, #0F97ED);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px;
+  transform: translateY(-150%);
+  transition: transform 0.2s ease;
+}
+
+.op-skip-link:focus,
+.op-skip-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  transform: translateY(0);
+}
+
 /* -- Admin-specific token overrides (LIGHT DEFAULT) -- */
 :root {
   --op-font: var(--font);
@@ -654,6 +679,104 @@ code {
   margin-top: 2px;
 }
 
+.op-contributors-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--op-text);
+  margin: 36px 0 4px;
+}
+
+.op-contributors-section-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--op-text-muted);
+  margin: 0 0 16px;
+  width: 100%;
+}
+
+.op-contributors-loading {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--op-text-muted);
+  border: 1px dashed var(--op-border);
+  border-radius: 12px;
+}
+
+/* Hall of Fame table */
+.op-hall-of-fame {
+  overflow-x: auto;
+}
+
+.op-hall-of-fame-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--op-bg-card);
+  border: 1px solid var(--op-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.op-hall-of-fame-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--op-text-muted);
+  background: rgb(148 163 184 / 6%);
+  border-bottom: 1px solid var(--op-border);
+  white-space: nowrap;
+}
+
+.op-hall-of-fame-table td {
+  padding: 12px 16px;
+  vertical-align: top;
+  color: var(--op-text);
+  border-bottom: 1px solid var(--op-border);
+}
+
+.op-hall-of-fame-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.op-hall-of-fame-table tbody tr:hover {
+  background: rgb(148 163 184 / 6%);
+}
+
+.op-sev-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.op-sev-high {
+  background: rgb(239 68 68 / 12%);
+  color: rgb(239 68 68);
+}
+
+.op-sev-medium {
+  background: rgb(245 158 11 / 15%);
+  color: rgb(217 119 6);
+}
+
+.op-sev-low {
+  background: rgb(59 130 246 / 12%);
+  color: rgb(37 99 235);
+}
+
+.op-sev-other {
+  background: rgb(148 163 184 / 15%);
+  color: var(--op-text-muted);
+}
+
 .op-sidebar-user {
   display: flex;
   align-items: center;
@@ -667,6 +790,16 @@ code {
 .op-sidebar-user:hover {
   background: var(--op-sidebar-hover-bg);
   transform: translateX(2px);
+}
+
+.op-sidebar-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
 .op-sidebar-user-avatar {
@@ -2315,6 +2448,7 @@ code {
 
 .op-input::placeholder {
   color: var(--op-text-muted);
+  opacity: 0.6;
 }
 
 select option {
@@ -2500,6 +2634,13 @@ input[type="checkbox"]:focus-visible {
   color: var(--op-text-muted);
 }
 
+.op-date-picker-input:focus,
+.op-date-picker-input:focus-visible {
+  outline: none;
+  border-color: var(--op-primary);
+  box-shadow: 0 0 0 2px rgb(15 151 237 / 10%);
+}
+
 .op-date-picker-trigger {
   background: transparent;
   border: none;
@@ -2535,7 +2676,12 @@ input[type="checkbox"]:focus-visible {
   border-radius: 12px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
   padding: 16px;
-  z-index: 150;
+
+  /* Issue #72: raise above dropdowns (z-index 200), the notification panel
+     (z-index 300), and modal dialogs (z-index 200) so the date picker is
+     not clipped or hidden behind adjacent elements. Toasts (z-index 1000)
+     and full-screen overlays still render above the calendar when needed. */
+  z-index: 500;
   display: none;
   opacity: 0;
   visibility: hidden;
@@ -2689,6 +2835,11 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.op-form-row > .op-form-group:only-child {
+  flex: 1 1 100%;
+  max-width: 100%;
 }
 
 /* Color picker wrapper */
@@ -4149,6 +4300,18 @@ label.op-toggle-label {
   transform: translateX(20px);
 }
 
+[data-theme="dark"] .op-toggle-switch,
+[data-theme="dark"] .op-toggle-slider {
+  background: #3f3f46;
+  border: 1px solid #52525b;
+}
+
+[data-theme="dark"] .op-toggle-label input:checked+.op-toggle-switch,
+[data-theme="dark"] .op-toggle input:checked+.op-toggle-slider {
+  background: var(--op-primary);
+  border-color: transparent;
+}
+
 /* ═══════════════════════════════════════════════════════
    DROPZONE
    ═══════════════════════════════════════════════════════ */
@@ -4899,6 +5062,103 @@ label.op-toggle-label {
   padding: 20px;
 }
 
+.op-settings-divider {
+  border: none;
+  border-top: 1px solid var(--op-border);
+  margin: 24px 0 16px;
+}
+
+.op-settings-subheading {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--op-text);
+}
+
+.op-current-logo-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.op-gw-logo-preview {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border: 1px solid var(--op-border);
+  border-radius: 6px;
+  background: var(--op-bg-input);
+  padding: 4px;
+}
+
+.op-test-connection-result {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--op-radius);
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: none;
+}
+
+.op-test-connection-result:not(:empty) {
+  display: block;
+}
+
+.op-test-connection-pending {
+  background: var(--op-bg-input);
+  color: var(--op-text-muted);
+  border: 1px solid var(--op-border);
+}
+
+.op-test-connection-ok {
+  background: rgb(34 197 94 / 12%);
+  color: #16a34a;
+  border: 1px solid rgb(34 197 94 / 30%);
+}
+
+.op-test-connection-fail {
+  background: rgb(239 68 68 / 12%);
+  color: #dc2626;
+  border: 1px solid rgb(239 68 68 / 30%);
+}
+
+.op-test-notification {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--op-border);
+}
+
+.op-test-notification label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.op-test-notification textarea,
+.op-test-notification input {
+  min-width: 0;
+}
+
+.op-test-notification textarea {
+  min-height: 42px;
+  resize: vertical;
+}
+
+.op-test-notification .op-test-connection-result {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+@media (max-width: 700px) {
+  .op-test-notification {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════
    SMS CENTER
    ═══════════════════════════════════════════════════════ */
@@ -5227,7 +5487,7 @@ label.op-toggle-label {
 
   .op-main {
     margin-left: 0;
-    max-width: 100vw;
+    max-width: 100%;
     min-height: auto;
     height: auto;
   }
@@ -6178,45 +6438,60 @@ label.op-toggle-label {
     width: 100%;
   }
 
+  .op-card-body {
+    padding: 12px 14px;
+  }
+
   .op-card-body.op-p-0 {
     overflow: auto hidden;
   }
 
   .op-card-body.op-p-0 .op-table tbody td {
-    padding: 4px 0;
-    font-size: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
   .op-card-body.op-p-0 .op-table tbody td .op-btn-xs {
     padding: 6px 12px;
     font-size: 12px;
-    min-height: 34px;
+    min-height: 36px;
     border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .op-btn {
     padding: 8px 16px;
     font-size: 13px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .op-input {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: 14px;
+    min-height: 40px;
   }
 
   .op-filter-btn {
     padding: 8px 14px;
     font-size: 13px;
+    min-height: 38px;
   }
 
   .op-custom-dropdown-btn {
     padding: 8px 12px;
     font-size: 13px;
+    min-height: 40px;
   }
 
   .op-modal-dialog {
     margin: 12px;
     border-radius: 10px;
+    max-width: calc(100vw - 24px);
   }
 
   .op-modal-header,
@@ -6228,25 +6503,23 @@ label.op-toggle-label {
   .op-navbar-search {
     width: 140px;
   }
-}
 
-@media (max-width: 600px) {
   .op-stats-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
   }
 
   .op-stat-card {
-    padding: 10px;
+    padding: 12px;
     gap: 8px;
   }
 
   .op-stat-value {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
   }
 
   .op-stat-label {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
 
   .op-pill {
@@ -6254,90 +6527,14 @@ label.op-toggle-label {
   }
 
   .op-pill-title {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .op-pill-toggle,
   .op-pill-input {
-    font-size: 11px;
+    font-size: 12px;
     padding: 6px 10px;
-  }
-
-  .op-content {
-    padding: 12px;
-    padding-top: 0;
-  }
-
-  .op-page-header h1 {
-    font-size: 18px;
-  }
-
-  .op-card {
-    border-radius: 8px;
-  }
-
-  .op-card-header {
-    padding: 12px 14px;
-  }
-
-  .op-card-body {
-    padding: 12px 14px;
-  }
-
-  .op-card-body.op-p-0 {
-    overflow: auto hidden;
-  }
-
-  .op-card-body.op-p-0 .op-table tbody td {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
-
-  .op-card-body.op-p-0 .op-table tbody td .op-btn-xs {
-    padding: 6px 12px;
-    font-size: 12px;
-    min-height: 34px;
-    border-radius: 8px;
-  }
-
-  .op-btn {
-    padding: 7px 14px;
-    font-size: 12px;
-  }
-
-  .op-input {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .op-filter-btn {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-
-  .op-custom-dropdown-btn {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .op-modal-dialog {
-    margin: 8px;
-    border-radius: 8px;
-  }
-
-  .op-modal-header,
-  .op-modal-body,
-  .op-modal-footer {
-    padding: 12px 14px;
-  }
-
-  .op-page-header {
-    margin-top: 8px;
-    margin-bottom: 4px;
-  }
-
-  .op-page-header h1 {
-    font-size: 16px;
+    min-height: 36px;
   }
 }
 

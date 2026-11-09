@@ -171,7 +171,7 @@ final class RefundController
         $transactionId = is_int($txn['id']) || is_string($txn['id']) ? (int)$txn['id'] : 0;
 
         $refund = $db->fetchOne(
-            "SELECT r.*, t.trx_id FROM op_refunds r
+            "SELECT r.*, t.trx_id, t.gateway_trx_id FROM op_refunds r
              LEFT JOIN op_transactions t ON t.id = r.transaction_id
              WHERE r.transaction_id = :txn_id AND r.merchant_id = :mid
              ORDER BY r.created_at DESC LIMIT 1",

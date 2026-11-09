@@ -27,6 +27,8 @@
     </a>
 </div>
 
+<h2 class="op-contributors-section-title">Code Contributors</h2>
+<p class="op-contributors-section-desc">Developers write code, fix, build and power up OwnPay.</p>
 <div class="op-contributors-grid" id="dynamic-contributors-grid">
     {% for contributor in contributors %}
     <div class="op-contributor-card">
@@ -51,8 +53,20 @@
     </div>
     {% endfor %}
 </div>
+
+<h2 class="op-contributors-section-title">Hall of Fame</h2>
+<p class="op-contributors-section-desc">Security researchers who responsibly report vulnerabilities and make OwnPay most secure.</p>
+<div class="op-hall-of-fame" id="dynamic-hall-of-fame">
+    <div class="op-contributors-loading">Loading Hall of Fame...</div>
+</div>
+
+<h2 class="op-contributors-section-title">Non code Contributor</h2>
+<p class="op-contributors-section-desc">Contributors who quietly strengthen OwnPay from behind the scenes.</p>
+<div class="op-contributors-grid" id="dynamic-custom-contributors-grid">
+    <div class="op-contributors-loading">Loading Non-code contributor.</div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce }}" src="/assets/js/pages/contributors.js?v=001"></script>
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/contributors.js?v=002"></script>
 {% endblock %}

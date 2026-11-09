@@ -8,6 +8,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\DomainRepository;
 use OwnPay\Service\Domain\DnsVerifier;
 use OwnPay\Service\Domain\DomainService;
+use OwnPay\Service\System\HttpClient;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 
@@ -27,8 +28,18 @@ final class DomainServiceTxtNameTest extends TestCase
         return new DomainService($repo, new DnsVerifier(), EventManager::getInstance());
     }
 
+    protected function setUp(): void
+    {
+        // map()/verify() resolve the server-IP hint for their messages; stub
+        // the public-IP echo service so the suite never makes a real request.
+        HttpClient::$mockResponses = [
+            'https://icanhazip.com' => ['status' => 200, 'body' => '203.0.113.9', 'headers' => []],
+        ];
+    }
+
     protected function tearDown(): void
     {
+        HttpClient::$mockResponses = null;
         EventManager::resetInstance();
         parent::tearDown();
     }

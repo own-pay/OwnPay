@@ -23,7 +23,12 @@
     // Hash-based tab activation
     if (window.location.hash) {
         var hashTab = document.querySelector('#dev-tabs .op-tab[data-tab="' + window.location.hash.slice(1) + '"]');
-        if (hashTab) { hashTab.click(); }
+        if (hashTab) {
+            hashTab.click();
+        } else {
+            var firstTab = document.querySelector("#dev-tabs .op-tab");
+            if (firstTab) { firstTab.click(); }
+        }
     }
 
     // Listen for hash changes (e.g. sidebar links clicked while on this page)
@@ -98,14 +103,44 @@
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
+                    var code = data.response_code || data.http_status || 0;
                     alert(data.success
-                        ? "✓ Webhook delivered! HTTP " + data.http_status
+                        ? "✓ Webhook delivered! HTTP " + code
                         : "✗ Failed: " + (data.error || "Unknown error"));
                 })
                 .catch(function () { alert("Network error"); })
                 .finally(function () { btn.disabled = false; btn.textContent = "Send Test Event"; });
         });
     }
+
+    // Single Webhook Endpoint Test Button in Webhooks Table
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest(".test-single-webhook-btn");
+        if (!btn) { return; }
+        var whId = btn.dataset.webhookId;
+        if (!whId) { return; }
+        var origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Testing…";
+
+        fetch("/admin/developer/webhook-test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+            body: JSON.stringify({ webhook_id: parseInt(whId, 10) })
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var code = data.response_code || data.http_status || 0;
+                alert(data.success
+                    ? "✓ Webhook delivered successfully! HTTP " + code
+                    : "✗ Delivery failed: " + (data.error || ("HTTP " + code)));
+            })
+            .catch(function () { alert("Network error"); })
+            .finally(function () {
+                btn.disabled = false;
+                btn.textContent = origText;
+            });
+    });
 
     // --- Webhook Secret Generator ---------------------------------------------
     window.generateSecret = function () {
@@ -143,12 +178,6 @@
         copyKeyBtn.addEventListener("click", function () {
             var btn = copyKeyBtn;
             var origHTML = btn.innerHTML;
-            // Every other copy button on this page already uses the shared
-            // window.opCopyText helper (execCommand primary, Clipboard API
-            // fallback, real error handling). This one previously called
-            // navigator.clipboard.writeText() directly with no .catch(), so
-            // any rejection (denied permission, unfocused context, managed-
-            // browser policy) made the button silently do nothing.
             window.opCopyText(generatedKeyInput.value, btn, function () {
                 btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
                 btn.classList.add("op-btn-success");
@@ -172,11 +201,12 @@
         newKeyReveal.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    // Webhook form modal pre-population
+    // Webhook form modal pre-population.
     window.prepareWebhookForm = function (webhook) {
         var idField = document.getElementById("webhook-id-field");
         var urlField = document.getElementById("webhook-url-field");
         var secretField = document.getElementById("webhook-secret-field");
+        var merchantField = document.getElementById("webhook-merchant-field");
         var titleEl = document.getElementById("webhook-modal-title");
         var checkboxes = document.querySelectorAll(".webhook-event-checkbox");
 
@@ -186,7 +216,8 @@
             if (titleEl) { titleEl.textContent = "Edit Webhook Endpoint"; }
             if (idField) { idField.value = webhook.id; }
             if (urlField) { urlField.value = webhook.url; }
-            if (secretField) { secretField.value = webhook.secret; }
+            if (secretField) { secretField.value = webhook.secret || ""; }
+            if (merchantField) { merchantField.value = webhook.merchant_id || ""; }
 
             var events = webhook.decoded_events || [];
             checkboxes.forEach(function (cb) {
@@ -199,7 +230,26 @@
             if (idField) { idField.value = ""; }
             if (urlField) { urlField.value = ""; }
             if (secretField) { secretField.value = ""; }
+            if (merchantField) { merchantField.value = ""; }
         }
     };
+
+    // Delegated pre-population: any element opening the webhook modal via
+    // data-open-modal="webhook-modal" may also carry a data-wh attribute with
+    // the webhook's JSON. Empty/absent => Add Endpoint mode.
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-open-modal=\"webhook-modal\"]");
+        if (!btn) { return; }
+        var raw = btn.getAttribute("data-wh");
+        if (!raw) {
+            window.prepareWebhookForm(null);
+            return;
+        }
+        try {
+            window.prepareWebhookForm(JSON.parse(raw));
+        } catch {
+            window.prepareWebhookForm(null);
+        }
+    });
 
 }());

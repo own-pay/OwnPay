@@ -5,6 +5,7 @@ namespace OwnPay\Modules\Gateways\Alipay;
 
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
+use OwnPay\Gateway\TestableConnectionInterface;
 use OwnPay\Plugin\PluginInterface;
 use OwnPay\Plugin\Capability;
 use OwnPay\Container;
@@ -29,7 +30,7 @@ use OwnPay\Event\EventManager;
  * - Implemented real RSA signature verification in verifyWebhook() instead of
  *   returning true unconditionally.
  */
-final class AlipayGateway implements PluginInterface, GatewayAdapterInterface
+final class AlipayGateway implements PluginInterface, GatewayAdapterInterface, TestableConnectionInterface
 {
     use GatewayDefaults;
 
@@ -65,6 +66,79 @@ final class AlipayGateway implements PluginInterface, GatewayAdapterInterface
             // cannot be cryptographically verified and ALL callbacks would be rejected.
             ['name' => 'alipay_public_key', 'label' => 'Alipay Public Key',  'type' => 'textarea', 'required' => true],
         ];
+    }
+
+    /**
+     * Verifies the App ID/Private Key by making a signed alipay.trade.query request for a
+     * transaction that cannot exist. A signature that verifies correctly returns Alipay's own
+     * "trade not found" business error; only an invalid-signature/invalid-app-id response means
+     * the credentials themselves are wrong.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(array $credentials): array
+    {
+        $appId = $this->getString($credentials['app_id'] ?? null);
+        $privateKey = $this->getString($credentials['private_key'] ?? null);
+        if ($appId === '' || $privateKey === '') {
+            return ['success' => false, 'message' => 'Enter App ID and Private Key before testing the connection.'];
+        }
+
+        $sysParams = [
+            'app_id'      => $appId,
+            'method'      => 'alipay.trade.query',
+            'charset'     => 'utf-8',
+            'sign_type'   => 'RSA2',
+            'timestamp'   => date('Y-m-d H:i:s'),
+            'version'     => '1.0',
+            'biz_content' => (string) json_encode(['out_trade_no' => 'op_test_connection_' . bin2hex(random_bytes(6))]),
+        ];
+
+        ksort($sysParams);
+        $queryArr = [];
+        foreach ($sysParams as $k => $v) {
+            if ($v !== '') {
+                $queryArr[] = "{$k}={$v}";
+            }
+        }
+        $queryStr = implode('&', $queryArr);
+
+        $privKeyObj = openssl_pkey_get_private($privateKey);
+        if ($privKeyObj === false) {
+            return ['success' => false, 'message' => 'The configured Private Key is not a valid PEM RSA key.'];
+        }
+        $sig = '';
+        openssl_sign($queryStr, $sig, $privKeyObj, OPENSSL_ALGO_SHA256);
+        $sysParams['sign'] = base64_encode($sig);
+
+        $ch = curl_init('https://openapi.alipay.com/gateway.do?' . http_build_query($sysParams));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Could not reach Alipay - check the server\'s network connectivity.'];
+        }
+
+        $data = json_decode((string) $response, true);
+        $envelope = is_array($data) ? ($data['alipay_trade_query_response'] ?? null) : null;
+        $subCode = is_array($envelope) && is_scalar($envelope['sub_code'] ?? null) ? (string) $envelope['sub_code'] : '';
+        $subMsg = is_array($envelope) && is_scalar($envelope['sub_msg'] ?? null) ? (string) $envelope['sub_msg'] : '';
+
+        if (str_contains($subCode, 'invalid-signature') || str_contains($subCode, 'invalid-app-id') || str_contains($subCode, 'INVALID_APP_ID')) {
+            return ['success' => false, 'message' => $subMsg !== '' ? $subMsg : 'Alipay rejected the App ID or signature.'];
+        }
+        if (is_array($envelope)) {
+            // Any other structured response (including "trade not found") means the
+            // signature verified and the App ID is recognized.
+            return ['success' => true, 'message' => 'Connected successfully to Alipay.'];
+        }
+
+        return ['success' => false, 'message' => 'Unexpected response from Alipay.'];
     }
 
     public function initiate(array $params, array $credentials): array

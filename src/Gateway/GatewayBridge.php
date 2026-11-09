@@ -63,6 +63,20 @@ final class GatewayBridge
     }
 
     /**
+     * Unregister a gateway adapter from the bridge registry.
+     *
+     * Used during plugin deactivation to cleanly remove the adapter
+     * so no further payments are routed through it.
+     *
+     * @param \OwnPay\Gateway\GatewayAdapterInterface $adapter The gateway adapter instance to unregister.
+     * @return void
+     */
+    public function unregisterAdapter(GatewayAdapterInterface $adapter): void
+    {
+        unset($this->adapters[$adapter->slug()]);
+    }
+
+    /**
      * Initiate a payment capture/charge process via the specified gateway adapter.
      *
      * Decrypts credentials for the brand (merchantId) and applies hook filters before initiating.
@@ -129,15 +143,74 @@ final class GatewayBridge
      * @param int $merchantId The ID of the brand/merchant context.
      * @param string $gatewayTrxId The transaction identifier assigned by the gateway.
      * @param string $amount High-precision amount string (BCMath-compatible) to refund.
+     * @param string|null $sessionId The gateway's original checkout session/payment ID (e.g.
+     *                               bKash's paymentID), when the caller has one on record. Some
+     *                               gateways' refund APIs require this in addition to the settled
+     *                               transaction id. Passed through the credentials array under
+     *                               '_session_id' rather than a new interface parameter, so every
+     *                               existing gateway adapter (most of which never need it) is
+     *                               unaffected - adapters that do need it simply read that key.
      * @return array<string, mixed> The refund processing status and result details.
      * @throws \RuntimeException If the adapter is not found.
      */
-    public function refund(string $gatewaySlug, int $merchantId, string $gatewayTrxId, string $amount): array
+    public function refund(string $gatewaySlug, int $merchantId, string $gatewayTrxId, string $amount, ?string $sessionId = null): array
     {
         $adapter = $this->resolveAdapter($gatewaySlug);
         $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
+        if ($sessionId !== null && $sessionId !== '') {
+            $credentials['_session_id'] = $sessionId;
+        }
 
         return $adapter->refund($gatewayTrxId, $amount, $credentials);
+    }
+
+    /**
+     * Reports whether the specified gateway adapter exposes a refund-status query API.
+     *
+     * Used by {@see \OwnPay\Cron\RefundReconciliationJob} to decide whether to
+     * probe the gateway for the current status of a refund stuck in 'pending'.
+     * When this returns false, the job logs a warning and skips gateway probing
+     * for that adapter, leaving the existing 24-hour stale-pending auto-fail
+     * backstop as the only reconciliation path.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @return bool True when the adapter's getRefundStatus() is implemented and meaningful.
+     */
+    public function supportsRefundStatus(string $gatewaySlug): bool
+    {
+        if (!isset($this->adapters[$gatewaySlug])) {
+            return false;
+        }
+        return $this->adapters[$gatewaySlug]->supportsRefundStatus();
+    }
+
+    /**
+     * Query the gateway for the current status of a previously-initiated refund.
+     *
+     * Resolves the adapter, decrypts the merchant's credentials, and delegates
+     * to the adapter's getRefundStatus(). Returns null when the adapter is not
+     * registered, does not support refund-status queries, or cannot determine
+     * the status - in all these cases the caller (RefundReconciliationJob)
+     * must treat the refund as unresolved and leave it pending for the 24-hour
+     * backstop (rather than prematurely failing it and releasing the balance
+     * hold on a refund that may still be in flight at the gateway).
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param string $gatewayRefundId The gateway-side refund identifier (or transaction ID fallback).
+     * @return string|null One of 'succeeded', 'failed', 'pending', 'not_found', or null when unknown.
+     */
+    public function getRefundStatus(string $gatewaySlug, int $merchantId, string $gatewayRefundId): ?string
+    {
+        if (!isset($this->adapters[$gatewaySlug])) {
+            return null;
+        }
+        $adapter = $this->adapters[$gatewaySlug];
+        if (!$adapter->supportsRefundStatus()) {
+            return null;
+        }
+        $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
+        return $adapter->getRefundStatus($gatewayRefundId, $credentials);
     }
 
     /**
@@ -197,6 +270,31 @@ final class GatewayBridge
             return [];
         }
         return $this->adapters[$slug]->supportedCurrencies();
+    }
+
+    /**
+     * Resolves the minimum chargeable amount a gateway will accept for a currency, if it
+     * declares one (see MinimumAmountAwareInterface). Used by the checkout page to hide a
+     * gateway for under-minimum transactions instead of offering it and letting the customer
+     * hit an API error after selecting it.
+     *
+     * @param string $slug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param string $currency ISO 4217 currency code (any case).
+     * @return string|null The minimum amount as a decimal string, or null if the gateway isn't
+     *                      registered, doesn't declare a minimum, or credentials can't be read.
+     */
+    public function minimumChargeAmount(string $slug, int $merchantId, string $currency): ?string
+    {
+        if (!isset($this->adapters[$slug]) || !$this->adapters[$slug] instanceof MinimumAmountAwareInterface) {
+            return null;
+        }
+        try {
+            $credentials = $this->decryptCredentials($slug, $merchantId);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        return $this->adapters[$slug]->minimumChargeAmount(strtolower($currency), $credentials);
     }
 
     /**

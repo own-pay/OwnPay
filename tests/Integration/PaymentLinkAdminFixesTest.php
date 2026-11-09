@@ -72,7 +72,28 @@ final class PaymentLinkAdminFixesTest extends IntegrationTestCase
     private function cleanup(): void
     {
         $this->db->execute("DELETE FROM op_payment_links WHERE slug LIKE 'zzplink-%'");
+        // Re-seed the canonical test merchants so the foreign-key constraint
+        // `fk_pl_merchant` is satisfied even when earlier suites
+        // (OnboardingBrandStepTest) wiped op_merchants to exercise the
+        // "zero brands" branch of the onboarding wizard.
+        $this->ensureSeedMerchantsExist();
         unset($_SESSION['active_brand_id'], $_SESSION['brand_view_mode']);
+    }
+
+    /**
+     * Idempotently re-inserts the canonical seed merchants (id 1 and 2)
+     * assumed by $merchantId / $otherMerchantId above.
+     */
+    private function ensureSeedMerchantsExist(): void
+    {
+        $this->db->execute(
+            "INSERT IGNORE INTO op_merchants (id, uuid, name, slug, email, status, settings)
+             VALUES (1, 'merchant-uuid-1', 'Test Merchant', 'test-merchant-1', 'test1@example.com', 'active', '{}')"
+        );
+        $this->db->execute(
+            "INSERT IGNORE INTO op_merchants (id, uuid, name, slug, email, status, settings)
+             VALUES (2, 'merchant-uuid-2', 'Test Merchant 2', 'test-merchant-2', 'test2@example.com', 'active', '{}')"
+        );
     }
 
     private function insertLink(int $merchantId, string $slug): int
