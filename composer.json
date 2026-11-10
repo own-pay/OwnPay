@@ -39,7 +39,7 @@
     "php-parallel-lint/php-parallel-lint": "^1.4",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
-    "symfony/console": "^7.4",
+    "symfony/console": "^8.1",
     "symfony/filesystem": "^8.1",
     "symfony/finder": "^8.1",
     "symfony/string": "^7.4",
