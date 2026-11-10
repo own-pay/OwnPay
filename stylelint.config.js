@@ -7,7 +7,6 @@ export default {
     "no-descending-specificity": null,
     "media-feature-range-notation": null,
     "keyframes-name-pattern": null,
-    "declaration-block-single-line-max-declarations": null,
     "no-duplicate-selectors": null,
     // stylelint 17 changed `ignoreProperties` to match the FULL prefixed
     // property name (e.g. "-webkit-backdrop-filter") instead of the
