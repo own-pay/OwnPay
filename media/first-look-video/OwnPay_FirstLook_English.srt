@@ -1,0 +1,59 @@
+1
+00:00:00,250 --> 00:00:03,320
+Every payment you accept. Somebody else takes a cut.
+
+2
+00:00:03,340 --> 00:00:06,179
+Locked in. Rented. Never really yours.
+
+3
+00:00:06,199 --> 00:00:08,021
+What if you owned the entire stack?
+
+4
+00:00:09,000 --> 00:00:10,206
+Meet OwnPay.
+
+5
+00:00:10,456 --> 00:00:13,957
+The open-source payment orchestrator that you host yourself.
+
+6
+00:00:14,950 --> 00:00:17,334
+Your server. Your data. Your rules.
+
+7
+00:00:18,550 --> 00:00:23,665
+Run every brand, every gateway, and every transaction from one clean dashboard.
+
+8
+00:00:25,150 --> 00:00:29,887
+Create a payment link in seconds. Your customers get a fast, hosted checkout.
+
+9
+00:00:31,150 --> 00:00:34,943
+Connect the gateways you need through plugins. No vendor lock-in.
+
+10
+00:00:35,950 --> 00:00:40,611
+Follow every transaction, and understand your revenue with built-in reports.
+
+11
+00:00:41,950 --> 00:00:46,356
+Developers get scoped API keys, webhooks, and a clean API.
+
+12
+00:00:47,350 --> 00:00:53,154
+Role-based access, login security logs, and audit integrity checks keep you in control.
+
+13
+00:00:54,550 --> 00:00:59,868
+Make it yours with themes and branding. Pair a mobile device to catch payment SMS.
+
+14
+00:01:01,150 --> 00:01:04,494
+OwnPay. Open source. Self-hosted. Yours.
+
+15
+00:01:04,594 --> 00:01:08,576
+Get it at ownpay.org, and star the project on GitHub.
