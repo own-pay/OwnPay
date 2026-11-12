@@ -127,7 +127,7 @@ jobs:
         timeout-minutes: 240
         with:
           timeout: 4h
-          push: false
+          push: disabled
           prompt: ${{ steps.load_prompt.outputs.STAGE1_PROMPT }}
         # env:
           # OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
