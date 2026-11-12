@@ -295,6 +295,11 @@ final class GatewayApiService
      * Browser returns must bind the provider result to the transaction loaded by the status URL;
      * webhook callers without an expected reference retain the existing payload resolution.
      *
+     * When the adapter authenticated the reference itself - it reported `verified_trx_id` from a
+     * provider-authenticated response or backchannel lookup - that value is the only reference
+     * allowed to settle a payment. A callback body may name any transaction, so honouring it
+     * would let one confirmed payment be replayed against a different transaction.
+     *
      * @param array<string, mixed> $verification Result returned by the gateway adapter.
      * @param array<string, mixed> $callbackData Original callback payload.
      * @param string|null $expectedTrxId Expected OwnPay reference for a browser-return callback.
@@ -302,15 +307,21 @@ final class GatewayApiService
      */
     private function resolveTransactionReference(array $verification, array $callbackData, ?string $expectedTrxId): ?string
     {
+        $verifiedTrxId = $verification['verified_trx_id'] ?? null;
+        $hasVerifiedTrxId = is_string($verifiedTrxId) && $verifiedTrxId !== '';
+
         if ($expectedTrxId !== null) {
-            $verifiedTrxId = $verification['verified_trx_id'] ?? null;
-            if ($expectedTrxId === '' || !is_string($verifiedTrxId) || $verifiedTrxId === ''
+            if ($expectedTrxId === '' || !$hasVerifiedTrxId
                 || !hash_equals($expectedTrxId, $verifiedTrxId)
             ) {
                 return null;
             }
 
             return $expectedTrxId;
+        }
+
+        if ($hasVerifiedTrxId) {
+            return $verifiedTrxId;
         }
 
         $trxId = '';

@@ -8,10 +8,13 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
 /**
- * Regression coverage for the browser-return transaction-reference binding.
+ * Regression coverage for the transaction-reference binding.
  *
  * A browser return must be rejected when the provider-authenticated reference
  * does not match the loaded transaction's expected reference.
+ *
+ * A webhook carries no expected reference, so the reference the adapter authenticated
+ * itself is the only one allowed to settle - a callback body may name any transaction.
  */
 final class GatewayApiServiceVerifiedTrxIdBindingTest extends TestCase
 {
@@ -95,5 +98,35 @@ final class GatewayApiServiceVerifiedTrxIdBindingTest extends TestCase
             'trx_abc'
         );
         $this->assertNull($result);
+    }
+
+    public function testWebhookSettlesTheProviderAuthenticatedReference(): void
+    {
+        $result = $this->resolve(
+            ['success' => true, 'verified_trx_id' => 'trx_paid'],
+            ['trx_id' => 'trx_other', 'reference' => 'trx_other'],
+            null
+        );
+        $this->assertSame('trx_paid', $result);
+    }
+
+    public function testWebhookWithoutAProviderAuthenticatedReferenceUsesTheCallbackBody(): void
+    {
+        $result = $this->resolve(
+            ['success' => true, 'trx_id' => 'trx_paid'],
+            ['trx_id' => 'trx_paid'],
+            null
+        );
+        $this->assertSame('trx_paid', $result);
+    }
+
+    public function testWebhookWithAnEmptyVerifiedReferenceUsesTheCallbackBody(): void
+    {
+        $result = $this->resolve(
+            ['success' => true, 'verified_trx_id' => ''],
+            ['reference' => 'trx_from_callback'],
+            null
+        );
+        $this->assertSame('trx_from_callback', $result);
     }
 }
