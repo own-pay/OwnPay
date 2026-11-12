@@ -37,4 +37,16 @@ jobs:
           prompt: ${{ inputs.prompt }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ADVISORY_PAT: ${{ secrets.ADVISORY_PAT }}
+          # The action reads GH_TOKEN as its external token override
+          # (utils/token.ts -> resolveTokens) and uses it for git, the MCP
+          # GitHub tools and the `gh` CLI. A secret named ADVISORY_PAT is
+          # never read, so the advisory API stayed unreachable for the
+          # GHSA-r4rg-83vc-9wvw bookkeeping run.
+          #
+          # ADVISORY_PAT must be a PAT (classic `repo`, or fine-grained with
+          # repository security advisories: write, administration: write for
+          # the private advisory fork, and contents/pull requests/issues:
+          # write) held by a user who may create repositories in this
+          # organisation. When the secret is absent the value is empty and the
+          # action falls back to its own scoped installation tokens.
+          GH_TOKEN: ${{ secrets.ADVISORY_PAT }}
