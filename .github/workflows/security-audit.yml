@@ -1,0 +1,165 @@
+name: Monthly Adversarial Security Audit (dev)
+
+on:
+  schedule:
+    # Runs once a month on the 1st at 02:00 UTC (08:00 AM BST)
+    - cron: '0 2 1 * *'
+  workflow_dispatch:
+    inputs:
+      target_scope:
+        description: 'Target directory or module on dev branch (default: all)'
+        required: false
+        default: 'all'
+        type: string
+
+# Modern GitHub Actions Rule: Least-privilege default at workflow root
+permissions: {}
+
+concurrency:
+  group: security-audit-dev
+  cancel-in-progress: false
+
+jobs:
+  adversarial-security-audit:
+    name: Dual-Model Adversarial Audit & Fix (dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    # Job-scoped explicit permissions
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout strictly 'dev' branch
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Prepare Audit Workspace & Load .github/prompt/security-audit.md
+        id: load_prompt
+        env:
+          INPUT_SCOPE: ${{ inputs.target_scope || 'all' }}
+          PROMPT_PATH: ".github/prompt/security-audit.md"
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/audit
+
+          if [ ! -f "$PROMPT_PATH" ]; then
+            echo "::error::${PROMPT_PATH} not found on 'dev' branch."
+            exit 1
+          fi
+
+          # Extract Stage 1 and Stage 2 prompts from .github/prompt/security-audit.md safely
+          {
+            echo "STAGE1_PROMPT<<EOF_STAGE1"
+            echo "--effort=max"
+            echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
+            echo "Read and follow ${PROMPT_PATH} (STAGE 1 section) strictly:"
+            echo ""
+            sed -n '/<!-- STAGE_1_START -->/,/<!-- STAGE_1_END -->/p' "$PROMPT_PATH"
+            echo "EOF_STAGE1"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "STAGE2_PROMPT<<EOF_STAGE2"
+            echo "--effort=high"
+            echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
+            echo "Read and follow ${PROMPT_PATH} (STAGE 2 section) strictly:"
+            echo ""
+            sed -n '/<!-- STAGE_2_START -->/,/<!-- STAGE_2_END -->/p' "$PROMPT_PATH"
+            echo "EOF_STAGE2"
+          } >> "$GITHUB_OUTPUT"
+
+      # =========================================================================
+      # STAGE 1: Main Orchestrator & Parallel Swarm (minimax/minimax-m3.1-flash)
+      # =========================================================================
+      - name: Stage 1 — Threat Model & Parallel Swarm (MiniMax M3.1 Flash)
+        uses: pullfrog/pullfrog@v0
+        timeout-minutes: 120
+        with:
+          prompt: ${{ steps.load_prompt.outputs.STAGE1_PROMPT }}
+        env:
+          # OPENAI_COMPATIBLE_BASE_URL: "https://openrouter.ai/api/v1"
+          # OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
+          # OPENAI_COMPATIBLE_MODEL: "minimax/minimax-m3.1-flash"
+          # OPENAI_COMPATIBLE_CONTEXT: "1000000"
+          # OPENAI_COMPATIBLE_MAX_OUTPUT: "128000"
+
+      # =========================================================================
+      # STAGE 2: Adversarial Critic & Boundary Verification (dots-3-note-preview)
+      # =========================================================================
+      - name: Stage 2 — Adversarial Verification & Report (Dots-3 Note Preview)
+        uses: pullfrog/pullfrog@v0
+        timeout-minutes: 60
+        with:
+          prompt: ${{ steps.load_prompt.outputs.STAGE2_PROMPT }}
+        env:
+          # OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
+          # OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
+          OPENAI_COMPATIBLE_MODEL: "dots-studio/dots-3-note-preview"
+          OPENAI_COMPATIBLE_CONTEXT: "512000"
+          OPENAI_COMPATIBLE_MAX_OUTPUT: "460800"
+
+      # =========================================================================
+      # STAGE 3: Create GitHub Issue & Pull Request against 'dev' branch
+      # =========================================================================
+      - name: Create GitHub Issue & Pull Request (base: dev)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          AUDIT_DATE=$(date -u +"%Y-%m-%d")
+
+          if [ ! -f /tmp/audit/ISSUE_REPORT.md ]; then
+            echo "## Security Audit Report ($AUDIT_DATE)" > /tmp/audit/ISSUE_REPORT.md
+            echo "No critical, high, or medium vulnerabilities requiring code changes were confirmed." >> /tmp/audit/ISSUE_REPORT.md
+          fi
+
+          # Publish report to GitHub Actions Step Summary
+          cat /tmp/audit/ISSUE_REPORT.md >> "$GITHUB_STEP_SUMMARY"
+
+          # Verify if any production code changes remain after adversarial filtering
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "::notice::No verified vulnerabilities or code changes remaining after adversarial review. Skipping Issue and PR creation."
+            exit 0
+          fi
+
+          # 1. Create GitHub Issue with all findings
+          ISSUE_TITLE="[Security Audit] Adversarial Audit Findings on dev ($AUDIT_DATE)"
+          ISSUE_URL=$(gh issue create --title "$ISSUE_TITLE" --body-file /tmp/audit/ISSUE_REPORT.md)
+          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+          echo "Created GitHub Issue #$ISSUE_NUMBER: $ISSUE_URL"
+
+          # 2. Commit and push verified fixes to a dedicated branch off 'dev'
+          FIX_BRANCH="security/audit-fix-dev-${AUDIT_DATE}-${GITHUB_RUN_ID}"
+          git config user.name "fattain-naime"
+          git config user.email "iamnaime@builderhall.com"
+
+          git checkout -b "$FIX_BRANCH"
+          git add -A
+          git commit -m "fix(security): patch verified vulnerabilities from audit #$ISSUE_NUMBER"
+          git push -u origin "$FIX_BRANCH"
+
+          # 3. Create Pull Request targeting 'dev' branch (never 'main')
+          PR_BODY_FILE="/tmp/audit/FINAL_PR_BODY.md"
+          {
+            echo "## Automated Adversarial Security Audit Fixes"
+            echo ""
+            echo "Closes #$ISSUE_NUMBER"
+            echo ""
+            echo "- **Target Base Branch:** \`dev\`"
+            echo "- **Stage 1 (Main Swarm Model):** \`minimax/minimax-m3.1-flash\` (via AnyRouter)"
+            echo "- **Stage 2 (Adversarial Verifier):** \`dots-studio/dots-3-note-preview\` (via AnyRouter)"
+            echo ""
+            if [ -f /tmp/audit/PR_REPORT.md ]; then
+              cat /tmp/audit/PR_REPORT.md
+            else
+              cat /tmp/audit/ISSUE_REPORT.md
+            fi
+          } > "$PR_BODY_FILE"
+
+          PR_URL=$(gh pr create --base dev --head "$FIX_BRANCH" --title "fix(security): resolve adversarial audit findings (#$ISSUE_NUMBER)" --body-file "$PR_BODY_FILE")
+          echo "Created Pull Request targeting 'dev': $PR_URL"
