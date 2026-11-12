@@ -23,7 +23,7 @@ jobs:
   cross-repo-security-audit:
     name: Dual-Model Adversarial Audit (OwnPay & OwnPay-Mobile-App on dev)
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 360
     permissions:
       contents: write
       issues: write
@@ -31,17 +31,16 @@ jobs:
       id-token: write
 
     steps:
-      # 1. Checkout main OwnPay backend repository (dev branch) into ./OwnPay
-      - name: Checkout own-pay/OwnPay (dev)
+      # 1. Checkout main OwnPay backend repository at WORKSPACE ROOT (.) so Pullfrog sees a valid .git repository
+      - name: Checkout own-pay/OwnPay (dev) at Workspace Root
         uses: actions/checkout@v7
         with:
           repository: own-pay/OwnPay
           ref: dev
-          path: OwnPay
           fetch-depth: 0
           token: ${{ secrets.ORG_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # 2. Checkout OwnPay-Mobile-App repository (dev branch) into ./OwnPay-Mobile-App
+      # 2. Checkout OwnPay-Mobile-App repository into ./OwnPay-Mobile-App
       - name: Checkout own-pay/OwnPay-Mobile-App (dev)
         uses: actions/checkout@v7
         with:
@@ -51,7 +50,15 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.ORG_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # 3. Setup PHP 8.3 & pre-warm Composer dependencies for OwnPay (PHPStan Level 9)
+      # 3. Exclude ./OwnPay-Mobile-App from root repo git tracking so root git status/diff stays clean
+      - name: Isolate Sub-Repository in Git Exclude
+        run: |
+          set -euo pipefail
+          mkdir -p .git/info
+          echo "/OwnPay-Mobile-App" >> .git/info/exclude
+          echo "/OwnPay-Mobile-App/" >> .git/info/exclude
+
+      # 4. Setup PHP 8.3 & pre-warm Composer dependencies for OwnPay (PHPStan Level 9)
       - name: Setup PHP 8.3 & Composer for OwnPay
         uses: shivammathur/setup-php@v2
         with:
@@ -60,14 +67,13 @@ jobs:
           coverage: none
 
       - name: Pre-warm OwnPay Composer Dependencies
-        working-directory: OwnPay
         run: |
           set -euo pipefail
           if [ -f composer.json ]; then
             composer install --no-interaction --prefer-dist --no-progress
           fi
 
-      # 4. Setup cached Flutter/Dart SDK & pre-warm dependencies for OwnPay-Mobile-App
+      # 5. Setup cached Flutter/Dart SDK & pre-warm dependencies for OwnPay-Mobile-App
       - name: Setup Flutter SDK (Cached) for OwnPay-Mobile-App
         uses: subosito/flutter-action@v2
         with:
@@ -82,12 +88,12 @@ jobs:
             flutter pub get
           fi
 
-      # 5. Load prompt from OwnPay/.github/prompt/security-audit.md
+      # 6. Load prompt from .github/prompt/security-audit.md
       - name: Prepare Audit Workspace & Load Prompt
         id: load_prompt
         env:
           INPUT_SCOPE: ${{ inputs.target_scope || 'all' }}
-          PROMPT_PATH: "OwnPay/.github/prompt/security-audit.md"
+          PROMPT_PATH: ".github/prompt/security-audit.md"
         run: |
           set -euo pipefail
           mkdir -p /tmp/audit
@@ -101,7 +107,7 @@ jobs:
             echo "STAGE1_PROMPT<<EOF_STAGE1"
             echo "--effort max --timeout=4h"
             echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
-            echo "Repositories in workspace: ./OwnPay (PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
+            echo "Repositories in workspace: ./ (own-pay/OwnPay PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
             echo "Read and follow ${PROMPT_PATH} (STAGE 1 section) strictly:"
             echo ""
             sed -n '/<!-- STAGE_1_START -->/,/<!-- STAGE_1_END -->/p' "$PROMPT_PATH"
@@ -112,7 +118,7 @@ jobs:
             echo "STAGE2_PROMPT<<EOF_STAGE2"
             echo "--effort high --timeout=2h"
             echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
-            echo "Repositories in workspace: ./OwnPay (PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
+            echo "Repositories in workspace: ./ (own-pay/OwnPay PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
             echo "Read and follow ${PROMPT_PATH} (STAGE 2 section) strictly:"
             echo ""
             sed -n '/<!-- STAGE_2_START -->/,/<!-- STAGE_2_END -->/p' "$PROMPT_PATH"
@@ -124,31 +130,31 @@ jobs:
       # =========================================================================
       - name: Stage 1 — Cross-Repo Threat Model & Swarm (MiniMax M3.1 Flash)
         uses: pullfrog/pullfrog@v0
-        timeout-minutes: 240
+        timeout-minutes: 245
         with:
           timeout: 4h
           push: disabled
           prompt: ${{ steps.load_prompt.outputs.STAGE1_PROMPT }}
-        # env:
-          # OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
-          # OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
-          # OPENAI_COMPATIBLE_MODEL: "minimax/minimax-m3.1-flash"
-          # OPENAI_COMPATIBLE_CONTEXT: "1000000"
-          # OPENAI_COMPATIBLE_MAX_OUTPUT: "128000"
+        env:
+          OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
+          OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
+          OPENAI_COMPATIBLE_MODEL: "minimax/minimax-m3.1-flash"
+          OPENAI_COMPATIBLE_CONTEXT: "1000000"
+          OPENAI_COMPATIBLE_MAX_OUTPUT: "128000"
 
       # =========================================================================
       # STAGE 2: Adversarial Critic & Boundary Verification (dots-3-note-preview)
       # =========================================================================
       - name: Stage 2 — Adversarial Verification & Report (Dots-3 Note Preview)
         uses: pullfrog/pullfrog@v0
-        timeout-minutes: 120
+        timeout-minutes: 125
         with:
           timeout: 2h
           push: disabled
           prompt: ${{ steps.load_prompt.outputs.STAGE2_PROMPT }}
         env:
-          # OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
-          # OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
+          OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
+          OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
           OPENAI_COMPATIBLE_MODEL: "dots-studio/dots-3-note-preview"
           OPENAI_COMPATIBLE_CONTEXT: "512000"
           OPENAI_COMPATIBLE_MAX_OUTPUT: "460800"
@@ -176,7 +182,7 @@ jobs:
             local PR_FILE="$4"
             local LABEL_TAG="$5"
 
-            cd "$GITHUB_WORKSPACE/$REPO_DIR"
+            cd "$REPO_DIR"
 
             if [ -z "$(git status --porcelain)" ]; then
               echo "::notice::No verified vulnerabilities remaining in ${FULL_REPO} (dev). Skipping Issue & PR."
@@ -190,7 +196,7 @@ jobs:
 
             # 1. Create GitHub Issue in the target repository
             ISSUE_TITLE="[Security Audit] Adversarial Audit Findings on dev ($AUDIT_DATE)"
-            ISSUE_URL=$(gh issue create               --repo "$FULL_REPO"               --title "$ISSUE_TITLE"               --body-file "$ISSUE_FILE")
+            ISSUE_URL=$(gh issue create --repo "$FULL_REPO" --title "$ISSUE_TITLE" --body-file "$ISSUE_FILE")
             ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
             echo "Created Issue in ${FULL_REPO}: #${ISSUE_NUMBER} (${ISSUE_URL})"
 
@@ -222,12 +228,12 @@ jobs:
               fi
             } > "$FINAL_PR_BODY"
 
-            PR_URL=$(gh pr create               --repo "$FULL_REPO"               --base dev               --head "$FIX_BRANCH"               --title "fix(security): patch adversarial audit findings (#${ISSUE_NUMBER})"               --body-file "$FINAL_PR_BODY")
+            PR_URL=$(gh pr create --repo "$FULL_REPO" --base dev --head "$FIX_BRANCH" --title "fix(security): patch adversarial audit findings (#${ISSUE_NUMBER})" --body-file "$FINAL_PR_BODY")
             echo "Created Pull Request in ${FULL_REPO} (base: dev): ${PR_URL}"
           }
 
-          # Process own-pay/OwnPay (Backend)
-          process_repo             "OwnPay"             "own-pay/OwnPay"             "/tmp/audit/OWNPAY_ISSUE.md"             "/tmp/audit/OWNPAY_PR.md"             "backend"
+          # 1. Process own-pay/OwnPay-Mobile-App first (subdirectory)
+          process_repo "$GITHUB_WORKSPACE/OwnPay-Mobile-App" "own-pay/OwnPay-Mobile-App" "/tmp/audit/MOBILE_ISSUE.md" "/tmp/audit/MOBILE_PR.md" "mobile"
 
-          # Process own-pay/OwnPay-Mobile-App (Flutter Android Companion App)
-          process_repo             "OwnPay-Mobile-App"             "own-pay/OwnPay-Mobile-App"             "/tmp/audit/MOBILE_ISSUE.md"             "/tmp/audit/MOBILE_PR.md"             "mobile"
+          # 2. Process own-pay/OwnPay (workspace root)
+          process_repo "$GITHUB_WORKSPACE" "own-pay/OwnPay" "/tmp/audit/OWNPAY_ISSUE.md" "/tmp/audit/OWNPAY_PR.md" "backend"
