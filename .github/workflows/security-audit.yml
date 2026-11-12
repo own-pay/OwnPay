@@ -1,4 +1,4 @@
-name: Monthly Adversarial Security Audit (dev)
+name: Monthly Cross-Repo Adversarial Security Audit (OwnPay + Mobile App)
 
 on:
   schedule:
@@ -7,24 +7,23 @@ on:
   workflow_dispatch:
     inputs:
       target_scope:
-        description: 'Target directory or module on dev branch (default: all)'
+        description: 'Target scope: all, backend, mobile, or specific path (default: all)'
         required: false
         default: 'all'
         type: string
 
-# Modern GitHub Actions Rule: Least-privilege default at workflow root
+# Least-privilege default permissions at workflow root
 permissions: {}
 
 concurrency:
-  group: security-audit-dev
+  group: ownpay-cross-repo-security-audit-dev
   cancel-in-progress: false
 
 jobs:
-  adversarial-security-audit:
-    name: Dual-Model Adversarial Audit & Fix (dev)
+  cross-repo-security-audit:
+    name: Dual-Model Adversarial Audit (OwnPay & OwnPay-Mobile-App on dev)
     runs-on: ubuntu-latest
     timeout-minutes: 300
-    # Job-scoped explicit permissions
     permissions:
       contents: write
       issues: write
@@ -32,31 +31,77 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout strictly 'dev' branch
+      # 1. Checkout main OwnPay backend repository (dev branch) into ./OwnPay
+      - name: Checkout own-pay/OwnPay (dev)
         uses: actions/checkout@v7
         with:
+          repository: own-pay/OwnPay
           ref: dev
+          path: OwnPay
           fetch-depth: 0
+          token: ${{ secrets.ORG_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Prepare Audit Workspace & Load .github/prompt/security-audit.md
+      # 2. Checkout OwnPay-Mobile-App repository (dev branch) into ./OwnPay-Mobile-App
+      - name: Checkout own-pay/OwnPay-Mobile-App (dev)
+        uses: actions/checkout@v7
+        with:
+          repository: own-pay/OwnPay-Mobile-App
+          ref: dev
+          path: OwnPay-Mobile-App
+          fetch-depth: 0
+          token: ${{ secrets.ORG_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      # 3. Setup PHP 8.3 & pre-warm Composer dependencies for OwnPay (PHPStan Level 9)
+      - name: Setup PHP 8.3 & Composer for OwnPay
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, openssl, bcmath, mbstring, curl, gd, zip
+          coverage: none
+
+      - name: Pre-warm OwnPay Composer Dependencies
+        working-directory: OwnPay
+        run: |
+          set -euo pipefail
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist --no-progress
+          fi
+
+      # 4. Setup cached Flutter/Dart SDK & pre-warm dependencies for OwnPay-Mobile-App
+      - name: Setup Flutter SDK (Cached) for OwnPay-Mobile-App
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Pre-warm OwnPay-Mobile-App Dart/Flutter Dependencies
+        working-directory: OwnPay-Mobile-App
+        run: |
+          set -euo pipefail
+          if [ -f pubspec.yaml ]; then
+            flutter pub get
+          fi
+
+      # 5. Load prompt from OwnPay/.github/prompt/security-audit.md
+      - name: Prepare Audit Workspace & Load Prompt
         id: load_prompt
         env:
           INPUT_SCOPE: ${{ inputs.target_scope || 'all' }}
-          PROMPT_PATH: ".github/prompt/security-audit.md"
+          PROMPT_PATH: "OwnPay/.github/prompt/security-audit.md"
         run: |
           set -euo pipefail
           mkdir -p /tmp/audit
 
           if [ ! -f "$PROMPT_PATH" ]; then
-            echo "::error::${PROMPT_PATH} not found on 'dev' branch."
+            echo "::error::${PROMPT_PATH} not found on 'dev' branch of own-pay/OwnPay."
             exit 1
           fi
 
-          # Extract Stage 1 and Stage 2 prompts from .github/prompt/security-audit.md safely
           {
             echo "STAGE1_PROMPT<<EOF_STAGE1"
-            echo "--effort=max"
+            echo "--effort max --timeout=4h"
             echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
+            echo "Repositories in workspace: ./OwnPay (PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
             echo "Read and follow ${PROMPT_PATH} (STAGE 1 section) strictly:"
             echo ""
             sed -n '/<!-- STAGE_1_START -->/,/<!-- STAGE_1_END -->/p' "$PROMPT_PATH"
@@ -65,8 +110,9 @@ jobs:
 
           {
             echo "STAGE2_PROMPT<<EOF_STAGE2"
-            echo "--effort=high"
+            echo "--effort high --timeout=2h"
             echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
+            echo "Repositories in workspace: ./OwnPay (PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
             echo "Read and follow ${PROMPT_PATH} (STAGE 2 section) strictly:"
             echo ""
             sed -n '/<!-- STAGE_2_START -->/,/<!-- STAGE_2_END -->/p' "$PROMPT_PATH"
@@ -76,13 +122,15 @@ jobs:
       # =========================================================================
       # STAGE 1: Main Orchestrator & Parallel Swarm (minimax/minimax-m3.1-flash)
       # =========================================================================
-      - name: Stage 1 — Threat Model & Parallel Swarm (MiniMax M3.1 Flash)
+      - name: Stage 1 — Cross-Repo Threat Model & Swarm (MiniMax M3.1 Flash)
         uses: pullfrog/pullfrog@v0
-        timeout-minutes: 120
+        timeout-minutes: 240
         with:
+          timeout: 4h
+          push: false
           prompt: ${{ steps.load_prompt.outputs.STAGE1_PROMPT }}
         # env:
-          # OPENAI_COMPATIBLE_BASE_URL: "https://openrouter.ai/api/v1"
+          # OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
           # OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
           # OPENAI_COMPATIBLE_MODEL: "minimax/minimax-m3.1-flash"
           # OPENAI_COMPATIBLE_CONTEXT: "1000000"
@@ -93,8 +141,10 @@ jobs:
       # =========================================================================
       - name: Stage 2 — Adversarial Verification & Report (Dots-3 Note Preview)
         uses: pullfrog/pullfrog@v0
-        timeout-minutes: 60
+        timeout-minutes: 120
         with:
+          timeout: 2h
+          push: false
           prompt: ${{ steps.load_prompt.outputs.STAGE2_PROMPT }}
         env:
           # OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
@@ -104,62 +154,80 @@ jobs:
           OPENAI_COMPATIBLE_MAX_OUTPUT: "460800"
 
       # =========================================================================
-      # STAGE 3: Create GitHub Issue & Pull Request against 'dev' branch
+      # STAGE 3: Create GitHub Issues & Fix PRs against 'dev' in Affected Repos
       # =========================================================================
-      - name: "Create GitHub Issue & Pull Request (base: dev)"
+      - name: "Create Issues & Fix PRs on 'dev' for OwnPay & OwnPay-Mobile-App"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ORG_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           AUDIT_DATE=$(date -u +"%Y-%m-%d")
 
-          if [ ! -f /tmp/audit/ISSUE_REPORT.md ]; then
-            echo "## Security Audit Report ($AUDIT_DATE)" > /tmp/audit/ISSUE_REPORT.md
-            echo "No critical, high, or medium vulnerabilities requiring code changes were confirmed." >> /tmp/audit/ISSUE_REPORT.md
+          if [ -f /tmp/audit/GLOBAL_SUMMARY.md ]; then
+            cat /tmp/audit/GLOBAL_SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## OwnPay Cross-Repo Security Audit ($AUDIT_DATE)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-          # Publish report to GitHub Actions Step Summary
-          cat /tmp/audit/ISSUE_REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          process_repo() {
+            local REPO_DIR="$1"
+            local FULL_REPO="$2"
+            local ISSUE_FILE="$3"
+            local PR_FILE="$4"
+            local LABEL_TAG="$5"
 
-          # Verify if any production code changes remain after adversarial filtering
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "::notice::No verified vulnerabilities or code changes remaining after adversarial review. Skipping Issue and PR creation."
-            exit 0
-          fi
+            cd "$GITHUB_WORKSPACE/$REPO_DIR"
 
-          # 1. Create GitHub Issue with all findings
-          ISSUE_TITLE="[Security Audit] Adversarial Audit Findings on dev ($AUDIT_DATE)"
-          ISSUE_URL=$(gh issue create --title "$ISSUE_TITLE" --body-file /tmp/audit/ISSUE_REPORT.md)
-          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
-          echo "Created GitHub Issue #$ISSUE_NUMBER: $ISSUE_URL"
-
-          # 2. Commit and push verified fixes to a dedicated branch off 'dev'
-          FIX_BRANCH="security/audit-fix-dev-${AUDIT_DATE}-${GITHUB_RUN_ID}"
-          git config user.name "fattain-naime"
-          git config user.email "iamnaime@builderhall.com"
-
-          git checkout -b "$FIX_BRANCH"
-          git add -A
-          git commit -m "fix(security): patch verified vulnerabilities from audit #$ISSUE_NUMBER"
-          git push -u origin "$FIX_BRANCH"
-
-          # 3. Create Pull Request targeting 'dev' branch (never 'main')
-          PR_BODY_FILE="/tmp/audit/FINAL_PR_BODY.md"
-          {
-            echo "## Automated Adversarial Security Audit Fixes"
-            echo ""
-            echo "Closes #$ISSUE_NUMBER"
-            echo ""
-            echo "- **Target Base Branch:** \`dev\`"
-            echo "- **Stage 1 (Main Swarm Model):** \`minimax/minimax-m3.1-flash\` (via AnyRouter)"
-            echo "- **Stage 2 (Adversarial Verifier):** \`dots-studio/dots-3-note-preview\` (via AnyRouter)"
-            echo ""
-            if [ -f /tmp/audit/PR_REPORT.md ]; then
-              cat /tmp/audit/PR_REPORT.md
-            else
-              cat /tmp/audit/ISSUE_REPORT.md
+            if [ -z "$(git status --porcelain)" ]; then
+              echo "::notice::No verified vulnerabilities remaining in ${FULL_REPO} (dev). Skipping Issue & PR."
+              return 0
             fi
-          } > "$PR_BODY_FILE"
 
-          PR_URL=$(gh pr create --base dev --head "$FIX_BRANCH" --title "fix(security): resolve adversarial audit findings (#$ISSUE_NUMBER)" --body-file "$PR_BODY_FILE")
-          echo "Created Pull Request targeting 'dev': $PR_URL"
+            if [ ! -f "$ISSUE_FILE" ]; then
+              echo "## Security Audit Findings — ${FULL_REPO} ($AUDIT_DATE)" > "$ISSUE_FILE"
+              echo "Verified security fixes generated during the monthly cross-repo adversarial audit." >> "$ISSUE_FILE"
+            fi
+
+            # 1. Create GitHub Issue in the target repository
+            ISSUE_TITLE="[Security Audit] Adversarial Audit Findings on dev ($AUDIT_DATE)"
+            ISSUE_URL=$(gh issue create               --repo "$FULL_REPO"               --title "$ISSUE_TITLE"               --body-file "$ISSUE_FILE")
+            ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+            echo "Created Issue in ${FULL_REPO}: #${ISSUE_NUMBER} (${ISSUE_URL})"
+
+            # 2. Commit and push verified fixes to a branch off 'dev'
+            FIX_BRANCH="security/audit-fix-${LABEL_TAG}-${AUDIT_DATE}-${GITHUB_RUN_ID}"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            git checkout -b "$FIX_BRANCH"
+            git add -A
+            git commit -m "fix(security): resolve verified audit findings (#${ISSUE_NUMBER})"
+            git push -u origin "$FIX_BRANCH"
+
+            # 3. Open Pull Request targeting 'dev' branch (never 'main')
+            FINAL_PR_BODY="/tmp/audit/FINAL_PR_${LABEL_TAG}.md"
+            {
+              echo "## Automated Adversarial Security Audit Fixes (${FULL_REPO})"
+              echo ""
+              echo "Closes #${ISSUE_NUMBER}"
+              echo ""
+              echo "- **Target Base Branch:** \`dev\`"
+              echo "- **Stage 1 (Main Swarm Model):** \`minimax/minimax-m3.1-flash\` (via AnyRouter)"
+              echo "- **Stage 2 (Adversarial Verifier):** \`dots-studio/dots-3-note-preview\` (via AnyRouter)"
+              echo ""
+              if [ -f "$PR_FILE" ]; then
+                cat "$PR_FILE"
+              else
+                cat "$ISSUE_FILE"
+              fi
+            } > "$FINAL_PR_BODY"
+
+            PR_URL=$(gh pr create               --repo "$FULL_REPO"               --base dev               --head "$FIX_BRANCH"               --title "fix(security): patch adversarial audit findings (#${ISSUE_NUMBER})"               --body-file "$FINAL_PR_BODY")
+            echo "Created Pull Request in ${FULL_REPO} (base: dev): ${PR_URL}"
+          }
+
+          # Process own-pay/OwnPay (Backend)
+          process_repo             "OwnPay"             "own-pay/OwnPay"             "/tmp/audit/OWNPAY_ISSUE.md"             "/tmp/audit/OWNPAY_PR.md"             "backend"
+
+          # Process own-pay/OwnPay-Mobile-App (Flutter Android Companion App)
+          process_repo             "OwnPay-Mobile-App"             "own-pay/OwnPay-Mobile-App"             "/tmp/audit/MOBILE_ISSUE.md"             "/tmp/audit/MOBILE_PR.md"             "mobile"
