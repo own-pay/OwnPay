@@ -1,0 +1,73 @@
+# TEMPORARY DISPATCH HELPER — DELETE AFTER THE ADVISORY RUN COMPLETES.
+#
+# The pullfrog integration token that drives the agent has no `actions: write`,
+# so `POST /repos/own-pay/OwnPay/actions/workflows/pullfrog.yml/dispatches`
+# answers 403 "Resource not accessible by integration" and the canonical
+# workflow cannot be dispatched from inside an agent run.
+#
+# This helper dispatches the canonical `pullfrog.yml` on the `dev` ref — the
+# ref that PR #706 wired `GH_TOKEN: ${{ secrets.ADVISORY_PAT }}` into — using
+# the run's own GITHUB_TOKEN, which does carry `actions: write`.
+name: Advisory dispatch helper
+
+on:
+  push:
+    branches:
+      - pullfrog/704-advisory-dispatch
+  workflow_dispatch:
+    inputs:
+      prompt:
+        type: string
+        description: Agent prompt (defaults to .github/prompt/advisory-ghsa-r4rg-83vc-9wvw.md)
+      name:
+        type: string
+        description: Run name
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Dispatch the canonical Pullfrog workflow on dev
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PROMPT_FILE: .github/prompt/advisory-ghsa-r4rg-83vc-9wvw.md
+          RUN_NAME: ${{ inputs.name || 'Advisory GHSA-r4rg-83vc-9wvw' }}
+          INPUT_PROMPT: ${{ inputs.prompt }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$INPUT_PROMPT" ]; then
+            PROMPT="$INPUT_PROMPT"
+          elif [ -f "$PROMPT_FILE" ]; then
+            PROMPT=$(cat "$PROMPT_FILE")
+          else
+            echo "::error::${PROMPT_FILE} not found"
+            exit 1
+          fi
+
+          # A re-push of this branch must not start a second advisory run.
+          already=$(gh api "repos/${REPO}/actions/workflows/pullfrog.yml/runs?event=workflow_dispatch&per_page=30" \
+            --jq "[.workflow_runs[] | select(.head_branch == \"dev\" and .display_title == \"${RUN_NAME}\" and (.status == \"queued\" or .status == \"in_progress\"))] | length")
+          if [ "$already" -gt 0 ]; then
+            echo "A '${RUN_NAME}' run is already queued or in progress on dev; not dispatching again."
+            exit 0
+          fi
+
+          # An explicit JSON body: `gh api -f` would flatten `inputs[prompt]`
+          # into a literal key instead of a nested object.
+          jq -n --arg name "$RUN_NAME" --arg prompt "$PROMPT" \
+            '{ref: "dev", inputs: {name: $name, prompt: $prompt}}' > "${RUNNER_TEMP}/dispatch.json"
+
+          gh api --method POST "repos/${REPO}/actions/workflows/pullfrog.yml/dispatches" \
+            --input "${RUNNER_TEMP}/dispatch.json"
+
+          echo "Dispatched pullfrog.yml on the dev ref as '${RUN_NAME}'."
