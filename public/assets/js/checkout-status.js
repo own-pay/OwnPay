@@ -1,4 +1,9 @@
-document.addEventListener("DOMContentLoaded", function() {
+// The script is loaded at the end of the body, so the DOM is fully parsed by the time
+// DOMContentLoaded fires. Waiting for that event unconditionally leaves every handler
+// unattached when the script is evaluated after the event has already been dispatched
+// (async loading, script injection, jsdom), so initialise right away whenever the
+// document is no longer parsing.
+function initCheckoutStatus() {
     // 1. Back button handling
     var backBtns = document.querySelectorAll(".op-back-btn");
     backBtns.forEach(function(btn) {
@@ -111,4 +116,10 @@ document.addEventListener("DOMContentLoaded", function() {
             window.location.reload();
         }, 5000);
     }
-});
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCheckoutStatus);
+} else {
+    initCheckoutStatus();
+}
