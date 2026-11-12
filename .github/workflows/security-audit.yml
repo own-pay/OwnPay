@@ -106,7 +106,7 @@ jobs:
       # =========================================================================
       # STAGE 3: Create GitHub Issue & Pull Request against 'dev' branch
       # =========================================================================
-      - name: Create GitHub Issue & Pull Request (base: dev)
+      - name: "Create GitHub Issue & Pull Request (base: dev)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
