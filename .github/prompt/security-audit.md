@@ -86,7 +86,7 @@ After writing `/tmp/audit/findings.json`:
 
 <!-- STAGE_2_START -->
 ## STAGE 2: Adversarial Verification, Regression Testing & Per-Repo Reports
-**Model:** `dots-studio/dots-3-note-preview` (`--effort high --timeout=2h`)
+**Model:** `nvidia/nemotron-3-ultra-550b-a55b` (`--effort high --timeout=2h`)
 
 ### Step 3 — Adversarial Critique & Boundary Verification
 Act as an independent, skeptical Adversarial Security Critic. Challenge Stage 1 rigorously across both `./` (`OwnPay`) and `./OwnPay-Mobile-App`:
