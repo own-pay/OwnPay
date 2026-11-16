@@ -155,9 +155,9 @@ jobs:
         env:
           OPENAI_COMPATIBLE_BASE_URL: "https://anyrouter.dev/api/v1"
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
-          OPENAI_COMPATIBLE_MODEL: "dots-studio/dots-3-note-preview"
-          OPENAI_COMPATIBLE_CONTEXT: "512000"
-          OPENAI_COMPATIBLE_MAX_OUTPUT: "460800"
+          OPENAI_COMPATIBLE_MODEL: "nvidia/nemotron-3-ultra-550b-a55b"
+          OPENAI_COMPATIBLE_CONTEXT: "1000000"
+          OPENAI_COMPATIBLE_MAX_OUTPUT: "66000"
 
       # =========================================================================
       # STAGE 3: Create GitHub Issues & Fix PRs against 'dev' in Affected Repos
