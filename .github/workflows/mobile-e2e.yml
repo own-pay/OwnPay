@@ -1,0 +1,117 @@
+name: Mobile E2E
+
+on:
+  workflow_dispatch:
+
+env:
+  MULTI_THREADED_ADB: 1
+  ADB_SHELL: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout ownpay
+        uses: actions/checkout@v5
+        with:
+          ref: mobile-e2e-runner
+          path: core
+
+      - name: Checkout mobile app
+        uses: actions/checkout@v5
+        with:
+          repository: own-pay/OwnPay-Mobile-App
+          ref: mobile-e2e-runner
+          path: mobile
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+
+      - name: Start ownpay stack
+        run: |
+          cd core
+          echo "Building containers..."
+          docker compose build --pull app 2>&1 | tail -20
+          docker compose up -d db cache app 2>&1 | tail -5
+          for i in $(seq 1 120); do
+            if curl -sf http://127.0.0.1:8080/install > /dev/null; then echo "app ready after ${i}x2s"; exit 0; fi
+            sleep 2
+          done
+          echo "ERROR: ownpay stack never became ready"
+          docker compose logs app | tail -50
+          exit 1
+
+      - name: Install ownpay via wizard
+        run: |
+          set -euo pipefail
+          rm -f /tmp/cj.txt
+          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://127.0.0.1:8080/install?step=2" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          echo "csrf=$CSRF"
+          test -n "$CSRF"
+          RESP=$(curl -fsS -c /tmp/cj.txt -b /tmp/cj.txt -X POST -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+               -d '{"host":"db","port":3306,"name":"ownpay","user":"ownpay","pass":"ownpay","prefix":"op_","confirm_overwrite":true}' \
+               http://127.0.0.1:8080/install/import-schema)
+          echo "import-schema: $RESP"
+          echo "$RESP" | grep -q '"success":true'
+          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://127.0.0.1:8080/install?step=3" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          RESP=$(curl -fsS -c /tmp/cj.txt -b /tmp/cj.txt -X POST -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+               -d '{"name":"E2E Admin","email":"e2e@example.com","username":"e2eadmin","password":"Smashing!key-2026"}' \
+               http://127.0.0.1:8080/install/create-admin)
+          echo "create-admin: $RESP"
+          echo "$RESP" | grep -q '"success":true'
+
+      - name: Seed sms templates (bKash/Nagad/Rocket)
+        run: |
+          cd core
+          docker compose exec -T db mysql -uownpay -pownpay ownpay < database/seeds/sms_templates.sql
+
+      - name: Get admin session + pairing OTP
+        run: |
+          set -euo pipefail
+          rm -f /tmp/admin.txt
+          CSRF=$(curl -s -c /tmp/admin.txt -b /tmp/admin.txt http://127.0.0.1:8080/login | grep -oP 'name="_csrf_token" value="\K[^"]+' | head -1)
+          curl -fsS -c /tmp/admin.txt -b /tmp/admin.txt -X POST --data-urlencode "_csrf_token=$CSRF" \
+               --data-urlencode "email=e2e@example.com" --data-urlencode "password=Smashing!key-2026" \
+               -o /dev/null -w 'login_http=%{http_code}\n' http://127.0.0.1:8080/login
+          CSRF=$(curl -s -c /tmp/admin.txt -b /tmp/admin.txt http://127.0.0.1:8080/admin/devices | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          RESP=$(curl -fsS -c /tmp/admin.txt -b /tmp/admin.txt -X POST -H "X-CSRF-Token: $CSRF" http://127.0.0.1:8080/admin/devices/generate-otp)
+          echo "resp: $RESP" | head -c 300
+          OTP=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('otp',''))")
+          echo "otp: $OTP"
+          test -n "$OTP"
+          printf '%s' "$OTP" > /tmp/pair_otp.txt
+
+      - name: Build debug APK
+        run: |
+          cd mobile
+          flutter pub get
+          flutter build apk --debug --target-platform android-arm,android-arm64 --no-tree-shake-icons
+          cp build/app/outputs/flutter-apk/app-debug.apk /tmp/app-debug.apk
+
+      - name: Install and launch app on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: aosp_atd
+          arch: x86_64
+          profile: Nexus_5
+          script: |
+            adb wait-for-device
+            adb devices -l
+            adb install /tmp/app-debug.apk
+            adb reverse tcp:8080 tcp:8080
+            adb shell pm grant org.ownpay.console android.permission.RECEIVE_SMS
+            adb shell pm grant org.ownpay.console android.permission.READ_SMS
+            adb shell pm grant org.ownpay.console android.permission.FOREGROUND_SERVICE
+            adb shell monkey -p org.ownpay.console -c android.intent.category.LAUNCHER 1
+            sleep 10
+            adb shell screencap -p /sdcard/screen_initial.png
