@@ -62,8 +62,10 @@ jobs:
 
       - name: Build debug APK (x86_64)
         run: |
-          cd mobile && flutter pub get
-          cd mobile && flutter build apk --debug --target-platform android-x64 --no-tree-shake-icons
+          export ANDROID_HOME=/opt/hostedtoolcache/android-sdk
+          cd "$GITHUB_WORKSPACE/mobile"
+          flutter pub get
+          flutter build apk --debug --target-platform android-x64 --no-tree-shake-icons
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/app-debug.apk
 
       - name: Set up Android emulator (API 35 aosp_atd x86_64)
