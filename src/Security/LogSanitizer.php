@@ -39,6 +39,29 @@ final class LogSanitizer
     ];
 
     /**
+     * Keys whose values are SMS verification material and must be dropped
+     * outright, whatever their type.
+     *
+     * @var array<int, string>
+     */
+    private const SENSITIVE_ALWAYS_KEYS = [
+        'sms_body', 'raw_sms', 'sms_raw',
+        'encrypted_payload', 'encrypted_raw',
+    ];
+
+    /**
+     * Keys whose scalar values are SMS verification material and must be dropped
+     * outright, but whose array values are container objects (e.g. an HTTP request
+     * log like `request.body.email`) whose nested fields are sanitized
+     * recursively instead of dropped wholesale.
+     *
+     * @var array<int, string>
+     */
+    private const SENSITIVE_CONTAINER_KEYS = [
+        'body', 'raw_body', 'message_body',
+    ];
+
+    /**
      * @var array<int, string> List of keys designated for masking or partial redaction.
      */
     private const MASK_KEYS = [
@@ -67,6 +90,27 @@ final class LogSanitizer
         $result = [];
         foreach ($data as $key => $value) {
             $lowerKey = strtolower((string)$key);
+
+            // SMS verification material — always dropped, whatever the type.
+            if (in_array($lowerKey, self::SENSITIVE_ALWAYS_KEYS, true)) {
+                $result[$key] = '[REDACTED]';
+                continue;
+            }
+
+            // Bare string form is SMS verification material — drop it outright;
+            // array form is a container object — sanitize nested fields instead.
+            if (in_array($lowerKey, self::SENSITIVE_CONTAINER_KEYS, true)) {
+                if (is_array($value)) {
+                    $stringKeyedValue = [];
+                    foreach ($value as $k => $v) {
+                        $stringKeyedValue[(string) $k] = $v;
+                    }
+                    $result[$key] = self::sanitize($stringKeyedValue);
+                    continue;
+                }
+                $result[$key] = '[REDACTED]';
+                continue;
+            }
 
             // Execute full redaction rules.
             if (in_array($lowerKey, self::REDACT_KEYS, true) || self::containsSensitiveKey($lowerKey)) {

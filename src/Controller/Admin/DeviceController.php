@@ -188,10 +188,35 @@ final class DeviceController
             }
             $serverUrl = $urlService->resolveBaseUrl($mid, $req);
 
-            $qrPayload = json_encode([
+            $qrPayloadData = [
                 'server_url' => $serverUrl,
-                'otp'        => $result['otp']
-            ]);
+                'otp'        => $result['otp'],
+            ];
+
+            // When the host terminates TLS with a self-signed/private CA certificate, the mobile app
+            // cannot validate it with public CAs. Carrying the server's SPKI SHA-256 digest in the QR
+            // lets the app pin exactly that key and refuse any other cert at pairing time.
+            // Set TLS_CERT_PATH in .env (absolute path to the server's certificate PEM) to enable.
+            $tlsCertPath = getenv('TLS_CERT_PATH') ?: ($_ENV['TLS_CERT_PATH'] ?? null);
+            if (is_string($tlsCertPath) && $tlsCertPath !== '' && is_readable($tlsCertPath)) {
+                $certPem = file_get_contents($tlsCertPath);
+                if (is_string($certPem) && $certPem !== '') {
+                    $cert = openssl_x509_read($certPem);
+                    if ($cert !== false) {
+                        $pubKey = openssl_pkey_get_public($cert);
+                        $details = $pubKey !== false ? openssl_pkey_get_details($pubKey) : false;
+                        if (is_array($details) && isset($details['key']) && is_string($details['key'])) {
+                            $spkiPem = (string) $details['key'];
+                            $spkiDer = base64_decode((string) preg_replace('/-----[^-]+-----|\s+/', '', $spkiPem), true);
+                            if (is_string($spkiDer) && $spkiDer !== '') {
+                                $qrPayloadData['spki'] = hash('sha256', $spkiDer);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $qrPayload = json_encode($qrPayloadData);
 
             if (!is_string($qrPayload)) {
                 return Response::json(['success' => false, 'error' => 'Failed to serialize QR payload']);

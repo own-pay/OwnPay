@@ -74,6 +74,7 @@
             </div>
             <div class="op-plugin-card-meta">
                 <span class="op-badge op-badge-{{ plugin.type == 'gateway' ? 'info' : (plugin.type == 'theme' ? 'primary' : 'warning') }} op-badge-sm">{{ plugin.type|capitalize }}</span>
+                <span class="op-badge op-badge-{{ plugin.tier == 'official' ? 'success' : (plugin.tier == 'verified' ? 'info' : 'warning') }} op-badge-sm" title="{{ plugin.tier == 'unverified' ? 'No valid registry signature. Activate only if you trust the source.' : (plugin.tier == 'verified' ? 'Signed by the plugin registry (verified community).' : 'Signed by OwnPay (official).') }}">{{ (plugin.tier ?? 'unverified')|capitalize }}</span>
                 <span class="op-text-xs op-text-muted">v{{ plugin.version }}</span>
             </div>
         </div>
@@ -121,7 +122,8 @@
                     </button>
                 </form>
                 {% elseif plugin.status == 'inactive' or plugin.status == 'error' %}
-                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form">
+                {% set permList = (plugin.permissions is defined and plugin.permissions|length > 0) ? plugin.permissions|join(', ') : 'no extra permissions' %}
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form" data-confirm="{{ plugin.tier == 'unverified' ? 'UNVERIFIED PLUGIN - OwnPay has not reviewed this code.\n\nPermissions requested: ' ~ permList ~ '\n\nActivating it runs arbitrary PHP on your server (full access). Only proceed if you trust the author and the source.' : '' }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="op-btn op-btn-xs op-btn-success">{{ plugin.status == 'error' ? 'Retry' : 'Activate' }}</button>
                 </form>

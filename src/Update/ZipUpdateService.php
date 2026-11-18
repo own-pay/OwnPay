@@ -29,17 +29,6 @@ class ZipUpdateService
      * against this key; when absent, the superadmin upload itself is treated as
      * the trust gate.
      */
-    private const UPDATE_PUBLIC_KEY = <<<'EOT'
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzBVsd2Yd/xqMD00Dts/e
-OuSIjjYab3fRqEtRaPf9cAl0iFRR+o7RGloz6dh6M2trswiKx2s2mN4+JPL604Z/
-K86OxhovINo8KT4kQ3Tisq9uQ7J7x5YieoLfj4YpWwSv643Vw4QYMDagsMntXgbo
-ZnfuQ3Dk7EgeZ4/8psHN/SGb8E7/JyQRwQhNFpOOO++25kR/4fKm9kHiOH8URoYi
-gbp/HC6oTH5ObtTMwaXFk7ZHMyh6iHmYv4cLZtJR+/Xpkb1d5gz7IcsTklJPXSja
-a8U63KZm/fnwYBsV4JdX2qTPfZLSGhL7vEHA5U1y617RGdT3WaShURvv2o4eiyBb
-FQIDAQAB
------END PUBLIC KEY-----
-EOT;
     /**
      * Maximum allowed upload size in bytes (50 MB).
      */
@@ -138,7 +127,7 @@ EOT;
         }
 
         try {
-            $signatureState = $this->verifySignature($tmpPath) ? 'verified' : 'absent';
+            $signatureState = $this->verifySignature($tmpPath);
         } catch (\Throwable $e) {
             return ['valid' => false, 'error' => $e->getMessage()];
         }
@@ -201,9 +190,16 @@ EOT;
                 $this->log("Manual update from ZIP ({$fileName}) - Step 1: Validating package");
                 $this->validatePackageIntegrity($tmpPath);
 
-                $this->log("Step 2: Verifying package signature (if present)");
-                $signatureState = $this->verifySignature($tmpPath) ? 'verified' : 'absent';
+                $this->log("Step 2: Verifying package signature");
+                $signatureState = $this->verifySignature($tmpPath);
                 $this->log("Signature status: {$signatureState}");
+
+                $minPhp = $this->readManifestMinPhp($tmpPath);
+                if ($minPhp !== null && version_compare(PHP_VERSION, $minPhp, '<')) {
+                    throw new \RuntimeException(
+                        "This update requires PHP {$minPhp} or higher. Your server is running PHP " . PHP_VERSION . '. The update was not applied.'
+                    );
+                }
 
                 $manifestVersion = $this->readManifestVersion($tmpPath);
                 if ($manifestVersion === null || $manifestVersion === '') {
@@ -369,6 +365,39 @@ EOT;
     }
 
     /**
+     * Reads the host PHP floor declared in the package manifest, when present.
+     *
+     * Packages published for 0.3.0+ carry min_php so an 8.3 host is refused
+     * before any download/backup/maintenance instead of bricking itself.
+     *
+     * @param string $tmpPath Path to the uploaded temp file.
+     * @return string|null The declared minimum, or null when absent/unreadable.
+     */
+    private function readManifestMinPhp(string $tmpPath): ?string
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($tmpPath) !== true) {
+            return null;
+        }
+        $manifestIndex = $zip->locateName('version.json');
+        if ($manifestIndex === false) {
+            $zip->close();
+            return null;
+        }
+        $content = $zip->getFromIndex($manifestIndex);
+        $zip->close();
+
+        if (!is_string($content)) {
+            return null;
+        }
+        $meta = json_decode($content, true);
+        if (!is_array($meta) || !isset($meta['min_php']) || !is_string($meta['min_php']) || $meta['min_php'] === '') {
+            return null;
+        }
+        return $meta['min_php'];
+    }
+
+    /**
      * Validates package integrity before extraction.
      *
      * @param string $tmpPath Path to the uploaded temp file.
@@ -421,64 +450,34 @@ EOT;
     }
 
     /**
-     * Verifies an optional RSA signature embedded as signature.sig inside the ZIP.
+     * Lazily constructs the package verifier (single source of truth for v1/v2 policy).
+     * Protected so tests can substitute a verifier with a test trust store.
+     */
+    protected function packageVerifier(): UpdatePackageVerifier
+    {
+        return new UpdatePackageVerifier();
+    }
+
+    /**
+     * Verifies the update package signature/manifest chain.
      *
-     * The package is considered signed when a `signature.sig` (base64 RSA-SHA256)
-     * entry exists at the ZIP root. It must verify over the raw SHA-256 digest of
-     * the `version.json` manifest content, signed against the embedded public key.
-     * A present-but-invalid signature aborts the update; an absent signature is
-     * allowed (the superadmin upload itself is the trust gate).
+     * Returns the detected signature scheme ('v2'|'v1'|'absent') for preview display.
+     * A code-bearing package must be v2-signed; an asset-only package may be
+     * v1-signed or unsigned. Any failure throws \RuntimeException.
      *
      * @param string $tmpPath Path to the uploaded temp file.
-     * @return bool True when a valid signature is present; false when absent.
-     * @throws \RuntimeException When a signature is present but cannot be verified.
+     * @return string 'v2' | 'v1' | 'absent'
+     * @throws \RuntimeException When the package is rejected.
      */
-    private function verifySignature(string $tmpPath): bool
+    private function verifySignature(string $tmpPath): string
     {
-        if (!function_exists('openssl_verify')) {
-            return false;
+        $verifier = $this->packageVerifier();
+        $containsCode = $verifier->containsExecutableContent($tmpPath);
+        $result = $verifier->verify($tmpPath, $containsCode, \OwnPay\Support\Version::CURRENT);
+        if ($result['scheme'] === 'v2') {
+            return 'v2';
         }
-
-        $zip = new \ZipArchive();
-        if ($zip->open($tmpPath) !== true) {
-            return false;
-        }
-        $signatureIndex = $zip->locateName('signature.sig');
-        if ($signatureIndex === false) {
-            $zip->close();
-            return false;
-        }
-        $signatureBase64 = $zip->getFromIndex($signatureIndex);
-        $manifestIndex = $zip->locateName('version.json');
-        $manifestContent = $manifestIndex === false ? null : $zip->getFromIndex($manifestIndex);
-        $zip->close();
-
-        if (!is_string($signatureBase64) || trim($signatureBase64) === '') {
-            throw new \RuntimeException('Package signature.sig is empty. Invalid signature format.');
-        }
-        if (!is_string($manifestContent) || $manifestContent === '') {
-            throw new \RuntimeException('Signed packages must contain a version.json manifest.');
-        }
-
-        $signature = base64_decode(trim($signatureBase64), true);
-        if ($signature === false || $signature === '') {
-            throw new \RuntimeException('Package signature.sig is not valid base64.');
-        }
-
-        $signedPayload = hash('sha256', $manifestContent);
-
-        $pubKeyResource = openssl_pkey_get_public(self::UPDATE_PUBLIC_KEY);
-        if ($pubKeyResource === false) {
-            throw new \RuntimeException('Failed to load embedded public key for signature verification.');
-        }
-
-        $verifyResult = openssl_verify($signedPayload, $signature, $pubKeyResource, OPENSSL_ALGO_SHA256);
-        if ($verifyResult !== 1) {
-            $err = ($verifyResult === 0) ? 'Signature mismatch' : 'OpenSSL verification error (' . openssl_error_string() . ')';
-            throw new \RuntimeException("Signature verification failed: {$err}.");
-        }
-
-        return true;
+        return $result['key_id'] !== null ? 'v1' : 'absent';
     }
 
     /**

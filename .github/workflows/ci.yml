@@ -34,7 +34,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           # Extensions required by src/Plugin/PluginInstaller, src/Update/UpdateService,
           # src/Update/BackupService and their tests. shivammathur/setup-php ships these
@@ -62,7 +62,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl, yaml
 
@@ -99,7 +99,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: xdebug
           extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl, yaml
 
@@ -130,7 +130,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl, yaml
 
@@ -200,7 +200,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           extensions: zip, mbstring, pdo, pdo_mysql, bcmath, gd, intl, yaml
 

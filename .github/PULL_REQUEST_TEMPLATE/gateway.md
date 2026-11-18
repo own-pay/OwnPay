@@ -15,13 +15,13 @@
 
 ---
 
-## 🛡️ AST Sandbox & Plugin Security Checklist
+## 🛡️ Plugin Blocklist & Containment Checklist
 
-<!-- All gateway adapters must adhere to strict sandbox constraints: -->
+<!-- All gateway adapters must adhere to strict containment rules (full-trust plugins, docs/PLUGINS.md): -->
 
 - [ ] **Manifest**: `manifest.json` is present with valid schema, version, capabilities, and CSP connect origins.
 - [ ] **Interface**: Adapter implements `OwnPay\Gateway\GatewayAdapterInterface` (or uses `GatewayDefaults` trait).
-- [ ] **AST Sandbox Clean**: Code contains **NO** forbidden calls (`exec`, `shell_exec`, `system`, `passthru`, `eval`, backticks, direct raw PDO/database access).
+- [ ] **AST Blocklist Clean**: Code contains **NO** forbidden calls (`exec`, `shell_exec`, `system`, `passthru`, `eval`, backticks, direct raw PDO/database access).
 - [ ] **Webhook Verification**: Webhook callbacks cryptographically verify request signatures (e.g. HMAC-SHA256, RSA).
 - [ ] **Safe HTTP Requests**: Uses the injected PSR-18 HTTP client or standard safe HTTP dispatchers with timeout limits.
 - [ ] **Field Encryption**: API secrets, private keys, and webhooks are marked sensitive for encrypted storage.

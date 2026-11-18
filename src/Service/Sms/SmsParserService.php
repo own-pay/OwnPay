@@ -8,6 +8,7 @@ use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\SmsTemplateRepository;
 use OwnPay\Security\FieldEncryptor;
+use OwnPay\Security\SmsBodyCipher;
 use OwnPay\Service\Notification\MobileNotificationService;
 use OwnPay\Service\System\Logger;
 use OwnPay\Event\EventManager;
@@ -69,6 +70,13 @@ final class SmsParserService
     private $encryptor;
 
     /**
+     * Encrypts SMS bodies at rest.
+     *
+     * @var SmsBodyCipher
+     */
+    private $bodyCipher;
+
+    /**
      * Notification dispatch helper.
      *
      * @var MobileNotificationService
@@ -103,6 +111,7 @@ final class SmsParserService
      * @param MobileNotificationService $notifService Mobile push notification system service.
      * @param EventManager|null $events The central system event and filter hooks manager.
      * @param Logger|null $logger The system logging service.
+     * @param SmsBodyCipher|null $bodyCipher SMS body cipher (created from $encryptor when omitted).
      */
     public function __construct(
         $deviceRepo,
@@ -113,7 +122,8 @@ final class SmsParserService
         $encryptor,
         $notifService,
         $events = null,
-        $logger = null
+        $logger = null,
+        $bodyCipher = null
     ) {
         $this->deviceRepo      = $deviceRepo;
         $this->templateRepo    = $templateRepo;
@@ -121,6 +131,13 @@ final class SmsParserService
         $this->regexParser     = $regexParser;
         $this->heuristicParser = $heuristicParser;
         $this->encryptor       = $encryptor;
+        // Constructor params are intentionally untyped test doubles; the real
+        // DI path always passes a FieldEncryptor and audited callers rely on it.
+        // Constructor params are intentionally untyped test doubles; the real
+        // DI path always passes a FieldEncryptor and audited callers rely on it.
+        $this->bodyCipher      = $bodyCipher instanceof SmsBodyCipher
+            ? $bodyCipher
+            : new SmsBodyCipher($encryptor);
         $this->notifService    = $notifService;
         $this->events          = $events ?? EventManager::getInstance();
         $this->logger          = $logger ?? new Logger();
@@ -364,7 +381,7 @@ final class SmsParserService
             'sender'           => $sender,
             'received_at'      => $receivedAt,
             'encrypted_raw'    => $encrypted,
-            'body'             => $raw,
+            'body'             => $this->bodyCipher->encrypt($raw),
             'amount'           => $parsed['parsed_amount'] ?? null,
             'trx_id'           => $parsed['parsed_trx_id'] ?? null,
             'parsed_sender'    => $parsed['parsed_sender'] ?? null,

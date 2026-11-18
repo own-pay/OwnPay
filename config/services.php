@@ -430,6 +430,12 @@ return static function (\OwnPay\Container $c): void {
     // SmsParserService has an intentionally untyped constructor (test-double friendly), so the
     // container cannot autowire it. It MUST be registered explicitly or Api\Mobile\SmsController
     // (POST /api/mobile/v1/sms ingestion + GET /api/mobile/v1/sms/queues) fails to resolve at runtime.
+    $c->singleton(\OwnPay\Security\SmsBodyCipher::class, static function (\OwnPay\Container $c): \OwnPay\Security\SmsBodyCipher {
+        return new \OwnPay\Security\SmsBodyCipher(
+            ensureType($c->get(\OwnPay\Security\FieldEncryptor::class), \OwnPay\Security\FieldEncryptor::class)
+        );
+    });
+
     $c->singleton(\OwnPay\Service\Sms\SmsParserService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Sms\SmsParserService {
         return new \OwnPay\Service\Sms\SmsParserService(
             ensureType($c->get(\OwnPay\Repository\PairedDeviceRepository::class), \OwnPay\Repository\PairedDeviceRepository::class),
@@ -441,6 +447,7 @@ return static function (\OwnPay\Container $c): void {
             ensureType($c->get(\OwnPay\Service\Notification\MobileNotificationService::class), \OwnPay\Service\Notification\MobileNotificationService::class),
             ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
             ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+            ensureType($c->get(\OwnPay\Security\SmsBodyCipher::class), \OwnPay\Security\SmsBodyCipher::class),
         );
     });
 
@@ -904,6 +911,8 @@ $c->singleton(\OwnPay\Service\Payment\GatewayApiService::class, static function 
         $runner->register('CurrencyUpdate', ensureType($c->get(\OwnPay\Cron\CurrencyUpdateJob::class), \OwnPay\Cron\CurrencyUpdateJob::class), 'hourly');
         $runner->register('DnsVerification', ensureType($c->get(\OwnPay\Cron\DnsVerificationJob::class), \OwnPay\Cron\DnsVerificationJob::class), 'hourly');
         $runner->register('RefundReconciliation', ensureType($c->get(\OwnPay\Cron\RefundReconciliationJob::class), \OwnPay\Cron\RefundReconciliationJob::class), 'hourly');
+        $runner->register('SmsRetentionPurge', ensureType($c->get(\OwnPay\Cron\SmsRetentionPurgeJob::class), \OwnPay\Cron\SmsRetentionPurgeJob::class), 'daily');
+        $runner->register('PluginRevocationCheck', ensureType($c->get(\OwnPay\Cron\PluginRevocationCheckJob::class), \OwnPay\Cron\PluginRevocationCheckJob::class), 'daily');
         $runner->register('UpdateCheck', ensureType($c->get(\OwnPay\Cron\UpdateCheckJob::class), \OwnPay\Cron\UpdateCheckJob::class), 'daily');
         $runner->register('SystemUpdate', ensureType($c->get(\OwnPay\Cron\SystemUpdateJob::class), \OwnPay\Cron\SystemUpdateJob::class), 'daily');
 

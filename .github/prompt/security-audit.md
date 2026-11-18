@@ -1,12 +1,14 @@
 # OwnPay Cross-Repo Adversarial Security Audit Protocol (`dev` Branch Only)
 
 You are operating inside an automated DevSecOps security audit pipeline for the **OwnPay** ecosystem (`own-pay/OwnPay` + `own-pay/OwnPay-Mobile-App`).
+
 - **Workspace Layout (CRITICAL — Root vs Sub-Repo):**
   - `./` (Workspace Root) — `own-pay/OwnPay`: Self-hosted payment gateway core (**PHP 8.3+**, MariaDB/MySQL, Twig 3, **PHPStan Level 9**, custom dependency-minimal architecture, GAAP double-entry ledger, 123 payment gateways, sandboxed plugin/module system, Mobile API). First-party code lives in `./src/`, `./public/`, `./config/`, `./database/`, `./templates/`, `./modules/`, `./plugins/`, and `./tests/`.
   - `./OwnPay-Mobile-App` (Sub-directory) — `own-pay/OwnPay-Mobile-App`: Android merchant companion app (**Flutter / Dart** & Android native Kotlin/Java receiver layer, background SMS listener, on-device privacy & anti-fraud filter, device pairing, JWT auth, SMS-to-server verification sync). First-party code lives in `./OwnPay-Mobile-App/lib/`, `./OwnPay-Mobile-App/android/app/src/`, `./OwnPay-Mobile-App/android/app/build.gradle*`, `./OwnPay-Mobile-App/pubspec.yaml`, and `./OwnPay-Mobile-App/test/`.
 - **Target Branch:** `dev` in both repositories (NEVER scan, modify, or open PRs against `main`).
 
 ## Global Operational & Performance Rules
+
 1. **Strict Scope Exclusions (Mandatory for Speed):**
    - In `./` (`OwnPay` root): NEVER read, grep, or audit `vendor/`, `storage/`, `bootstrap/cache/`, `.git/`, `public/build/`, `OwnPay-Mobile-App/` (when running root PHP tools), or `composer.lock`. Audit ONLY first-party directories (`./src/`, `./public/`, `./config/`, `./database/`, `./templates/`, `./modules/`, `./plugins/`, `./tests/`).
    - In `./OwnPay-Mobile-App`: NEVER read, grep, or audit `.dart_tool/`, `build/`, `.gradle/`, `.git/`, `ios/`, `windows/`, `linux/`, `macos/`, `web/`, or `pubspec.lock`. Audit ONLY `./OwnPay-Mobile-App/lib/`, `./OwnPay-Mobile-App/android/app/src/`, `./OwnPay-Mobile-App/test/`, and critical manifest/gradle configuration files.
@@ -24,9 +26,11 @@ You are operating inside an automated DevSecOps security audit pipeline for the 
 
 <!-- STAGE_1_START -->
 ## STAGE 1: Cross-Repo Threat Modeling & Parallel Security Swarm
-**Model:** `minimax/minimax-m3.1-flash` (`--effort max --timeout=4h`)
+
+**Model:** `thinkingmachines/inkling-2-small:free` (`--effort max --timeout=4h`)
 
 ### Step 1 — Cross-Repo Threat Modeling & Entry-Point Mapping
+
 1. Ensure `/tmp/audit` exists (`mkdir -p /tmp/audit`).
 2. Map critical architectural entry points across **both** `./` (`OwnPay`) and `./OwnPay-Mobile-App`:
    - **Backend (`./src/`, `./public/`, `./config/`, `./templates/`, `./modules/`, `./plugins/`):**
@@ -45,7 +49,9 @@ You are operating inside an automated DevSecOps security audit pipeline for the 
 3. Write `/tmp/audit/threat-model.md` detailing the cross-repo attack surface and the **Top 3 High-Impact Vulnerabilities**.
 
 ### Step 2 — Parallel Security Swarm (Both Repositories)
+
 Deploy three specialized parallel checker subagents simultaneously using your subagent/Task tool (covering both `./` and `./OwnPay-Mobile-App`):
+
 - **Subagent A (Injection, Deserialization, Twig SSTI & Anti-Fraud SMS Parsing):**
   - Audit `./` (`OwnPay`) for SQL injection (any raw query bypassing PDO parameterization), OS command injection, SSRF in gateway/webhook callbacks, path traversal (language/plugin/module/template/upload paths), Twig SSTI in `./templates/`, and unsafe deserialization.
   - Audit `./OwnPay-Mobile-App` & `./src/` SMS regex/parsing logic for ReDoS, sender identity spoofing (accepting SMS from normal mobile numbers instead of verified MFS/bank sender IDs), fraudulent SMS body crafting (e.g., attacker embedding `"TrxID XXX Tk 500"` inside a payment reference or promotional text), and amount/currency/TrxID parsing ambiguity.
@@ -57,6 +63,7 @@ Deploy three specialized parallel checker subagents simultaneously using your su
   - Audit `./OwnPay-Mobile-App` for duplicate SMS submission races during network reconnects, dropped SMS events when the app is killed/backgrounded/locked across Android versions and OEMs, sensitive SMS/OTP logging in release builds, and unhandled background isolate exceptions.
 
 Merge all findings into `/tmp/audit/findings.json` using this exact schema:
+
 ```json
 [
   {
@@ -75,6 +82,7 @@ Merge all findings into `/tmp/audit/findings.json` using this exact schema:
 ```
 
 After writing `/tmp/audit/findings.json`:
+
 1. Apply minimal, surgical patches directly inside `./` (`OwnPay`) and/or `./OwnPay-Mobile-App` to resolve all confirmed vulnerabilities (keeping cross-repo API contracts synchronized if both sides need updates).
 2. Run targeted lint/static analysis ONLY on modified files:
    - In `./`: `vendor/bin/parallel-lint` and `vendor/bin/phpstan analyse --memory-limit=2G` on modified `.php` files (`git diff --name-only -- '*.php'`).
@@ -86,10 +94,13 @@ After writing `/tmp/audit/findings.json`:
 
 <!-- STAGE_2_START -->
 ## STAGE 2: Adversarial Verification, Regression Testing & Per-Repo Reports
-**Model:** `nvidia/nemotron-3-ultra-550b-a55b` (`--effort high --timeout=2h`)
+
+**Model:** `baidu/ernie-5.5-flash-preview:free` (`--effort max --timeout=2h`)
 
 ### Step 3 — Adversarial Critique & Boundary Verification
+
 Act as an independent, skeptical Adversarial Security Critic. Challenge Stage 1 rigorously across both `./` (`OwnPay`) and `./OwnPay-Mobile-App`:
+
 1. Read `/tmp/audit/threat-model.md`, `/tmp/audit/findings.json`, and inspect `git diff` (for `OwnPay` at root) and `git -C OwnPay-Mobile-App diff` (for `OwnPay-Mobile-App`).
 2. **False-Positive Elimination:** Verify every finding against the actual codebase. If a finding is already mitigated by PDO parameterization, `TenantScope`, middleware, or existing guards, revert its unnecessary patch (`git checkout -- <file>` for `OwnPay` or `git -C OwnPay-Mobile-App checkout -- <file>` for mobile) and mark it as `REJECTED (False Positive)`.
 3. **Defensive Boundary & Anti-Fraud Verification:**
@@ -101,7 +112,9 @@ Act as an independent, skeptical Adversarial Security Critic. Challenge Stage 1 
    - In `./OwnPay-Mobile-App` (if modified): run `cd OwnPay-Mobile-App && dart analyze && flutter test` to guarantee zero regressions.
 
 ### Step 4 — Generate Separate Issue & PR Reports per Repository
+
 Write clean Markdown reports in `/tmp/audit/` (do NOT commit them to git):
+
 1. `/tmp/audit/GLOBAL_SUMMARY.md` — High-level cross-repo audit summary for GitHub Actions Step Summary.
 2. **If `./` (`OwnPay`) has verified changes (`git status --porcelain` is non-empty):**
    - `/tmp/audit/OWNPAY_ISSUE.md`: Security dashboard of all verified findings in `own-pay/OwnPay` grouped by severity (`Critical`, `High`, `Medium`, `Low`), including threat model highlights, file paths, lines, root cause, and cross-repo notes if linked to `OwnPay-Mobile-App`.

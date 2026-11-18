@@ -1,4 +1,4 @@
-FROM php:8.3-bookworm
+FROM php:8.4-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive \
     COMPOSER_ALLOW_SUPERUSER=1 \

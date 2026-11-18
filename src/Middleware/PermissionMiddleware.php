@@ -283,6 +283,7 @@ final class PermissionMiddleware
             '/admin/api-keys'             => 'api_keys.view',
             '/admin/sms-center'           => 'sms.view',
             '/admin/sms-data'             => 'sms.view',
+            '/admin/sms-view-body'        => 'sms.view_raw',
             '/admin/devices'              => 'devices.view',
             '/admin/plugins'              => 'plugins.view',
             '/admin/themes'               => 'plugins.view',
@@ -340,8 +341,8 @@ final class PermissionMiddleware
         // Check exact match first
         if (isset($map[$path])) {
             $perm = $map[$path];
-            if ($stateChanging) {
-                $perm = str_replace('.view', '.manage', $perm);
+            if ($stateChanging && str_ends_with($perm, '.view')) {
+                $perm = substr($perm, 0, strlen($perm) - strlen('.view')) . '.manage';
             }
             return $perm;
         }
@@ -354,8 +355,8 @@ final class PermissionMiddleware
                 continue;
             }
             if (str_starts_with($path, $prefix . '/')) {
-                if ($stateChanging) {
-                    return str_replace('.view', '.manage', $perm);
+                if ($stateChanging && str_ends_with($perm, '.view')) {
+                    return substr($perm, 0, strlen($perm) - strlen('.view')) . '.manage';
                 }
                 return $perm;
             }

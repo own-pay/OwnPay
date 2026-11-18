@@ -111,22 +111,24 @@ final class SmsController
             );
         }
 
-        // Validate messages
+        // Validate messages. `encrypted_payload` is mandatory: the AES-GCM envelope
+        // is the one channel the whole SMS pipeline is designed around. A plaintext
+        // `body` is never processed (the parser reads only encrypted_payload), so
+        // accepting it here only confused clients and shipped cleartext to the
+        // `sms.received.before` plugin hook.
         foreach ($messages as $msg) {
             if (!is_array($msg)) {
                 return Response::apiError('INVALID_MESSAGE_FORMAT', 'Invalid message format', 'messages', 422);
             }
             $senderVal = $msg['sender'] ?? null;
             $encryptedPayloadVal = $msg['encrypted_payload'] ?? null;
-            $bodyVal = $msg['body'] ?? null;
-            if (empty($senderVal) || (empty($encryptedPayloadVal) && empty($bodyVal))) {
-                return Response::apiError('INVALID_MESSAGE_PAYLOAD', 'sender and encrypted_payload/body required', 'messages', 422);
+            if (empty($senderVal) || empty($encryptedPayloadVal)) {
+                return Response::apiError('INVALID_MESSAGE_PAYLOAD', 'sender and encrypted_payload required', 'messages', 422);
             }
             if (is_string($senderVal) && strlen($senderVal) > self::MAX_SENDER_BYTES) {
                 return Response::apiError('SENDER_TOO_LONG', 'sender exceeds ' . self::MAX_SENDER_BYTES . ' bytes', 'sender', 422);
             }
-            $payloadLen = (is_string($encryptedPayloadVal) ? strlen($encryptedPayloadVal) : 0)
-                + (is_string($bodyVal) ? strlen($bodyVal) : 0);
+            $payloadLen = is_string($encryptedPayloadVal) ? strlen($encryptedPayloadVal) : 0;
             if ($payloadLen > self::MAX_PAYLOAD_BYTES) {
                 return Response::apiError('PAYLOAD_TOO_LARGE', 'message payload exceeds ' . self::MAX_PAYLOAD_BYTES . ' bytes', 'messages', 422);
             }

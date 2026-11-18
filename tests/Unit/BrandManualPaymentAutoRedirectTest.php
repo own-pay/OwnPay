@@ -28,7 +28,10 @@ use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use ReflectionMethod;
 use ReflectionProperty;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+
+#[AllowMockObjectsWithoutExpectations]
 final class BrandManualPaymentAutoRedirectTest extends TestCase
 {
     public function testDefaultBrandThemeProvidesManualPaymentAutoRedirectZero(): void

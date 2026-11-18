@@ -115,7 +115,7 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
         // Real Stripe payment session initiation
         $amountRaw = isset($params['amount']) ? $params['amount'] : null;
         $amountFloat = is_numeric($amountRaw) ? (float) $amountRaw : 0.0;
-        $amount = (int) bcmul((string) $amountFloat, '100', 0); // Stripe uses cents
+        $amount = (int) bcmul(\OwnPay\Core\NumberHelper::toNumericString($amountFloat), '100', 0); // Stripe uses cents
         $currency = strtolower($this->getString(isset($params['currency']) ? $params['currency'] : 'USD'));
 
         $trxId = isset($params['trx_id']) && is_scalar($params['trx_id']) ? (string)$params['trx_id'] : '';

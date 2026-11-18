@@ -16,11 +16,14 @@ use OwnPay\Service\Payment\PaymentLinkService;
 use OwnPay\Service\System\AuditService;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * Regression tests for Brand settings language persistence
  * (issues: empty op_languages table + hardcoded/overwritten language fields).
  */
+#[AllowMockObjectsWithoutExpectations]
 final class BrandControllerLanguageSettingsTest extends TestCase
 {
     /** @var array<int, array<string, mixed>> */

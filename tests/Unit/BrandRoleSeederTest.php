@@ -7,7 +7,10 @@ namespace Tests\Unit;
 use OwnPay\Core\Database;
 use OwnPay\Service\Brand\BrandRoleSeeder;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+
+#[AllowMockObjectsWithoutExpectations]
 final class BrandRoleSeederTest extends TestCase
 {
     public function testSeedCreatesFourConflictFreeRolesAndPrunesPlatformPermissions(): void

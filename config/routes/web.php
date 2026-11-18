@@ -215,6 +215,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/settings/optimize/logs', 'Admin\\SettingsController@optimizeLogs', 'admin');
     $router->post('/admin/settings/optimize/uploads', 'Admin\\SettingsController@optimizeUploads', 'admin');
     $router->post('/admin/settings/optimize/all', 'Admin\\SettingsController@optimizeAll', 'admin');
+    $router->post('/admin/settings/sms-retention', 'Admin\\SettingsController@saveSmsRetention', 'admin');
 
     // Language Settings
     $router->post('/admin/settings/language/save-default', 'Admin\\SettingsController@saveDefaultLanguage', 'admin');
@@ -256,6 +257,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // SMS Data (parsed SMS log)
     $router->get('/admin/sms-data', 'Admin\\SmsDataController@index', 'admin');
+    $router->post('/admin/sms-view-body/{id}', 'Admin\\SmsDataController@reveal', 'admin');
 
     // API Keys
     $router->get('/admin/api-keys', 'Admin\\ApiKeyController@index', 'admin');

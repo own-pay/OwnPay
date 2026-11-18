@@ -19,6 +19,23 @@ use OwnPay\Service\System\Logger;
 final class EventManager
 {
     /**
+     * Hook -> required permission slug for listening listeners owned by a plugin.
+     *
+     * Sensitive payloads (raw SMS bodies, ledger references) are only delivered to
+     * plugins whose manifest declares the matching permission. The gating is a
+     * guardrail, not a sandbox: malicious PHP in a plugin can do anything on the
+     * server. It exists so a careless plugin never sees data it did not ask for.
+     *
+     * @var array<string, string>
+     */
+    private const HOOK_PERMISSIONS = [
+        'sms.received.before'   => 'read_sms',
+        'sms.received.after'    => 'read_sms',
+        'mobile.sms.matched'    => 'read_sms',
+        'ledger.entry.created'  => 'read_ledger',
+    ];
+
+    /**
      * @var \OwnPay\Container|null The dependency injection container.
      */
     private ?\OwnPay\Container $container = null;
@@ -27,6 +44,9 @@ final class EventManager
      * @var bool Re-entrancy guard to avoid recursive loops when resolving brand plugin status.
      */
     private bool $resolvingOwnerActive = false;
+
+    /** @var array<string, bool> */
+    private array $permissionCache = [];
 
     /**
      * Registered actions mapped by event hook name.
@@ -206,6 +226,52 @@ final class EventManager
     }
 
     /**
+     * Whether a listener owned by @param owner may receive @param hook.
+     *
+     * Core code always receives sensitive hooks; plugins must declare the matching
+     * permission in manifest.json. Unknown/unverifiable owners are refused on
+     * sensitive hooks (fail closed) and noted in the hook log.
+     *
+     * @param string $owner Plugin slug or 'core'.
+     * @param string $hook The hook name about to fire.
+     * @return bool True when the listener may run.
+     */
+    private function ownerAllowedForHook(string $owner, string $hook): bool
+    {
+        $required = self::HOOK_PERMISSIONS[$hook] ?? null;
+        if ($required === null) {
+            return true;
+        }
+        if ($owner === 'core') {
+            return true;
+        }
+        if ($this->container === null) {
+            return false;
+        }
+
+        $cacheKey = "perm:{$hook}:{$owner}";
+        if (array_key_exists($cacheKey, $this->permissionCache)) {
+            return $this->permissionCache[$cacheKey];
+        }
+
+        try {
+            /** @var \OwnPay\Plugin\PluginRegistry $registry */
+            $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
+            $manifest = $registry->getManifest($owner);
+            $allowed = $manifest !== null && in_array($required, $manifest->permissions, true);
+            $this->permissionCache[$cacheKey] = $allowed;
+            if (!$allowed) {
+                $this->logHookError($hook, $owner, new \RuntimeException("Plugin '{$owner}' did not declare the required '{$required}' permission for hook '{$hook}'"));
+            }
+            return $allowed;
+        } catch (\Throwable $e) {
+            $this->permissionCache[$cacheKey] = false;
+            $this->logHookError($hook, $owner, $e);
+            return false;
+        }
+    }
+
+    /**
      * Register an action callback.
      *
      * Actions are fire-and-forget triggers that execute callbacks sequentially when matching events fire.
@@ -253,6 +319,10 @@ final class EventManager
 
         foreach ($this->actions[$hook] as $listener) {
             if (!$this->isOwnerActive($listener['owner'])) {
+                continue;
+            }
+            if (!$this->ownerAllowedForHook($listener['owner'], $hook)) {
+                $this->logHookError($hook, $listener['owner'], new \RuntimeException("Plugin '{$listener['owner']}' did not declare the required permission for hook '{$hook}'"));
                 continue;
             }
             $this->ownerStack[] = $listener['owner'];
@@ -315,6 +385,9 @@ final class EventManager
 
         foreach ($this->filters[$hook] as $listener) {
             if (!$this->isOwnerActive($listener['owner'])) {
+                continue;
+            }
+            if (!$this->ownerAllowedForHook($listener['owner'], $hook)) {
                 continue;
             }
             $this->ownerStack[] = $listener['owner'];

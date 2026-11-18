@@ -29,7 +29,7 @@ Source: `.github/CONTRIBUTING.md:64-73`. Do not merge a change that violates the
 - **CSRF tokens only via `SecurityHelpers::csrfToken()`** (`src/Security/SecurityHelpers.php:22`). Never read `$_SESSION` for the token directly.
 - **Prepared statements only.** No string-interpolated SQL, ever.
 - **Escape output.** Twig autoescaping stays on; never `|raw` untrusted data.
-- **Keep it lean.** No new heavyweight dependencies without discussion; prefer the existing first-party utilities (`composer.json` requires only PHP 8.3, a few extensions, and a handful of small libraries).
+- **Keep it lean.** No new heavyweight dependencies without discussion; prefer the existing first-party utilities (`composer.json` requires only PHP 8.4, a few extensions, and a handful of small libraries).
 - **Comments explain *why*, not *what*.**
 
 ## Verification gates
@@ -73,7 +73,7 @@ Caveats:
 Skills live in `.github/skills/<name>/SKILL.md` and are registered for opencode in `opencode.json`:
 
 - `code-review` — multi-axis review (correctness, readability, architecture, security, performance); use before merging any change.
-- `gateway-development` — build or modify a payment gateway adapter under `modules/gateways/`: manifest, interface, sandbox rules, webhook verification, test quirks.
+- `gateway-development` — build or modify a payment gateway adapter under `modules/gateways/`: manifest, interface, permission-gating rules, full-trust trust model (docs/PLUGINS.md), webhook verification, test quirks.
 - `admin-ui` — admin panel routes, controllers, `templates/admin/` views, the `op-*` component library, tenant scoping and accessibility conventions.
 - `testing-and-verification` — the full local command matrix, which suites need MySQL, coverage/lint gotchas, and known pre-existing failures.
 

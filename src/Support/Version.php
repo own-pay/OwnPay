@@ -18,5 +18,5 @@ final class Version
     /**
      * @var string Current OwnPay core semantic version.
      */
-    public const CURRENT = '0.2.1';
+    public const CURRENT = '0.3.0';
 }

@@ -81,8 +81,10 @@ return [
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // --- Webhook: signature verification
+    // --- Webhook: signature verification (rate limiter guards the pre-signature
+    // merchant-resolution path; IpAllowlist does nothing when no allowlist is set)
     'webhook' => [
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
         \OwnPay\Middleware\IpAllowlistMiddleware::class,
     ],
 

@@ -56,10 +56,11 @@ final class SmsControllerBatchParsingTest extends IntegrationTestCase
 
     public function testEveryValidMessageInBatchReachesTheParserNoneDropped(): void
     {
+        $envelope = base64_encode(random_bytes(48));
         $messages = [
-            ['sender' => 'bKash', 'body' => 'You received Tk 100', 'local_id' => 1],
-            ['sender' => 'Nagad', 'body' => 'You received Tk 200', 'local_id' => 2],
-            ['sender' => 'Rocket', 'body' => 'You received Tk 300', 'local_id' => 3],
+            ['sender' => 'bKash', 'encrypted_payload' => $envelope, 'local_id' => 1],
+            ['sender' => 'Nagad', 'encrypted_payload' => $envelope, 'local_id' => 2],
+            ['sender' => 'Rocket', 'encrypted_payload' => $envelope, 'local_id' => 3],
         ];
 
         $body = $this->receiveBatch($messages);
@@ -75,7 +76,7 @@ final class SmsControllerBatchParsingTest extends IntegrationTestCase
 
     public function testSingleMessageStillWorksAfterBatchLoopChange(): void
     {
-        $body = $this->receiveBatch([['sender' => 'bKash', 'body' => 'You received Tk 50', 'local_id' => 9]]);
+        $body = $this->receiveBatch([['sender' => 'bKash', 'encrypted_payload' => base64_encode(random_bytes(48)), 'local_id' => 9]]);
 
         $this->assertTrue($body['success']);
         $this->assertCount(1, $body['data']['results']);

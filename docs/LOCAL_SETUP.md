@@ -10,7 +10,7 @@ Get **OwnPay** running on your machine for development and contribution - on **W
 
 | Tool | Version | Why | Get it |
 | ------ | --------- | ----- | -------- |
-| **PHP** | **8.3+** with `bcmath`, `json`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `curl` | Runtime | [php.net/downloads](https://www.php.net/downloads) · [windows.php.net](https://windows.php.net/download/) |
+| **PHP** | **8.4+** with `bcmath`, `json`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `curl` | Runtime | [php.net/downloads](https://www.php.net/downloads) · [windows.php.net](https://windows.php.net/download/) |
 | **Composer** | 2.x | PHP dependencies | [getcomposer.org/download](https://getcomposer.org/download/) |
 | **MySQL** *or* **MariaDB** | MySQL 8.0+ / MariaDB 10.4+ | Database | [dev.mysql.com](https://dev.mysql.com/downloads/mysql/) · [mariadb.org](https://mariadb.org/download/) |
 | **Git** | any | Clone the repo | [git-scm.com/downloads](https://git-scm.com/downloads) |
@@ -117,7 +117,7 @@ Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Q
 [Laragon](https://laragon.org/download/) bundles PHP, MySQL, Apache/Nginx, and auto-creates `.test` domains.
 
 1. Install Laragon and start it (**Start All**).
-2. Make sure the bundled PHP is **8.3+** (Menu → PHP → Version). Switch if needed.
+2. Make sure the bundled PHP is **8.4+** (Menu → PHP → Version). Switch if needed.
 3. Put the project in Laragon's `www` folder: `C:\laragon\www\ownpay`.
 4. Laragon auto-creates the vhost **`http://ownpay.test`** (Menu → **Reload**/**Restart All** if it doesn't appear).
 5. Create the database in **HeidiSQL** (bundled) or run the `CREATE DATABASE` command above.
@@ -129,21 +129,21 @@ Prefer a real web server and pretty `*.test` domains? Use a bundled stack. The Q
 
 [Herd](https://herd.laravel.com/) is a free, one-click PHP environment (PHP + Nginx + dnsmasq for `.test` domains).
 
-1. Install Herd. It ships PHP 8.3+ and Composer.
+1. Install Herd. It ships PHP 8.4+ and Composer.
 2. Add the folder that contains the project as a **Parked** path (Herd → Settings → General), or `herd park` from the parent directory.
 3. Herd serves it at **`https://ownpay.test`** (Herd points the site at `public/` automatically).
 4. Start MySQL with [DBngin](https://dbngin.com/) (free) or Homebrew (`brew install mysql && brew services start mysql`), then create the `ownpay` database.
 5. Visit **<https://ownpay.test>** → the installer wizard runs.
 
-Homebrew-only alternative: `brew install php@8.3 composer mysql` then use the **Quick Start** built-in-server path.
+Homebrew-only alternative: `brew install php@8.4 composer mysql` then use the **Quick Start** built-in-server path.
 
 ### 🐧 Linux - native packages
 
 ```bash
 # Debian / Ubuntu
 sudo apt update
-sudo apt install -y php8.3-cli php8.3-mysql php8.3-mbstring php8.3-bcmath \
-                    php8.3-curl php8.3-xml unzip mariadb-server composer
+sudo apt install -y php8.4-cli php8.4-mysql php8.4-mbstring php8.4-bcmath \
+                    php8.4-curl php8.4-xml unzip mariadb-server composer
 
 sudo systemctl start mariadb
 sudo mysql -e "CREATE DATABASE ownpay CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -190,8 +190,8 @@ ngrok http 8000
 | Symptom | Fix |
 | --------- | ----- |
 | `/install` says an extension is missing | Install the listed `php-*` extension and restart the server. Re-check with `php -m`. |
-| `composer install` fails on `ext-*` | Your CLI PHP lacks an extension. Install it (e.g. `php8.3-bcmath`) - note the **CLI** php.ini may differ from the web one. |
-| PHPUnit fails on `yaml_parse_file` / missing `yaml` | The test suite parses `docker-compose.yml` with the PHP YAML extension. Install `php8.3-yaml` (CLI) and re-run `vendor/bin/phpunit`. |
+| `composer install` fails on `ext-*` | Your CLI PHP lacks an extension. Install it (e.g. `php8.4-bcmath`) - note the **CLI** php.ini may differ from the web one. |
+| PHPUnit fails on `yaml_parse_file` / missing `yaml` | The test suite parses `docker-compose.yml` with the PHP YAML extension. Install `php8.4-yaml` (CLI) and re-run `vendor/bin/phpunit`. |
 | "Could not connect to database" in the wizard | Confirm MySQL is running and the DB exists; on macOS/Linux the default user is often `root` with an empty or socket password. |
 | Blank page / 500 with no detail | Set `APP_DEBUG=true` in `.env` for a detailed dev error page (never in production), check `storage/logs/`. |
 | Installer keeps redirecting after completion | Delete `storage/.installed` only if you intend to reinstall; otherwise clear `storage/cache/`. |

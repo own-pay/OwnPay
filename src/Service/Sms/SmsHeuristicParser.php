@@ -155,9 +155,16 @@ final class SmsHeuristicParser
             if (preg_match_all($pattern, $body, $matches, PREG_OFFSET_CAPTURE)) {
                 foreach ($matches[1] as $match) {
                     $rawValue = str_replace(',', '', $match[0]);
-                    if (is_numeric($rawValue) && (float) $rawValue > 0) {
+                    if (is_numeric($rawValue)) {
+                        $value = (float) $rawValue;
+                        // Same magnitude guard as SmsRegexParser::extractAmount:
+                        // reject "1e30"-style scientific-notation abuse and
+                        // anything that would overflow DECIMAL columns.
+                        if (!is_finite($value) || $value <= 0 || $value > 999999999.99) {
+                            continue;
+                        }
                         $allMatches[] = [
-                            'value'  => (float) $rawValue,
+                            'value'  => $value,
                             'offset' => $match[1],
                         ];
                     }

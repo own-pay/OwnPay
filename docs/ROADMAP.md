@@ -18,7 +18,7 @@ The foundation is live and self-hostable today:
 - ✅ Refunds with atomic, balance-validated reversals
 - ✅ Double-entry ledger engine (bcmath precision)
 - ✅ White-label custom-domain checkout + per-brand theming
-- ✅ Sandboxed plugin/add-on system with a domain hook engine
+- ✅ Full-trust plugin/add-on system with a domain hook engine and manifest permission gating
 - ✅ REST API (merchant / mobile / admin) + webhooks
 - ✅ Mobile companion app foundation (device pairing, JWT, SMS verification)
 - ✅ Full internationalization (admin panel + customer checkout)

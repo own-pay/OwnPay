@@ -1,4 +1,4 @@
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 # Allow the container user to match the host developer's UID/GID so
 # bind-mounted files (e.g. vendor/) stay owned by the host user.
@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl-dev \
         libxml2-dev \
         libzip-dev \
+        libicu-dev \
+        libyaml-dev \
         unzip \
     && rm -rf /var/lib/apt/lists/* \
     && setcap 'cap_net_bind_service=+ep' /usr/sbin/apache2
@@ -33,10 +35,11 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
         gd \
+        intl \
         pdo_mysql \
         zip \
-    && pecl install redis \
-    && docker-php-ext-enable redis
+    && pecl install redis yaml \
+    && docker-php-ext-enable redis yaml
 
 # Composer 2
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

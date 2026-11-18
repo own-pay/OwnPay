@@ -1,6 +1,6 @@
 # OwnPay - Enterprise Payment Architecture & Developer Guide
 
-> **The Sovereign, Single-Owner, Multi-Brand Payment Orchestrator for Modern PHP 8.3+**
+> **The Sovereign, Single-Owner, Multi-Brand Payment Orchestrator for Modern PHP 8.4+**
 
 Welcome to the **OwnPay** Architecture Guide. This document is written to give any developer - whether a junior engineer or a seasoned architect - an instant, crystal-clear mental model of how OwnPay is designed, why it was built this way, and how to start building or contributing immediately.
 
@@ -44,7 +44,7 @@ ownpay/
 │   ├── seeds.sql                # Default initial data (roles, currencies, permissions)
 │   └── migrations/              # Incremental SQL migration scripts
 │
-├── modules/                     # Sandboxed plugin ecosystem (Gateways, Addons, Themes)
+├── modules/                     # Full-trust plugin ecosystem, permission-gated (Gateways, Addons, Themes) - see docs/PLUGINS.md
 │   ├── gateways/                # Payment gateway adapters (123+ providers)
 │   ├── addons/                  # Feature extensions and integrations
 │   └── themes/                  # Custom checkout and storefront themes
@@ -62,7 +62,7 @@ ownpay/
 │   ├── Gateway/                 # GatewayAdapterInterface and gateway bridges
 │   ├── Http/                    # Request, Response, and Router engine
 │   ├── Middleware/              # HTTP middleware pipeline (Auth, CSRF, CSP, Tenant)
-│   ├── Plugin/                  # PluginLoader, PluginSandbox, and Manifest parsers
+│   ├── Plugin/                  # PluginLoader, PluginSandbox (token-blocklist), and Manifest parsers
 │   ├── Repository/              # Database data access layer with TenantScope trait
 │   ├── Security/                # AES-256-GCM FieldEncryptor, Authenticator, CSP Nonce
 │   ├── Service/                 # Business logic organized by domain
@@ -179,7 +179,7 @@ graph TD
 
 ---
 
-### 2. Double-Entry Financial Ledger (GAAP Compliant)
+### 2. Double-Entry Financial Ledger (Accrual Basis)
 **WHAT**: Every financial movement (charge, fee, refund, payout) is recorded in a triple-table double-entry accounting ledger (`op_ledger_accounts`, `op_ledger_transactions`, `op_ledger_entries`).
 
 **WHY**: Single-column balance counters (`UPDATE users SET balance = balance + 10`) lead to phantom money, race conditions, and unverifiable audits. Double-entry bookkeeping guarantees mathematical certainty: every debit MUST have an equal credit.
@@ -217,7 +217,7 @@ graph LR
 
 ---
 
-### 4. Gateway Adapter Architecture & Plugin Sandbox
+### 4. Gateway Adapter Architecture & the Full-Trust Plugin Model
 **WHAT**: Modular gateway plugins living in `modules/gateways/{slug}/` implementing `GatewayAdapterInterface`.
 
 **WHY**: Allows adding, updating, or removing any of the 123+ payment providers (Stripe, bKash, PayPal, Razorpay, etc.) without altering core platform code.
@@ -225,7 +225,7 @@ graph LR
 **HOW**:
 - **`GatewayAdapterInterface`**: Clean contract specifying `initiate()`, `verify()`, `verifyWebhook()`, and `refund()`.
 - **`GatewayDefaults` Trait**: Provides safe no-op fallbacks for optional features (e.g., refund capabilities).
-- **`PluginSandbox`**: Security parser that scans plugin code before execution, blocking dangerous PHP constructs (`eval`, `shell_exec`, raw backticks, unauthorized filesystem writes, and direct SQL execution).
+- **`PluginSandbox`**: Token-blocklist that flags a short list of dangerous PHP constructs (`eval`, `shell_exec`, backticks) before a plugin executes. It is a tripwire for careless code, NOT an isolation boundary - plugins run with full application privileges. See docs/PLUGINS.md.
 - **Encrypted Credentials**: Gateway secrets are stored AES-256-GCM encrypted in `op_gateway_configs`.
 
 ---
@@ -296,7 +296,7 @@ stateDiagram-v2
   "fields": {
     "api_key": {"type": "text", "label": "API Key", "required": true},
     "secret_key": {"type": "password", "label": "Secret Key", "required": true},
-    "sandbox": {"type": "toggle", "label": "Sandbox Mode", "default": true}
+    "test_mode": {"type": "toggle", "label": "Test Mode (sandbox environment)", "default": true}
   }
 }
 ```

@@ -18,6 +18,8 @@ use OwnPay\Update\MaintenanceMode;
 use OwnPay\Update\UpdateService;
 use OwnPay\Update\ZipUpdateService;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * Records whether the update service was actually invoked, so the test can prove
@@ -43,6 +45,7 @@ final class SpyUpdateService extends UpdateService
  *
  * @see https://github.com/own-pay/OwnPay/issues/616
  */
+#[AllowMockObjectsWithoutExpectations]
 final class SystemUpdateInstallAuthorizationTest extends TestCase
 {
     private SpyUpdateService $updater;

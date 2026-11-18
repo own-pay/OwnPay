@@ -61,6 +61,7 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 -- SMS
 ('sms.view', 'View SMS Data', 'sms'),
 ('sms.manage', 'Manage SMS Templates', 'sms'),
+('sms.view_raw', 'View Raw SMS Data', 'sms'),
 -- Devices
 ('devices.view', 'View Devices', 'devices'),
 ('devices.manage', 'Manage Devices', 'devices'),

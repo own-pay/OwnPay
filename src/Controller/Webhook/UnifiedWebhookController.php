@@ -79,7 +79,10 @@ final class UnifiedWebhookController
 
         if ($merchantId <= 0) {
             $this->logAttempt($gateway, 'no_merchant_resolved', $req);
-            return Response::json(['error' => 'Could not resolve merchant'], 400);
+            // Deliberately identical to the signature-verification failure response:
+            // distinguishing the two would let an unauthenticated caller probe whether
+            // a candidate transaction reference exists (pre-verification oracle).
+            return Response::json(['error' => 'Webhook signature verification failed'], 403);
         }
 
         // SEC-6 / API-6: Fail closed on signature verification. The previous

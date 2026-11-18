@@ -368,7 +368,7 @@ final class DevicePairingService
     public function pair(int $userId, int $merchantId, string $deviceName, string $pushToken = ''): array
     {
         $deviceUuid = bin2hex(random_bytes(16));
-        $accessToken  = $this->jwt->issue($userId, $merchantId, $deviceUuid);
+        $accessToken  = $this->jwt->issue($userId, $merchantId, $deviceUuid, 900);
         $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
         $jwtFingerprint = hash('sha256', $deviceUuid . $merchantId);
 
@@ -431,7 +431,7 @@ final class DevicePairingService
         $deviceUuid = $this->generateUuidV4();
         $aesKey     = bin2hex(random_bytes(32));
 
-        $accessToken = $this->jwt->issue($userId, $merchantId, $deviceUuid);
+        $accessToken = $this->jwt->issue($userId, $merchantId, $deviceUuid, 900);
         $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
 
         if ($this->encryptor === null) {
@@ -483,6 +483,14 @@ final class DevicePairingService
         $userId = 0;
         try {
             $claims = $this->jwt->verify($refreshToken);
+            // Reject anything but a genuine refresh token. Without this check an
+            // access token (typ=access) presented here would be exchanged for a
+            // fresh 30-day refresh token - a lifetime escalation for a leaked
+            // access credential.
+            $typVal = $claims['typ'] ?? null;
+            if (!is_string($typVal) || $typVal !== \OwnPay\Service\Auth\JwtService::TYPE_REFRESH) {
+                return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
+            }
             $deviceIdVal = $claims['did'] ?? '';
             $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
             $midVal = $claims['mid'] ?? 1;
@@ -501,8 +509,15 @@ final class DevicePairingService
 
         if ($jti !== null) {
             $cacheKey = 'blacklist_jti_' . $jti;
-            $exists = $this->devices->getDatabase()->exists('op_cache', 'key_name = :key', ['key' => $cacheKey]);
-            if ($exists) {
+            // Consume the refresh jti atomically. The unique key on op_cache.key_name
+            // means only the first concurrent rotation wins the row; a duplicate-key
+            // collision proves the token was already rotated (replay or parallel
+            // refresh) and must be rejected before new credentials are minted.
+            $affected = $this->devices->getDatabase()->execute(
+                "INSERT IGNORE INTO op_cache (key_name, value, expires_at) VALUES (:key, :val, :exp)",
+                ['key' => $cacheKey, 'val' => '1', 'exp' => time() + 2592000]
+            )->rowCount();
+            if ($affected !== 1) {
                 return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
             }
         }
@@ -518,7 +533,10 @@ final class DevicePairingService
             return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
         }
 
-        if (($device['status'] ?? '') === 'revoked') {
+        // Consistent with JwtAuthMiddleware: only 'active' devices may rotate.
+        // A device suspended/deactivated since pairing must not mint fresh tokens.
+        $deviceStatus = isset($device['status']) && is_string($device['status']) ? $device['status'] : '';
+        if (!\OwnPay\Service\Auth\StatusGuard::isDeviceStatusValid($deviceStatus)) {
             return ['success' => false, 'error' => 'DEVICE_REVOKED'];
         }
 
@@ -533,7 +551,7 @@ final class DevicePairingService
             return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
         }
 
-        $accessToken = $this->jwt->issue($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);
+        $accessToken = $this->jwt->issue($userId, $brandId, $device['device_uuid'] ?? $device['device_id'], 900);
         $newRefreshToken = $this->jwt->issueRefreshToken($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);
 
         $newRefreshHash = hash('sha256', $newRefreshToken);
@@ -543,15 +561,8 @@ final class DevicePairingService
             $this->devices->updateRefreshToken($device['device_uuid'] ?? $device['device_id'], $newRefreshHash, $expiresAt);
         }
 
-        if ($jti !== null) {
-            $cacheKey = 'blacklist_jti_' . $jti;
-            $expiration = time() + 2592000;
-            $this->devices->getDatabase()->insert(
-                "INSERT INTO op_cache (key_name, value, expires_at) VALUES (:key, :val, :exp) ON DUPLICATE KEY UPDATE expires_at = :exp_update",
-                ['key' => $cacheKey, 'val' => '1', 'exp' => $expiration, 'exp_update' => $expiration]
-            );
-        }
-
+        // The refresh jti was consumed atomically at the top of this method;
+        // do not re-insert here.
         return [
             'success'       => true,
             'access_token'  => $accessToken,

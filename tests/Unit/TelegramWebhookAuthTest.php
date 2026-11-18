@@ -13,6 +13,8 @@ use PHPUnit\Framework\TestCase;
 require_once dirname(__DIR__, 2) . '/modules/addons/telegram-bot/Plugin.php';
 
 use OwnPay\Modules\Addons\TelegramBot\Plugin;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * The Telegram webhook is mounted on the public `api-public` middleware group,
@@ -22,6 +24,7 @@ use OwnPay\Modules\Addons\TelegramBot\Plugin;
  *
  * @see https://github.com/own-pay/OwnPay/issues/616
  */
+#[AllowMockObjectsWithoutExpectations]
 final class TelegramWebhookAuthTest extends TestCase
 {
     private const SECRET   = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';

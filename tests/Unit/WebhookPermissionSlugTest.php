@@ -11,6 +11,8 @@ use OwnPay\Middleware\PermissionMiddleware;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Brand\BrandContext;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * Webhook CRUD is mounted under /admin/developer but must be gated by the
@@ -18,6 +20,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @see https://github.com/own-pay/OwnPay/issues/616
  */
+#[AllowMockObjectsWithoutExpectations]
 final class WebhookPermissionSlugTest extends TestCase
 {
     private Container $container;

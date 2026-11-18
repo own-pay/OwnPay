@@ -88,7 +88,7 @@ Please give us a reasonable opportunity to address the issue before any public d
 
 ## Scope
 
-**In scope:** the OwnPay core platform in this repository - including the kernel, controllers, middleware, repositories, services, API layers, gateway bridge, plugin sandbox, and the self-update mechanism.
+**In scope:** the OwnPay core platform in this repository - including the kernel, controllers, middleware, repositories, services, API layers, gateway bridge, plugin system, and the self-update mechanism.
 
 **Out of scope / report to the relevant party instead:**
 

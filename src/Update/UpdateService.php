@@ -277,26 +277,50 @@ EOT;
                 return ['success' => false, 'error' => 'Update already in progress'];
             }
 
+            // Step 1 (host-side gate): resolve the manifest and enforce min_php
+            // BEFORE any download, backup or state change - startUpdate() below
+            // is the first state the pipeline writes. A 0.3.0 package will carry
+            // min_php: 8.4.0, so a running 8.3 install is told to upgrade PHP
+            // first instead of bricking itself mid-update.
+            try {
+                $this->log("Update to v{$version} - Step 1: Resolving update metadata");
+                $manifest = $this->fetchManifest();
+                
+                $releaseEntry = null;
+                if (isset($manifest['releases']) && is_array($manifest['releases'])) {
+                    foreach ($manifest['releases'] as $release) {
+                        if (is_array($release) && isset($release['version']) && $release['version'] === $version) {
+                            $releaseEntry = $release;
+                            break;
+                        }
+                    }
+                }
+
+                if ($releaseEntry === null) {
+                    return ['success' => false, 'error' => "Target version v{$version} not found in official update server manifest."];
+                }
+
+                $minPhpRaw = $releaseEntry['min_php'] ?? ($manifest['min_php'] ?? null);
+                $minPhp = is_string($minPhpRaw) ? $minPhpRaw : '';
+                if ($minPhp !== '' && version_compare(PHP_VERSION, $minPhp, '<')) {
+                    $this->log("Refusing update to v{$version}: requires PHP {$minPhp} or higher; server is running PHP " . PHP_VERSION . ".", 'error');
+                    return ['success' => false, 'error' => "This update requires PHP {$minPhp} or higher. Your server is running PHP " . PHP_VERSION . ". Upgrade PHP, then try again."];
+                }
+
+                // Anti-rollback floor: never apply an older release.
+                if (version_compare($version, \OwnPay\Support\Version::CURRENT, '<')) {
+                    $this->log("Refusing update to v{$version}: older than the installed version " . \OwnPay\Support\Version::CURRENT . ".", 'error');
+                    return ['success' => false, 'error' => "Refusing to install version v{$version} - it is older than the installed version " . \OwnPay\Support\Version::CURRENT . '.'];
+                }
+            } catch (\Throwable $e) {
+                $this->log('Update refused before any state change: ' . $e->getMessage(), 'error');
+                return ['success' => false, 'error' => $e->getMessage()];
+            }
+
             $updateId = $this->history->startUpdate($version);
             $backupPath = null;
 
             try {
-            $this->log("Update to v{$version} - Step 1: Resolving update metadata");
-            $manifest = $this->fetchManifest();
-            
-            $releaseEntry = null;
-            if (isset($manifest['releases']) && is_array($manifest['releases'])) {
-                foreach ($manifest['releases'] as $release) {
-                    if (is_array($release) && isset($release['version']) && $release['version'] === $version) {
-                        $releaseEntry = $release;
-                        break;
-                    }
-                }
-            }
-
-            if ($releaseEntry === null) {
-                throw new \RuntimeException("Target version v{$version} not found in official update server manifest.");
-            }
 
             $downloadUrl = is_string($releaseEntry['download_url'] ?? null) ? $releaseEntry['download_url'] : '';
             $expectedChecksum = is_string($releaseEntry['checksum_sha256'] ?? null) ? $releaseEntry['checksum_sha256'] : '';
@@ -353,7 +377,8 @@ EOT;
             }
             $this->log("Checksum verified: SHA-256 OK");
 
-            // Cryptographic RSA signature check
+            // Transport authenticity: RSA signature over the downloaded archive,
+            // signed by the release pipeline (must match the vendor key).
             $signature = base64_decode($signatureBase64);
             if (empty($signature)) {
                 @unlink($packagePath);
@@ -378,6 +403,18 @@ EOT;
                 throw new \RuntimeException("Cryptographic signature verification failed: {$err}.");
             }
             $this->log("Cryptographic signature verified: RSA OK");
+
+            // Content chain: every file in the archive must be listed in the
+            // v2 manifest with a matching SHA-256, or the package is rejected.
+            $verifier = $this->createPackageVerifier();
+            $containsCode = $verifier->containsExecutableContent($packagePath);
+            try {
+                $verification = $verifier->verify($packagePath, $containsCode, \OwnPay\Support\Version::CURRENT);
+                $this->log('Package content verification passed: scheme=' . $verification['scheme'] . ' key=' . ($verification['key_id'] ?? 'none') . ' v' . $verification['version']);
+            } catch (\RuntimeException $e) {
+                @unlink($packagePath);
+                throw new \RuntimeException('Package content verification failed: ' . $e->getMessage());
+            }
 
             $this->log("Step 6: Extracting update package");
             $this->extractPackage($packagePath);
@@ -495,6 +532,17 @@ EOT;
             flock($handle, LOCK_UN);
             fclose($handle);
         }
+    }
+
+    /**
+     * Overridable factory for the package verifier.
+     *
+     * The test harness substitutes a verifier with a test-generated trust store
+     * so it can sign v2 fixtures without the production key.
+     */
+    protected function createPackageVerifier(): UpdatePackageVerifier
+    {
+        return new UpdatePackageVerifier();
     }
 
     /**
@@ -718,6 +766,27 @@ EOT;
                 $this->log("Migration failed: {$filename} - " . $e->getMessage(), 'error');
                 throw new \RuntimeException("Migration failed: {$filename} - " . $e->getMessage());
             }
+        }
+
+        // Data-migration: encrypt any pre-migration plaintext SMS bodies left in
+        // op_sms_parsed (rolling, resumable, idempotent). Best-effort with loud
+        // logging: the update must not fail over a data-layer hiccup, and the
+        // migration resumes on the next run via tools/reencrypt-sms-bodies.php.
+        try {
+            $db = \OwnPay\Core\Database::getInstance();
+            $backfill = new \OwnPay\Service\Sms\SmsBodyBackfillService(
+                $db,
+                new \OwnPay\Security\SmsBodyCipher(new \OwnPay\Security\FieldEncryptor()),
+                new \OwnPay\Repository\SettingsRepository($db)
+            );
+            $result = $backfill->run();
+            if ($result['status'] === 'complete' || $result['status'] === 'already_complete') {
+                $this->log("SMS body encryption backfill: {$result['status']} (converted={$result['converted']})");
+            } else {
+                $this->log("SMS body encryption backfill incomplete: {$result['remaining']} plaintext row(s) remain; re-run via tools/reencrypt-sms-bodies.php", 'error');
+            }
+        } catch (\Throwable $e) {
+            $this->log('SMS body encryption backfill failed (resume with tools/reencrypt-sms-bodies.php): ' . $e->getMessage(), 'error');
         }
 
         return $executed;

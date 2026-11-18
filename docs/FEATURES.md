@@ -2,7 +2,7 @@
 
 > **The definitive directory of all built-in features, architectural capabilities, and platform mechanics in OwnPay.**
 
-OwnPay is a self-hosted, sovereign payment orchestration platform engineered in modern PHP 8.3+. It gives merchants complete ownership over their payment checkout pipelines, custom domains, customer data, and accounting ledgers without relying on third-party SaaS middle-tier platforms.
+OwnPay is a self-hosted, sovereign payment orchestration platform engineered in modern PHP 8.4+. It gives merchants complete ownership over their payment checkout pipelines, custom domains, customer data, and accounting ledgers without relying on third-party SaaS middle-tier platforms.
 
 ---
 
@@ -59,14 +59,14 @@ OwnPay is a **single-owner, multi-brand platform** (NOT a public SaaS). One supe
 
 ## 3. Payment Gateway & Plugin Architecture
 
-Modular, sandboxed plugin system hosting 123+ payment providers and unlimited custom manual gateways.
+Modular, full-trust plugin system hosting 123+ payment providers and unlimited custom manual gateways. See docs/PLUGINS.md for the trust model.
 
 | Capability | Technical Mechanism | Benefit |
 | :--- | :--- | :--- |
 | **123+ Built-In Gateways** | Global cards (Stripe, Adyen, Braintree, Square, Checkout.com), wallets (Apple Pay, Google Pay, PayPal), mobile money (bKash, Nagad, M-Pesa), crypto (Coinbase, BTCPay), and regional gateways. | Accept payments globally with zero code changes. |
 | **Manual / Offline Gateways** | Dynamic forms in `op_manual_gateways` (Bank Transfer, Cash, Agent Cash-in). | Collect manual payments with customizable proof-of-payment fields. |
 | **`GatewayAdapterInterface`** | Standard contract: `initiate()`, `verify()`, `verifyWebhook()`, `refund()`. | Rapid development of new custom gateway adapters. |
-| **Plugin Sandbox Verification** | AST token parser (`PluginSandbox`) blocks `eval`, `shell_exec`, backticks, and direct SQL. | Protects the host server from malicious or vulnerable plugins. |
+| **Plugin Token Blocklist** | AST token parser flags `eval`, `shell_exec`, backticks at plugin load time. | Tripwire against careless plugins - NOT an isolation boundary (docs/PLUGINS.md). |
 | **AES-256-GCM Credential Vault** | Gateway API keys and secrets stored encrypted at rest via `FieldEncryptor`. | Full compliance with PCI-DSS storage requirements. |
 
 ---

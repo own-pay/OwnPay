@@ -471,7 +471,9 @@ final class WebhookInboundProcessor
                    AND status IN ('pending','completed')",
                 ['txid' => $txnId, 'mid' => $merchantId]
             );
-            $priorRefunded = is_numeric($priorRefundedVal) ? (string) $priorRefundedVal : '0';
+            $priorRefunded = (is_int($priorRefundedVal) || is_float($priorRefundedVal) || is_string($priorRefundedVal))
+                ? \OwnPay\Core\NumberHelper::toNumericString($priorRefundedVal)
+                : '0';
             $newTotal = bcadd($priorRefunded, $amount, 2);
             if (bccomp($newTotal, $txnAmountStr, 2) > 0) {
                 $this->logger->warning(

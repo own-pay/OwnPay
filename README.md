@@ -18,7 +18,7 @@
 
 [![Release](https://img.shields.io/badge/Public%20Beta-v0.2.0-22C55E?style=for-the-badge&logo=rocket&logoColor=white)](https://github.com/own-pay/OwnPay/releases/latest)
 [![License](https://img.shields.io/badge/License-AGPL%20v3.0-3B82F6?style=for-the-badge)](LICENSE)
-[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
+[![PHP](https://img.shields.io/badge/PHP-8.4%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-FF6B6B?style=for-the-badge)](CONTRIBUTING.md)
 
 [![Codacy Security Scan](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml/badge.svg?branch=main)](https://github.com/own-pay/OwnPay/actions/workflows/codacy.yml) [![CI](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/own-pay/OwnPay/actions/workflows/ci.yml) [![CodeQL](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/github-code-scanning/codeql) [![ESLint](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/eslint.yml) [![Semgrep](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml/badge.svg)](https://github.com/own-pay/OwnPay/actions/workflows/semgrep.yml)
@@ -79,7 +79,7 @@
 
 **OwnPay** is an enterprise-grade, open-source, self-hosted payment gateway automation platform. It is built for developers, entrepreneurs, and businesses who want absolute sovereignty over their payment infrastructure, customer data, and transaction flows without paying middleman fees or relying on third-party SaaS platforms.
 
-With native support for over 120+ payment gateways, a secure double-entry ledger database, white-labeled multi-brand management, and a sandboxed plugin engine, OwnPay gives you the power of a commercial payment gateway on your own private server.
+With native support for 123+ payment gateways, a secure double-entry ledger database, white-labeled multi-brand management, and a full-trust plugin model with permission gating, OwnPay gives you the power of a commercial payment gateway on your own private server.
 
 ---
 
@@ -104,7 +104,7 @@ Your financial infrastructure lives on your server. No middlemen, no third-party
 ### ⚡
 **Built for Builders**
 
-A clean custom core, a sandboxed plugin system, and a full REST API — engineered for developers who demand control.
+A clean custom core, a full-trust plugin system with permission gating, and a full REST API - engineered for developers who demand control.
 
 </td>
 <td align="center" width="33%">
@@ -149,7 +149,7 @@ AGPL-3.0 licensed and free forever. Transparent, auditable, and shaped by the co
 - Staff RBAC — granular roles & permissions
 
 #### 🧩 Platform & Operations
-- Sandboxed plugin/addon system + domain hook engine
+- Full-trust plugin/addon system with manifest permission gating + domain hook engine
 - Mobile companion app — device pairing, JWT, SMS verification
 - Full i18n — admin panel **and** customer checkout
 - REST API (merchant / mobile / admin) + webhooks
@@ -184,7 +184,7 @@ OwnPay sits on **your** server between your store and the world's payment provid
 
 OwnPay ships as a **self-contained release archive** — the same zip works on **shared hosting, a VPS, or a dedicated server**, and doubles as the installer. No build step required.
 
-> **Requirements:** PHP **8.3+** (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`) · MySQL 8 / MariaDB 10.4+ · HTTPS strongly recommended.
+> **Requirements:** PHP **8.4+** (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`) · MySQL 8 / MariaDB 10.4+ · HTTPS strongly recommended.
 
 <details open>
 <summary><b>🌐 Shared Hosting (cPanel / DirectAdmin — no SSH needed)</b></summary>
@@ -276,7 +276,7 @@ composer lint       # Twig + JS + CSS
 
 | Component | Technology |
 |:---|:---|
-| Language | PHP 8.3+ &nbsp;·&nbsp; Strict Types |
+| Language | PHP 8.4+ &nbsp;·&nbsp; Strict Types |
 | Database | MySQL 8.x / MariaDB 10.4+ |
 | Package Manager | Composer v2 |
 | Migrations | Custom SQL migrations |
@@ -342,7 +342,7 @@ It's stable and usable today. For production, pin to a tagged release, test in s
 <summary><b>Why a custom framework instead of Laravel or Symfony?</b></summary>
 <br />
 
-OwnPay is built around requirements off-the-shelf frameworks don't solve cleanly — multi-brand domain isolation, a sandboxed plugin execution model, and a domain-specific hook engine. A full framework would mean fighting its conventions rather than leveraging them. The custom core gives us full control of the boot pipeline, zero dead code, and a security surface we own end-to-end.
+OwnPay is built around requirements off-the-shelf frameworks don't solve cleanly — multi-brand domain isolation, a full-trust plugin execution model with permission gating, and a domain-specific hook engine. A full framework would mean fighting its conventions rather than leveraging them. The custom core gives us full control of the boot pipeline, zero dead code, and a security surface we own end-to-end.
 
 </details>
 
@@ -350,7 +350,7 @@ OwnPay is built around requirements off-the-shelf frameworks don't solve cleanly
 <summary><b>Can I run it on cheap shared hosting?</b></summary>
 <br />
 
-Yes. The release archive bundles all dependencies, so no SSH or Composer is needed on the server — upload, point your domain at <code>public/</code>, and run the installer. You just need PHP 8.3+ and a MySQL/MariaDB database.
+Yes. The release archive bundles all dependencies, so no SSH or Composer is needed on the server — upload, point your domain at <code>public/</code>, and run the installer. You just need PHP 8.4+ and a MySQL/MariaDB database.
 
 </details>
 

@@ -58,11 +58,11 @@ jobs:
           echo "/OwnPay-Mobile-App" >> .git/info/exclude
           echo "/OwnPay-Mobile-App/" >> .git/info/exclude
 
-      # 4. Setup PHP 8.3 & pre-warm Composer dependencies for OwnPay (PHPStan Level 9)
-      - name: Setup PHP 8.3 & Composer for OwnPay
+      # 4. Setup PHP 8.4 & pre-warm Composer dependencies for OwnPay (PHPStan Level 9)
+      - name: Setup PHP 8.4 & Composer for OwnPay
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: pdo_mysql, openssl, bcmath, mbstring, curl, gd, zip
           coverage: none
 
@@ -107,7 +107,7 @@ jobs:
             echo "STAGE1_PROMPT<<EOF_STAGE1"
             echo "--effort max --timeout=4h"
             echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
-            echo "Repositories in workspace: ./ (own-pay/OwnPay PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
+            echo "Repositories in workspace: ./ (own-pay/OwnPay PHP 8.4+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
             echo "Read and follow ${PROMPT_PATH} (STAGE 1 section) strictly:"
             echo ""
             sed -n '/<!-- STAGE_1_START -->/,/<!-- STAGE_1_END -->/p' "$PROMPT_PATH"
@@ -118,7 +118,7 @@ jobs:
             echo "STAGE2_PROMPT<<EOF_STAGE2"
             echo "--effort high --timeout=2h"
             echo "Target Branch: dev | Target Scope: ${INPUT_SCOPE}"
-            echo "Repositories in workspace: ./ (own-pay/OwnPay PHP 8.3+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
+            echo "Repositories in workspace: ./ (own-pay/OwnPay PHP 8.4+ Backend) and ./OwnPay-Mobile-App (Flutter Android Companion App)"
             echo "Read and follow ${PROMPT_PATH} (STAGE 2 section) strictly:"
             echo ""
             sed -n '/<!-- STAGE_2_START -->/,/<!-- STAGE_2_END -->/p' "$PROMPT_PATH"

@@ -112,11 +112,9 @@ final class Authenticator
         // Bound the resolved value against the downstream integer arithmetic
         // ($maxAttempts * 3 in the per-email threshold) so an oversized or
         // saturated config value cannot overflow into a float and break the
-        // strict-typed repository calls.
+        // strict-typed repository calls. The floor branch is unsatisfiable
+        // because both operands are guaranteed >= 1, so it is gone.
         $maxAttempts = min($maxAttemptsRaw, intdiv(PHP_INT_MAX, 3));
-        if ($maxAttempts < 1) {
-            $maxAttempts = 5;
-        }
 
         if ($this->lockoutDuration !== null && $this->lockoutDuration > 0) {
             $windowRaw = $this->lockoutDuration;
@@ -128,9 +126,6 @@ final class Authenticator
         // Bound the resolved value against the downstream integer arithmetic
         // ($window * 12 lookback in the repository) to prevent overflow.
         $window = min($windowRaw, intdiv(PHP_INT_MAX, 12));
-        if ($window < 1) {
-            $window = 300;
-        }
 
         $emailLockRemaining = $attempts->lockoutSecondsRemainingByEmail($email, $window, $maxAttempts * 3);
         $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);

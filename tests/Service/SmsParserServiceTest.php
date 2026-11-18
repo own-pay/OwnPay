@@ -251,16 +251,17 @@ final class SmsParserServiceTest extends TestCase
         };
 
         $aesKeyHex = self::AES_KEY_HEX;
-        $encryptor = new class($keyDecryptionFails, $aesKeyHex) {
-            private bool $fails;
-            private string $key;
+        $encryptor = new class($keyDecryptionFails, $aesKeyHex) extends \OwnPay\Security\FieldEncryptor {
+            private bool $stubFails;
+            private string $stubKey;
             public function __construct(bool $fails, string $key) {
-                $this->fails = $fails;
-                $this->key = $key;
+                $this->stubFails = $fails;
+                $this->stubKey = $key;
+                parent::__construct('test-encryption-key-32-characters-minimum');
             }
             public function decrypt(string $encrypted): string {
-                if ($this->fails) throw new \RuntimeException('Stub: key decryption failed');
-                return $this->key;
+                if ($this->stubFails) throw new \RuntimeException('Stub: key decryption failed');
+                return $this->stubKey;
             }
         };
 

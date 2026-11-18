@@ -1,6 +1,8 @@
 parameters:
     level: 9
 
+    phpVersion: 80401
+
     paths:
         - config
         - modules

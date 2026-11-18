@@ -44,9 +44,9 @@ Implement `OwnPay\Gateway\GatewayAdapterInterface` (`src/Gateway/GatewayAdapterI
 
 Test the full flow locally: initiate → callback → verify → refund (`.github/CONTRIBUTING.md:87`).
 
-## Sandbox rules
+## Plugin containment rules
 
-Plugins run under `PluginSandbox` (`.github/CONTRIBUTING.md:86`: no `exec`, `shell_exec`, `eval`, raw PDO, etc.):
+Plugins run under the plugin blocklist (`.github/CONTRIBUTING.md:86`: no `exec`, `shell_exec`, `eval`, raw PDO, etc.). Note that plugins are full-trust PHP by design — the blocklist is a load-time tripwire, not an isolation boundary (docs/PLUGINS.md):
 
 - `PluginSandbox::isDangerousFunction()` (`src/Plugin/PluginSandbox.php:137-148`) blocks `exec`, `shell_exec`, `system`, `passthru`, `popen`, `proc_open`, `proc_nice`, `pcntl_exec`, `dl`, `assert`, `create_function`.
 - SQL validation blocks DDL/DML like `drop`, `truncate`, `alter`, `grant`, `revoke`, `into outfile`, and any `op_*` table other than `op_plugin_migrations` (`src/Plugin/PluginSandbox.php:109-123`).

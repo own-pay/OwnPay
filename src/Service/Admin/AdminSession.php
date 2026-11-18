@@ -56,6 +56,41 @@ final class AdminSession
     }
 
     /**
+     * Checks whether the current user holds a permission.
+     *
+     * Super Admins always pass. Brand staff require a matching role permission.
+     * Used for element-level gating in the admin UI (e.g. the SMS raw-body reveal),
+     * where the route-level middleware is not enough or not appropriate.
+     *
+     * @param string $permission The permission slug (e.g. 'sms.view_raw').
+     * @return bool True when the user may use the gated feature.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperadmin()) {
+            return true;
+        }
+        $roleId = isset($_SESSION['auth_role_id']) && is_scalar($_SESSION['auth_role_id'])
+            ? (int) $_SESSION['auth_role_id']
+            : 0;
+        if ($roleId <= 0) {
+            return false;
+        }
+        try {
+            $db = \OwnPay\Core\Database::getInstance();
+            $row = $db->fetchOne(
+                "SELECT 1 AS ok FROM op_role_permissions rp
+                 JOIN op_permissions p ON p.id = rp.permission_id
+                 WHERE rp.role_id = :rid AND p.slug = :perm LIMIT 1",
+                ['rid' => $roleId, 'perm' => $permission]
+            );
+            return $row !== null;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * Resolves the authenticated user's home brand/merchant identifier.
      *
      * @return int|null The merchant ID or null.

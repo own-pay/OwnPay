@@ -34,7 +34,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
    git checkout -b feat/short-description
    ```
 
-**Requirements:** PHP 8.3+ (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`), Composer 2, MySQL 8 / MariaDB 10.4+.
+**Requirements:** PHP 8.4+ (`bcmath`, `json`, `mbstring`, `openssl`, `pdo_mysql`, `curl`), Composer 2, MySQL 8 / MariaDB 10.4+.
 
 ---
 
@@ -83,7 +83,7 @@ Gateways and add-ons are modular plugins under `modules/`:
 1. Create `modules/gateways/<slug>/` with a `manifest.json` (metadata, capabilities, CSP origins, icon).
 2. Add an adapter class implementing `OwnPay\Gateway\GatewayAdapterInterface` (use the `GatewayDefaults` trait for no-op defaults).
 3. Declare `supportedCurrencies()` accurately (return `[]` for "any currency").
-4. Keep the plugin within the sandbox rules - no `exec`, `shell_exec`, `eval`, raw PDO, etc.
+4. Keep plugin code within the blocklist rules - no `exec`, `shell_exec`, `eval`, raw PDO, etc. Note: plugins run with full application trust (docs/PLUGINS.md).
 5. Test the full flow (initiate -> callback -> verify -> refund) locally.
 
 ---

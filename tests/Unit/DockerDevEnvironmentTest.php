@@ -25,10 +25,10 @@ final class DockerDevEnvironmentTest extends TestCase
         return $compose;
     }
 
-    public function testDockerfileUsesPhp83ApacheBaseImage(): void
+    public function testDockerfileUsesPhp84ApacheBaseImage(): void
     {
         $dockerfile = (string) file_get_contents($this->root . '/Dockerfile');
-        $this->assertStringContainsString('FROM php:8.3-apache', $dockerfile);
+        $this->assertStringContainsString('FROM php:8.4-apache', $dockerfile);
     }
 
     public function testDockerfileSetsApacheDocumentRootToPublic(): void

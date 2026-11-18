@@ -116,6 +116,23 @@ final class PluginManifest
     public readonly array $capabilities;
 
     /**
+     * Permission slugs the plugin requests (e.g. read_sms, read_ledger).
+     * Whitelisted at parse time: unknown slugs are dropped silently.
+     *
+     * @var array<int, string>
+     */
+    public readonly array $permissions;
+
+    /**
+     * Trust tier claimed by the manifest; only meaningful when the package
+     * carries a valid registry signature (Official = OwnPay-owned registry key,
+     * Verified = vetted community, Unverified = manual/unsigned placement).
+     *
+     * @var string 'official' | 'verified' | 'unverified'
+     */
+    public readonly string $tier;
+
+    /**
      * Slugs of other plugins that must be installed/activated beforehand.
      *
      * @var array<int, string>
@@ -251,6 +268,23 @@ final class PluginManifest
             }
         }
         $this->dependencies = $dependencies;
+
+        // Whitelisted permissions the plugin requests (guardrail against careless
+        // plugins - not a security boundary; malicious PHP can do anything).
+        $knownPermissions = ['read_sms', 'read_ledger'];
+        $permissions = [];
+        $rawPermissions = $data['permissions'] ?? [];
+        if (is_array($rawPermissions)) {
+            foreach ($rawPermissions as $perm) {
+                if (is_string($perm) && in_array($perm, $knownPermissions, true) && !in_array($perm, $permissions, true)) {
+                    $permissions[] = $perm;
+                }
+            }
+        }
+        $this->permissions = $permissions;
+
+        $tierRaw = $data['tier'] ?? '';
+        $this->tier = in_array($tierRaw, ['official', 'verified', 'unverified'], true) ? $tierRaw : 'unverified';
 
         $rawHooks = $data['hooks'] ?? [];
         $actions = [];
@@ -521,6 +555,8 @@ final class PluginManifest
             'min_php' => $this->minPhp,
             'min_app' => $this->minApp,
             'capabilities' => $this->capabilities,
+            'permissions' => $this->permissions,
+            'tier' => $this->tier,
             'dependencies' => $this->dependencies,
             'hooks' => $this->hooks,
             'admin_menu' => $this->adminMenu,

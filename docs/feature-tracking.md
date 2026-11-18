@@ -47,13 +47,13 @@
 
 ---
 
-### 3. Payment Gateway System & Plugin Sandbox
+### 3. Payment Gateway System & Plugin Permission Model
 
 | Feature ID | Feature Name | Description & Technical Layer | Status | Implementation Ref / Files |
 | :--- | :--- | :--- | :---: | :--- |
 | `FEAT-GW-001` | **123+ Modular Gateway Adapters** | Standardized gateway plugins in `modules/gateways/` implementing `GatewayAdapterInterface`. | `[DONE]` | `modules/gateways/`, `src/Gateway/GatewayAdapterInterface.php` |
 | `FEAT-GW-002` | **Custom Manual / Offline Gateways** | Dynamic forms in `op_manual_gateways` (Bank Transfer, Cash, Agent Cash-in) with proof fields. | `[DONE]` | `src/Repository/ManualGatewayRepository.php`, `src/Controller/Admin/GatewayController.php` |
-| `FEAT-GW-003` | **AST Plugin Security Sandbox** | Token-based security parser blocking `eval`, `shell_exec`, backticks, and direct SQL queries in plugins. | `[DONE]` | `src/Security/PluginSandbox.php`, `src/Plugin/PluginLoader.php` |
+| `FEAT-GW-003` | **Plugin Token Blocklist** | Token-based blocklist flagging `eval`, `shell_exec`, backticks at plugin load time. Guardrail against careless code, NOT isolation. | `[DONE]` | `src/Security/PluginSandbox.php`, `src/Plugin/PluginLoader.php`, `src/Plugin/PluginManifest.php` |
 | `FEAT-GW-004` | **Encrypted Gateway Credentials** | API secrets and webhook keys encrypted at rest with AES-256-GCM in `op_gateway_configs`. | `[DONE]` | `src/Security/FieldEncryptor.php`, `src/Repository/GatewayConfigRepository.php` |
 | `FEAT-GW-005` | **Symlink Traversal Guard** | Canonical path validation and `is_link()` checks prevent symlink directory escapes in plugins. | `[DONE]` | `src/Plugin/PluginLoader.php` (`9ed16265`) |
 

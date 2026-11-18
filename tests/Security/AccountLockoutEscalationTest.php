@@ -11,12 +11,15 @@ use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Security\Authenticator;
 use OwnPay\Service\System\EnvironmentService;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * Covers the lockout escalation contract: attempts submitted while an account
  * is already locked must count toward the window, and the exponential window
  * must stay clamped no matter how many failures accumulate.
  */
+#[AllowMockObjectsWithoutExpectations]
 final class AccountLockoutEscalationTest extends TestCase
 {
     /**

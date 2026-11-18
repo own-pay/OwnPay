@@ -14,6 +14,8 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Brand\BrandContext;
 use OwnPay\Service\Domain\DomainService;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * `status` / `dns_verified` gate DomainMiddleware::resolve() - the row that
@@ -24,6 +26,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @see https://github.com/own-pay/OwnPay/issues/616
  */
+#[AllowMockObjectsWithoutExpectations]
 final class DomainControllerVerificationStateTest extends TestCase
 {
     private Database $db;

@@ -1431,6 +1431,45 @@
         </div>
     </div>
 
+    {# 5. SMS Body Retention #}
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>SMS Body Retention</h3>
+            <span class="op-text-muted op-text-sm">Erase raw SMS content while keeping ledger-audit metadata</span>
+        </div>
+        <div class="op-card-body">
+            <form method="post" action="/admin/settings/sms-retention" class="op-stack">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <p class="op-text-sm">
+                    When enabled, the daily cron job permanently erases the raw <code>body</code> and <code>encrypted_raw</code>
+                    columns of SMS notifications older than the retention period. The row itself stays for ledger audit:
+                    sender, amount, TrxID, gateway and match result are kept. SMS in <strong>admin_review</strong> state is never purged.
+                </p>
+                <p class="op-text-sm op-text-warning">
+                    Purging is irreversible. Older backups and database dumps may still contain copies of the erased content.
+                </p>
+                <div class="op-form-group">
+                    <label class="op-text-sm">Scope</label>
+                    <select name="sms_retention_scope" class="op-input op-input-sm">
+                        <option value="off" {{ not sms_retention.enabled ? 'selected' : '' }}>Off (keep raw SMS indefinitely)</option>
+                        {% if is_brand_view %}
+                        <option value="brand" {{ sms_retention.enabled and sms_retention.brand_override ? 'selected' : '' }}>Only this brand (overrides the All-Brands default)</option>
+                        {% endif %}
+                        <option value="global" {{ sms_retention.enabled and not sms_retention.brand_override ? 'selected' : '' }}>All brands</option>
+                    </select>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-text-sm" for="sms-retention-days">Retention period (days)</label>
+                    <input id="sms-retention-days" type="number" name="sms_retention_days" min="1" step="1" class="op-input op-input-sm" value="{{ sms_retention.days }}" placeholder="30">
+                    <small class="op-text-muted">Minimum 1 day. Required when the purge is enabled.</small>
+                </div>
+                <div class="op-form-actions">
+                    <button type="submit" class="op-btn op-btn-outline">Save SMS Retention</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {# Master Action Panel #}
     <div class="op-card op-card-bordered op-gradient-panel op-p-4 op-text-center op-mb-4">
         <h4>Complete Platform Performance Sweep</h4>

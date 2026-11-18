@@ -251,7 +251,7 @@ final class PaymentController
 
         $intentData = [
             'amount'   => InputSanitizer::decimal($amountStr),
-            'currency' => isset($currencyCode) ? $currencyCode : strtoupper(InputSanitizer::string($currencyStr)),
+            'currency' => $currencyCode,
             'metadata' => [
                 'reference'       => $referenceStr,
                 'customer_email'  => $customerEmail,

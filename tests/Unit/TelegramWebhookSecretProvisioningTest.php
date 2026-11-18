@@ -13,6 +13,8 @@ use PHPUnit\Framework\TestCase;
 require_once dirname(__DIR__, 2) . '/modules/addons/telegram-bot/Plugin.php';
 
 use OwnPay\Modules\Addons\TelegramBot\Plugin;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
 
 /**
  * The inbound webhook fails closed the moment a secret exists. A secret is only
@@ -31,6 +33,7 @@ use OwnPay\Modules\Addons\TelegramBot\Plugin;
  *
  * @see https://github.com/own-pay/OwnPay/issues/616
  */
+#[AllowMockObjectsWithoutExpectations]
 final class TelegramWebhookSecretProvisioningTest extends TestCase
 {
     private const CHAT_ID = '987654321';

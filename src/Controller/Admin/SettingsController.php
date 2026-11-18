@@ -437,7 +437,20 @@ final class SettingsController
             'last_uploads_purge' => $this->settingsRepo->get('runtime', 'optimization.last_uploads_purge_time', '')
         ];
 
+        $smsRetention = [
+            'enabled' => ($isBrandView
+                ? $this->settingsRepo->getScoped('sms', 'retention_enabled', $mid, '0')
+                : $this->settingsRepo->get('sms', 'retention_enabled', '0')) === '1',
+            'days' => ($isBrandView
+                ? $this->settingsRepo->getScoped('sms', 'retention_days', $mid, '30')
+                : $this->settingsRepo->get('sms', 'retention_days', '30')),
+            'brand_override' => $isBrandView
+                ? $this->settingsRepo->getScopedOverride('sms', 'retention_enabled', $mid) !== null
+                : false,
+        ];
+
         return $this->renderAdminPage('admin/settings/index.twig', [
+            'sms_retention'    => $smsRetention,
             'queue_driver_stats' => $queueDriverStats,
             'db_queue_stats'     => $dbQueueStats,
             'settings'          => $settings,
@@ -1204,6 +1217,63 @@ final class SettingsController
         $this->session->flashSuccess('Full platform maintenance and performance optimization run completed successfully.');
 
         return Response::redirect('/admin/settings/optimization');
+    }
+
+    /**
+     * Persists SMS body-retention settings (All-Brands scope or this-brand override).
+     *
+     * SMS rows keep their ledger-audit columns (sender, amount, TrxID, match result);
+     * only the raw body columns are ever purged, and never for SMS pending admin_review.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
+    public function saveSmsRetention(Request $req): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
+
+        $scopeVal = $req->post('sms_retention_scope', 'off');
+        $scope = is_string($scopeVal) && in_array($scopeVal, ['off', 'global', 'brand'], true) ? $scopeVal : 'off';
+
+        $daysVal = $req->post('sms_retention_days', '30');
+        $days = '30';
+        if (is_string($daysVal) && ctype_digit(trim($daysVal)) && (int) trim($daysVal) >= 1) {
+            $days = (string) ((int) trim($daysVal));
+        } elseif ($scope !== 'off') {
+            $this->session->flashError('Enter a retention period of at least 1 day.');
+            return Response::redirect('/admin/settings?tab=optimization');
+        }
+
+        if ($scope === 'brand') {
+            if ($mid <= 0) {
+                $this->session->flashError('Switch to a brand view to save a brand-specific retention override.');
+                return Response::redirect('/admin/settings?tab=optimization');
+            }
+            $this->settingsRepo->setScoped('sms', 'retention_enabled', '1', $mid);
+            $this->settingsRepo->setScoped('sms', 'retention_days', $days, $mid);
+        } else {
+            $this->settingsRepo->set('sms', 'retention_enabled', $scope === 'global' ? '1' : '0');
+            $this->settingsRepo->set('sms', 'retention_days', $days);
+            // Clear a brand override so the All-Brands value actually takes effect in a brand view.
+            if ($mid > 0) {
+                $this->settingsRepo->deleteScoped('sms', 'retention_enabled', $mid);
+                $this->settingsRepo->deleteScoped('sms', 'retention_days', $mid);
+            }
+        }
+
+        $this->audit->log('settings.sms_retention_saved', 'settings', null, null, ['scope' => $scope, 'days' => (int) $days, 'brand_id' => $mid > 0 ? $mid : null]);
+        $this->session->flashSuccess($scope === 'off'
+            ? 'SMS body retention disabled. Raw SMS content will be kept indefinitely.'
+            : "SMS bodies older than {$days} days will be permanently purged (metadata is kept for ledger audit).");
+        return Response::redirect('/admin/settings?tab=optimization');
     }
 
     // --- Private save helpers

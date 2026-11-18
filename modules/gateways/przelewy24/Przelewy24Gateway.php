@@ -207,7 +207,7 @@ final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterfac
             : 'https://sandbox.przelewy24.pl';
 
         $amountFloat = $this->getFloat($callbackData['amount'] ?? 0.0);
-        $amountGrosz = (int) bcmul((string) $amountFloat, '100', 0);
+        $amountGrosz = (int) bcmul(\OwnPay\Core\NumberHelper::toNumericString($amountFloat), '100', 0);
         $currency = $this->getString($callbackData['currency'] ?? 'PLN');
 
         // Sign verify: SHA384 of sessionId + orderId + amount + currency + crcKey

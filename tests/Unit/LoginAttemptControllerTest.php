@@ -15,7 +15,10 @@ use OwnPay\Service\System\AuditService;
 use OwnPay\View\Theme\ThemeRendererRegistry;
 use OwnPay\View\Theme\ThemeRendererInterface;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+
+#[AllowMockObjectsWithoutExpectations]
 final class LoginAttemptControllerTest extends TestCase
 {
     private Container $container;

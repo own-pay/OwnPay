@@ -237,7 +237,12 @@ final class SmsRegexParser
             return null;
         }
         $val = (float) $cleaned;
-        return $val > 0 ? $val : null;
+        // Reject scientific-notation abuse (e.g. "1e30" round-trips fine through
+        // is_numeric) and absurd magnitudes that overflow DECIMAL columns.
+        if (!is_finite($val) || $val <= 0 || $val > 999999999.99) {
+            return null;
+        }
+        return $val;
     }
 
     /**

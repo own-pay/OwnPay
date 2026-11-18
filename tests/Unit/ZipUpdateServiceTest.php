@@ -19,6 +19,17 @@ class TestableZipUpdateService extends ZipUpdateService
     public bool $runMigrationsCalled = false;
     public bool $clearCacheCalled = false;
 
+    /** @var array<string, string>|null */
+    public static ?array $trustedKeys = null;
+
+    protected function packageVerifier(): \OwnPay\Update\UpdatePackageVerifier
+    {
+        if (self::$trustedKeys !== null) {
+            return new \OwnPay\Update\UpdatePackageVerifier(self::$trustedKeys);
+        }
+        return parent::packageVerifier();
+    }
+
     protected function extractPackage(string $tmpPath): void
     {
         $this->extractPackageCalled = true;
@@ -40,21 +51,88 @@ class TestableZipUpdateService extends ZipUpdateService
 class ZipUpdateServiceTest extends TestCase
 {
     private string $tempDir;
+    private string $privateKey = '';
+    private string $publicKeyPem = '';
+    /** @var \OpenSSLAsymmetricKey|\OpenSSLResource|null */
+    private $privateKeyResource = null;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->tempDir = sys_get_temp_dir() . '/op_zip_test_' . bin2hex(random_bytes(6));
         mkdir($this->tempDir, 0755, true);
+
+        $keyConfig = [
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ];
+        if (getenv('OPENSSL_CONF') !== false && is_file((string) getenv('OPENSSL_CONF'))) {
+            $keyConfig['config'] = (string) getenv('OPENSSL_CONF');
+        } elseif (is_file(dirname(PHP_BINARY) . '/extras/ssl/openssl.cnf')) {
+            $keyConfig['config'] = dirname(PHP_BINARY) . '/extras/ssl/openssl.cnf';
+        }
+        $keyResource = openssl_pkey_new($keyConfig);
+        $this->assertNotFalse($keyResource);
+        $privateKeyContent = '';
+        $this->assertTrue(openssl_pkey_export($keyResource, $privateKeyContent, null, $keyConfig));
+        $keyDetails = openssl_pkey_get_details($keyResource);
+        $this->assertIsArray($keyDetails);
+        $this->privateKey = $privateKeyContent;
+        $this->publicKeyPem = (string) $keyDetails['key'];
+        $this->privateKeyResource = openssl_pkey_get_private($privateKeyContent);
+        $this->assertNotFalse($this->privateKeyResource);
+
+        TestableZipUpdateService::$trustedKeys = ['ownpay-update-v1' => $this->publicKeyPem];
     }
 
     protected function tearDown(): void
     {
+        TestableZipUpdateService::$trustedKeys = null;
         foreach (glob($this->tempDir . '/*') ?: [] as $file) {
             @unlink($file);
         }
         @rmdir($this->tempDir);
         parent::tearDown();
+    }
+
+    /**
+     * Builds a v2 update package (manifest with per-file digests + signature).
+     *
+     * @param array<string, string> $files
+     */
+    private function createV2Package(array $files, string $version = '2.1.0', string $keyId = 'ownpay-update-v1'): string
+    {
+        $zipPath = $this->tempDir . '/package-v2-' . bin2hex(random_bytes(4)) . '.zip';
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE));
+
+        // Packages under 1 KB are rejected by the upload validator, so pad with an
+        // opaque, declared padding file.
+        if (strlen(json_encode($files) ?: '') < 900) {
+            $files['docs/padding.bin'] = random_bytes(1200);
+        }
+
+        $manifest = [
+            'scheme'    => 'ownpay-update-v2',
+            'version'   => $version,
+            'package'   => 'ownpay',
+            'issued_at' => gmdate('c'),
+            'key_id'    => $keyId,
+            'files'     => [],
+        ];
+        foreach ($files as $name => $content) {
+            $this->assertTrue($zip->addFromString($name, $content));
+            $manifest['files'][$name] = hash('sha256', $content);
+        }
+
+        $manifestBytes = json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $this->assertIsString($manifestBytes);
+        $this->assertTrue($zip->addFromString('version.json', $manifestBytes));
+        $signature = '';
+        $this->assertTrue(openssl_sign(hash('sha256', $manifestBytes), $signature, $this->privateKeyResource, OPENSSL_ALGO_SHA256));
+        $this->assertTrue($zip->addFromString('signature.sig', base64_encode($signature)));
+        $zip->close();
+        return $zipPath;
     }
 
     /**
@@ -167,7 +245,7 @@ class ZipUpdateServiceTest extends TestCase
     {
         $zip = $this->createZip([
             'version.json' => json_encode(['version' => '2.1.0']),
-            'config/app.php' => '<?php return [];',
+            'src/changelog.txt' => 'Changelog for 2.1.0',
         ]);
 
         $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
@@ -199,7 +277,7 @@ class ZipUpdateServiceTest extends TestCase
     {
         $zip = $this->createZip([
             'version.json' => json_encode(['version' => '2.1.0']),
-            'src/Update/X.php' => '<?php echo 1;',
+            'src/notes.txt' => 'Release notes',
         ]);
 
         $service = $this->createZipUpdateService();
@@ -269,27 +347,17 @@ class ZipUpdateServiceTest extends TestCase
 
     public function testValidationAcceptsValidSignature(): void
     {
-        $privateKeyPath = dirname(__DIR__, 2) . '/update_private_key.pem';
-        if (!file_exists($privateKeyPath) || !function_exists('openssl_verify')) {
-            $this->markTestSkipped('update_private_key.pem not found in project root.');
-        }
-
-        $zip = $this->createSignedZip($privateKeyPath);
+        $zip = $this->createSignedZip();
 
         $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
 
         $this->assertTrue($result['valid']);
-        $this->assertSame('verified', $result['signature']);
+        $this->assertSame('v1', $result['signature']);
     }
 
     public function testExecuteAppliesSignedPackage(): void
     {
-        $privateKeyPath = dirname(__DIR__, 2) . '/update_private_key.pem';
-        if (!file_exists($privateKeyPath) || !function_exists('openssl_verify')) {
-            $this->markTestSkipped('update_private_key.pem not found in project root.');
-        }
-
-        $zip = $this->createSignedZip($privateKeyPath);
+        $zip = $this->createSignedZip();
         $service = $this->createZipUpdateService();
 
         $result = $service->execute($this->uploadedFile($zip), 'admin@example.com', '2.1.0');
@@ -313,7 +381,7 @@ class ZipUpdateServiceTest extends TestCase
 
     public function testExecuteRequiresVersionManifest(): void
     {
-        $zip = $this->createZip(['src/Update/Foo.php' => '<?php echo 1;']);
+        $zip = $this->createZip(['src/notes.txt' => 'Release notes']);
         $history = $this->createMock(UpdateHistoryRepository::class);
         $history->method('isUpdateInProgress')->willReturn(false);
 
@@ -345,20 +413,90 @@ class ZipUpdateServiceTest extends TestCase
         $this->assertStringContainsString('Signature', $result['error']);
     }
 
+    public function testV2PackageRejectsTamperedFile(): void
+    {
+        // Manifest digests are computed over original contents; after signing,
+        // one file is replaced so the content chain rejects the package.
+        $zip = $this->createV2Package(['config/app.php' => '<?php return [];']);
+        $tampered = new \ZipArchive();
+        $this->assertTrue($tampered->open($zip));
+        $tampered->addFromString('config/app.php', '<?php echo "changed";');
+        $tampered->close();
+
+        $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('digest', strtolower((string) ($result['error'] ?? '')));
+    }
+
+    public function testV2PackageRejectsUnlistedFile(): void
+    {
+        $zip = $this->createV2Package(['config/app.php' => '<?php return [];']);
+        // Add a file that is NOT in the signed files map afterwards.
+        $extra = new \ZipArchive();
+        $this->assertTrue($extra->open($zip));
+        $extra->addFromString('config/evil.php', '<?php echo "pwned";');
+        $extra->close();
+
+        $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('not listed in the signed manifest', (string) ($result['error'] ?? ''));
+    }
+
+    public function testV2PackageRejectsUnknownKeyId(): void
+    {
+        $zip = $this->createV2Package(['version.txt' => 'payload'], '2.1.0', 'ownpay-update-unknown');
+
+        $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('untrusted key_id', (string) ($result['error'] ?? ''));
+    }
+
+    public function testV2PackageAcceptsSignedPackage(): void
+    {
+        $zip = $this->createV2Package(['docs/readme.txt' => 'package notes'], '2.1.0');
+        $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
+        $this->assertTrue($result['valid'], isset($result['error']) ? $result['error'] : '');
+        $this->assertSame('v2', $result['signature']);
+    }
+
+    public function testV2CodePackageMustBeSigned(): void
+    {
+        $zip = $this->createZip([
+            'version.json' => json_encode(['version' => '2.1.0']),
+            'config/app.php' => '<?php return [];',
+        ]);
+
+        $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('v2 scheme', (string) ($result['error'] ?? ''));
+    }
+
+    public function testValidationRejectsDowngrade(): void
+    {
+        $zip = $this->createV2Package(['version.txt' => '0.1.0'], '0.1.0');
+
+        $result = $this->createZipUpdateService()->validate($this->uploadedFile($zip));
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('older than the installed version', (string) ($result['error'] ?? ''));
+    }
+
     /**
-     * Creates a ZIP signed by the project private key.
+     * Creates a content-only v1-signed ZIP using the throwaway keypair built in setUp().
      *
-     * @param string $privateKeyPath Path to the PEM private key.
      * @return string Path to the signed ZIP.
      */
-    private function createSignedZip(string $privateKeyPath): string
+    private function createSignedZip(): string
     {
         $manifest = ['version' => '2.1.0'];
 
         $signedPayload = hash('sha256', json_encode($manifest));
-        $privKeyResource = openssl_pkey_get_private(file_get_contents($privateKeyPath));
-        $this->assertNotFalse($privKeyResource);
-        $this->assertTrue(openssl_sign($signedPayload, $signature, $privKeyResource, OPENSSL_ALGO_SHA256));
+        $this->assertNotFalse($this->privateKeyResource);
+        $this->assertTrue(openssl_sign($signedPayload, $signature, $this->privateKeyResource, OPENSSL_ALGO_SHA256));
 
         return $this->createZip([
             'version.json'  => json_encode($manifest),

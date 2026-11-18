@@ -113,6 +113,7 @@ final class PluginController
         /** @var \OwnPay\Plugin\PluginLoader $loader */
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
         $discovered = $loader->discover();
+        $blockUnverified = \OwnPay\Plugin\PluginManager::unverifiedPluginsAllowed() === false;
 
         // Enrich DB rows with manifest name (DB may have slug as name)
         foreach ($plugins as &$p) {
@@ -128,6 +129,7 @@ final class PluginController
             $p['description'] = $p['description'] ?? ($m['description'] ?? '');
 
             // Second-pass: Align with discovered filesystem manifest attributes (prefer FS names)
+            $fsManifest = null;
             if ($slug !== '' && isset($discovered[$slug])) {
                 $fsManifest = $discovered[$slug];
                 $p['name']        = $fsManifest->name;
@@ -139,6 +141,12 @@ final class PluginController
             } else {
                 $p['logo_path'] = null;
             }
+
+            /** @var \OwnPay\Plugin\PluginManifest|null $fsManifest */
+            $p['permissions'] = $fsManifest !== null
+                ? $fsManifest->permissions
+                : (is_array($m['permissions'] ?? null) ? array_values(array_filter($m['permissions'], 'is_string')) : []);
+            $p['tier'] = $this->manager->tierForPluginArray(['slug' => $slug, 'type' => is_string($p['type'] ?? null) ? $p['type'] : 'addon', 'status' => $p['status'] ?? 'installed']);
 
             // Local active/inactive status override if brand context is active
             if ($brandId !== null && $brandId > 0 && !in_array($p['status'], ['uninstalled', 'trashed'], true)) {
@@ -159,6 +167,7 @@ final class PluginController
                     }
                 }
                 if (!$found) {
+                    $pluginDir = $this->manager->tierForPluginArray(['slug' => $manifest->slug, 'type' => $manifest->type, 'status' => 'installed']);
                     $plugins[] = [
                         'slug'        => $manifest->slug,
                         'name'        => $manifest->name,
@@ -168,15 +177,18 @@ final class PluginController
                         'author'      => $manifest->author,
                         'type'        => $manifest->type,
                         'logo_path'   => $this->manager->resolveIconPath($manifest->slug, ['type' => $manifest->type], $manifest),
+                        'permissions' => $manifest->permissions,
+                        'tier'        => $pluginDir,
                     ];
                 }
             }
         }
 
         return $this->renderAdminPage('admin/plugins/index.twig', [
-            'plugins'        => $plugins,
-            'active_page'    => 'plugins',
-            'is_global_view' => $this->isGlobalBrandView(),
+            'plugins'         => $plugins,
+            'active_page'     => 'plugins',
+            'is_global_view'  => $this->isGlobalBrandView(),
+            'block_unverified' => $blockUnverified,
         ]);
     }
 
@@ -356,9 +368,16 @@ final class PluginController
         if (!$result['success']) {
             $this->session->flashError($result['error'] ?? 'Activation failed');
         } else {
-            $msg = ($brandId !== null && $brandId > 0)
-                ? "Plugin '{$slug}' activated for this brand!"
-                : "Plugin '{$slug}' activated! (" . ($result['migrations_run'] ?? 0) . " migrations run)";
+            $tierVal = $result['tier'] ?? 'unverified';
+            $permsVal = $result['permissions'] ?? [];
+            $permissions = array_map('strval', $permsVal);
+            $tierLabel = $tierVal === 'official' ? 'Official (OwnPay-signed)' : ($tierVal === 'verified' ? 'Verified community' : 'Unverified (no valid registry signature)');
+            $permList = $permissions === [] ? 'no extra permissions' : 'permissions: ' . implode(', ', $permissions);
+            $migrationsRun = $result['migrations_run'] ?? 0;
+            $msg = ($brandId !== null && $brandId > 0 ? "Plugin '{$slug}' activated for this brand!" : "Plugin '{$slug}' activated!")
+                . " ({$migrationsRun} migrations run)"
+                . " - [{$tierLabel}] {$permList}."
+                . ($tierVal === 'unverified' ? ' Unverified plugins are not reviewed by OwnPay; activate only if you trust the author.' : '');
             $this->session->flashSuccess($msg);
         }
 

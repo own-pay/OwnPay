@@ -12,7 +12,10 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Brand\BrandContext;
 use OwnPay\Service\Brand\BrandRoleSeeder;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+
+#[AllowMockObjectsWithoutExpectations]
 final class BrandOwnerPermissionMiddlewareTest extends TestCase
 {
     private Container $container;

@@ -120,15 +120,17 @@ final class RefundService
             /** @var numeric-string $origAmount */
 
             if ($amount === null) {
-                $amount = bcsub($origAmount, $alreadyRefunded, 2);
-            } elseif (!is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
-                throw new InvalidArgumentException('Refund amount must be a positive number');
+                $amountStr = bcsub($origAmount, $alreadyRefunded, 2);
+            } else {
+                try {
+                    $amountStr = \OwnPay\Core\NumberHelper::toNumericString($amount);
+                } catch (\InvalidArgumentException) {
+                    throw new InvalidArgumentException('Refund amount must be a positive number');
+                }
             }
-
-            $amountStr = (string)$amount;
             /** @var numeric-string $amountStr */
             if (bccomp($amountStr, '0.00', 2) <= 0) {
-                throw new InvalidArgumentException('No remaining amount left to refund');
+                throw new InvalidArgumentException('Refund amount must be a positive number');
             }
 
             $newTotal = bcadd($alreadyRefunded, $amountStr, 2);

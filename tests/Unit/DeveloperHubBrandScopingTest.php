@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace OwnPay\Tests\Unit;
+namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use OwnPay\Container;
@@ -14,7 +14,10 @@ use OwnPay\Repository\SettingsRepository;
 use OwnPay\Repository\WebhookRepository;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Brand\BrandContext;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
+
+#[AllowMockObjectsWithoutExpectations]
 class DeveloperHubBrandScopingTest extends TestCase
 {
     private Container $container;

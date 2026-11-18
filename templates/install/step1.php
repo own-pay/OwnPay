@@ -70,6 +70,9 @@
         <div class="ins-warn">
             <strong>⚠ <?= count($failed) ?> requirement<?= count($failed) > 1 ? 's' : '' ?> failed:</strong><br>
             <?= htmlspecialchars(implode(', ', $failed)) ?>.<br><br>
+            <?php if (in_array('PHP Version', $failed, true)): ?>
+            PHP 8.4 or later is required to install OwnPay. The installer detected PHP <?= htmlspecialchars(PHP_VERSION) ?>. Upgrade PHP, then refresh this page.<br><br>
+            <?php endif; ?>
             Please install or enable the missing extensions, then refresh this page.
         </div>
         <a href="/install?step=1" class="ins-btn">Re-check Requirements</a>

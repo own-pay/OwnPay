@@ -122,7 +122,7 @@ body:
       description: Please provide technical details about your setup.
       placeholder: |
         - OwnPay Version: 0.1.0-beta
-        - PHP Version: 8.3.x
+        - PHP Version: 8.4.x
         - Database & Version: MySQL 8.0 / MariaDB 10.11
         - Web Server: Nginx / Apache / Caddy
         - Operating System: Ubuntu 24.04 LTS / Windows 11

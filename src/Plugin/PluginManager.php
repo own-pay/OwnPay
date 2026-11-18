@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\GatewayRepository;
+use OwnPay\Plugin\PluginPackageVerifier;
 
 /**
  * High-level orchestration manager for the OwnPay plugin ecosystem.
@@ -154,12 +155,99 @@ final class PluginManager
     }
 
     /**
+     * Whether the environment permits unverified (unsigned) plugins to activate.
+     *
+     * Defaults to true to preserve the existing install base; operators set
+     * ALLOW_UNVERIFIED_PLUGINS=false in .env to fail closed on anything without a
+     * valid registry signature.
+     */
+    public static function unverifiedPluginsAllowed(): bool
+    {
+        $raw = $_ENV['ALLOW_UNVERIFIED_PLUGINS'] ?? getenv('ALLOW_UNVERIFIED_PLUGINS');
+        $value = is_string($raw) ? $raw : '';
+        if ($value === '') {
+            return true;
+        }
+        $normalized = strtolower(trim($value));
+        return !in_array($normalized, ['0', 'false', 'no', 'off'], true);
+    }
+
+    /**
+     * Computes the trust tier of a plugin directory.
+     */
+    public function tierFor(string $pluginDir): string
+    {
+        if (!is_dir($pluginDir)) {
+            return 'unverified';
+        }
+        return (new PluginPackageVerifier())->tierFor($pluginDir);
+    }
+
+    /**
+     * Absolute path to the plugin's directory based on its type.
+     */
+    /**
+     * @param array<string, mixed> $plugin
+     */
+    private function pluginDir(array $plugin): string
+    {
+        $slug = isset($plugin['slug']) && is_string($plugin['slug']) ? $plugin['slug'] : '';
+        $type = isset($plugin['type']) && is_string($plugin['type']) ? $plugin['type'] : 'addon';
+        $p = ['slug' => $slug, 'type' => $type];
+        if (isset($plugin['status']) && is_string($plugin['status'])) {
+            $p['status'] = $plugin['status'];
+        }
+        return $this->resolveDir($p);
+    }
+
+    /**
+     * True when the directory is inside the modules/ tree that ships inside the signed core release.
+     * Packages written there by the plugin installer inherit the core release's trust (Official).
+     */
+    private function isBundledPluginDir(string $dir): bool
+    {
+        $configApp = $this->container->get('config.app');
+        $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+        $modulesPath = is_string($paths['modules'] ?? null) ? $paths['modules'] : '';
+        if ($modulesPath === '' || !is_dir($modulesPath)) {
+            return false;
+        }
+        $realDir = realpath($modulesPath);
+        $realPluginDir = realpath($dir);
+        return $realDir !== false && $realPluginDir !== false
+            && str_starts_with($realPluginDir, rtrim($realDir, '/') . '/');
+    }
+
+    /**
+     * Public tier resolver for admin UIs that annotate plugins.
+     *
+     * @param array{slug?: mixed, type?: mixed, status?: mixed} $plugin Row/manifest hybrid.
+     */
+    public function tierForPluginArray(array $plugin): string
+    {
+        $slug = isset($plugin['slug']) && is_string($plugin['slug']) ? $plugin['slug'] : '';
+        if ($slug === '') {
+            return 'unverified';
+        }
+        $dir = $this->pluginDir($plugin);
+        // A signed package under modules/ (written there by the installer) is verified first;
+        // otherwise bundled plugins inherit Official from the core release itself.
+        if (is_file($dir . '/signature.sig')) {
+            return $this->tierFor($dir);
+        }
+        if ($this->isBundledPluginDir($dir)) {
+            return 'official';
+        }
+        return 'unverified';
+    }
+
+    /**
      * Activates an installed plugin, executing database migrations and loading its instance.
      * Supports brand-scoped activation if brand ID context is provided.
      *
      * @param string   $slug    Unique plugin identifier.
      * @param int|null $brandId The brand ID context.
-     * @return array{success: bool, message?: string, error?: string, migrations_run?: int, warning?: string} Activation outcome.
+     * @return array{success: bool, message?: string, error?: string, migrations_run?: int, warning?: string, tier?: string, permissions?: array<int, string>} Activation outcome.
      */
     public function activate(string $slug, ?int $brandId = null): array
     {
@@ -205,6 +293,24 @@ final class PluginManager
         }
 
         $this->events->doAction('plugin.before_activate', $slug, $brandId);
+
+        $tier = 'unverified';
+        $requestedPermissions = [];
+        $loaderForPermissions = $this->container->get(\OwnPay\Plugin\PluginLoader::class);
+        if ($loaderForPermissions instanceof \OwnPay\Plugin\PluginLoader) {
+            /** @var \OwnPay\Plugin\PluginManifest|null $permsManifest */
+            $permsManifest = $loaderForPermissions->discover()[$slug] ?? null;
+            if ($permsManifest !== null) {
+                $requestedPermissions = $permsManifest->permissions;
+            }
+        }
+        $pluginDir = $this->pluginDir($plugin);
+        if (is_dir($pluginDir)) {
+            $tier = $this->tierFor($pluginDir);
+        }
+        if (!self::unverifiedPluginsAllowed() && $tier !== 'official' && $tier !== 'verified') {
+            return ['success' => false, 'error' => 'Unverified plugin blocked by ALLOW_UNVERIFIED_PLUGINS=false. Sign the plugin with the registry key or set ALLOW_UNVERIFIED_PLUGINS=true to activate it.', 'tier' => $tier];
+        }
 
         // Bug #4 & #5 fix: Validate dependencies and theme security BEFORE migrations and status update.
         // Previously migrations ran first, leaving orphaned DB state if dependencies were unmet.
@@ -303,7 +409,7 @@ final class PluginManager
 
         $this->events->doAction('plugin.activated', $slug, $ran, $brandId);
 
-        $successResult = ['success' => true, 'migrations_run' => count($ran)];
+        $successResult = ['success' => true, 'migrations_run' => count($ran), 'tier' => $tier, 'permissions' => $requestedPermissions];
         if (!empty($themeScanWarnings)) {
             $successResult['warning'] = 'Theme activated with warnings: ' . implode('; ', $themeScanWarnings);
         }

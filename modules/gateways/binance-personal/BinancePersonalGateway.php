@@ -288,7 +288,7 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
         if (preg_match('/^0x[0-9a-fA-F]{1,64}$/D', $value) === 1) {
             $wei = '0';
             foreach (str_split(substr($value, 2)) as $digit) {
-                $wei = bcadd(bcmul($wei, '16', 0), (string) hexdec($digit), 0);
+                $wei = bcadd(bcmul($wei, '16', 0), (string) intval($digit, 16), 0);
             }
             $receivedAmount = bcdiv($wei, '1000000000000000000', 18);
         }

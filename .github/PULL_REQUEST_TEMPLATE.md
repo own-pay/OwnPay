@@ -52,7 +52,7 @@
   - Forms include valid CSRF tokens via `SecurityHelpers::csrfToken()`.
   - All SQL queries use prepared statements with parameter binding (no raw string interpolation).
   - Twig templates rely on auto-escaping (no untrusted `|raw` filters).
-  - Gateway plugins adhere to the AST `PluginSandbox` security constraints.
+  - Gateway plugins adhere to the plugin blocklist rules (no `eval`, `shell_exec`, backticks, raw PDO).
 
 ---
 
@@ -66,7 +66,7 @@
 - [ ] `composer lint` (Twig, ESLint, and Stylelint pass with 0 errors)
 
 ### Manual Verification Details
-- **Environment**: PHP 8.3 / MySQL 8.0 / Nginx (or Laragon / Docker)
+- **Environment**: PHP 8.4 / MySQL 8.0 / Nginx (or Laragon / Docker)
 - **Steps executed**:
   1. 
   2. 

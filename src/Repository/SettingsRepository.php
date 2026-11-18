@@ -248,6 +248,23 @@ final class SettingsRepository extends BaseRepository
     }
 
     /**
+     * Deletes a brand-specific setting override so the brand inherits the All-Brands default.
+     *
+     * @param string $group Setting group category.
+     * @param string $key Setting key name.
+     * @param int $merchantId The merchant brand ID.
+     * @return void
+     */
+    public function deleteScoped(string $group, string $key, int $merchantId): void
+    {
+        $this->db->delete(
+            "DELETE FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id = :mid",
+            ['g' => $group, 'k' => $key, 'mid' => $merchantId]
+        );
+        $this->forgetGroup($group);
+    }
+
+    /**
      * Stores or updates a brand-specific setting override.
      *
      * @param string $group Setting group category.

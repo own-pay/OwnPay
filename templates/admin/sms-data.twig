@@ -35,7 +35,14 @@
                     <td data-label="TRX ID"><code>{{ sms.trx_id ?? '-' }}</code></td>
                     <td data-label="Gateway">{{ sms.gateway_slug ?? '-' }}</td>
                     <td data-label="Status"><span class="op-badge op-badge-{{ sms.match_status == 'matched' ? 'success' : (sms.match_status == 'pending' ? 'warning' : 'muted') }}">{{ sms.match_status ?? '-' }}</span></td>
-                    <td data-label="Message" class="op-text-sm">{{ sms.body ?? '-' }}</td>
+                    <td data-label="Message" class="op-text-sm">
+                        {% if can_raw %}
+                        <button type="button" class="op-btn op-btn-outline op-btn-sm op-reveal-sms" data-sms-id="{{ sms.id }}">View</button>
+                        <pre class="op-sms-body" data-sms-body="{{ sms.id }}" hidden></pre>
+                        {% else %}
+                        <span class="op-text-muted">Restricted</span>
+                        {% endif %}
+                    </td>
                     <td data-label="Received">{{ sms.received_at is defined and sms.received_at ? sms.received_at|date("M d, H:i") : '-' }}</td>
                 </tr>
                 {% else %}
@@ -51,5 +58,49 @@
     <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
     {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}&status={{ filters.status ?? '' }}" class="op-page-link">Next →</a>{% endif %}
 </nav>
+{% endif %}
+{% if can_raw %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.op-reveal-sms, .op-sms-body-toggle');
+    if (!btn) return;
+    const id = btn.getAttribute('data-sms-id');
+    const pre = document.querySelector('[data-sms-body="' + id + '"]');
+    if (!pre) return;
+
+    if (btn.classList.contains('op-sms-body-toggle')) {
+        pre.hidden = !pre.hidden;
+        btn.textContent = pre.hidden ? 'Reveal' : 'Hide';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Loading\u2026';
+    fetch('/admin/sms-view-body/' + encodeURIComponent(id), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': {{ csrf_token|json_encode|raw }}, 'Accept': 'application/json' },
+    })
+        .then((res) => res.json())
+        .then((data) => {
+            if (data && data.success) {
+                pre.textContent = data.body;
+                pre.hidden = false;
+                btn.textContent = 'Hide';
+                btn.disabled = false;
+                btn.classList.remove('op-reveal-sms');
+                btn.classList.add('op-sms-body-toggle');
+            } else {
+                btn.textContent = 'View';
+                btn.disabled = false;
+                alert((data && data.message) ? data.message : 'Unable to reveal this message.');
+            }
+        })
+        .catch(() => {
+            btn.textContent = 'View';
+            btn.disabled = false;
+        });
+});
+</script>
 {% endif %}
 {% endblock %}

@@ -154,6 +154,30 @@ final class SmsDataRepository extends BaseRepository
     }
 
     /**
+     * Fetches a single SMS row by primary key, scoped to the active tenant when set.
+     *
+     * Used solely by the raw-body reveal endpoint, which is separately gated by the
+     * sms.view_raw permission and audited per access.
+     *
+     * @param int $id The SMS row identifier.
+     * @return array<string, mixed>|null The row, or null when not visible in this scope.
+     */
+    public function getById(int $id): ?array
+    {
+        if ($this->tenantId !== null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
+                ['id' => $id, 'mid' => $this->tenantId]
+            );
+        }
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE id = :id LIMIT 1",
+            ['id' => $id]
+        );
+    }
+
+
+    /**
      * Counts the total number of unresolved or unmatched SMS entries for the active tenant,
      * which represent the pending review queue for administrator verification.
      *

@@ -178,6 +178,7 @@ final class DevicePairingServiceTest extends TestCase
                 'merchant_id'      => 1,
                 'jwt_secret'       => $jwtSecret,
                 'fingerprint_hash' => hash('sha256', 'correct_fp'),
+                'status'           => 'active',
             ],
         ]);
 

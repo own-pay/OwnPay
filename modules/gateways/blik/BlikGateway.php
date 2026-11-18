@@ -254,7 +254,7 @@ final class BlikGateway implements PluginInterface, GatewayAdapterInterface, Tes
             : 'https://sandbox.przelewy24.pl';
 
         $amountFloat = $this->getFloat($callbackData['amount'] ?? 0.0);
-        $amountGrosz = (int) bcmul((string) $amountFloat, '100', 0);
+        $amountGrosz = (int) bcmul(\OwnPay\Core\NumberHelper::toNumericString($amountFloat), '100', 0);
         $currency = 'PLN';
 
         $signString = $sessionId . $gatewayTrxId . $amountGrosz . $currency . $crcKey;

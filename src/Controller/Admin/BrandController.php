@@ -527,7 +527,9 @@ final class BrandController
             ['mid' => $id]
         );
         $totalVal = $balances['total'] ?? 0;
-        $totalStr = is_numeric($totalVal) ? (string) $totalVal : '0';
+        $totalStr = (is_int($totalVal) || is_float($totalVal) || is_string($totalVal))
+            ? \OwnPay\Core\NumberHelper::toNumericString($totalVal)
+            : '0';
         if (bccomp($totalStr, '0', 2) !== 0) {
             $blockers[] = "non-zero ledger balance ({$totalStr})";
         }
