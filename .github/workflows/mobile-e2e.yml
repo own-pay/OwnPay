@@ -136,13 +136,33 @@ jobs:
             adb shell pm grant org.ownpay.console android.permission.RECEIVE_SMS
             adb shell pm grant org.ownpay.console android.permission.READ_SMS
             adb shell pm grant org.ownpay.console android.permission.CAMERA
+            adb shell svc power stayon true || true
+            adb shell settings put global screen_off_timeout 1800000 || true
             adb shell input keyevent KEYCODE_WAKEUP
             adb shell wm dismiss-keyguard || true
             adb shell monkey -p org.ownpay.console -c android.intent.category.LAUNCHER 1
-            sleep 20
+            sleep 18
+            # The ATD system_server ANRs under CPU starvation and pops a modal
+            # "Process system isn't responding" dialog which blocks all input.
+            # Detect it in the a11y tree and tap "Wait" (aerr_wait) to dismiss.
+            adb shell uiautomator dump /sdcard/ui-pre.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/ui-pre.xml /tmp/ui-pre.xml >/dev/null 2>&1 || true
+            if grep -q 'aerr_wait' /tmp/ui-pre.xml 2>/dev/null; then
+              BOUNDS=$(grep -oP 'resource-id="android:id/aerr_wait"[^>]*?bounds="\[\K[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+' /tmp/ui-pre.xml | head -1 || true)
+              if [ -n "$BOUNDS" ]; then
+                X1=$(printf '%s' "$BOUNDS" | cut -d, -f1); Y1=$(printf '%s' "$BOUNDS" | sed 's/^[0-9]*,\([0-9]*\)\].*/\1/')
+                X2=$(printf '%s' "$BOUNDS" | sed 's/^[0-9]*,[0-9]*\]\[\([0-9]*\),.*/\1/'); Y2=$(printf '%s' "$BOUNDS" | cut -d, -f4)
+                CX=$(( (X1 + X2) / 2 )); CY=$(( (Y1 + Y2) / 2 ))
+                echo "dismissing ANR dialog: tap $CX $CY"
+                adb shell input tap "$CX" "$CY"
+                sleep 5
+              fi
+            fi
+            sleep 10
             mkdir -p /tmp/e2e
             adb shell dumpsys window | grep -iE 'mCurrentFocus|mFocusedApp' | head -5 > /tmp/e2e/focus.txt || true
-            adb shell dumpsys power | grep -iE 'Display Power|Wake Locks|screenState' | head -8 >> /tmp/e2e/focus.txt || true
+            adb shell dumpsys power > /tmp/e2e/power.txt || true
+            adb shell dumpsys display > /tmp/e2e/display.txt || true
             adb shell pidof org.ownpay.console >> /tmp/e2e/focus.txt || echo "APP_NOT_RUNNING" >> /tmp/e2e/focus.txt
             adb shell screencap -p /sdcard/e2e-0.png
             adb pull /sdcard/e2e-0.png /tmp/e2e/e2e-0.png || true
