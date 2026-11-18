@@ -50,7 +50,7 @@ jobs:
       - name: Smoke - login page renders
         run: |
           for i in $(seq 1 30); do
-            if curl -sf --max-time 2 http://127.0.0.1:8080/login -o /tmp/login.html && grep -q '_csrf_token' /tmp/login.html; then
+            if curl -sf --max-time 2 http://localhost:8080/login -o /tmp/login.html && grep -q '_csrf_token' /tmp/login.html; then
               echo "LOGIN page OK"
               exit 0
             fi
