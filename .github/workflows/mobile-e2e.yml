@@ -60,9 +60,23 @@ jobs:
           docker compose logs app | tail -50
           exit 1
 
+      - name: Locate Android SDK and cache it
+        id: android-sdk
+        run: |
+          for d in "$ANDROID_HOME" "$ANDROID_SDK_ROOT" /usr/local/lib/android/sdk /home/runner/android-sdk /opt/hostedtoolcache/android-sdk /usr/local/android-sdk; do
+            if [ -d "$d/cmdline-tools" ]; then
+              echo "android_home=$d" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Android SDK not found. Checked above paths." >&2
+          exit 1
+
       - name: Build debug APK (x86_64)
         run: |
-          export ANDROID_HOME=/opt/hostedtoolcache/android-sdk
+          export ANDROID_HOME=${{ steps.android-sdk.outputs.android_home }}
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           cd "$GITHUB_WORKSPACE/mobile"
           flutter pub get
           flutter build apk --debug --target-platform android-x64 --no-tree-shake-icons
