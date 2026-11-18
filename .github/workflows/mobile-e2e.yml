@@ -36,6 +36,7 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: '3.50.0'
+          cache: true
 
       - name: Start ownpay stack (db + redis + app)
         run: cd core && docker compose up -d db cache app 2>&1 | tail -5
@@ -82,6 +83,40 @@ jobs:
           flutter build apk --debug --target-platform android-x64 --no-tree-shake-icons
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/app-debug.apk
 
+      - name: Admin login + grab pairing OTP (fresh, 5-min TTL)
+        run: |
+          set -euo pipefail
+          BASE=http://localhost:8080
+          CJ=/tmp/cj.txt
+          rm -f "$CJ"
+          TOKEN=$(curl -sf -c "$CJ" "$BASE/login" | grep -oP 'name="_csrf_token"\s+value="\K[^"]+' | head -1)
+          if [ -z "$TOKEN" ]; then
+            echo "FAIL: no csrf_token in /login page"
+            exit 1
+          fi
+          CODE=$(curl -s -o /tmp/login_resp.html -w '%{http_code}' -c "$CJ" -b "$CJ" \
+            -X POST "$BASE/login" \
+            --data-urlencode "_csrf_token=$TOKEN" \
+            --data-urlencode "email=e2eadmin" \
+            --data-urlencode "password=Smashing!key-2026")
+          echo "POST /login -> HTTP $CODE"
+          PAGE=$(curl -sf -c "$CJ" -b "$CJ" "$BASE/admin/devices")
+          TOKEN2=$(printf '%s' "$PAGE" | grep -oP 'name="_csrf_token"\s+value="\K[^"]+' | head -1)
+          if [ -z "$TOKEN2" ]; then
+            echo "FAIL: no csrf_token on /admin/devices (auth or permission problem)"
+            printf '%s' "$PAGE" | head -c 600
+            exit 1
+          fi
+          RESP=$(curl -sf -b "$CJ" -X POST "$BASE/admin/devices/generate-otp" -H "X-CSRF-Token: $TOKEN2")
+          printf '%s' "$RESP" > /tmp/otp.json
+          printf '%s' "$RESP" | grep -oP '"otp"\s*:\s*"\K[0-9]{6}' > /tmp/otp.txt || true
+          if [ ! -s /tmp/otp.txt ]; then
+            echo "FAIL: generate-otp returned no otp"
+            printf '%s' "$RESP" | head -c 400
+            exit 1
+          fi
+          echo "Pairing OTP acquired (expires in 300s)"
+
       - name: Set up Android emulator (API 35 aosp_atd x86_64)
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -90,16 +125,30 @@ jobs:
           arch: x86_64
           profile: medium_phone
           script: |
+            set -x
             adb wait-for-device
             adb devices -l
+            adb shell wm size
+            adb shell wm density
             adb install /tmp/app-debug.apk
             adb reverse tcp:8080 tcp:8080
             adb shell pm grant org.ownpay.console android.permission.RECEIVE_SMS
             adb shell pm grant org.ownpay.console android.permission.READ_SMS
             adb shell pm grant org.ownpay.console android.permission.CAMERA
-            adb shell pm grant org.ownpay.console android.permission.FOREGROUND_SERVICE
             adb shell monkey -p org.ownpay.console -c android.intent.category.LAUNCHER 1
             sleep 12
-            adb shell screencap -p /sdcard/screen.png
-            adb pull /sdcard/screen.png /tmp/screen.png || true
-            adb shell cmd phone status | head -5 || true
+            mkdir -p /tmp/e2e
+            adb shell screencap -p /sdcard/e2e-0.png
+            adb pull /sdcard/e2e-0.png /tmp/e2e/e2e-0.png || true
+            adb shell uiautomator dump /sdcard/ui-0.xml || true
+            adb pull /sdcard/ui-0.xml /tmp/e2e/ui-0.xml || true
+            adb logcat -d -t 300 > /tmp/e2e/logcat.txt || true
+
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-evidence
+          path: /tmp/e2e/
+          if-no-files-found: ignore
+          retention-days: 7
