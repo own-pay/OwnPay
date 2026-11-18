@@ -23,6 +23,8 @@ services:
       DB_USER: ownpay
       DB_PASS: ownpay
       DB_PREFIX: op_
+      # The installer's DB host allowlist defaults to loopback only; allow the compose service name.
+      OWNPAY_INSTALLER_ALLOWED_DB_HOSTS: db
       CACHE_DRIVER: redis
       QUEUE_DRIVER: redis
       REDIS_HOST: cache
