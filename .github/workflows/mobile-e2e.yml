@@ -104,7 +104,7 @@ jobs:
         run: |
           cd mobile
           flutter pub get
-          flutter build apk --debug --target-platform android-arm,android-arm64 --no-tree-shake-icons
+          flutter build apk --debug --target-platform android-x64 --no-tree-shake-icons
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/app-debug.apk
 
       - name: Install and launch app on emulator
