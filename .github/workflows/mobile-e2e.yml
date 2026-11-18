@@ -45,7 +45,7 @@ jobs:
           docker compose build --pull app 2>&1 | tail -20
           docker compose up -d db cache app 2>&1 | tail -5
           for i in $(seq 1 120); do
-            if curl -sf http://127.0.0.1:8080/install > /dev/null; then echo "app ready after ${i}x2s"; exit 0; fi
+            if curl -sf http://localhost:8080/install > /dev/null; then echo "app ready after ${i}x2s"; exit 0; fi
             sleep 2
           done
           echo "ERROR: ownpay stack never became ready"
@@ -56,18 +56,18 @@ jobs:
         run: |
           set -euo pipefail
           rm -f /tmp/cj.txt
-          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://127.0.0.1:8080/install?step=2" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://localhost:8080/install?step=2" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
           echo "csrf=$CSRF"
           test -n "$CSRF"
           RESP=$(curl -fsS -c /tmp/cj.txt -b /tmp/cj.txt -X POST -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
                -d '{"host":"db","port":3306,"name":"ownpay","user":"ownpay","pass":"ownpay","prefix":"op_","confirm_overwrite":true}' \
-               http://127.0.0.1:8080/install/import-schema)
+               http://localhost:8080/install/import-schema)
           echo "import-schema: $RESP"
           echo "$RESP" | grep -q '"success":true'
-          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://127.0.0.1:8080/install?step=3" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://localhost:8080/install?step=3" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
           RESP=$(curl -fsS -c /tmp/cj.txt -b /tmp/cj.txt -X POST -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
                -d '{"name":"E2E Admin","email":"e2e@example.com","username":"e2eadmin","password":"Smashing!key-2026"}' \
-               http://127.0.0.1:8080/install/create-admin)
+               http://localhost:8080/install/create-admin)
           echo "create-admin: $RESP"
           echo "$RESP" | grep -q '"success":true'
 
@@ -80,12 +80,12 @@ jobs:
         run: |
           set -euo pipefail
           rm -f /tmp/admin.txt
-          CSRF=$(curl -s -c /tmp/admin.txt -b /tmp/admin.txt http://127.0.0.1:8080/login | grep -oP 'name="_csrf_token" value="\K[^"]+' | head -1)
+          CSRF=$(curl -s -c /tmp/admin.txt -b /tmp/admin.txt http://localhost:8080/login | grep -oP 'name="_csrf_token" value="\K[^"]+' | head -1)
           curl -fsS -c /tmp/admin.txt -b /tmp/admin.txt -X POST --data-urlencode "_csrf_token=$CSRF" \
                --data-urlencode "email=e2e@example.com" --data-urlencode "password=Smashing!key-2026" \
-               -o /dev/null -w 'login_http=%{http_code}\n' http://127.0.0.1:8080/login
-          CSRF=$(curl -s -c /tmp/admin.txt -b /tmp/admin.txt http://127.0.0.1:8080/admin/devices | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
-          RESP=$(curl -fsS -c /tmp/admin.txt -b /tmp/admin.txt -X POST -H "X-CSRF-Token: $CSRF" http://127.0.0.1:8080/admin/devices/generate-otp)
+               -o /dev/null -w 'login_http=%{http_code}\n' http://localhost:8080/login
+          CSRF=$(curl -s -c /tmp/admin.txt -b /tmp/admin.txt http://localhost:8080/admin/devices | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          RESP=$(curl -fsS -c /tmp/admin.txt -b /tmp/admin.txt -X POST -H "X-CSRF-Token: $CSRF" http://localhost:8080/admin/devices/generate-otp)
           echo "resp: $RESP" | head -c 300
           OTP=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('otp',''))")
           echo "otp: $OTP"
