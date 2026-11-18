@@ -124,6 +124,7 @@ jobs:
           target: aosp_atd
           arch: x86_64
           profile: medium_phone
+          disable-animations: true
           script: |
             set -x
             adb wait-for-device
@@ -135,14 +136,19 @@ jobs:
             adb shell pm grant org.ownpay.console android.permission.RECEIVE_SMS
             adb shell pm grant org.ownpay.console android.permission.READ_SMS
             adb shell pm grant org.ownpay.console android.permission.CAMERA
+            adb shell input keyevent KEYCODE_WAKEUP
+            adb shell wm dismiss-keyguard || true
             adb shell monkey -p org.ownpay.console -c android.intent.category.LAUNCHER 1
-            sleep 12
+            sleep 20
             mkdir -p /tmp/e2e
+            adb shell dumpsys window | grep -iE 'mCurrentFocus|mFocusedApp' | head -5 > /tmp/e2e/focus.txt || true
+            adb shell dumpsys power | grep -iE 'Display Power|Wake Locks|screenState' | head -8 >> /tmp/e2e/focus.txt || true
+            adb shell pidof org.ownpay.console >> /tmp/e2e/focus.txt || echo "APP_NOT_RUNNING" >> /tmp/e2e/focus.txt
             adb shell screencap -p /sdcard/e2e-0.png
             adb pull /sdcard/e2e-0.png /tmp/e2e/e2e-0.png || true
-            adb shell uiautomator dump /sdcard/ui-0.xml || true
+            adb shell uiautomator dump /sdcard/ui-0.xml > /tmp/e2e/ui-dump.log 2>&1 || echo "uiautomator dump failed rc=$?" > /tmp/e2e/ui-dump.log
             adb pull /sdcard/ui-0.xml /tmp/e2e/ui-0.xml || true
-            adb logcat -d -t 300 > /tmp/e2e/logcat.txt || true
+            adb logcat -d -t 1500 > /tmp/e2e/logcat.txt || true
 
       - name: Upload E2E evidence
         if: always()
