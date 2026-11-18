@@ -37,21 +37,36 @@ $rootDir = dirname(__DIR__);
 @unlink($rootDir . '/storage/.installed');
 @unlink($rootDir . '/storage/.env.temp');
 
-// 2. Generate .env with fresh secrets.
-$env = file_get_contents($rootDir . '/.env.example');
-if ($env === false) {
-    fwrite(STDERR, "Missing .env.example\n");
-    exit(2);
-}
-$env = preg_replace_callback('/^APP_KEY=(.*?)(#.*)?$/m', static fn() => 'APP_KEY=' . bin2hex(random_bytes(32)), $env) ?? $env;
-$env = preg_replace_callback('/^ENCRYPTION_KEY=(.*?)(#.*)?$/m', static fn() => 'ENCRYPTION_KEY=' . bin2hex(random_bytes(32)), $env) ?? $env;
-$env = preg_replace_callback('/^HMAC_KEY=(.*?)(#.*)?$/m', static fn() => 'HMAC_KEY=' . bin2hex(random_bytes(32)), $env) ?? $env;
-$env = preg_replace_callback('/^JWT_SECRET=(.*?)(#.*)?$/m', static fn() => 'JWT_SECRET=' . bin2hex(random_bytes(32)), $env) ?? $env;
-$env = preg_replace_callback('/^AUDIT_HMAC_SECRET=(.*?)(#.*)?$/m', static fn() => 'AUDIT_HMAC_SECRET=' . bin2hex(random_bytes(32)), $env) ?? $env;
-$env = str_replace('APP_ENV=production', 'APP_ENV=development', $env);
-$env = str_replace('APP_DEBUG=false', 'APP_DEBUG=true', $env);
-file_put_contents($rootDir . '/.env', $env);
-chmod($rootDir . '/.env', 0640);
+// 2. Generate a complete dev-friendly .env with fresh secrets and docker-compose defaults.
+$envLines = [
+    'APP_NAME=OwnPay',
+    'APP_ENV=development',
+    'APP_DEBUG=true',
+    'APP_URL=http://localhost:8080',
+    'APP_DOMAIN=localhost',
+    'APP_TIMEZONE=Asia/Dhaka',
+    'APP_CURRENCY=BDT',
+    'APP_KEY=' . bin2hex(random_bytes(32)),
+    'ENCRYPTION_KEY=' . bin2hex(random_bytes(32)),
+    'HMAC_KEY=' . bin2hex(random_bytes(32)),
+    'JWT_SECRET=' . bin2hex(random_bytes(32)),
+    'AUDIT_HMAC_SECRET=' . bin2hex(random_bytes(32)),
+    'DB_HOST=db',
+    'DB_PORT=3306',
+    'DB_NAME=ownpay',
+    'DB_USER=ownpay',
+    'DB_PASS=ownpay',
+    'DB_PREFIX=op_',
+    'DB_CHARSET=utf8mb4',
+    'DB_COLLATION=utf8mb4_unicode_ci',
+    'CACHE_DRIVER=redis',
+    'QUEUE_DRIVER=redis',
+    'REDIS_HOST=cache',
+    'REDIS_PORT=6379',
+    'REDIS_PREFIX=op:',
+];
+file_put_contents($rootDir . '/.env', implode("\n", $envLines) . "\n");
+chmod($rootDir . '/.env', 0644);
 fwrite(STDOUT, ".env written\n");
 
 // 3. Connect to server and recreate the database.
