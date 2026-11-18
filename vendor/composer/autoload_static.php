@@ -2948,6 +2948,7 @@ class ComposerStaticInit5bc1e8fa2bf3e6ab68217354dbab4fcb
         'Tests\\Unit\\Core\\DatabasePrefixTest' => __DIR__ . '/../..' . '/tests/Unit/Core/DatabasePrefixTest.php',
         'Tests\\Unit\\CronJobRunnerTest' => __DIR__ . '/../..' . '/tests/Unit/CronJobRunnerTest.php',
         'Tests\\Unit\\CspNonceTest' => __DIR__ . '/../..' . '/tests/Unit/CspNonceTest.php',
+        'Tests\\Unit\\DeveloperHubBrandScopingTest' => __DIR__ . '/../..' . '/tests/Unit/DeveloperHubBrandScopingTest.php',
         'Tests\\Unit\\DockerDevEnvironmentTest' => __DIR__ . '/../..' . '/tests/Unit/DockerDevEnvironmentTest.php',
         'Tests\\Unit\\DomainControllerStatusPillTest' => __DIR__ . '/../..' . '/tests/Unit/DomainControllerStatusPillTest.php',
         'Tests\\Unit\\DomainControllerTypeWhitelistTest' => __DIR__ . '/../..' . '/tests/Unit/DomainControllerTypeWhitelistTest.php',

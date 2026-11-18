@@ -2749,6 +2749,7 @@ return array(
     'Tests\\Unit\\Core\\DatabasePrefixTest' => $baseDir . '/tests/Unit/Core/DatabasePrefixTest.php',
     'Tests\\Unit\\CronJobRunnerTest' => $baseDir . '/tests/Unit/CronJobRunnerTest.php',
     'Tests\\Unit\\CspNonceTest' => $baseDir . '/tests/Unit/CspNonceTest.php',
+    'Tests\\Unit\\DeveloperHubBrandScopingTest' => $baseDir . '/tests/Unit/DeveloperHubBrandScopingTest.php',
     'Tests\\Unit\\DockerDevEnvironmentTest' => $baseDir . '/tests/Unit/DockerDevEnvironmentTest.php',
     'Tests\\Unit\\DomainControllerStatusPillTest' => $baseDir . '/tests/Unit/DomainControllerStatusPillTest.php',
     'Tests\\Unit\\DomainControllerTypeWhitelistTest' => $baseDir . '/tests/Unit/DomainControllerTypeWhitelistTest.php',
