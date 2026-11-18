@@ -102,7 +102,7 @@ jobs:
       - name: Install and launch app on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: 35
           target: aosp_atd
           arch: x86_64
           profile: Nexus_5
