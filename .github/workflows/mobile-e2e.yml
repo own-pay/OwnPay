@@ -47,7 +47,7 @@ jobs:
             -e DB_NAME=ownpay -e DB_PREFIX=op_ app php /var/www/html/tools/bootstrap-e2e.php \
             --email=e2e@example.com --username=e2eadmin --password=Smashing!key-2026
 
-      - name: Smoke: login page renders
+      - name: Smoke - login page renders
         run: |
           for i in $(seq 1 30); do
             if curl -sf --max-time 2 http://127.0.0.1:8080/login -o /tmp/login.html && grep -q '_csrf_token' /tmp/login.html; then
