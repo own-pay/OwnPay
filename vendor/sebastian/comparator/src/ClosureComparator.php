@@ -14,8 +14,13 @@ use function spl_object_id;
 use function sprintf;
 use Closure;
 use ReflectionFunction;
+use SebastianBergmann\Exporter\ObjectNotSupportedException;
 
 /**
+ * An object exporter is not consulted for the representation of the closures
+ * that are compared: the representation this comparator provides for them
+ * always has precedence.
+ *
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for sebastian/comparator
  *
  * @internal This class is not covered by the backward compatibility promise for sebastian/comparator
@@ -27,8 +32,14 @@ final class ClosureComparator extends Comparator
         return $expected instanceof Closure && $actual instanceof Closure;
     }
 
+    /**
+     * @throws ComparisonFailure
+     * @throws ObjectNotSupportedException
+     */
     public function assertEquals(mixed $expected, mixed $actual, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false): void
     {
+        $this->factory()->recordClosureComparison();
+
         assert($expected instanceof Closure);
         assert($actual instanceof Closure);
 
@@ -67,6 +78,7 @@ final class ClosureComparator extends Comparator
                 $actualFilename,
                 $actualStartLine,
             ),
+            $this->contextLines(),
         );
     }
 

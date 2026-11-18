@@ -9,7 +9,13 @@
  */
 namespace PHPUnit\Framework\MockObject\Rule;
 
+use function array_diff_key;
+use function array_is_list;
+use function assert;
 use function count;
+use function is_int;
+use function is_string;
+use function method_exists;
 use function sprintf;
 use Exception;
 use PHPUnit\Framework\Constraint\Callback;
@@ -19,6 +25,8 @@ use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\MockObject\Invocation as BaseInvocation;
 use PHPUnit\Util\Test;
+use ReflectionException;
+use ReflectionMethod;
 
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for PHPUnit
@@ -28,27 +36,28 @@ use PHPUnit\Util\Test;
 final class Parameters implements ParametersRule
 {
     /**
-     * @var list<Constraint>
+     * @var array<int|string, Constraint>
      */
     private array $parameters           = [];
     private ?BaseInvocation $invocation = null;
     private null|bool|ExpectationFailedException $parameterVerificationResult;
+    private bool $useAssertionCount = true;
 
     /**
-     * @param array<mixed> $parameters
+     * @param array<int|string, mixed> $parameters
      *
      * @throws \PHPUnit\Framework\Exception
      */
     public function __construct(array $parameters)
     {
-        foreach ($parameters as $parameter) {
+        foreach ($parameters as $key => $parameter) {
             if (!$parameter instanceof Constraint) {
                 $parameter = new IsEqual(
                     $parameter,
                 );
             }
 
-            $this->parameters[] = $parameter;
+            $this->parameters[$key] = $parameter;
         }
     }
 
@@ -81,6 +90,11 @@ final class Parameters implements ParametersRule
         $this->doVerify();
     }
 
+    public function useAssertionCount(bool $useAssertionCount): void
+    {
+        $this->useAssertionCount = $useAssertionCount;
+    }
+
     /**
      * @throws ExpectationFailedException
      */
@@ -94,7 +108,11 @@ final class Parameters implements ParametersRule
             throw new ExpectationFailedException('Doubled method does not exist.');
         }
 
-        if (count($this->invocation->parameters()) < count($this->parameters)) {
+        $invocation           = $this->invocation;
+        $invocationParameters = $invocation->parameters();
+        $constraints          = $this->resolveNamedParameters($invocation);
+
+        if (array_diff_key($constraints, $invocationParameters) !== []) {
             $message = 'Parameter count for invocation %s is too low.';
 
             // The user called `->with($this->anything())`, but may have meant
@@ -102,6 +120,7 @@ final class Parameters implements ParametersRule
             //
             // @see https://github.com/sebastianbergmann/phpunit-mock-objects/issues/199
             if (count($this->parameters) === 1 &&
+                isset($this->parameters[0]) &&
                 $this->parameters[0]::class === IsAnything::class) {
                 $message .= "\nTo allow 0 or more parameters with any value, omit ->with() or use ->withAnyParameters() instead.";
             }
@@ -109,15 +128,27 @@ final class Parameters implements ParametersRule
             $this->incrementAssertionCount();
 
             throw new ExpectationFailedException(
-                sprintf($message, $this->invocation->toString()),
+                sprintf($message, $invocation->toString()),
             );
         }
 
-        foreach ($this->parameters as $i => $parameter) {
+        $parameters = $this->parameters($invocation);
+
+        foreach ($constraints as $i => $parameter) {
+            $other = null;
+
             if ($parameter instanceof Callback && $parameter->isVariadic()) {
-                $other = $this->invocation->parameters();
+                $other = $invocationParameters;
+            } elseif (isset($invocationParameters[$i])) {
+                $other = $invocationParameters[$i];
+            }
+
+            if (isset($parameters[$i])) {
+                $parameterName = $parameters[$i];
+            } elseif (is_string($i)) {
+                $parameterName = '$' . $i;
             } else {
-                $other = $this->invocation->parameters()[$i];
+                $parameterName = (string) $i;
             }
 
             $this->incrementAssertionCount();
@@ -126,13 +157,88 @@ final class Parameters implements ParametersRule
                 $other,
                 sprintf(
                     'Parameter %s for invocation %s does not match expected value.',
-                    $i,
-                    $this->invocation->toString(),
+                    $parameterName,
+                    $invocation->toString(),
                 ),
             );
         }
 
         return true;
+    }
+
+    /**
+     * Maps the constraints that were configured using named arguments to the
+     * position of the parameter with that name. Constraints for named arguments
+     * that are collected by a variadic parameter keep their name.
+     *
+     * @throws ExpectationFailedException
+     *
+     * @return array<int|string, Constraint>
+     */
+    private function resolveNamedParameters(BaseInvocation $invocation): array
+    {
+        if (array_is_list($this->parameters)) {
+            return $this->parameters;
+        }
+
+        $positions  = [];
+        $isVariadic = false;
+
+        if (method_exists($invocation->object(), $invocation->methodName())) {
+            foreach (new ReflectionMethod($invocation->object(), $invocation->methodName())->getParameters() as $parameter) {
+                if ($parameter->isVariadic()) {
+                    $isVariadic = true;
+
+                    continue;
+                }
+
+                $positions[$parameter->getName()] = $parameter->getPosition();
+            }
+        }
+
+        $parameters = [];
+
+        foreach ($this->parameters as $key => $parameter) {
+            if (is_int($key)) {
+                $parameters[$key] = $parameter;
+
+                continue;
+            }
+
+            if (isset($positions[$key])) {
+                if (isset($parameters[$positions[$key]])) {
+                    $this->incrementAssertionCount();
+
+                    throw new ExpectationFailedException(
+                        sprintf(
+                            'Named parameter $%s overwrites previous argument for invocation %s.',
+                            $key,
+                            $invocation->toString(),
+                        ),
+                    );
+                }
+
+                $parameters[$positions[$key]] = $parameter;
+
+                continue;
+            }
+
+            if (!$isVariadic) {
+                $this->incrementAssertionCount();
+
+                throw new ExpectationFailedException(
+                    sprintf(
+                        'Unknown named parameter $%s for invocation %s.',
+                        $key,
+                        $invocation->toString(),
+                    ),
+                );
+            }
+
+            $parameters[$key] = $parameter;
+        }
+
+        return $parameters;
     }
 
     /**
@@ -149,6 +255,34 @@ final class Parameters implements ParametersRule
 
     private function incrementAssertionCount(): void
     {
+        if ($this->useAssertionCount === false) {
+            return;
+        }
+
         Test::currentTestCase()->addToAssertionCount(1);
+    }
+
+    /**
+     * @return array<non-negative-int, non-empty-string>
+     */
+    private function parameters(BaseInvocation $invocation): array
+    {
+        $parameters = [];
+
+        try {
+            $reflector = new ReflectionMethod(
+                $invocation->className(),
+                $invocation->methodName(),
+            );
+
+            foreach ($reflector->getParameters() as $parameter) {
+                assert($parameter->getPosition() >= 0);
+
+                $parameters[$parameter->getPosition()] = '$' . $parameter->getName();
+            }
+        } catch (ReflectionException) {
+        }
+
+        return $parameters;
     }
 }

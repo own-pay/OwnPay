@@ -9,6 +9,8 @@
  */
 namespace PHPUnit\Framework\Constraint;
 
+use function assert;
+use function is_string;
 use function preg_match;
 use function sprintf;
 use Exception;
@@ -34,6 +36,14 @@ final class ExceptionMessageMatchesRegularExpression extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'exception message does not match ' . Exporter::export($this->regularExpression);
+    }
+
+    /**
      * Evaluates the constraint for parameter $other. Returns true if the
      * constraint is met, false otherwise.
      *
@@ -42,7 +52,11 @@ final class ExceptionMessageMatchesRegularExpression extends Constraint
      */
     protected function matches(mixed $other): bool
     {
-        $match = @preg_match($this->regularExpression, (string) $other);
+        if (!is_string($other)) {
+            return false;
+        }
+
+        $match = @preg_match($this->regularExpression, $other);
 
         if ($match === false) {
             throw new \PHPUnit\Framework\Exception(
@@ -64,8 +78,25 @@ final class ExceptionMessageMatchesRegularExpression extends Constraint
      */
     protected function failureDescription(mixed $other): string
     {
+        if (is_string($other)) {
+            $message = $other;
+        } else {
+            $message = '';
+        }
+
         return sprintf(
             "exception message '%s' matches '%s'",
+            $message,
+            $this->regularExpression,
+        );
+    }
+
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        assert(is_string($other));
+
+        return sprintf(
+            "exception message '%s' does not match '%s'",
             $other,
             $this->regularExpression,
         );

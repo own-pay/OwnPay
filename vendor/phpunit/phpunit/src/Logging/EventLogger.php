@@ -13,13 +13,15 @@ use const FILE_APPEND;
 use const LOCK_EX;
 use const PHP_EOL;
 use const PHP_OS_FAMILY;
+use function explode;
 use function file_put_contents;
 use function implode;
-use function preg_split;
 use function str_repeat;
+use function str_replace;
 use function strlen;
 use PHPUnit\Event\Event;
 use PHPUnit\Event\Tracer\Tracer;
+use PHPUnit\Util\Sanitizer;
 
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for PHPUnit
@@ -48,11 +50,7 @@ final readonly class EventLogger implements Tracer
             $flags |= LOCK_EX;
         }
 
-        $lines = preg_split('/\r\n|\r|\n/', $event->asString());
-
-        if ($lines === false) {
-            $lines = [];
-        }
+        $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", Sanitizer::sanitizeControlCharacters($event->asString())));
 
         file_put_contents(
             $this->path,

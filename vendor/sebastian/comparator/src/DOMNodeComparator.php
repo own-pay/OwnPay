@@ -17,6 +17,10 @@ use DOMNode;
 use ValueError;
 
 /**
+ * An object exporter is not consulted for the representation of the DOMNode
+ * objects that are compared: the representation this comparator provides for
+ * them always has precedence.
+ *
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for sebastian/comparator
  *
  * @internal This class is not covered by the backward compatibility promise for sebastian/comparator
@@ -50,6 +54,7 @@ final class DOMNodeComparator extends ObjectComparator
                 $expectedAsString,
                 $actualAsString,
                 sprintf("Failed asserting that two DOM %s are equal.\n", $type),
+                $this->contextLines(),
             );
         }
     }

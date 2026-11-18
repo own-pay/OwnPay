@@ -19,12 +19,16 @@ use function strpos;
 use function strtolower;
 use function substr;
 use Countable;
+use PHPUnit\Event\Code\NoTestCaseObjectOnCallStackException;
+use PHPUnit\Event\Code\TestMethodBuilder;
+use PHPUnit\Event\Facade as EventFacade;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\SelfDescribing;
 use PHPUnit\Util\Exporter;
 use ReflectionObject;
 use SebastianBergmann\Comparator\ComparisonFailure;
+use SebastianBergmann\Comparator\Factory as ComparatorFactory;
 
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for PHPUnit
@@ -149,16 +153,55 @@ abstract class Constraint implements Countable, SelfDescribing
     }
 
     /**
+     * Returns the description of this constraint when it is wrapped in a
+     * LogicalNot operator.
+     *
+     * Override this method to author the negated description directly instead
+     * of letting LogicalNot rewrite the string returned by toString().
+     *
+     * The method shall return an empty string when it does not author its own
+     * negation. LogicalNot then falls back to toStringInContext() and, finally,
+     * to rewriting the string returned by toString().
+     */
+    protected function negatedToString(): string
+    {
+        return '';
+    }
+
+    /**
+     * Returns the description of the failure when this constraint is wrapped
+     * in a LogicalNot operator.
+     *
+     * By default, this combines the exported value with the string returned by
+     * negatedToString(). Overriding negatedToString() is therefore enough for
+     * most constraints. Override this method as well when the negated failure
+     * description does not have that shape.
+     *
+     * The method shall return an empty string when it does not author its own
+     * negation.
+     */
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        $string = $this->negatedToString();
+
+        if ($string === '') {
+            return '';
+        }
+
+        return Exporter::export($other) . ' ' . $string;
+    }
+
+    /**
      * Returns a custom string representation of the constraint object when it
      * appears in context of an $operator expression.
      *
-     * The purpose of this method is to provide meaningful descriptive string
-     * in context of operators such as LogicalNot. Native PHPUnit constraints
-     * are supported out of the box by LogicalNot, but externally developed
-     * ones had no way to provide correct strings in this context.
+     * The purpose of this method is to provide a meaningful descriptive string
+     * in context of operators such as LogicalAnd, LogicalOr, and LogicalXor.
      *
      * The method shall return empty string, when it does not handle
      * customization by itself.
+     *
+     * For the LogicalNot case, override negatedToString() instead.
      */
     protected function toStringInContext(Operator $operator, mixed $role): string
     {
@@ -169,13 +212,15 @@ abstract class Constraint implements Countable, SelfDescribing
      * Returns the description of the failure when this constraint appears in
      * context of an $operator expression.
      *
-     * The purpose of this method is to provide meaningful failure description
-     * in context of operators such as LogicalNot. Native PHPUnit constraints
-     * are supported out of the box by LogicalNot, but externally developed
-     * ones had no way to provide correct messages in this context.
+     * The purpose of this method is to provide a meaningful failure description
+     * in context of operators.
      *
      * The method shall return empty string, when it does not handle
      * customization by itself.
+     *
+     * For the LogicalNot case, override negatedFailureDescription() instead.
+     *
+     * @deprecated https://github.com/sebastianbergmann/phpunit/issues/6686
      */
     protected function failureDescriptionInContext(Operator $operator, mixed $role, mixed $other): string
     {
@@ -292,5 +337,38 @@ abstract class Constraint implements Countable, SelfDescribing
             'null'                                                      => 'null ',
             default                                                     => 'a value of ' . $type . ' ',
         };
+    }
+
+    /**
+     * @throws ComparisonFailure
+     * @throws NoTestCaseObjectOnCallStackException
+     */
+    final protected function assertEqualsUsingComparator(mixed $expected, mixed $actual, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false): void
+    {
+        $factory = ComparatorFactory::getInstance();
+
+        $factory->resetClosureComparisonTracking();
+
+        $comparator = $factory->getComparatorFor(
+            $expected,
+            $actual,
+        );
+
+        try {
+            $comparator->assertEquals(
+                $expected,
+                $actual,
+                $delta,
+                $canonicalize,
+                $ignoreCase,
+            );
+        } finally {
+            if ($factory->closureComparisonOccurred()) {
+                EventFacade::emitter()->testTriggeredPhpunitWarning(
+                    TestMethodBuilder::fromCallStack(),
+                    'Comparing closures for equality is problematic because there is no reliable way to determine whether two closures are equal',
+                );
+            }
+        }
     }
 }

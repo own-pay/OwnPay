@@ -19,12 +19,14 @@ use Ramsey\Uuid\Builder\UuidBuilderInterface;
 use Ramsey\Uuid\Codec\CodecInterface;
 use Ramsey\Uuid\Converter\NumberConverterInterface;
 use Ramsey\Uuid\Converter\TimeConverterInterface;
+use Ramsey\Uuid\Exception\InvalidArgumentException;
 use Ramsey\Uuid\Generator\DceSecurityGeneratorInterface;
 use Ramsey\Uuid\Generator\DefaultTimeGenerator;
 use Ramsey\Uuid\Generator\NameGeneratorInterface;
 use Ramsey\Uuid\Generator\RandomGeneratorInterface;
 use Ramsey\Uuid\Generator\TimeGeneratorInterface;
 use Ramsey\Uuid\Generator\UnixTimeGenerator;
+use Ramsey\Uuid\Guid\GuidBuilder;
 use Ramsey\Uuid\Lazy\LazyUuidFromString;
 use Ramsey\Uuid\Provider\NodeProviderInterface;
 use Ramsey\Uuid\Provider\Time\FixedTimeProvider;
@@ -34,13 +36,13 @@ use Ramsey\Uuid\Type\Time;
 use Ramsey\Uuid\Validator\ValidatorInterface;
 
 use function bin2hex;
+use function chr;
 use function hex2bin;
-use function pack;
+use function ord;
 use function str_pad;
+use function strlen;
 use function strtolower;
 use function substr;
-use function substr_replace;
-use function unpack;
 
 use const STR_PAD_LEFT;
 
@@ -454,21 +456,25 @@ class UuidFactory implements UuidFactoryInterface
      */
     private function uuidFromBytesAndVersion(string $bytes, int $version): UuidInterface
     {
-        /** @var int[] $unpackedTime */
-        $unpackedTime = unpack('n*', substr($bytes, 6, 2));
-        $timeHi = $unpackedTime[1];
-        $timeHiAndVersion = pack('n*', BinaryUtils::applyVersion($timeHi, $version));
+        if (strlen($bytes) !== 16) {
+            throw new InvalidArgumentException(
+                'The byte string must be 16 bytes long; received ' . strlen($bytes) . ' bytes',
+            );
+        }
 
-        /** @var int[] $unpackedClockSeq */
-        $unpackedClockSeq = unpack('n*', substr($bytes, 8, 2));
-        $clockSeqHi = $unpackedClockSeq[1];
-        $clockSeqHiAndReserved = pack('n*', BinaryUtils::applyVariant($clockSeqHi));
-
-        $bytes = substr_replace($bytes, $timeHiAndVersion, 6, 2);
-        $bytes = substr_replace($bytes, $clockSeqHiAndReserved, 8, 2);
+        // The version is the first four bits of the seventh byte, and the variant is the first two bits of the ninth.
+        $bytes[6] = chr(ord($bytes[6]) & 0x0f | ($version & 0x0f) << 4);
+        $bytes[8] = chr(ord($bytes[8]) & 0x3f | 0x80);
 
         if ($this->isDefaultFeatureSet) {
             return LazyUuidFromString::fromBytes($bytes);
+        }
+
+        // GUID fields store the first three fields in little-endian byte order.
+        if ($this->uuidBuilder instanceof GuidBuilder) {
+            $bytes = $bytes[3] . $bytes[2] . $bytes[1] . $bytes[0]
+                . $bytes[5] . $bytes[4] . $bytes[7] . $bytes[6]
+                . substr($bytes, 8);
         }
 
         return $this->uuid($bytes);

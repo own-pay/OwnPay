@@ -22,6 +22,7 @@ use function ini_get_all;
 use function is_array;
 use function is_file;
 use function is_scalar;
+use function is_string;
 use function preg_match;
 use function serialize;
 use function sprintf;
@@ -74,74 +75,6 @@ final readonly class GlobalState
      * @var non-empty-array<non-empty-string, non-empty-array<non-empty-string, true>>
      */
     private const array DEPRECATED_INI_SETTINGS = [
-        '7.3' => [
-            'iconv.input_encoding'       => true,
-            'iconv.output_encoding'      => true,
-            'iconv.internal_encoding'    => true,
-            'mbstring.func_overload'     => true,
-            'mbstring.http_input'        => true,
-            'mbstring.http_output'       => true,
-            'mbstring.internal_encoding' => true,
-            'string.strip_tags'          => true,
-        ],
-
-        '7.4' => [
-            'iconv.input_encoding'       => true,
-            'iconv.output_encoding'      => true,
-            'iconv.internal_encoding'    => true,
-            'mbstring.func_overload'     => true,
-            'mbstring.http_input'        => true,
-            'mbstring.http_output'       => true,
-            'mbstring.internal_encoding' => true,
-            'pdo_odbc.db2_instance_name' => true,
-            'string.strip_tags'          => true,
-        ],
-
-        '8.0' => [
-            'iconv.input_encoding'       => true,
-            'iconv.output_encoding'      => true,
-            'iconv.internal_encoding'    => true,
-            'mbstring.http_input'        => true,
-            'mbstring.http_output'       => true,
-            'mbstring.internal_encoding' => true,
-        ],
-
-        '8.1' => [
-            'auto_detect_line_endings'     => true,
-            'filter.default'               => true,
-            'iconv.input_encoding'         => true,
-            'iconv.output_encoding'        => true,
-            'iconv.internal_encoding'      => true,
-            'mbstring.http_input'          => true,
-            'mbstring.http_output'         => true,
-            'mbstring.internal_encoding'   => true,
-            'oci8.old_oci_close_semantics' => true,
-        ],
-
-        '8.2' => [
-            'auto_detect_line_endings'     => true,
-            'filter.default'               => true,
-            'iconv.input_encoding'         => true,
-            'iconv.output_encoding'        => true,
-            'iconv.internal_encoding'      => true,
-            'mbstring.http_input'          => true,
-            'mbstring.http_output'         => true,
-            'mbstring.internal_encoding'   => true,
-            'oci8.old_oci_close_semantics' => true,
-        ],
-
-        '8.3' => [
-            'auto_detect_line_endings'     => true,
-            'filter.default'               => true,
-            'iconv.input_encoding'         => true,
-            'iconv.output_encoding'        => true,
-            'iconv.internal_encoding'      => true,
-            'mbstring.http_input'          => true,
-            'mbstring.http_output'         => true,
-            'mbstring.internal_encoding'   => true,
-            'oci8.old_oci_close_semantics' => true,
-        ],
-
         '8.4' => [
             'auto_detect_line_endings'     => true,
             'filter.default'               => true,
@@ -198,7 +131,7 @@ final readonly class GlobalState
         $prefix      = false;
         $result      = '';
 
-        if (defined('__PHPUNIT_PHAR__')) {
+        if (defined('__PHPUNIT_PHAR__') && is_string(__PHPUNIT_PHAR__)) {
             // @codeCoverageIgnoreStart
             $prefix = 'phar://' . __PHPUNIT_PHAR__ . '/';
             // @codeCoverageIgnoreEnd
@@ -208,7 +141,7 @@ final readonly class GlobalState
         array_shift($files);
 
         // If bootstrap script was a Composer bin proxy, skip the second entry as well
-        if (str_ends_with(strtr($files[0], '\\', '/'), '/phpunit/phpunit/phpunit')) {
+        if (isset($files[0]) && str_ends_with(strtr($files[0], '\\', '/'), '/phpunit/phpunit/phpunit')) {
             // @codeCoverageIgnoreStart
             array_shift($files);
             // @codeCoverageIgnoreEnd
@@ -223,7 +156,9 @@ final readonly class GlobalState
             }
 
             if ($prefix !== false && str_starts_with($file, $prefix)) {
+                // @codeCoverageIgnoreStart
                 continue;
+                // @codeCoverageIgnoreEnd
             }
 
             // Skip virtual file system protocols
@@ -232,7 +167,7 @@ final readonly class GlobalState
             }
 
             if (!$excludeList->isExcluded($file) && is_file($file)) {
-                $result = 'require_once \'' . $file . "';\n" . $result;
+                $result = 'require_once ' . var_export($file, true) . ";\n" . $result;
             }
         }
 
@@ -249,6 +184,10 @@ final readonly class GlobalState
 
         foreach ($iniSettings as $key => $value) {
             if (self::isIniSettingDeprecated($key)) {
+                continue;
+            }
+
+            if (!is_scalar($value)) {
                 continue;
             }
 
@@ -306,7 +245,7 @@ final readonly class GlobalState
                             '$GLOBALS[\'%s\'][\'%s\'] = %s;' . "\n",
                             $superGlobalArray,
                             $key,
-                            self::exportVariable($GLOBALS[$superGlobalArray][$key]),
+                            self::exportVariable($value),
                         );
                     } catch (Throwable) {
                         $skippedGlobals[] = ['name' => $name, 'reason' => 'is not serializable'];

@@ -9,99 +9,22 @@
  */
 namespace SebastianBergmann\CodeCoverage\Report\Html;
 
-use const ENT_COMPAT;
-use const ENT_HTML401;
-use const ENT_SUBSTITUTE;
-use const T_ABSTRACT;
-use const T_ARRAY;
-use const T_AS;
-use const T_BREAK;
-use const T_CALLABLE;
-use const T_CASE;
-use const T_CATCH;
-use const T_CLASS;
-use const T_CLONE;
-use const T_COMMENT;
-use const T_CONST;
-use const T_CONTINUE;
-use const T_DECLARE;
-use const T_DEFAULT;
-use const T_DO;
-use const T_DOC_COMMENT;
-use const T_ECHO;
-use const T_ELSE;
-use const T_ELSEIF;
-use const T_EMPTY;
-use const T_ENDDECLARE;
-use const T_ENDFOR;
-use const T_ENDFOREACH;
-use const T_ENDIF;
-use const T_ENDSWITCH;
-use const T_ENDWHILE;
-use const T_ENUM;
-use const T_EVAL;
-use const T_EXIT;
-use const T_EXTENDS;
-use const T_FINAL;
-use const T_FINALLY;
-use const T_FN;
-use const T_FOR;
-use const T_FOREACH;
-use const T_FUNCTION;
-use const T_GLOBAL;
-use const T_GOTO;
-use const T_HALT_COMPILER;
-use const T_IF;
-use const T_IMPLEMENTS;
-use const T_INCLUDE;
-use const T_INCLUDE_ONCE;
-use const T_INLINE_HTML;
-use const T_INSTANCEOF;
-use const T_INSTEADOF;
-use const T_INTERFACE;
-use const T_ISSET;
-use const T_LIST;
-use const T_MATCH;
-use const T_NAMESPACE;
-use const T_NEW;
-use const T_PRINT;
-use const T_PRIVATE;
-use const T_PROTECTED;
-use const T_PUBLIC;
-use const T_READONLY;
-use const T_REQUIRE;
-use const T_REQUIRE_ONCE;
-use const T_RETURN;
-use const T_STATIC;
-use const T_SWITCH;
-use const T_THROW;
-use const T_TRAIT;
-use const T_TRY;
-use const T_UNSET;
-use const T_USE;
-use const T_VAR;
-use const T_WHILE;
-use const T_YIELD;
-use const T_YIELD_FROM;
-use const TOKEN_PARSE;
+use const PHP_INT_MAX;
 use function array_key_exists;
 use function array_keys;
 use function array_merge;
 use function array_pop;
+use function array_slice;
+use function array_sum;
 use function array_unique;
 use function count;
 use function explode;
-use function file_get_contents;
 use function htmlspecialchars;
-use function is_string;
-use function ksort;
+use function implode;
+use function min;
 use function range;
-use function sort;
 use function sprintf;
-use function str_ends_with;
-use function str_replace;
-use function token_get_all;
-use function trim;
+use function uasort;
 use SebastianBergmann\CodeCoverage\Data\ProcessedBranchCoverageData;
 use SebastianBergmann\CodeCoverage\Data\ProcessedClassType;
 use SebastianBergmann\CodeCoverage\Data\ProcessedFunctionCoverageData;
@@ -111,110 +34,50 @@ use SebastianBergmann\CodeCoverage\Data\ProcessedPathCoverageData;
 use SebastianBergmann\CodeCoverage\Data\ProcessedTraitType;
 use SebastianBergmann\CodeCoverage\FileCouldNotBeWrittenException;
 use SebastianBergmann\CodeCoverage\Node\File as FileNode;
+use SebastianBergmann\CodeCoverage\Util\Json;
 use SebastianBergmann\CodeCoverage\Util\Percentage;
 use SebastianBergmann\Template\Exception;
 use SebastianBergmann\Template\Template;
 
 /**
  * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @no-named-arguments Parameter names are not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @phpstan-import-type TestIndexType from \SebastianBergmann\CodeCoverage\Data\ProcessedCodeCoverageData
+ * @phpstan-import-type TestDataType from \SebastianBergmann\CodeCoverage\Node\Builder
+ * @phpstan-import-type CoverageItemData from \SebastianBergmann\CodeCoverage\Report\Html\Renderer
  */
 final class File extends Renderer
 {
     /**
-     * @var array<int,true>
+     * Maximum number of paths per method for which table rows, interactive
+     * graph highlighting data, and graph edge classes are rendered; path
+     * counts grow combinatorially and would bloat the report otherwise.
      */
-    private const array KEYWORD_TOKENS = [
-        T_ABSTRACT      => true,
-        T_ARRAY         => true,
-        T_AS            => true,
-        T_BREAK         => true,
-        T_CALLABLE      => true,
-        T_CASE          => true,
-        T_CATCH         => true,
-        T_CLASS         => true,
-        T_CLONE         => true,
-        T_CONST         => true,
-        T_CONTINUE      => true,
-        T_DECLARE       => true,
-        T_DEFAULT       => true,
-        T_DO            => true,
-        T_ECHO          => true,
-        T_ELSE          => true,
-        T_ELSEIF        => true,
-        T_EMPTY         => true,
-        T_ENDDECLARE    => true,
-        T_ENDFOR        => true,
-        T_ENDFOREACH    => true,
-        T_ENDIF         => true,
-        T_ENDSWITCH     => true,
-        T_ENDWHILE      => true,
-        T_ENUM          => true,
-        T_EVAL          => true,
-        T_EXIT          => true,
-        T_EXTENDS       => true,
-        T_FINAL         => true,
-        T_FINALLY       => true,
-        T_FN            => true,
-        T_FOR           => true,
-        T_FOREACH       => true,
-        T_FUNCTION      => true,
-        T_GLOBAL        => true,
-        T_GOTO          => true,
-        T_HALT_COMPILER => true,
-        T_IF            => true,
-        T_IMPLEMENTS    => true,
-        T_INCLUDE       => true,
-        T_INCLUDE_ONCE  => true,
-        T_INSTANCEOF    => true,
-        T_INSTEADOF     => true,
-        T_INTERFACE     => true,
-        T_ISSET         => true,
-        T_LIST          => true,
-        T_MATCH         => true,
-        T_NAMESPACE     => true,
-        T_NEW           => true,
-        T_PRINT         => true,
-        T_PRIVATE       => true,
-        T_PROTECTED     => true,
-        T_PUBLIC        => true,
-        T_READONLY      => true,
-        T_REQUIRE       => true,
-        T_REQUIRE_ONCE  => true,
-        T_RETURN        => true,
-        T_STATIC        => true,
-        T_SWITCH        => true,
-        T_THROW         => true,
-        T_TRAIT         => true,
-        T_TRY           => true,
-        T_UNSET         => true,
-        T_USE           => true,
-        T_VAR           => true,
-        T_WHILE         => true,
-        T_YIELD         => true,
-        T_YIELD_FROM    => true,
-    ];
-
-    private const int HTML_SPECIAL_CHARS_FLAGS = ENT_COMPAT | ENT_HTML401 | ENT_SUBSTITUTE;
-
-    /**
-     * @var array<non-empty-string, list<string>>
-     */
-    private static array $formattedSourceCache = [];
+    private const int MAX_RENDERED_PATHS        = 100;
+    private ?ControlFlowGraph $controlFlowGraph = null;
 
     public function render(FileNode $node, string $file): void
     {
-        $templateName = $this->templatePath . ($this->hasBranchCoverage ? 'file_branch.html' : 'file.html');
-        $template     = new Template($templateName, '{{', '}}');
+        $template = new Template($this->templateNameForTier('file'), '{{', '}}');
         $this->setCommonTemplateVariables($template, $node);
 
         $template->setVar(
             [
+                'summary'   => $this->renderSummary($this->nodeData($node), 'Functions and Methods', 'Classes and Traits'),
                 'items'     => $this->renderItems($node),
                 'lines'     => $this->renderSourceWithLineCoverage($node),
-                'legend'    => '<p><span class="legend covered-by-small-tests">Covered by small (and larger) tests</span><span class="legend covered-by-medium-tests">Covered by medium (and large) tests</span><span class="legend covered-by-large-tests">Covered by large tests (and tests of unknown size)</span><span class="legend not-covered">Not covered</span><span class="legend not-coverable">Not coverable</span></p>',
+                'legend'    => $this->lineCoverageLegend(),
                 'structure' => '',
             ],
         );
+
+        if ($this->hasBranchCoverage) {
+            $template->setVar(
+                ['tabs' => $this->renderViewTabs($node->name(), 'line')],
+            );
+        }
 
         try {
             $template->renderTo($file . '.html');
@@ -229,9 +92,10 @@ final class File extends Renderer
         if ($this->hasBranchCoverage) {
             $template->setVar(
                 [
+                    'tabs'      => $this->renderViewTabs($node->name(), 'branch'),
                     'items'     => $this->renderItems($node),
                     'lines'     => $this->renderSourceWithBranchCoverage($node),
-                    'legend'    => '<p><span class="success"><strong>Fully covered</strong></span><span class="warning"><strong>Partially covered</strong></span><span class="danger"><strong>Not covered</strong></span></p>',
+                    'legend'    => $this->branchCoverageLegend(),
                     'structure' => $this->renderBranchStructure($node),
                 ],
             );
@@ -245,12 +109,15 @@ final class File extends Renderer
                     $e,
                 );
             }
+        }
 
+        if ($this->hasPathCoverage) {
             $template->setVar(
                 [
+                    'tabs'      => $this->renderViewTabs($node->name(), 'path'),
                     'items'     => $this->renderItems($node),
                     'lines'     => $this->renderSourceWithPathCoverage($node),
-                    'legend'    => '<p><span class="success"><strong>Fully covered</strong></span><span class="warning"><strong>Partially covered</strong></span><span class="danger"><strong>Not covered</strong></span></p>',
+                    'legend'    => $this->branchCoverageLegend(),
                     'structure' => $this->renderPathStructure($node),
                 ],
             );
@@ -267,47 +134,48 @@ final class File extends Renderer
         }
     }
 
+    /**
+     * @return CoverageItemData
+     */
+    private function nodeData(FileNode $node): array
+    {
+        return [
+            'name'                            => '',
+            'numClasses'                      => $node->numberOfClassesAndTraits(),
+            'numTestedClasses'                => $node->numberOfTestedClassesAndTraits(),
+            'numMethods'                      => $node->numberOfFunctionsAndMethods(),
+            'numTestedMethods'                => $node->numberOfTestedFunctionsAndMethods(),
+            'linesExecutedPercent'            => $node->percentageOfExecutedLines()->asFloat(),
+            'linesExecutedPercentAsString'    => $node->percentageOfExecutedLines()->asString(),
+            'numExecutedLines'                => $node->numberOfExecutedLines(),
+            'numExecutableLines'              => $node->numberOfExecutableLines(),
+            'branchesExecutedPercent'         => $node->percentageOfExecutedBranches()->asFloat(),
+            'branchesExecutedPercentAsString' => $node->percentageOfExecutedBranches()->asString(),
+            'numExecutedBranches'             => $node->numberOfExecutedBranches(),
+            'numExecutableBranches'           => $node->numberOfExecutableBranches(),
+            'pathsExecutedPercent'            => $node->percentageOfExecutedPaths()->asFloat(),
+            'pathsExecutedPercentAsString'    => $node->percentageOfExecutedPaths()->asString(),
+            'numExecutedPaths'                => $node->numberOfExecutedPaths(),
+            'numExecutablePaths'              => $node->numberOfExecutablePaths(),
+            'testedMethodsPercent'            => $node->percentageOfTestedFunctionsAndMethods()->asFloat(),
+            'testedMethodsPercentAsString'    => $node->percentageOfTestedFunctionsAndMethods()->asString(),
+            'testedClassesPercent'            => $node->percentageOfTestedClassesAndTraits()->asFloat(),
+            'testedClassesPercentAsString'    => $node->percentageOfTestedClassesAndTraits()->asString(),
+            'coverageDataJson'                => $this->coverageDataJsonFor($node),
+        ];
+    }
+
     private function renderItems(FileNode $node): string
     {
-        $templateName = $this->templatePath . ($this->hasBranchCoverage ? 'file_item_branch.html' : 'file_item.html');
-        $template     = new Template($templateName, '{{', '}}');
+        $template = $this->template($this->templateNameForTier('file_item'));
 
-        $methodTemplateName = $this->templatePath . ($this->hasBranchCoverage ? 'method_item_branch.html' : 'method_item.html');
         $methodItemTemplate = new Template(
-            $methodTemplateName,
+            $this->templateNameForTier('method_item'),
             '{{',
             '}}',
         );
 
-        $items = $this->renderItemTemplate(
-            $template,
-            [
-                'name'                            => 'Total',
-                'numClasses'                      => $node->numberOfClassesAndTraits(),
-                'numTestedClasses'                => $node->numberOfTestedClassesAndTraits(),
-                'numMethods'                      => $node->numberOfFunctionsAndMethods(),
-                'numTestedMethods'                => $node->numberOfTestedFunctionsAndMethods(),
-                'linesExecutedPercent'            => $node->percentageOfExecutedLines()->asFloat(),
-                'linesExecutedPercentAsString'    => $node->percentageOfExecutedLines()->asString(),
-                'numExecutedLines'                => $node->numberOfExecutedLines(),
-                'numExecutableLines'              => $node->numberOfExecutableLines(),
-                'branchesExecutedPercent'         => $node->percentageOfExecutedBranches()->asFloat(),
-                'branchesExecutedPercentAsString' => $node->percentageOfExecutedBranches()->asString(),
-                'numExecutedBranches'             => $node->numberOfExecutedBranches(),
-                'numExecutableBranches'           => $node->numberOfExecutableBranches(),
-                'pathsExecutedPercent'            => $node->percentageOfExecutedPaths()->asFloat(),
-                'pathsExecutedPercentAsString'    => $node->percentageOfExecutedPaths()->asString(),
-                'numExecutedPaths'                => $node->numberOfExecutedPaths(),
-                'numExecutablePaths'              => $node->numberOfExecutablePaths(),
-                'testedMethodsPercent'            => $node->percentageOfTestedFunctionsAndMethods()->asFloat(),
-                'testedMethodsPercentAsString'    => $node->percentageOfTestedFunctionsAndMethods()->asString(),
-                'testedClassesPercent'            => $node->percentageOfTestedClassesAndTraits()->asFloat(),
-                'testedClassesPercentAsString'    => $node->percentageOfTestedClassesAndTraits()->asString(),
-                'crap'                            => '<abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr>',
-            ],
-        );
-
-        $items .= $this->renderFunctionItems(
+        $items = $this->renderFunctionItems(
             $node->functions(),
             $methodItemTemplate,
         );
@@ -419,6 +287,7 @@ final class File extends Renderer
                     'testedClassesPercent'         => $testedClassesPercentage->asFloat(),
                     'testedClassesPercentAsString' => $testedClassesPercentage->asString(),
                     'crap'                         => $item->crap,
+                    'coverageDataJson'             => $this->coverageDataJsonForClassOrTrait($item),
                 ],
             );
 
@@ -488,6 +357,12 @@ final class File extends Renderer
             1,
         );
 
+        if ($item instanceof ProcessedFunctionType) {
+            $name = $item->functionName;
+        } else {
+            $name = $item->methodName;
+        }
+
         return $this->renderItemTemplate(
             $template,
             [
@@ -496,7 +371,7 @@ final class File extends Renderer
                     $indent,
                     $item->startLine,
                     htmlspecialchars($item->signature, self::HTML_SPECIAL_CHARS_FLAGS),
-                    $item instanceof ProcessedFunctionType ? $item->functionName : $item->methodName,
+                    $this->escapeHtml($name),
                 ),
                 'numMethods'                      => $numMethods,
                 'numTestedMethods'                => $numTestedMethods,
@@ -515,25 +390,102 @@ final class File extends Renderer
                 'testedMethodsPercent'            => $testedMethodsPercentage->asFloat(),
                 'testedMethodsPercentAsString'    => $testedMethodsPercentage->asString(),
                 'crap'                            => $item->crap,
+                'coverageDataJson'                => $this->coverageDataJsonForFunctionOrMethod($item),
             ],
         );
+    }
+
+    private function coverageDataJsonForClassOrTrait(ProcessedClassType|ProcessedTraitType $item): string
+    {
+        $numMethods       = 0;
+        $numTestedMethods = 0;
+
+        foreach ($item->methods as $method) {
+            if ($method->executableLines > 0) {
+                $numMethods++;
+
+                if ($method->executedLines === $method->executableLines) {
+                    $numTestedMethods++;
+                }
+            }
+        }
+
+        $numClasses       = 0;
+        $numTestedClasses = 0;
+
+        if ($item->executableLines > 0) {
+            $numClasses = 1;
+
+            if ($numTestedMethods === $numMethods) {
+                $numTestedClasses = 1;
+            }
+        }
+
+        $data = [
+            'linesTotal'   => $item->executableLines,
+            'linesAll'     => $item->executedLines,
+            'methodsTotal' => $numMethods,
+            'methodsAll'   => $numTestedMethods,
+            'classesTotal' => $numClasses,
+            'classesAll'   => $numTestedClasses,
+        ];
+
+        foreach (self::TEST_SIZE_JSON_KEY_SUFFIXES as $combination => $suffix) {
+            $numTestedMethodsByTestSize = 0;
+
+            foreach ($item->methods as $method) {
+                if ($method->executableLines > 0 && $method->executedLinesByTestSize[$combination] === $method->executableLines) {
+                    $numTestedMethodsByTestSize++;
+                }
+            }
+
+            $numTestedClassesByTestSize = 0;
+
+            if ($numClasses === 1 && $numTestedMethodsByTestSize === $numMethods) {
+                $numTestedClassesByTestSize = 1;
+            }
+
+            $data['lines' . $suffix]   = $item->executedLinesByTestSize[$combination];
+            $data['methods' . $suffix] = $numTestedMethodsByTestSize;
+            $data['classes' . $suffix] = $numTestedClassesByTestSize;
+        }
+
+        return $this->buildCoverageDataJson($data);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function highlightedSourceFor(FileNode $node): array
+    {
+        $path = $node->pathAsString();
+
+        if ($path === '') {
+            // @codeCoverageIgnoreStart
+            return [];
+            // @codeCoverageIgnoreEnd
+        }
+
+        return $this->syntaxHighlighter->highlight($path);
     }
 
     private function renderSourceWithLineCoverage(FileNode $node): string
     {
         $linesTemplate      = new Template($this->templatePath . 'lines.html.dist', '{{', '}}');
-        $singleLineTemplate = new Template($this->templatePath . 'line.html.dist', '{{', '}}');
+        $singleLineTemplate = $this->template($this->templatePath . 'line.html.dist');
 
-        $coverageData = $node->lineCoverageData();
-        $testData     = $node->testData();
-        $codeLines    = $this->loadFile($node->pathAsString());
-        $lines        = '';
-        $i            = 1;
+        $coverageData      = $node->lineCoverageData();
+        $collectsHitCounts = $node->collectsHitCounts();
+        $testData          = $node->testData();
+        $codeLines         = $this->highlightedSourceFor($node);
+        $lines             = '';
+        $i                 = 1;
 
         foreach ($codeLines as $line) {
             $trClass        = '';
             $popoverContent = '';
             $popoverTitle   = '';
+            $coverageCount  = '';
 
             if (array_key_exists($i, $coverageData)) {
                 $numTests = ($coverageData[$i] !== null ? count($coverageData[$i]) : 0);
@@ -549,10 +501,20 @@ final class File extends Renderer
                         $popoverTitle = '1 test covers line ' . $i;
                     }
 
-                    $lineCss        = 'covered-by-large-tests';
-                    $popoverContent = '<ul>';
+                    if ($collectsHitCounts) {
+                        $coverageCount = (string) array_sum($coverageData[$i]);
+                    }
 
-                    foreach ($coverageData[$i] as $test) {
+                    $lineCss        = 'covered-by-large-tests';
+                    $popoverContent = '&lt;ul&gt;';
+
+                    foreach (array_keys($coverageData[$i]) as $test) {
+                        if (!isset($testData[$test])) {
+                            // @codeCoverageIgnoreStart
+                            continue;
+                            // @codeCoverageIgnoreEnd
+                        }
+
                         if ($lineCss === 'covered-by-large-tests' && $testData[$test]['size'] === 'medium') {
                             $lineCss = 'covered-by-medium-tests';
                         } elseif ($testData[$test]['size'] === 'small') {
@@ -562,7 +524,7 @@ final class File extends Renderer
                         $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
                     }
 
-                    $popoverContent .= '</ul>';
+                    $popoverContent .= '&lt;/ul&gt;';
                     $trClass = $lineCss . ' popin';
                 }
             }
@@ -570,33 +532,52 @@ final class File extends Renderer
             $popover = '';
 
             if ($popoverTitle !== '') {
-                $popover = sprintf(
-                    ' data-bs-title="%s" data-bs-content="%s" data-bs-placement="top" data-bs-html="true"',
-                    $popoverTitle,
-                    htmlspecialchars($popoverContent, self::HTML_SPECIAL_CHARS_FLAGS),
-                );
+                $popover = $this->popoverAttributes($popoverTitle, $popoverContent);
             }
 
-            $lines .= $this->renderLine($singleLineTemplate, $i, $line, $trClass, $popover);
+            $lines .= $this->renderLine($singleLineTemplate, $i, $line, $trClass, $popover, '', $coverageCount);
 
             $i++;
         }
 
-        $linesTemplate->setVar(['lines' => $lines]);
+        $linesTemplate->setVar(['lines' => $lines, 'gutter' => $collectsHitCounts ? ' with-hit-counts' : '']);
 
         return $linesTemplate->render();
+    }
+
+    private function renderViewTabs(string $fileName, string $activeView): string
+    {
+        $tabs = [
+            'line'   => ['href' => $fileName . '.html', 'label' => 'Line Coverage'],
+            'branch' => ['href' => $fileName . '_branch.html', 'label' => 'Branch Coverage'],
+            'path'   => ['href' => $fileName . '_path.html', 'label' => 'Path Coverage'],
+        ];
+
+        $html = '   <ul class="tabs">' . "\n";
+
+        foreach ($tabs as $view => $tab) {
+            $html .= sprintf(
+                '    <li><a href="%s"%s>%s</a></li>' . "\n",
+                $tab['href'],
+                $view === $activeView ? ' aria-current="page"' : '',
+                $tab['label'],
+            );
+        }
+
+        return $html . '   </ul>' . "\n";
     }
 
     private function renderSourceWithBranchCoverage(FileNode $node): string
     {
         $linesTemplate      = new Template($this->templatePath . 'lines.html.dist', '{{', '}}');
-        $singleLineTemplate = new Template($this->templatePath . 'line.html.dist', '{{', '}}');
+        $singleLineTemplate = $this->template($this->templatePath . 'line.html.dist');
 
         $functionCoverageData = $node->functionCoverageData();
         $testData             = $node->testData();
-        $codeLines            = $this->loadFile($node->pathAsString());
+        $codeLines            = $this->highlightedSourceFor($node);
 
-        $lineData = [];
+        $lineData          = [];
+        $decisionPointData = [];
 
         foreach (array_keys($codeLines) as $line) {
             $lineData[$line + 1] = [
@@ -610,6 +591,24 @@ final class File extends Renderer
         foreach ($functionCoverageData as $method) {
             /** @var ProcessedBranchCoverageData $branch */
             foreach ($method->branches as $branch) {
+                if (count($branch->out) > 1) {
+                    $decisionLine = $branch->line_end;
+
+                    if (isset($lineData[$decisionLine]) && !isset($decisionPointData[$decisionLine])) {
+                        $targets = [];
+
+                        foreach ($branch->out as $targetBranchId) {
+                            if (isset($method->branches[$targetBranchId])) {
+                                $targets[] = $method->branches[$targetBranchId]->hit !== [];
+                            }
+                        }
+
+                        if (count($targets) > 1) {
+                            $decisionPointData[$decisionLine] = $targets;
+                        }
+                    }
+                }
+
                 foreach (range($branch->line_start, $branch->line_end) as $line) {
                     if (!isset($lineData[$line])) { // blank line at end of file is sometimes included here
                         continue;
@@ -619,58 +618,78 @@ final class File extends Renderer
 
                     if ($branch->hit !== []) {
                         $lineData[$line]['includedInHitBranches']++;
-                        $lineData[$line]['tests'] = array_unique(array_merge($lineData[$line]['tests'], $branch->hit));
+                        $lineData[$line]['tests'] = array_unique(array_merge($lineData[$line]['tests'], array_keys($branch->hit)));
                     }
                 }
             }
         }
 
         $lines = '';
-        $i     = 1;
 
         /** @var string $line */
-        foreach ($codeLines as $line) {
+        foreach ($codeLines as $index => $line) {
+            $i       = $index + 1;
             $trClass = '';
             $popover = '';
 
-            if ($lineData[$i]['includedInBranches'] > 0) {
+            $coverageCount = '';
+
+            $currentLineData = $lineData[$i] ?? [
+                'includedInBranches'    => 0,
+                'includedInHitBranches' => 0,
+                'tests'                 => [],
+            ];
+
+            if ($currentLineData['includedInBranches'] > 0) {
                 $lineCss = 'success';
 
-                if ($lineData[$i]['includedInHitBranches'] === 0) {
+                if ($currentLineData['includedInHitBranches'] === 0) {
                     $lineCss = 'danger';
-                } elseif ($lineData[$i]['includedInHitBranches'] !== $lineData[$i]['includedInBranches']) {
+                } elseif ($currentLineData['includedInHitBranches'] !== $currentLineData['includedInBranches']) {
                     $lineCss = 'warning';
                 }
 
-                $popoverContent = '<ul>';
+                if (isset($decisionPointData[$i])) {
+                    $markers = '';
 
-                if (count($lineData[$i]['tests']) === 1) {
+                    foreach ($decisionPointData[$i] as $isHit) {
+                        $markers .= $isHit
+                            ? '<span class="branch-hit">&bull;</span>'
+                            : '<span class="branch-miss">&bull;</span>';
+                    }
+
+                    $coverageCount = $markers;
+                }
+
+                $popoverContent = '&lt;ul&gt;';
+
+                if (count($currentLineData['tests']) === 1) {
                     $popoverTitle = '1 test covers line ' . $i;
                 } else {
-                    $popoverTitle = count($lineData[$i]['tests']) . ' tests cover line ' . $i;
+                    $popoverTitle = count($currentLineData['tests']) . ' tests cover line ' . $i;
                 }
-                $popoverTitle .= '. These are covering ' . $lineData[$i]['includedInHitBranches'] . ' out of the ' . $lineData[$i]['includedInBranches'] . ' code branches.';
+                $popoverTitle .= '. These are covering ' . $currentLineData['includedInHitBranches'] . ' out of the ' . $currentLineData['includedInBranches'] . ' code branches.';
 
-                foreach ($lineData[$i]['tests'] as $test) {
+                foreach ($currentLineData['tests'] as $test) {
+                    if (!isset($testData[$test])) {
+                        // @codeCoverageIgnoreStart
+                        continue;
+                        // @codeCoverageIgnoreEnd
+                    }
+
                     $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
                 }
 
-                $popoverContent .= '</ul>';
+                $popoverContent .= '&lt;/ul&gt;';
                 $trClass = $lineCss . ' popin';
 
-                $popover = sprintf(
-                    ' data-bs-title="%s" data-bs-content="%s" data-bs-placement="top" data-bs-html="true"',
-                    $popoverTitle,
-                    htmlspecialchars($popoverContent, self::HTML_SPECIAL_CHARS_FLAGS),
-                );
+                $popover = $this->popoverAttributes($popoverTitle, $popoverContent);
             }
 
-            $lines .= $this->renderLine($singleLineTemplate, $i, $line, $trClass, $popover);
-
-            $i++;
+            $lines .= $this->renderLine($singleLineTemplate, $i, $line, $trClass, $popover, '', $coverageCount);
         }
 
-        $linesTemplate->setVar(['lines' => $lines]);
+        $linesTemplate->setVar(['lines' => $lines, 'gutter' => ' with-hit-counts']);
 
         return $linesTemplate->render();
     }
@@ -678,36 +697,66 @@ final class File extends Renderer
     private function renderSourceWithPathCoverage(FileNode $node): string
     {
         $linesTemplate      = new Template($this->templatePath . 'lines.html.dist', '{{', '}}');
-        $singleLineTemplate = new Template($this->templatePath . 'line.html.dist', '{{', '}}');
+        $singleLineTemplate = $this->template($this->templatePath . 'line.html.dist');
 
         $functionCoverageData = $node->functionCoverageData();
         $testData             = $node->testData();
-        $codeLines            = $this->loadFile($node->pathAsString());
+        $codeLines            = $this->highlightedSourceFor($node);
 
-        $lineData = [];
+        $numberOfLines = count($codeLines);
 
-        foreach (array_keys($codeLines) as $line) {
-            $lineData[$line + 1] = [
-                'includedInPaths'    => [],
-                'includedInHitPaths' => [],
-                'tests'              => [],
-            ];
-        }
+        /** @var array<int, int> $pathsPerLine */
+        $pathsPerLine = [];
+
+        /** @var array<int, int> $hitPathsPerLine */
+        $hitPathsPerLine = [];
+
+        /** @var array<int, array<TestIndexType, true>> $testsPerLine */
+        $testsPerLine = [];
 
         /** @var ProcessedFunctionCoverageData $method */
         foreach ($functionCoverageData as $method) {
-            /** @var ProcessedPathCoverageData $path */
-            foreach ($method->paths as $pathId => $path) {
-                foreach ($path->path as $branchTaken) {
-                    foreach (range($method->branches[$branchTaken]->line_start, $method->branches[$branchTaken]->line_end) as $line) {
-                        if (!isset($lineData[$line])) {
-                            continue;
-                        }
-                        $lineData[$line]['includedInPaths'][] = $pathId;
+            /** @var array<int, list<int>> $linesOfBranch */
+            $linesOfBranch = [];
 
-                        if ($path->hit !== []) {
-                            $lineData[$line]['includedInHitPaths'][] = $pathId;
-                            $lineData[$line]['tests']                = array_unique(array_merge($lineData[$line]['tests'], $path->hit));
+            /** @var ProcessedBranchCoverageData $branch */
+            foreach ($method->branches as $branchId => $branch) {
+                $linesOfBranch[$branchId] = [];
+
+                foreach (range($branch->line_start, $branch->line_end) as $line) {
+                    if ($line >= 1 && $line <= $numberOfLines) {
+                        $linesOfBranch[$branchId][] = $line;
+                    }
+                }
+            }
+
+            /** @var ProcessedPathCoverageData $path */
+            foreach ($method->paths as $path) {
+                /** @var array<int, true> $linesOfPath */
+                $linesOfPath = [];
+
+                foreach ($path->path as $branchTaken) {
+                    if (!isset($linesOfBranch[$branchTaken])) {
+                        // @codeCoverageIgnoreStart
+                        continue;
+                        // @codeCoverageIgnoreEnd
+                    }
+
+                    foreach ($linesOfBranch[$branchTaken] as $line) {
+                        $linesOfPath[$line] = true;
+                    }
+                }
+
+                $hit = $path->hit !== [];
+
+                foreach (array_keys($linesOfPath) as $line) {
+                    $pathsPerLine[$line] = ($pathsPerLine[$line] ?? 0) + 1;
+
+                    if ($hit) {
+                        $hitPathsPerLine[$line] = ($hitPathsPerLine[$line] ?? 0) + 1;
+
+                        foreach (array_keys($path->hit) as $test) {
+                            $testsPerLine[$line][$test] = true;
                         }
                     }
                 }
@@ -715,14 +764,19 @@ final class File extends Renderer
         }
 
         $lines = '';
-        $i     = 1;
 
         /** @var string $line */
-        foreach ($codeLines as $line) {
-            $trClass                 = '';
-            $popover                 = '';
-            $includedInPathsCount    = count(array_unique($lineData[$i]['includedInPaths']));
-            $includedInHitPathsCount = count(array_unique($lineData[$i]['includedInHitPaths']));
+        foreach ($codeLines as $index => $line) {
+            $i       = $index + 1;
+            $trClass = '';
+            $popover = '';
+
+            $currentLineData = [
+                'tests' => array_keys($testsPerLine[$i] ?? []),
+            ];
+
+            $includedInPathsCount    = $pathsPerLine[$i] ?? 0;
+            $includedInHitPathsCount = $hitPathsPerLine[$i] ?? 0;
 
             if ($includedInPathsCount > 0) {
                 $lineCss = 'success';
@@ -733,35 +787,35 @@ final class File extends Renderer
                     $lineCss = 'warning';
                 }
 
-                $popoverContent = '<ul>';
+                $popoverContent = '&lt;ul&gt;';
 
-                if (count($lineData[$i]['tests']) === 1) {
+                if (count($currentLineData['tests']) === 1) {
                     $popoverTitle = '1 test covers line ' . $i;
                 } else {
-                    $popoverTitle = count($lineData[$i]['tests']) . ' tests cover line ' . $i;
+                    $popoverTitle = count($currentLineData['tests']) . ' tests cover line ' . $i;
                 }
                 $popoverTitle .= '. These are covering ' . $includedInHitPathsCount . ' out of the ' . $includedInPathsCount . ' code paths.';
 
-                foreach ($lineData[$i]['tests'] as $test) {
+                foreach ($currentLineData['tests'] as $test) {
+                    if (!isset($testData[$test])) {
+                        // @codeCoverageIgnoreStart
+                        continue;
+                        // @codeCoverageIgnoreEnd
+                    }
+
                     $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
                 }
 
-                $popoverContent .= '</ul>';
+                $popoverContent .= '&lt;/ul&gt;';
                 $trClass = $lineCss . ' popin';
 
-                $popover = sprintf(
-                    ' data-bs-title="%s" data-bs-content="%s" data-bs-placement="top" data-bs-html="true"',
-                    $popoverTitle,
-                    htmlspecialchars($popoverContent, self::HTML_SPECIAL_CHARS_FLAGS),
-                );
+                $popover = $this->popoverAttributes($popoverTitle, $popoverContent);
             }
 
             $lines .= $this->renderLine($singleLineTemplate, $i, $line, $trClass, $popover);
-
-            $i++;
         }
 
-        $linesTemplate->setVar(['lines' => $lines]);
+        $linesTemplate->setVar(['lines' => $lines, 'gutter' => '']);
 
         return $linesTemplate->render();
     }
@@ -770,26 +824,93 @@ final class File extends Renderer
     {
         $branchesTemplate = new Template($this->templatePath . 'branches.html.dist', '{{', '}}');
 
-        $coverageData = $node->functionCoverageData();
+        $coverageData = $this->sortedByStartLine($node->functionCoverageData());
         $testData     = $node->testData();
-        $codeLines    = $this->loadFile($node->pathAsString());
         $branches     = '';
-
-        ksort($coverageData);
 
         /** @var ProcessedFunctionCoverageData $methodData */
         foreach ($coverageData as $methodName => $methodData) {
-            $branchStructure = '';
+            if ($methodData->branches === []) {
+                continue;
+            }
+
+            $branchCount    = count($methodData->branches);
+            $hitBranchCount = 0;
+
+            foreach ($methodData->branches as $branch) {
+                if ($branch->hit !== []) {
+                    $hitBranchCount++;
+                }
+            }
+
+            $badge = sprintf(
+                ' <span class="badge %s">%d/%d</span>',
+                $hitBranchCount === $branchCount ? 'success' : ($hitBranchCount === 0 ? 'danger' : 'warning'),
+                $hitBranchCount,
+                $branchCount,
+            );
+
+            $branches .= '   <h3 class="structure-heading"><a name="' . htmlspecialchars($methodName, self::HTML_SPECIAL_CHARS_FLAGS) . '">' . $this->abbreviateMethodName($methodName) . '</a>' . $badge . '</h3>' . "\n";
+            $branches .= '   <table class="structure-table">' . "\n";
+            $branches .= '    <thead><tr><th>#</th><th>Lines</th><th>Status</th><th>Tests</th></tr></thead>' . "\n";
+            $branches .= '    <tbody>' . "\n";
+
+            $branchIndex = 1;
 
             /** @var ProcessedBranchCoverageData $branch */
             foreach ($methodData->branches as $branch) {
-                $branchStructure .= $this->renderBranchLines($branch, $codeLines, $testData);
+                $lineStart  = $branch->line_start;
+                $lineEnd    = $branch->line_end;
+                $linesLabel = $lineStart === $lineEnd
+                    ? sprintf('<a href="#%d">L%d</a>', $lineStart, $lineStart)
+                    : sprintf('<a href="#%d">L%d</a>&ndash;<a href="#%d">L%d</a>', $lineStart, $lineStart, $lineEnd, $lineEnd);
+
+                $numTests = count($branch->hit);
+
+                if ($numTests === 0) {
+                    $statusClass = 'danger';
+                    $statusLabel = 'Not covered';
+                    $testsLabel  = '&mdash;';
+                } else {
+                    $statusClass = 'success';
+                    $statusLabel = 'Covered';
+
+                    $popoverContent = '&lt;ul&gt;';
+
+                    foreach (array_keys($branch->hit) as $test) {
+                        if (!isset($testData[$test])) {
+                            // @codeCoverageIgnoreStart
+                            continue;
+                            // @codeCoverageIgnoreEnd
+                        }
+
+                        $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
+                    }
+
+                    $popoverContent .= '&lt;/ul&gt;';
+
+                    $label = $numTests === 1 ? '1 test' : $numTests . ' tests';
+
+                    $testsLabel = sprintf(
+                        '<button type="button" class="popin"%s>%s</button>',
+                        $this->popoverAttributes($label, $popoverContent),
+                        $label,
+                    );
+                }
+
+                $branches .= sprintf(
+                    '     <tr class="%s"><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>' . "\n",
+                    $statusClass,
+                    $branchIndex,
+                    $linesLabel,
+                    $statusLabel,
+                    $testsLabel,
+                );
+
+                $branchIndex++;
             }
 
-            if ($branchStructure !== '') { // don't show empty branches
-                $branches .= '<h5 class="structure-heading"><a name="' . htmlspecialchars($methodName, self::HTML_SPECIAL_CHARS_FLAGS) . '">' . $this->abbreviateMethodName($methodName) . '</a></h5>' . "\n";
-                $branches .= $branchStructure;
-            }
+            $branches .= '    </tbody>' . "\n" . '   </table>' . "\n";
         }
 
         $branchesTemplate->setVar(['branches' => $branches]);
@@ -797,104 +918,158 @@ final class File extends Renderer
         return $branchesTemplate->render();
     }
 
-    /**
-     * @param list<string> $codeLines
-     */
-    private function renderBranchLines(ProcessedBranchCoverageData $branch, array $codeLines, array $testData): string
-    {
-        $linesTemplate      = new Template($this->templatePath . 'lines.html.dist', '{{', '}}');
-        $singleLineTemplate = new Template($this->templatePath . 'line.html.dist', '{{', '}}');
-
-        $lines = '';
-
-        $branchLines = range($branch->line_start, $branch->line_end);
-        sort($branchLines); // sometimes end_line < start_line
-
-        /** @var int $line */
-        foreach ($branchLines as $line) {
-            if (!isset($codeLines[$line])) { // blank line at end of file is sometimes included here
-                continue;
-            }
-
-            $popoverContent = '';
-            $popoverTitle   = '';
-
-            $numTests = count($branch->hit);
-
-            if ($numTests === 0) {
-                $trClass = 'danger';
-            } else {
-                $lineCss        = 'covered-by-large-tests';
-                $popoverContent = '<ul>';
-
-                if ($numTests > 1) {
-                    $popoverTitle = $numTests . ' tests cover this branch';
-                } else {
-                    $popoverTitle = '1 test covers this branch';
-                }
-
-                foreach ($branch->hit as $test) {
-                    if ($lineCss === 'covered-by-large-tests' && $testData[$test]['size'] === 'medium') {
-                        $lineCss = 'covered-by-medium-tests';
-                    } elseif ($testData[$test]['size'] === 'small') {
-                        $lineCss = 'covered-by-small-tests';
-                    }
-
-                    $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
-                }
-                $trClass = $lineCss . ' popin';
-            }
-
-            $popover = '';
-
-            if ($popoverTitle !== '') {
-                $popover = sprintf(
-                    ' data-bs-title="%s" data-bs-content="%s" data-bs-placement="top" data-bs-html="true"',
-                    $popoverTitle,
-                    htmlspecialchars($popoverContent, self::HTML_SPECIAL_CHARS_FLAGS),
-                );
-            }
-
-            $lines .= $this->renderLine($singleLineTemplate, $line, $codeLines[$line - 1], $trClass, $popover);
-        }
-
-        if ($lines === '') {
-            return '';
-        }
-
-        $linesTemplate->setVar(['lines' => $lines]);
-
-        return $linesTemplate->render();
-    }
-
     private function renderPathStructure(FileNode $node): string
     {
         $pathsTemplate = new Template($this->templatePath . 'paths.html.dist', '{{', '}}');
 
-        $coverageData = $node->functionCoverageData();
+        $coverageData = $this->sortedByStartLine($node->functionCoverageData());
         $testData     = $node->testData();
-        $codeLines    = $this->loadFile($node->pathAsString());
         $paths        = '';
-
-        ksort($coverageData);
 
         /** @var ProcessedFunctionCoverageData $methodData */
         foreach ($coverageData as $methodName => $methodData) {
-            $pathStructure = '';
-
-            if (count($methodData->paths) > 100) {
-                $pathStructure .= '<p>' . count($methodData->paths) . ' is too many paths to sensibly render, consider refactoring your code to bring this number down.</p>';
-
+            if ($methodData->paths === []) {
                 continue;
             }
 
+            $pathCount    = count($methodData->paths);
+            $hitPathCount = 0;
+
             foreach ($methodData->paths as $path) {
-                $pathStructure .= $this->renderPathLines($path, $methodData->branches, $codeLines, $testData);
+                if ($path->hit !== []) {
+                    $hitPathCount++;
+                }
             }
 
-            if ($pathStructure !== '') {
-                $paths .= '<h5 class="structure-heading"><a name="' . htmlspecialchars($methodName, self::HTML_SPECIAL_CHARS_FLAGS) . '">' . $this->abbreviateMethodName($methodName) . '</a></h5>' . "\n";
-                $paths .= $pathStructure;
+            $badge = sprintf(
+                ' <span class="badge %s">%d/%d</span>',
+                $hitPathCount === $pathCount ? 'success' : ($hitPathCount === 0 ? 'danger' : 'warning'),
+                $hitPathCount,
+                $pathCount,
+            );
+
+            $paths .= '   <h3 class="structure-heading"><a name="' . htmlspecialchars($methodName, self::HTML_SPECIAL_CHARS_FLAGS) . '">' . $this->abbreviateMethodName($methodName) . '</a>' . $badge . '</h3>' . "\n";
+
+            $renderedPaths = $methodData->paths;
+
+            if ($pathCount > self::MAX_RENDERED_PATHS) {
+                $renderedPaths = array_slice($methodData->paths, 0, self::MAX_RENDERED_PATHS, true);
+
+                $paths .= '   <details><summary>' . $pathCount . ' paths &mdash; click to expand</summary>' . "\n";
+                $paths .= '   <p>Only the first ' . self::MAX_RENDERED_PATHS . ' paths are shown, consider refactoring your code to bring the number of paths down.</p>' . "\n";
+            }
+
+            $paths .= '   <table class="structure-table">' . "\n";
+            $paths .= '    <thead><tr><th>#</th><th>Branches</th><th>Status</th><th>Tests</th></tr></thead>' . "\n";
+            $paths .= '    <tbody>' . "\n";
+
+            $pathIndex = 1;
+
+            foreach ($renderedPaths as $path) {
+                $branchLabels = [];
+
+                foreach ($path->path as $branchId) {
+                    if (!isset($methodData->branches[$branchId])) {
+                        // @codeCoverageIgnoreStart
+                        continue;
+                        // @codeCoverageIgnoreEnd
+                    }
+
+                    $branch     = $methodData->branches[$branchId];
+                    $branchLine = $branch->line_start;
+
+                    $branchLabels[] = sprintf('<a href="#%d">L%d</a>', $branchLine, $branchLine);
+                }
+
+                $branchesLabel = implode(' &rarr; ', $branchLabels);
+
+                $numTests = count($path->hit);
+
+                if ($numTests === 0) {
+                    $statusClass = 'danger';
+                    $statusLabel = 'Not covered';
+                    $testsLabel  = '&mdash;';
+                } else {
+                    $statusClass = 'success';
+                    $statusLabel = 'Covered';
+
+                    $popoverContent = '&lt;ul&gt;';
+
+                    foreach (array_keys($path->hit) as $test) {
+                        if (!isset($testData[$test])) {
+                            // @codeCoverageIgnoreStart
+                            continue;
+                            // @codeCoverageIgnoreEnd
+                        }
+
+                        $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
+                    }
+
+                    $popoverContent .= '&lt;/ul&gt;';
+
+                    $label = $numTests === 1 ? '1 test' : $numTests . ' tests';
+
+                    $testsLabel = sprintf(
+                        '<button type="button" class="popin"%s>%s</button>',
+                        $this->popoverAttributes($label, $popoverContent),
+                        $label,
+                    );
+                }
+
+                $paths .= sprintf(
+                    '     <tr class="%s path-row" data-path-index="%d"><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>' . "\n",
+                    $statusClass,
+                    $pathIndex - 1,
+                    $pathIndex,
+                    $branchesLabel,
+                    $statusLabel,
+                    $testsLabel,
+                );
+
+                $pathIndex++;
+            }
+
+            $paths .= '    </tbody>' . "\n" . '   </table>' . "\n";
+
+            $pathsJson = [];
+            $pathIdx   = 0;
+
+            foreach ($renderedPaths as $path) {
+                $edges            = [];
+                $previousBranchId = null;
+                $lastBranchId     = null;
+
+                foreach ($path->path as $branchId) {
+                    if ($previousBranchId !== null) {
+                        $edges[] = $previousBranchId . '-' . $branchId;
+                    }
+
+                    $previousBranchId = $branchId;
+                    $lastBranchId     = $branchId;
+                }
+
+                if ($lastBranchId !== null && isset($methodData->branches[$lastBranchId])) {
+                    foreach ($methodData->branches[$lastBranchId]->out as $dest) {
+                        if ($dest === ControlFlowGraph::XDEBUG_EXIT_BRANCH) {
+                            $edges[] = $lastBranchId . '-exit';
+                        }
+                    }
+                }
+
+                $pathsJson[$pathIdx] = $edges;
+                $pathIdx++;
+            }
+
+            $svg = $this->controlFlowGraph()->renderSvg($methodName, $methodData, $renderedPaths);
+
+            $paths .= sprintf(
+                '   <div class="cfg-graph" data-paths="%s">%s</div>' . "\n",
+                htmlspecialchars(Json::encode($pathsJson), self::HTML_SPECIAL_CHARS_FLAGS),
+                $svg,
+            );
+
+            if ($pathCount > self::MAX_RENDERED_PATHS) {
+                $paths .= '   </details>' . "\n";
             }
         }
 
@@ -903,192 +1078,31 @@ final class File extends Renderer
         return $pathsTemplate->render();
     }
 
-    /**
-     * @param array<int, ProcessedBranchCoverageData> $branches
-     * @param list<string>                            $codeLines
-     */
-    private function renderPathLines(ProcessedPathCoverageData $path, array $branches, array $codeLines, array $testData): string
+    private function controlFlowGraph(): ControlFlowGraph
     {
-        $linesTemplate      = new Template($this->templatePath . 'lines.html.dist', '{{', '}}');
-        $singleLineTemplate = new Template($this->templatePath . 'line.html.dist', '{{', '}}');
-
-        $lines = '';
-        $first = true;
-
-        foreach ($path->path as $branchId) {
-            if ($first) {
-                $first = false;
-            } else {
-                $lines .= '    <tr><td colspan="2">&nbsp;</td></tr>' . "\n";
-            }
-
-            $branchLines = range($branches[$branchId]->line_start, $branches[$branchId]->line_end);
-            sort($branchLines); // sometimes end_line < start_line
-
-            /** @var int $line */
-            foreach ($branchLines as $line) {
-                if (!isset($codeLines[$line])) { // blank line at end of file is sometimes included here
-                    continue;
-                }
-
-                $popoverContent = '';
-                $popoverTitle   = '';
-
-                $numTests = count($path->hit);
-
-                if ($numTests === 0) {
-                    $trClass = 'danger';
-                } else {
-                    $lineCss        = 'covered-by-large-tests';
-                    $popoverContent = '<ul>';
-
-                    if ($numTests > 1) {
-                        $popoverTitle = $numTests . ' tests cover this path';
-                    } else {
-                        $popoverTitle = '1 test covers this path';
-                    }
-
-                    foreach ($path->hit as $test) {
-                        if ($lineCss === 'covered-by-large-tests' && $testData[$test]['size'] === 'medium') {
-                            $lineCss = 'covered-by-medium-tests';
-                        } elseif ($testData[$test]['size'] === 'small') {
-                            $lineCss = 'covered-by-small-tests';
-                        }
-
-                        $popoverContent .= $this->createPopoverContentForTest($test, $testData[$test]);
-                    }
-
-                    $trClass = $lineCss . ' popin';
-                }
-
-                $popover = '';
-
-                if ($popoverTitle !== '') {
-                    $popover = sprintf(
-                        ' data-bs-title="%s" data-bs-content="%s" data-bs-placement="top" data-bs-html="true"',
-                        $popoverTitle,
-                        htmlspecialchars($popoverContent, self::HTML_SPECIAL_CHARS_FLAGS),
-                    );
-                }
-
-                $lines .= $this->renderLine($singleLineTemplate, $line, $codeLines[$line - 1], $trClass, $popover);
-            }
+        if ($this->controlFlowGraph === null) {
+            $this->controlFlowGraph = new ControlFlowGraph;
         }
 
-        if ($lines === '') {
-            return '';
-        }
-
-        $linesTemplate->setVar(['lines' => $lines]);
-
-        return $linesTemplate->render();
+        return $this->controlFlowGraph;
     }
 
-    private function renderLine(Template $template, int $lineNumber, string $lineContent, string $class, string $popover): string
+    /**
+     * @param array<string, ProcessedFunctionCoverageData> $coverageData
+     *
+     * @return array<string, ProcessedFunctionCoverageData>
+     */
+    private function sortedByStartLine(array $coverageData): array
     {
-        $template->setVar(
-            [
-                'lineNumber'  => (string) $lineNumber,
-                'lineContent' => $lineContent,
-                'class'       => $class,
-                'popover'     => $popover,
-            ],
+        uasort(
+            $coverageData,
+            static function (ProcessedFunctionCoverageData $a, ProcessedFunctionCoverageData $b): int
+            {
+                return self::startLine($a) <=> self::startLine($b);
+            },
         );
 
-        return $template->render();
-    }
-
-    /**
-     * @param non-empty-string $file
-     *
-     * @return list<string>
-     */
-    private function loadFile(string $file): array
-    {
-        if (isset(self::$formattedSourceCache[$file])) {
-            return self::$formattedSourceCache[$file];
-        }
-
-        $buffer              = file_get_contents($file);
-        $tokens              = token_get_all($buffer, TOKEN_PARSE);
-        $result              = [''];
-        $i                   = 0;
-        $stringFlag          = false;
-        $fileEndsWithNewLine = str_ends_with($buffer, "\n");
-
-        unset($buffer);
-
-        foreach ($tokens as $j => $token) {
-            if (is_string($token)) {
-                if ($token === '"' && $tokens[$j - 1] !== '\\') {
-                    $result[$i] .= sprintf(
-                        '<span class="string">%s</span>',
-                        htmlspecialchars($token, self::HTML_SPECIAL_CHARS_FLAGS),
-                    );
-
-                    $stringFlag = !$stringFlag;
-                } else {
-                    $result[$i] .= sprintf(
-                        '<span class="keyword">%s</span>',
-                        htmlspecialchars($token, self::HTML_SPECIAL_CHARS_FLAGS),
-                    );
-                }
-
-                continue;
-            }
-
-            [$token, $value] = $token;
-
-            $value = str_replace(
-                ["\t", ' '],
-                ['&nbsp;&nbsp;&nbsp;&nbsp;', '&nbsp;'],
-                htmlspecialchars($value, self::HTML_SPECIAL_CHARS_FLAGS),
-            );
-
-            if ($value === "\n") {
-                $result[++$i] = '';
-            } else {
-                $lines = explode("\n", $value);
-
-                foreach ($lines as $jj => $line) {
-                    $line = trim($line);
-
-                    if ($line !== '') {
-                        if ($stringFlag) {
-                            $colour = 'string';
-                        } else {
-                            $colour = 'default';
-
-                            if ($this->isInlineHtml($token)) {
-                                $colour = 'html';
-                            } elseif ($this->isComment($token)) {
-                                $colour = 'comment';
-                            } elseif ($this->isKeyword($token)) {
-                                $colour = 'keyword';
-                            }
-                        }
-
-                        $result[$i] .= sprintf(
-                            '<span class="%s">%s</span>',
-                            $colour,
-                            $line,
-                        );
-                    }
-
-                    if (isset($lines[$jj + 1])) {
-                        $result[++$i] = '';
-                    }
-                }
-            }
-        }
-
-        if ($fileEndsWithNewLine) {
-            unset($result[count($result) - 1]);
-        }
-
-        self::$formattedSourceCache[$file] = $result;
-
-        return $result;
+        return $coverageData;
     }
 
     private function abbreviateClassName(string $className): string
@@ -1096,14 +1110,14 @@ final class File extends Renderer
         $tmp = explode('\\', $className);
 
         if (count($tmp) > 1) {
-            $className = sprintf(
+            return sprintf(
                 '<abbr title="%s">%s</abbr>',
-                $className,
-                array_pop($tmp),
+                $this->escapeHtml($className),
+                $this->escapeHtml(array_pop($tmp)),
             );
         }
 
-        return $className;
+        return $this->escapeHtml($className);
     }
 
     private function abbreviateMethodName(string $methodName): string
@@ -1111,52 +1125,20 @@ final class File extends Renderer
         $parts = explode('->', $methodName);
 
         if (count($parts) === 2) {
-            return $this->abbreviateClassName($parts[0]) . '->' . $parts[1];
+            return $this->abbreviateClassName($parts[0]) . '->' . $this->escapeHtml($parts[1]);
         }
 
-        return $methodName;
+        return $this->escapeHtml($methodName);
     }
 
-    private function createPopoverContentForTest(string $test, array $testData): string
+    private static function startLine(ProcessedFunctionCoverageData $methodData): int
     {
-        $testCSS = '';
+        $startLine = PHP_INT_MAX;
 
-        switch ($testData['status']) {
-            case 'success':
-                $testCSS = match ($testData['size']) {
-                    'small'  => ' class="covered-by-small-tests"',
-                    'medium' => ' class="covered-by-medium-tests"',
-                    // no break
-                    default => ' class="covered-by-large-tests"',
-                };
-
-                break;
-
-            case 'failure':
-                $testCSS = ' class="danger"';
-
-                break;
+        foreach ($methodData->branches as $branch) {
+            $startLine = min($startLine, $branch->line_start);
         }
 
-        return sprintf(
-            '<li%s>%s</li>',
-            $testCSS,
-            htmlspecialchars($test, self::HTML_SPECIAL_CHARS_FLAGS),
-        );
-    }
-
-    private function isComment(int $token): bool
-    {
-        return $token === T_COMMENT || $token === T_DOC_COMMENT;
-    }
-
-    private function isInlineHtml(int $token): bool
-    {
-        return $token === T_INLINE_HTML;
-    }
-
-    private function isKeyword(int $token): bool
-    {
-        return isset(self::KEYWORD_TOKENS[$token]);
+        return $startLine;
     }
 }

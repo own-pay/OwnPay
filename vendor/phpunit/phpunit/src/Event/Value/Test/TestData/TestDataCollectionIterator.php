@@ -9,7 +9,7 @@
  */
 namespace PHPUnit\Event\TestData;
 
-use function count;
+use function assert;
 use Iterator;
 
 /**
@@ -44,7 +44,7 @@ final class TestDataCollectionIterator implements Iterator
 
     public function valid(): bool
     {
-        return $this->position < count($this->data);
+        return isset($this->data[$this->position]);
     }
 
     /**
@@ -57,6 +57,8 @@ final class TestDataCollectionIterator implements Iterator
 
     public function current(): TestData
     {
+        assert(isset($this->data[$this->position]));
+
         return $this->data[$this->position];
     }
 

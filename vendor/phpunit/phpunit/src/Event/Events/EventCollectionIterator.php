@@ -9,7 +9,7 @@
  */
 namespace PHPUnit\Event;
 
-use function count;
+use function assert;
 use Iterator;
 
 /**
@@ -44,7 +44,7 @@ final class EventCollectionIterator implements Iterator
 
     public function valid(): bool
     {
-        return $this->position < count($this->events);
+        return isset($this->events[$this->position]);
     }
 
     /**
@@ -57,6 +57,8 @@ final class EventCollectionIterator implements Iterator
 
     public function current(): Event
     {
+        assert(isset($this->events[$this->position]));
+
         return $this->events[$this->position];
     }
 

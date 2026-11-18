@@ -73,6 +73,10 @@ class UnicodeString extends AbstractUnicodeString
             return [];
         }
 
+        if (\strlen($this->string) <= $length) {
+            return [clone $this];
+        }
+
         $rx = '/(';
         while (65535 < $length) {
             $rx .= '\X{65535}';
@@ -179,7 +183,7 @@ class UnicodeString extends AbstractUnicodeString
         if (0 > $offset) {
             // workaround https://bugs.php.net/74264
             if (0 > $offset += grapheme_strlen($needle)) {
-                $string = grapheme_substr($string, 0, $offset);
+                $string = grapheme_substr($string, 0, max(-2147483648, $offset));
             }
             $offset = 0;
         }
@@ -248,12 +252,10 @@ class UnicodeString extends AbstractUnicodeString
         if ('' !== $from && false !== $from) {
             $tail = $str->string;
             $result = '';
-            $indexOf = $this->ignoreCase ? 'grapheme_stripos' : 'grapheme_strpos';
 
-            while ('' !== $tail && false !== $i = $indexOf($tail, $from)) {
-                $slice = grapheme_substr($tail, 0, $i);
-                $result .= $slice.$to;
-                $tail = substr($tail, \strlen($slice) + \strlen($from));
+            while ('' !== $tail && false !== $i = $this->search($tail, $from, $length)) {
+                $result .= substr($tail, 0, $i).$to;
+                $tail = substr($tail, $i + $length);
             }
 
             $str->string = $result.$tail;
@@ -272,6 +274,9 @@ class UnicodeString extends AbstractUnicodeString
         return $str;
     }
 
+    /**
+     * @param-immediately-invoked-callable $to
+     */
     public function replaceMatches(string $fromRegexp, string|callable $to): static
     {
         $str = parent::replaceMatches($fromRegexp, $to);
@@ -284,7 +289,10 @@ class UnicodeString extends AbstractUnicodeString
     {
         $str = clone $this;
 
-        $str->string = (string) grapheme_substr($this->string, $start, $length ?? 2147483647);
+        // grapheme_substr() accepts only 32-bit offsets and lengths
+        $start = max(-2147483648, min($start, 2147483647));
+        $length = max(-2147483648, min($length ?? 2147483647, 2147483647));
+        $str->string = (string) grapheme_substr($this->string, $start, $length);
 
         return $str;
     }
@@ -293,8 +301,8 @@ class UnicodeString extends AbstractUnicodeString
     {
         $str = clone $this;
 
-        $start = $start ? \strlen(grapheme_substr($this->string, 0, $start)) : 0;
-        $length = $length ? \strlen(grapheme_substr(substr($this->string, $start), 0, $length)) : $length;
+        $start = $start ? \strlen(grapheme_substr($this->string, 0, max(-2147483648, min($start, 2147483647)))) : 0;
+        $length = $length ? \strlen(grapheme_substr(substr($this->string, $start), 0, max(-2147483648, min($length, 2147483647)))) : $length;
         $str->string = substr_replace($this->string, $replacement, $start, $length ?? 2147483647);
 
         if (normalizer_is_normalized($str->string)) {
@@ -333,12 +341,11 @@ class UnicodeString extends AbstractUnicodeString
         $str = clone $this;
         $tail = $this->string;
         $chunks = [];
-        $indexOf = $this->ignoreCase ? 'grapheme_stripos' : 'grapheme_strpos';
 
-        while (1 < $limit && false !== $i = $indexOf($tail, $delimiter)) {
-            $str->string = grapheme_substr($tail, 0, $i);
+        while (1 < $limit && false !== $i = $this->search($tail, $delimiter, $length)) {
+            $str->string = substr($tail, 0, $i);
             $chunks[] = clone $str;
-            $tail = substr($tail, \strlen($str->string) + \strlen($delimiter));
+            $tail = substr($tail, $i + $length);
             --$limit;
         }
 
@@ -414,49 +421,11 @@ class UnicodeString extends AbstractUnicodeString
 
     public function __unserialize(array $data): void
     {
-        if ($wakeup = self::class !== (new \ReflectionMethod($this, '__wakeup'))->class && self::class === (new \ReflectionMethod($this, '__unserialize'))->class) {
-            trigger_deprecation('symfony/string', '7.4', 'Implementing "%s::__wakeup()" is deprecated, use "__unserialize()" instead.', get_debug_type($this));
-        }
-
         if (($data['string'] ?? null) instanceof \Stringable || ($data["\0*\0string"] ?? null) instanceof \Stringable) {
             throw new \BadMethodCallException('Cannot unserialize '.__CLASS__);
         }
 
-        try {
-            if (\in_array(array_keys($data), [['string'], ["\0*\0string"]], true)) {
-                $this->string = $data['string'] ?? $data["\0*\0string"];
-
-                if ($wakeup) {
-                    $this->__wakeup();
-                }
-
-                return;
-            }
-
-            trigger_deprecation('symfony/string', '7.4', 'Passing more than just key "string" to "%s::__unserialize()" is deprecated, populate properties in "%s::__unserialize()" instead.', self::class, get_debug_type($this));
-
-            \Closure::bind(function ($data) use ($wakeup) {
-                foreach ($data as $key => $value) {
-                    $this->{("\0" === $key[0] ?? '') ? substr($key, 1 + strrpos($key, "\0")) : $key} = $value;
-                }
-
-                if ($wakeup) {
-                    $this->__wakeup();
-                }
-            }, $this, static::class)($data);
-        } finally {
-            if (!$wakeup) {
-                normalizer_is_normalized($this->string) ?: $this->string = normalizer_normalize($this->string);
-            }
-        }
-    }
-
-    /**
-     * @deprecated since Symfony 7.4, will be replaced by `__unserialize()` in 8.0
-     */
-    public function __wakeup(): void
-    {
-        trigger_deprecation('symfony/string', '7.4', 'Calling "%s::__wakeup()" is deprecated, use "__unserialize()" instead.', get_debug_type($this));
+        $this->string = $data['string'] ?? $data["\0*\0string"];
 
         if (!\is_string($this->string)) {
             throw new \BadMethodCallException('Cannot unserialize '.__CLASS__);
@@ -472,5 +441,50 @@ class UnicodeString extends AbstractUnicodeString
         }
 
         $this->ignoreCase = false;
+    }
+
+    /**
+     * Returns the byte offset of the first occurrence of $needle in $haystack and sets $length to its length in bytes.
+     */
+    private function search(string $haystack, string $needle, ?int &$length = null): int|false
+    {
+        if (false === $i = $this->ignoreCase ? grapheme_stripos($haystack, $needle) : grapheme_strpos($haystack, $needle)) {
+            return false;
+        }
+
+        $offset = \strlen(grapheme_substr($haystack, 0, $i));
+        $length = \strlen($needle);
+        $match = substr($haystack, $offset, $length);
+
+        // On non-ASCII strings, grapheme_strpos() ignores characters like U+200B.
+        // Its match can then differ from $needle, or start after the first characters of $needle.
+        // Without ext-intl, a match that starts inside a grapheme is reported at the next grapheme.
+        if (!$this->ignoreCase) {
+            if ($needle === $match) {
+                return $offset;
+            }
+
+            $previous = $i ? \strlen(grapheme_substr($haystack, 0, $i - 1)) : 0;
+
+            return strpos($haystack, $needle, max(0, min($offset + 1 - $length, $previous + 1)));
+        }
+
+        if (0 === strcasecmp($needle, $match) || (preg_match('//u', $match) && (
+            mb_convert_case($needle, \MB_CASE_FOLD_SIMPLE, 'UTF-8') === mb_convert_case($match, \MB_CASE_FOLD_SIMPLE, 'UTF-8')
+            || (0 === grapheme_stripos($needle, $match) && 0 === grapheme_stripos($match, $needle))
+        ))) {
+            return $offset;
+        }
+
+        $previous = $i ? mb_strlen(grapheme_substr($haystack, 0, $i - 1), 'UTF-8') : 0;
+        $i = mb_strlen(substr($haystack, 0, $offset), 'UTF-8');
+
+        if (false === $i = mb_stripos($haystack, $needle, max(0, min($i + 1 - mb_strlen($needle, 'UTF-8'), $previous + 1)), 'UTF-8')) {
+            return false;
+        }
+
+        $length = \strlen(mb_substr($haystack, $i, mb_strlen($needle, 'UTF-8'), 'UTF-8'));
+
+        return \strlen(mb_substr($haystack, 0, $i, 'UTF-8'));
     }
 }

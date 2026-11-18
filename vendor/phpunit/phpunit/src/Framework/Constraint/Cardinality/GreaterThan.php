@@ -32,6 +32,14 @@ final class GreaterThan extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'is not greater than ' . Exporter::export($this->value);
+    }
+
+    /**
      * Evaluates the constraint for parameter $other. Returns true if the
      * constraint is met, false otherwise.
      */

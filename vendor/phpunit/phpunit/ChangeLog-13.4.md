@@ -1,0 +1,151 @@
+# Changes in PHPUnit 13.4
+
+All notable changes of the PHPUnit 13.4 release series are documented in this file using the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
+
+## [13.4.7] - 2026-11-13
+
+### Fixed
+
+* When an order is configured on the command line, for instance using `--order-by random`, `defects` configured using the `executionOrder` attribute in the XML configuration file is still applied, and vice versa
+* Using `default` together with an order for `--order-by` or the `executionOrder` XML configuration attribute, for instance `default,random`, triggers a deprecation for using more than one order, although `default` resets the order instead of selecting one
+* `--fail-on-skipped` does not make the test runner exit with a shell exit code that indicates failure when a test class is skipped, for instance because its before-first-test method calls `markTestSkipped()`, although its tests are counted as skipped
+* `--stop-on-skipped` does not stop the test run when a test class is skipped, for instance because its before-first-test method calls `markTestSkipped()`
+* When coverage contribution is required, a test is considered risky because it does not contribute to code coverage although it executed covered code, when the code coverage driver collects hit counts and each covered line that the test executed was executed more than once
+* When PHPUnit is installed using Composer, code units in the `PHPUnit\` or `SebastianBergmann\` namespace that do not belong to PHPUnit or one of its dependencies are preloaded on startup, which leads to a fatal error when such a code unit depends on code that is not available
+* Code from `sebastian/file-filter` and `sebastian/git-state` is not treated like code from PHPUnit's other dependencies, for instance stack frames from it are not filtered from stack traces
+* Code from `nikic/php-parser` and parts of the code from `phar-io/manifest` are not treated like code from PHPUnit's other dependencies, for instance stack frames from it are not filtered from stack traces
+
+## [13.4.6] - 2026-11-02
+
+### Changed
+
+* Issues whose message refers to an anonymous class could not be ignored using a baseline on PHP 8.6 (as of PHP 8.6, such messages contain the full name of the anonymous class: a NUL byte followed by the file, line, and a counter)
+* Make PHAR build reproducible across filesystems (files are now added to the PHAR sorted by their path instead of in the order in which the filesystem lists them)
+
+### Fixed
+
+* When `method()` is called for a method of a test double that cannot be configured, for instance because it does not exist, every subsequent invocation of a method of that test double fails with `Method name is not configured`
+* When a hook method of a test, for instance `setUp()`, marks the test as incomplete, the hook method is reported as failed
+* When an "after test" method, for instance `tearDown()`, marks a successful test as incomplete or skips it, the test is reported as failed
+* When a before-first-test method, for instance `setUpBeforeClass()`, calls `markTestIncomplete()`, each test of the test class is reported as failed instead of the test class being skipped as it is when `markTestSkipped()` is called
+* When an after-last-test method, for instance `tearDownAfterClass()`, calls `markTestIncomplete()` or `markTestSkipped()` after the tests of the test class have been run, this is reported as a failure, also for each test of the test class that is run in process isolation
+* A failed PHP assertion, made using `assert()`, in a hook method is reported as an error of that method instead of as a failure, and it is counted as an error instead of as a failure when that method is a before-first-test method or an after-last-test method
+* When an assertion fails in an "after test" method, for instance `tearDown()`, of a test that already failed, errored, or was marked as incomplete, a failure is reported in addition to the outcome of the test, so the test is counted more than once and `onNotSuccessfulTest()` is called with the failure from the "after test" method instead of the test's own
+* When a test fails because of an exception of a registered failure type, an error or a failure in an "after test" method, for instance `tearDown()`, is reported in addition to the test's failure, so the test is counted more than once
+* A test that fails because of an exception of a registered failure type is considered risky when it does not perform assertions or, when `requireCoverageMetadata="true"` is configured, when it does not define a code coverage target, unlike a test that fails because an assertion failed
+* The TestDox output does not show the failure of a before-first-test method or an after-last-test method, for instance an assertion failure in `setUpBeforeClass()`
+* Control characters and ANSI escape sequences in user-supplied strings are not made visible in the output of `--debug` and in the logfiles written by `--log-events-text` and `--log-events-verbose-text`
+* Groups configured for a test directory or test file using the `groups` attribute of `<directory>` or `<file>` in the XML configuration file are not assigned to PHPT tests, so `--group` and `--exclude-group` do not select them and `--list-groups` and `--list-tests-xml` report them as being in the `default` group or not at all
+
+### Removed
+
+* The library PHAR (`phpunit-library-X.Y.Z.phar`) is no longer built, it could not be loaded since PHPUnit 9.5.8
+
+## [13.4.5] - 2026-10-27
+
+### Fixed
+
+* The static analysis cache directory that is automatically created in the operating system's path used for temporary files when no cache directory is configured is not used when the POSIX extension is not loaded
+
+## [13.4.4] - 2026-10-27
+
+### Fixed
+
+* The TeamCity logger writes `testSuiteFinished` twice for a test class when one of its before-first-test methods errors or fails
+* The TestDox output shows a less important outcome of a test that has more than one outcome, for instance the failure in `tearDown()` of a test that errored
+* When the test run is interrupted by a signal while a test is run in process isolation, the result of the test is discarded and the test is counted as passed, and the TestDox output cannot be printed
+* When no static analysis cache directory is configured, the cache directory that is automatically created in the operating system's path used for temporary files is also used when it was created by another user or can be written to by other users
+* The directory in the operating system's path used for temporary files in which the temporary files for collecting code coverage for a PHPT test are created has a fixed name, and is also used when it was created by another user, who can then replace the code of the PHPT test before it is executed
+
+## [13.4.3] - 2026-10-16
+
+### Fixed
+
+* The dependencies of a test that are listed after a dependency on a test that does not return a value, or after a dependency on a larger test, were not checked, so the test was run instead of being skipped when one of these dependencies had not passed
+* Tests could not be run in process isolation when the namespace of the test class begins with a name that the code of the child process imports, for instance `CodeCoverage` or `Facade`
+* A test that is run in process isolation aborts the test run when its data set or a value returned by a test it depends on cannot be serialized, for instance because it is a closure
+* When a before-first-test method or an after-last-test method errors or fails, the remaining methods of the same kind are still called, and each of them that does not error or fail itself is reported with the exception of the earlier method
+* When a hook method of a test, for instance a `#[Before]` method, skips the test, the remaining hook methods of the same kind are still called, so the test is reported as errored instead of skipped when one of them errors
+* An error or failure in a before-first-test method or an after-last-test method that is called again in the child process of a test that is run in process isolation is reported twice, once for the test class and once for the test
+* When a before-first-test method errors, the progress output shows one `E` for the test class instead of one for each of its tests, only one of its tests is counted as run, and the test that is run next is shown as an error
+* When a before-first-test method fails, the progress output shows nothing for the tests of the test class and only one of them is counted as run
+* The Open Test Reporting XML logfile has no start for a test that errors before it is prepared, for instance because it depends on a test that does not exist, and no end for the test that is run after a test that is skipped because a test it depends on did not pass or because one of its
+  requirements is not met
+* The Open Test Reporting XML logfile has no entry for a test that is marked as incomplete before it is prepared, for instance in `setUp()`, and reports the test that is run after it as aborted with the message of the incomplete test
+* The Open Test Reporting XML logfile has no end for the test that is run after a test whose preparation errors, for instance because `setUp()` raises an exception or the global state cannot be backed up
+* The Open Test Reporting XML logfile reports a test that has more than one outcome, for instance because `tearDown()` fails after the test errored, with its last outcome instead of its most severe one, and with more than one end when the preparation of the test errored
+* The Open Test Reporting XML logfile is not well-formed when a test name, a message, the output of a test, or the string representation of an exception contains `]]>`, bytes that are not valid UTF-8, or characters that are not allowed in XML, for instance the escape character of an ANSI
+  escape sequence
+* The Open Test Reporting XML logfile reports an issue that is triggered before a test is prepared, for instance in `setUp()`, with an empty ID before the start of the test
+
+## [13.4.2] - 2026-10-12
+
+### Fixed
+
+* [#7033](https://github.com/sebastianbergmann/phpunit/pull/7033): Compact printer is created although an extension replaces the progress output
+* [#7035](https://github.com/sebastianbergmann/phpunit/pull/7035): Sorting tests by duration recomputes the duration of a test suite for every comparison
+* Sorting tests by size recomputes the size of a test suite for every comparison
+* `expectUserDeprecationMessage()` and `expectUserDeprecationMessageMatches()` did not see the deprecations triggered by an attempt of a retried test and saw those of the previously run test instead
+* The status of a test whose mock object raises an exception in its destructor is success although the test is reported as errored, so `#[Retry]` does not retry the test, `--repeat` does not skip the remaining repetitions, `tearDown()` sees the wrong status, and code coverage records the test as successful
+* Named arguments passed to `with()` were matched by position instead of by name, so an expectation such as `->with(b: 7)` compared the expected value with the first parameter of the method and the parameter named `$b` was not checked
+* String keys of the parameter sets passed to `withParameterSetsInOrder()`, `withParameterSetsInAnyOrder()`, and `withParameterSetsInPartialOrder()` were ignored, so a parameter set such as `['b' => 7]` compared the expected value with the first parameter of the method and the parameter
+  named `$b` was not checked
+
+## [13.4.1] - 2026-10-05
+
+### Changed
+
+* The Software Bill of Materials (SBOM) embedded in the PHAR now uses CycloneDX 1.7 and provides the NTIA minimum elements as well as the data fields that BSI TR-03183-2 (version 2.1.0) requires for logical and identified components, including component creators, original, distribution and effective licences, source code URIs, and the PHP runtime and its extensions as external components
+
+### Fixed
+
+* [#7029](https://github.com/sebastianbergmann/phpunit/issues/7029): `TestSuite::runTests()` doubles garbage collector time when `zend.exception_ignore_args` is off
+* `setUpBeforeClass()` and `tearDownAfterClass()` were run twice for a test class that is the only test class in a test suite of the XML configuration file that has the name of that test class
+* Tests could not be run in process isolation when the path of the bootstrap script, the test file, or the directory for temporary files contained a single quote
+* Arguments in the `--ARGS--` section of a PHPT test that start with `-` were interpreted by PHP instead of being passed to the test when the test also has a `--STDIN--` section
+* Recording the tests that passed in a child process copied all tests that had passed so far, which made running many tests in process isolation increasingly slow
+
+## [13.4.0] - 2026-10-02
+
+### Added
+
+* [#6585](https://github.com/sebastianbergmann/phpunit/issues/6585): `executionOrder` attribute values and `--order-by` token lists that spell the order before `defects`, for example `duration-ascending,defects`
+* [#6585](https://github.com/sebastianbergmann/phpunit/issues/6585): `pipeline()` on the `TestSuite\Sorted` event for inspecting which reordering stages were applied
+* [#6686](https://github.com/sebastianbergmann/phpunit/issues/6686): `Constraint::negatedToString()` and `Constraint::negatedFailureDescription()` for authoring the description of a constraint that is wrapped in `LogicalNot`
+* [#6863](https://github.com/sebastianbergmann/phpunit/issues/6863): Cache which tests a test file contains
+* [#6957](https://github.com/sebastianbergmann/phpunit/issues/6957): Allow ordering tests by the time their source files were last modified
+* [#6958](https://github.com/sebastianbergmann/phpunit/issues/6958): Select the tests that are in all of several groups
+* [#6960](https://github.com/sebastianbergmann/phpunit/pull/6960): Record the order in which methods of mock objects are invoked
+* [#6964](https://github.com/sebastianbergmann/phpunit/pull/6964): `#[RequiresClass]` attribute to skip a test if a class does not exist
+* [#6995](https://github.com/sebastianbergmann/phpunit/issues/6995): `ChildProcessExtension` interface for extensions that need to be bootstrapped in the child process of a test that runs in process isolation
+* `--coverage-jsonl` CLI option and `<jsonl>` element for the XML configuration file to write a code coverage report in JSONL format, one JSON object per line, that reports uncovered code rather than every executable line
+* `--timeout` CLI option to limit the wall-clock time of the entire test run
+* `requireCoverageMetadataOnSmallTests`, `requireCoverageMetadataOnMediumTests`, and `requireCoverageMetadataOnLargeTests` attributes for the XML configuration file to require code coverage metadata depending on the size of a test; these have precedence over `requireCoverageMetadata`
+
+### Changed
+
+* Output printed by a test is now shown in the compact output as a `--- OUTPUT:` record that is attributed to the test instead of being passed through unformatted; the record is omitted when `beStrictAboutOutputDuringTests` or `--disallow-test-output` already reports the output as risky
+
+### Deprecated
+
+* [#6585](https://github.com/sebastianbergmann/phpunit/issues/6585): Writing `defects` before the order for `--order-by` and `executionOrder`, which will change meaning in PHPUnit 14
+* [#6585](https://github.com/sebastianbergmann/phpunit/issues/6585): `depends` and `no-depends` for `--order-by` and `executionOrder`
+* [#6585](https://github.com/sebastianbergmann/phpunit/issues/6585): Configuring more than one order for `--order-by` and `executionOrder`
+* [#6585](https://github.com/sebastianbergmann/phpunit/issues/6585): Unknown values for the `executionOrder` XML configuration attribute, which are currently ignored
+* [#6686](https://github.com/sebastianbergmann/phpunit/issues/6686): `Constraint::failureDescriptionInContext()` and `LogicalNot::negate()`
+* [#6999](https://github.com/sebastianbergmann/phpunit/issues/6999): Class-level `#[Group]`, `#[Ticket]`, `#[Small]`, `#[Medium]`, and `#[Large]` on parent classes of test classes
+
+### Fixed
+
+* Issues that are listed in the baseline are not ignored for tests that are run in a separate process
+* A test that is run in process isolation aborts the test run when its result cannot be unserialized, for instance because it returns an object that holds a test double
+* A test that uses `#[DataProviderClosure]` errors when it is run in process isolation
+
+[13.4.7]: https://github.com/sebastianbergmann/phpunit/compare/13.4.6...13.4.7
+[13.4.6]: https://github.com/sebastianbergmann/phpunit/compare/13.4.5...13.4.6
+[13.4.5]: https://github.com/sebastianbergmann/phpunit/compare/13.4.4...13.4.5
+[13.4.4]: https://github.com/sebastianbergmann/phpunit/compare/13.4.3...13.4.4
+[13.4.3]: https://github.com/sebastianbergmann/phpunit/compare/13.4.2...13.4.3
+[13.4.2]: https://github.com/sebastianbergmann/phpunit/compare/13.4.1...13.4.2
+[13.4.1]: https://github.com/sebastianbergmann/phpunit/compare/13.4.0...13.4.1
+[13.4.0]: https://github.com/sebastianbergmann/phpunit/compare/13.3.6...13.4.0

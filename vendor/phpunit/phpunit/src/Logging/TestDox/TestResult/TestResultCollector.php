@@ -9,9 +9,11 @@
  */
 namespace PHPUnit\Logging\TestDox;
 
+use function array_keys;
 use function array_merge;
 use function assert;
 use function is_subclass_of;
+use function strnatcasecmp;
 use function uasort;
 use function uksort;
 use function usort;
@@ -36,6 +38,7 @@ use PHPUnit\Event\Test\PhpWarningTriggered;
 use PHPUnit\Event\Test\Prepared;
 use PHPUnit\Event\Test\Skipped;
 use PHPUnit\Event\Test\WarningTriggered;
+use PHPUnit\Event\TestSuite\Skipped as TestSuiteSkipped;
 use PHPUnit\Framework\TestStatus\TestStatus;
 use PHPUnit\Logging\TestDox\TestResult as TestDoxTestMethod;
 use PHPUnit\TestRunner\IssueFilter;
@@ -76,7 +79,7 @@ final class TestResultCollector
             $testsByDeclaringClass = [];
 
             foreach ($tests as $test) {
-                $declaringClassName = (new ReflectionMethod($test->test()->className(), $test->test()->methodName()))->getDeclaringClass()->getName();
+                $declaringClassName = new ReflectionMethod($test->test()->className(), $test->test()->methodName())->getDeclaringClass()->getName();
 
                 if (!isset($testsByDeclaringClass[$declaringClassName])) {
                     $testsByDeclaringClass[$declaringClassName] = [];
@@ -85,9 +88,9 @@ final class TestResultCollector
                 $testsByDeclaringClass[$declaringClassName][] = $test;
             }
 
-            foreach ($testsByDeclaringClass as $declaringClassName) {
+            foreach (array_keys($testsByDeclaringClass) as $declaringClassName) {
                 usort(
-                    $declaringClassName,
+                    $testsByDeclaringClass[$declaringClassName],
                     static function (TestDoxTestMethod $a, TestDoxTestMethod $b): int
                     {
                         return $a->test()->line() <=> $b->test()->line();
@@ -103,15 +106,7 @@ final class TestResultCollector
                  */
                 static function (string $a, string $b): int
                 {
-                    if (is_subclass_of($b, $a)) {
-                        return -1;
-                    }
-
-                    if (is_subclass_of($a, $b)) {
-                        return 1;
-                    }
-
-                    return 0;
+                    return is_subclass_of($a, $b) <=> is_subclass_of($b, $a);
                 },
             );
 
@@ -128,8 +123,15 @@ final class TestResultCollector
             $result,
             static function (TestResultCollection $a, TestResultCollection $b): int
             {
-                return $a->asArray()[0]->test()->testDox()->prettifiedClassName()
-                    <=> $b->asArray()[0]->test()->testDox()->prettifiedClassName();
+                $aList = $a->asArray();
+                $bList = $b->asArray();
+
+                assert($aList !== [] && $bList !== []);
+
+                return strnatcasecmp(
+                    $aList[0]->test()->testDox()->prettifiedClassName(),
+                    $bList[0]->test()->testDox()->prettifiedClassName(),
+                );
             },
         );
 
@@ -153,16 +155,13 @@ final class TestResultCollector
             return;
         }
 
-        $this->status    = TestStatus::error($event->throwable()->message());
-        $this->throwable = $event->throwable();
+        $this->updateTestStatus(TestStatus::error($event->throwable()->message()), $event->throwable());
 
-        if (!$this->prepared) {
-            $test = $event->test();
+        $test = $event->test();
 
-            assert($test instanceof TestMethod);
+        assert($test instanceof TestMethod);
 
-            $this->process($test);
-        }
+        $this->recordTestThatNeverStarted($test);
     }
 
     public function testFailed(Failed $event): void
@@ -171,8 +170,7 @@ final class TestResultCollector
             return;
         }
 
-        $this->status    = TestStatus::failure($event->throwable()->message());
-        $this->throwable = $event->throwable();
+        $this->updateTestStatus(TestStatus::failure($event->throwable()->message()), $event->throwable());
     }
 
     public function testPassed(Passed $event): void
@@ -191,6 +189,12 @@ final class TestResultCollector
         }
 
         $this->updateTestStatus(TestStatus::skipped($event->message()));
+
+        $test = $event->test();
+
+        assert($test instanceof TestMethod);
+
+        $this->recordTestThatNeverStarted($test);
     }
 
     public function testMarkedIncomplete(MarkedIncomplete $event): void
@@ -199,9 +203,13 @@ final class TestResultCollector
             return;
         }
 
-        $this->updateTestStatus(TestStatus::incomplete($event->throwable()->message()));
+        $this->updateTestStatus(TestStatus::incomplete($event->throwable()->message()), $event->throwable());
 
-        $this->throwable = $event->throwable();
+        $test = $event->test();
+
+        assert($test instanceof TestMethod);
+
+        $this->recordTestThatNeverStarted($test);
     }
 
     public function testConsideredRisky(ConsideredRisky $event): void
@@ -342,6 +350,34 @@ final class TestResultCollector
         $this->prepared  = false;
     }
 
+    /**
+     * A test class that is skipped as a whole is reported as a skipped test
+     * suite, and its tests never start: none of them emits the event that
+     * ends a test, which is what every other test is recorded on. They are
+     * recorded here so that they are not missing from the output, which
+     * would otherwise show fewer tests than the test run counted.
+     */
+    public function testSuiteSkipped(TestSuiteSkipped $event): void
+    {
+        $testSuite = $event->testSuite();
+
+        if (!$testSuite->isForTestClass()) {
+            return;
+        }
+
+        $status = TestStatus::skipped($event->message());
+
+        foreach ($testSuite->tests() as $test) {
+            if (!$test->isTestMethod()) {
+                continue;
+            }
+
+            assert($test instanceof TestMethod);
+
+            $this->record($test, $status, null);
+        }
+    }
+
     private function registerSubscribers(Facade $facade): void
     {
         $facade->registerSubscribers(
@@ -353,6 +389,7 @@ final class TestResultCollector
             new TestPassedSubscriber($this),
             new TestPreparedSubscriber($this),
             new TestSkippedSubscriber($this),
+            new TestSuiteSkippedSubscriber($this),
             new TestTriggeredDeprecationSubscriber($this),
             new TestTriggeredNoticeSubscriber($this),
             new TestTriggeredPhpDeprecationSubscriber($this),
@@ -365,7 +402,7 @@ final class TestResultCollector
         );
     }
 
-    private function updateTestStatus(TestStatus $status): void
+    private function updateTestStatus(TestStatus $status, ?Throwable $throwable = null): void
     {
         if ($this->status !== null &&
             $this->status->isMoreImportantThan($status)) {
@@ -373,9 +410,45 @@ final class TestResultCollector
         }
 
         $this->status = $status;
+
+        if ($throwable !== null) {
+            $this->throwable = $throwable;
+        }
     }
 
     private function process(TestMethod $test): void
+    {
+        assert($this->status !== null);
+
+        $this->record($test, $this->status, $this->throwable);
+    }
+
+    /**
+     * A test that is skipped, marked incomplete, or errored before it starts
+     * - because a test it depends on did not pass, because a requirement it
+     * declares is not met, or because setUp() decided so - never emits the
+     * event that ends a test, which is what every other test is recorded on.
+     * It is recorded here instead.
+     *
+     * What it was recorded with must not be carried over to the next test
+     * that never starts: nothing resets it in between, and a status that is
+     * kept would be the more important one of two unrelated tests.
+     */
+    private function recordTestThatNeverStarted(TestMethod $test): void
+    {
+        if ($this->prepared) {
+            return;
+        }
+
+        assert($this->status !== null);
+
+        $this->record($test, $this->status, $this->throwable);
+
+        $this->status    = null;
+        $this->throwable = null;
+    }
+
+    private function record(TestMethod $test, TestStatus $status, ?Throwable $throwable): void
     {
         if (!isset($this->tests[$test->className()])) {
             $this->tests[$test->className()] = [];
@@ -383,8 +456,8 @@ final class TestResultCollector
 
         $this->tests[$test->className()][] = new TestDoxTestMethod(
             $test,
-            $this->status,
-            $this->throwable,
+            $status,
+            $throwable,
         );
     }
 }

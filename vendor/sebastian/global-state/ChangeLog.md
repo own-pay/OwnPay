@@ -2,6 +2,18 @@
 
 All notable changes in `sebastian/global-state` are documented in this file using the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
 
+## [9.0.1] - 2026-06-01
+
+### Fixed
+
+* Constant names were not escaped when exporting them to code
+
+## [9.0.0] - 2026-02-06
+
+### Removed
+
+* This component is no longer supported on PHP 8.3
+
 ## [8.0.3] - 2026-06-01
 
 ### Fixed
@@ -134,6 +146,8 @@ All notable changes in `sebastian/global-state` are documented in this file usin
 
 * This component is no longer supported on PHP 7.0 and PHP 7.1
 
+[9.0.1]: https://github.com/sebastianbergmann/global-state/compare/9.0.0...9.0.1
+[9.0.0]: https://github.com/sebastianbergmann/global-state/compare/8.0...9.0.0
 [8.0.3]: https://github.com/sebastianbergmann/global-state/compare/8.0.2...8.0.3
 [8.0.2]: https://github.com/sebastianbergmann/global-state/compare/8.0.1...8.0.2
 [8.0.1]: https://github.com/sebastianbergmann/global-state/compare/8.0.0...8.0.1

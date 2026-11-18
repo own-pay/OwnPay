@@ -13,11 +13,13 @@ use XMLWriter;
 
 /**
  * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @no-named-arguments Parameter names are not covered by the backward compatibility promise for phpunit/php-code-coverage
  */
-final class Coverage
+final readonly class Coverage
 {
-    private readonly XMLWriter $xmlWriter;
-    private readonly string $line;
+    private XMLWriter $xmlWriter;
+    private string $line;
 
     public function __construct(
         XMLWriter $xmlWriter,
@@ -27,15 +29,19 @@ final class Coverage
         $this->line      = $line;
     }
 
+    /**
+     * @param array<non-empty-string, positive-int> $tests map of test id to the number of times the test executed the line
+     */
     public function finalize(array $tests): void
     {
         $writer = $this->xmlWriter;
         $writer->startElement('line');
         $writer->writeAttribute('nr', $this->line);
 
-        foreach ($tests as $test) {
+        foreach ($tests as $test => $count) {
             $writer->startElement('covered');
             $writer->writeAttribute('by', $test);
+            $writer->writeAttribute('count', (string) $count);
             $writer->endElement();
         }
         $writer->endElement();

@@ -11,7 +11,7 @@ namespace SebastianBergmann\Comparator;
 
 use RuntimeException;
 use SebastianBergmann\Diff\Differ;
-use SebastianBergmann\Diff\Output\UnifiedDiffOutputBuilder;
+use SebastianBergmann\Diff\Output\StrictUnifiedDiffOutputBuilder;
 
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for sebastian/comparator
@@ -23,7 +23,13 @@ final class ComparisonFailure extends RuntimeException
     private string $expectedAsString;
     private string $actualAsString;
 
-    public function __construct(mixed $expected, mixed $actual, string $expectedAsString, string $actualAsString, string $message = '')
+    /** @var positive-int */
+    private int $contextLines;
+
+    /**
+     * @param positive-int $contextLines
+     */
+    public function __construct(mixed $expected, mixed $actual, string $expectedAsString, string $actualAsString, string $message = '', int $contextLines = 3)
     {
         parent::__construct($message);
 
@@ -31,10 +37,11 @@ final class ComparisonFailure extends RuntimeException
         $this->actual           = $actual;
         $this->expectedAsString = $expectedAsString;
         $this->actualAsString   = $actualAsString;
+        $this->contextLines     = $contextLines;
     }
 
     /**
-     * @return array{expected: mixed, actual: mixed, expectedAsString: string, actualAsString: string, message: string}
+     * @return array{expected: mixed, actual: mixed, expectedAsString: string, actualAsString: string, message: string, contextLines: positive-int}
      */
     public function __serialize(): array
     {
@@ -44,11 +51,12 @@ final class ComparisonFailure extends RuntimeException
             'expectedAsString' => $this->expectedAsString,
             'actualAsString'   => $this->actualAsString,
             'message'          => $this->message,
+            'contextLines'     => $this->contextLines,
         ];
     }
 
     /**
-     * @param array{expected: mixed, actual: mixed, expectedAsString: string, actualAsString: string, message: string} $data
+     * @param array{expected: mixed, actual: mixed, expectedAsString: string, actualAsString: string, message: string, contextLines: positive-int} $data
      */
     public function __unserialize(array $data): void
     {
@@ -57,6 +65,7 @@ final class ComparisonFailure extends RuntimeException
         $this->expectedAsString = $data['expectedAsString'];
         $this->actualAsString   = $data['actualAsString'];
         $this->message          = $data['message'];
+        $this->contextLines     = $data['contextLines'];
     }
 
     public function getActual(): mixed
@@ -85,7 +94,17 @@ final class ComparisonFailure extends RuntimeException
             return '';
         }
 
-        $differ = new Differ(new UnifiedDiffOutputBuilder("\n--- Expected\n+++ Actual\n"));
+        $differ = new Differ(
+            new StrictUnifiedDiffOutputBuilder(
+                [
+                    'header'                  => "\n--- Expected\n+++ Actual\n",
+                    'addLineNumbers'          => false,
+                    'contextLines'            => $this->contextLines,
+                    'emitDiffLineEndWarning'  => true,
+                    'emitNoLineEndEofWarning' => false,
+                ],
+            ),
+        );
 
         return $differ->diff($this->expectedAsString, $this->actualAsString);
     }

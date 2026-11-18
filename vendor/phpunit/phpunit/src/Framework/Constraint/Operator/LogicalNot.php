@@ -11,6 +11,7 @@ namespace PHPUnit\Framework\Constraint;
 
 use const PREG_SPLIT_DELIM_CAPTURE;
 use function array_map;
+use function assert;
 use function preg_quote;
 use function preg_replace;
 use function preg_split;
@@ -21,6 +22,11 @@ use PHPUnit\Framework\ExpectationFailedException;
  */
 final class LogicalNot extends UnaryOperator
 {
+    /**
+     * @deprecated https://github.com/sebastianbergmann/phpunit/issues/6686
+     *
+     * @return non-empty-string
+     */
     public static function negate(string $string): string
     {
         $positives = [
@@ -67,6 +73,12 @@ final class LogicalNot extends UnaryOperator
             PREG_SPLIT_DELIM_CAPTURE,
         );
 
+        if ($segments === false) {
+            // @codeCoverageIgnoreStart
+            $segments = [$string];
+            // @codeCoverageIgnoreEnd
+        }
+
         $negatedString = '';
 
         foreach ($segments as $index => $segment) {
@@ -79,6 +91,9 @@ final class LogicalNot extends UnaryOperator
 
             $negatedString .= preg_replace($positives, $negatives, $segment);
         }
+
+        assert($negatedString !== null);
+        assert($negatedString !== '');
 
         return $negatedString;
     }
@@ -109,16 +124,49 @@ final class LogicalNot extends UnaryOperator
      */
     protected function matches(mixed $other): bool
     {
-        return !$this->constraint()->evaluate($other, '', true);
+        return $this->constraint()->evaluate($other, '', true) === false;
     }
 
     /**
-     * Applies additional transformation to strings returned by toString() or
-     * failureDescription().
+     * Returns the string representation of $constraint in context of this
+     * operator.
      */
-    protected function transformString(string $string): string
+    protected function operandToString(Constraint $constraint): string
     {
-        return self::negate($string);
+        $string = $constraint->negatedToString();
+
+        if ($string !== '') {
+            return $string;
+        }
+
+        $string = $constraint->toStringInContext($this, 0);
+
+        if ($string !== '') {
+            return $string;
+        }
+
+        return self::negate($constraint->toString());
+    }
+
+    /**
+     * Returns the failure description of $constraint in context of this
+     * operator.
+     */
+    protected function operandFailureDescription(Constraint $constraint, mixed $other): string
+    {
+        $string = $constraint->negatedFailureDescription($other);
+
+        if ($string !== '') {
+            return $string;
+        }
+
+        $string = $constraint->failureDescriptionInContext($this, 0, $other);
+
+        if ($string !== '') {
+            return $string;
+        }
+
+        return self::negate($constraint->failureDescription($other));
     }
 
     /**

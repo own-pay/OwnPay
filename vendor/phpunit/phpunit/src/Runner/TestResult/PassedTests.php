@@ -9,7 +9,6 @@
  */
 namespace PHPUnit\TestRunner\TestResult;
 
-use function array_merge;
 use function assert;
 use function explode;
 use function in_array;
@@ -71,17 +70,22 @@ final class PassedTests
         ];
     }
 
+    /**
+     * The passes are added to the ones recorded so far rather than merged
+     * with them into new arrays: merging would copy every pass recorded so
+     * far on each import, and the main process imports the passes of every
+     * test that runs in a separate process, which made importing them
+     * quadratic.
+     */
     public function import(self $other): void
     {
-        $this->passedTestClasses = array_merge(
-            $this->passedTestClasses,
-            $other->passedTestClasses,
-        );
+        foreach ($other->passedTestClasses as $className) {
+            $this->passedTestClasses[] = $className;
+        }
 
-        $this->passedTestMethods = array_merge(
-            $this->passedTestMethods,
-            $other->passedTestMethods,
-        );
+        foreach ($other->passedTestMethods as $method => $passedTestMethod) {
+            $this->passedTestMethods[$method] = $passedTestMethod;
+        }
     }
 
     /**
@@ -103,6 +107,10 @@ final class PassedTests
             return false;
         }
 
+        if (!isset($this->passedTestMethods[$method])) {
+            return false;
+        }
+
         assert($other instanceof Known);
 
         $size = $this->passedTestMethods[$method]['size'];
@@ -118,7 +126,7 @@ final class PassedTests
 
     public function hasReturnValue(string $method): bool
     {
-        $returnType = (new ReflectionMethod(...explode('::', $method)))->getReturnType();
+        $returnType = new ReflectionMethod(...explode('::', $method))->getReturnType();
 
         return !$returnType instanceof ReflectionNamedType || !in_array($returnType->getName(), ['never', 'void'], true);
     }

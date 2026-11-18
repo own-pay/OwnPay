@@ -15,12 +15,14 @@ use PHPUnit\Framework\MockObject\Generator\ReflectionException;
 use ReflectionClass;
 
 /**
+ * @template T of object
+ *
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for PHPUnit
  */
 abstract class TestDoubleBuilder
 {
     /**
-     * @var class-string|trait-string
+     * @var class-string<T>
      */
     protected readonly string $type;
 
@@ -39,7 +41,12 @@ abstract class TestDoubleBuilder
     protected bool $returnValueGeneration = true;
 
     /**
-     * @param class-string|trait-string $type
+     * @var list<non-empty-string>
+     */
+    protected array $doubledProperties = [];
+
+    /**
+     * @param class-string<T> $type
      */
     public function __construct(string $type)
     {
@@ -68,7 +75,6 @@ abstract class TestDoubleBuilder
             $reflector = new ReflectionClass($this->type);
 
             // @codeCoverageIgnoreStart
-            /** @phpstan-ignore catch.neverThrown */
         } catch (\ReflectionException $e) {
             throw new ReflectionException(
                 $e->getMessage(),
@@ -85,6 +91,64 @@ abstract class TestDoubleBuilder
         }
 
         $this->methods = array_merge($this->methods, $methods);
+
+        return $this;
+    }
+
+    /**
+     * Specifies properties that do not declare property hooks for which property hooks should be doubled.
+     *
+     * @param list<non-empty-string> $properties
+     *
+     * @throws PropertyCannotBeDoubledException
+     * @throws ReflectionException
+     *
+     * @return $this
+     */
+    public function doubleProperties(array $properties): static
+    {
+        try {
+            $reflector = new ReflectionClass($this->type);
+
+            // @codeCoverageIgnoreStart
+        } catch (\ReflectionException $e) {
+            throw new ReflectionException(
+                $e->getMessage(),
+                $e->getCode(),
+                $e,
+            );
+            // @codeCoverageIgnoreEnd
+        }
+
+        foreach ($properties as $propertyName) {
+            if (!$reflector->hasProperty($propertyName)) {
+                throw new PropertyCannotBeDoubledException($this->type, $propertyName, 'it does not exist');
+            }
+
+            $property = $reflector->getProperty($propertyName);
+
+            if (!$property->isPublic()) {
+                throw new PropertyCannotBeDoubledException($this->type, $propertyName, 'it is not public');
+            }
+
+            if ($property->isStatic()) {
+                throw new PropertyCannotBeDoubledException($this->type, $propertyName, 'it is static');
+            }
+
+            if ($property->isReadOnly()) {
+                throw new PropertyCannotBeDoubledException($this->type, $propertyName, 'it is readonly');
+            }
+
+            if ($property->isFinal()) {
+                throw new PropertyCannotBeDoubledException($this->type, $propertyName, 'it is final');
+            }
+
+            if (!$property->hasType()) {
+                throw new PropertyCannotBeDoubledException($this->type, $propertyName, 'it does not declare a type');
+            }
+        }
+
+        $this->doubledProperties = array_merge($this->doubledProperties, $properties);
 
         return $this;
     }
@@ -182,6 +246,7 @@ abstract class TestDoubleBuilder
             $this->originalConstructor,
             $this->originalClone,
             $this->returnValueGeneration,
+            $this->doubledProperties,
         );
     }
 }

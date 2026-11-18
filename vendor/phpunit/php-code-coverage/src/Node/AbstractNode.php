@@ -11,6 +11,7 @@ namespace SebastianBergmann\CodeCoverage\Node;
 
 use const DIRECTORY_SEPARATOR;
 use function array_merge;
+use function max;
 use function str_ends_with;
 use function str_replace;
 use function substr;
@@ -19,10 +20,15 @@ use SebastianBergmann\CodeCoverage\Data\ProcessedClassType;
 use SebastianBergmann\CodeCoverage\Data\ProcessedFunctionType;
 use SebastianBergmann\CodeCoverage\Data\ProcessedTraitType;
 use SebastianBergmann\CodeCoverage\StaticAnalysis\LinesOfCode;
+use SebastianBergmann\CodeCoverage\Test\TestSizes;
 use SebastianBergmann\CodeCoverage\Util\Percentage;
 
 /**
  * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @no-named-arguments Parameter names are not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @phpstan-import-type TestSizeSet from TestSizes
  */
 abstract class AbstractNode implements Countable
 {
@@ -133,6 +139,17 @@ abstract class AbstractNode implements Countable
         );
     }
 
+    /**
+     * @param TestSizeSet $testSizes
+     */
+    public function percentageOfExecutedLinesByTestSize(int $testSizes): Percentage
+    {
+        return Percentage::fromFractionAndTotal(
+            $this->numberOfExecutedLinesByTestSize($testSizes),
+            $this->numberOfExecutableLines(),
+        );
+    }
+
     public function percentageOfExecutedBranches(): Percentage
     {
         return Percentage::fromFractionAndTotal(
@@ -160,6 +177,14 @@ abstract class AbstractNode implements Countable
     }
 
     /**
+     * @param TestSizeSet $testSizes
+     */
+    public function numberOfTestedClassesAndTraitsByTestSize(int $testSizes): int
+    {
+        return $this->numberOfTestedClassesByTestSize($testSizes) + $this->numberOfTestedTraitsByTestSize($testSizes);
+    }
+
+    /**
      * @return array<string, ProcessedClassType|ProcessedTraitType>
      */
     public function classesAndTraits(): array
@@ -178,6 +203,14 @@ abstract class AbstractNode implements Countable
     }
 
     /**
+     * @param TestSizeSet $testSizes
+     */
+    public function numberOfTestedFunctionsAndMethodsByTestSize(int $testSizes): int
+    {
+        return $this->numberOfTestedFunctionsByTestSize($testSizes) + $this->numberOfTestedMethodsByTestSize($testSizes);
+    }
+
+    /**
      * @return non-negative-int
      */
     public function cyclomaticComplexity(): int
@@ -192,7 +225,7 @@ abstract class AbstractNode implements Countable
             $ccn += $function->ccn;
         }
 
-        return $ccn;
+        return max(0, $ccn);
     }
 
     /**
@@ -216,6 +249,11 @@ abstract class AbstractNode implements Countable
 
     abstract public function numberOfExecutedLines(): int;
 
+    /**
+     * @param TestSizeSet $testSizes
+     */
+    abstract public function numberOfExecutedLinesByTestSize(int $testSizes): int;
+
     abstract public function numberOfExecutableBranches(): int;
 
     abstract public function numberOfExecutedBranches(): int;
@@ -224,21 +262,43 @@ abstract class AbstractNode implements Countable
 
     abstract public function numberOfExecutedPaths(): int;
 
+    abstract public function numberOfFilesWithoutBranchCoverageData(): int;
+
     abstract public function numberOfClasses(): int;
 
     abstract public function numberOfTestedClasses(): int;
+
+    /**
+     * @param TestSizeSet $testSizes
+     */
+    abstract public function numberOfTestedClassesByTestSize(int $testSizes): int;
 
     abstract public function numberOfTraits(): int;
 
     abstract public function numberOfTestedTraits(): int;
 
+    /**
+     * @param TestSizeSet $testSizes
+     */
+    abstract public function numberOfTestedTraitsByTestSize(int $testSizes): int;
+
     abstract public function numberOfMethods(): int;
 
     abstract public function numberOfTestedMethods(): int;
 
+    /**
+     * @param TestSizeSet $testSizes
+     */
+    abstract public function numberOfTestedMethodsByTestSize(int $testSizes): int;
+
     abstract public function numberOfFunctions(): int;
 
     abstract public function numberOfTestedFunctions(): int;
+
+    /**
+     * @param TestSizeSet $testSizes
+     */
+    abstract public function numberOfTestedFunctionsByTestSize(int $testSizes): int;
 
     private function processId(): void
     {

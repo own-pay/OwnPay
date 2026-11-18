@@ -9,6 +9,7 @@
  */
 namespace PHPUnit\Event\Code;
 
+use PHPUnit\Event\Facade;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Logging\TestDox\NamePrettifier;
 
@@ -49,10 +50,18 @@ final class TestDoxBuilder
         );
     }
 
+    /**
+     * @param class-string $className
+     */
+    public static function prettifyClassName(string $className): string
+    {
+        return self::namePrettifier()->prettifyTestClassName($className);
+    }
+
     private static function namePrettifier(): NamePrettifier
     {
         if (self::$namePrettifier === null) {
-            self::$namePrettifier = new NamePrettifier;
+            self::$namePrettifier = new NamePrettifier(Facade::emitter());
         }
 
         return self::$namePrettifier;

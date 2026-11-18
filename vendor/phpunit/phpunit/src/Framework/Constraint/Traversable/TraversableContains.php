@@ -34,6 +34,14 @@ abstract class TraversableContains extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'does not contain ' . Exporter::export($this->value);
+    }
+
+    /**
      * Returns the description of the failure.
      *
      * The beginning of failure messages is "Failed asserting that" in most
@@ -45,6 +53,15 @@ abstract class TraversableContains extends Constraint
             '%s %s',
             is_array($other) ? 'an array' : 'a traversable',
             $this->toString(),
+        );
+    }
+
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        return sprintf(
+            '%s %s',
+            is_array($other) ? 'an array' : 'a traversable',
+            $this->negatedToString(),
         );
     }
 

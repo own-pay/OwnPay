@@ -86,12 +86,15 @@ final class IsIdentical extends Constraint
      */
     public function toString(): string
     {
-        if (is_object($this->value)) {
-            return 'is identical to an object of class "' .
-                $this->value::class . '"';
-        }
+        return 'is identical to ' . $this->valueAsString();
+    }
 
-        return 'is identical to ' . Exporter::export($this->value);
+    /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'is not identical to ' . $this->valueAsString();
     }
 
     /**
@@ -119,5 +122,35 @@ final class IsIdentical extends Constraint
         }
 
         return parent::failureDescription($other);
+    }
+
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        if (is_object($this->value) && is_object($other)) {
+            return 'two variables do not reference the same object';
+        }
+
+        if (explode(' ', gettype($this->value), 2)[0] === 'resource' && explode(' ', gettype($other), 2)[0] === 'resource') {
+            return 'two variables do not reference the same resource';
+        }
+
+        if (is_string($this->value) && is_string($other)) {
+            return 'two strings are not identical';
+        }
+
+        if (is_array($this->value) && is_array($other)) {
+            return 'two arrays are not identical';
+        }
+
+        return Exporter::export($other) . ' ' . $this->negatedToString();
+    }
+
+    private function valueAsString(): string
+    {
+        if (is_object($this->value)) {
+            return 'an object of class "' . $this->value::class . '"';
+        }
+
+        return Exporter::export($this->value);
     }
 }

@@ -15,23 +15,19 @@ declare(strict_types=1);
 namespace Ramsey\Uuid\Converter\Time;
 
 use Ramsey\Uuid\Converter\TimeConverterInterface;
+use Ramsey\Uuid\Exception\InvalidArgumentException;
 use Ramsey\Uuid\Math\BrickMathCalculator;
 use Ramsey\Uuid\Math\CalculatorInterface;
 use Ramsey\Uuid\Type\Hexadecimal;
 use Ramsey\Uuid\Type\Integer as IntegerObject;
 use Ramsey\Uuid\Type\Time;
 
-use function count;
 use function dechex;
-use function explode;
-use function is_float;
+use function intdiv;
 use function is_int;
 use function str_pad;
-use function strlen;
-use function substr;
 
 use const STR_PAD_LEFT;
-use const STR_PAD_RIGHT;
 
 /**
  * PhpTimeConverter uses built-in PHP functions and standard math operations available to the PHP programming language
@@ -56,7 +52,16 @@ class PhpTimeConverter implements TimeConverterInterface
      */
     private const MICROSECOND_INTERVALS = 10;
 
-    private int $phpPrecision;
+    /**
+     * The number of microseconds in one second.
+     */
+    private const SECOND_MICROSECONDS = 1_000_000;
+
+    /**
+     * The largest count of 100-nanosecond intervals that fits in the 60-bit timestamp.
+     */
+    private const MAX_TIMESTAMP = 0x0fffffffffffffff;
+
     private CalculatorInterface $calculator;
     private TimeConverterInterface $fallbackConverter;
 
@@ -74,7 +79,6 @@ class PhpTimeConverter implements TimeConverterInterface
 
         $this->calculator = $calculator;
         $this->fallbackConverter = $fallbackConverter;
-        $this->phpPrecision = (int) ini_get('precision');
     }
 
     public function calculateTime(string $seconds, string $microseconds): Hexadecimal
@@ -98,6 +102,18 @@ class PhpTimeConverter implements TimeConverterInterface
             );
         }
 
+        if ($uuidTime < 0) {
+            throw new InvalidArgumentException(
+                'The time is earlier than the Gregorian calendar epoch, 1582-10-15 00:00:00 UTC',
+            );
+        }
+
+        if ($uuidTime > self::MAX_TIMESTAMP) {
+            throw new InvalidArgumentException(
+                'The time is later than 5236-03-31 21:21:00.684697 UTC, the last time that fits in a 60-bit timestamp',
+            );
+        }
+
         /** @phpstan-ignore possiblyImpure.new */
         return new Hexadecimal(
             str_pad(dechex($uuidTime), 16, '0', STR_PAD_LEFT)
@@ -106,65 +122,35 @@ class PhpTimeConverter implements TimeConverterInterface
 
     public function convertTime(Hexadecimal $uuidTimestamp): Time
     {
-        $timestamp = $this->calculator->toInteger($uuidTimestamp);
+        $timestamp = $this->calculator->toInteger($uuidTimestamp)->toString();
+        $intTimestamp = (int) $timestamp;
 
-        // Convert the 100-nanosecond intervals into seconds and microseconds.
-        $splitTime = $this->splitTime(
-            ($timestamp->toString() - self::GREGORIAN_TO_UNIX_INTERVALS) / self::SECOND_INTERVALS,
-        );
-
-        if (count($splitTime) === 0) {
+        // If the timestamp does not fit in a PHP integer (as on 32-bit systems), use the fallback converter.
+        if ((string) $intTimestamp !== $timestamp) {
             return $this->fallbackConverter->convertTime($uuidTimestamp);
         }
 
+        // The count of 100-nanosecond intervals from the Unix epoch, which is negative for times before the epoch.
+        $intervals = $intTimestamp - self::GREGORIAN_TO_UNIX_INTERVALS;
+
+        // Round the seconds down, so the remainder is never negative.
+        $seconds = intdiv($intervals, self::SECOND_INTERVALS);
+        $remainder = $intervals % self::SECOND_INTERVALS;
+
+        if ($remainder < 0) {
+            $seconds--;
+            $remainder += self::SECOND_INTERVALS;
+        }
+
+        // Round the remainder to the nearest microsecond, with halves rounded up.
+        $microseconds = intdiv($remainder + intdiv(self::MICROSECOND_INTERVALS, 2), self::MICROSECOND_INTERVALS);
+
+        if ($microseconds === self::SECOND_MICROSECONDS) {
+            $seconds++;
+            $microseconds = 0;
+        }
+
         /** @phpstan-ignore possiblyImpure.new */
-        return new Time($splitTime['sec'], $splitTime['usec']);
-    }
-
-    /**
-     * @param float | int $time The time to split into seconds and microseconds
-     *
-     * @return string[]
-     *
-     * @pure
-     */
-    private function splitTime(float | int $time): array
-    {
-        $split = explode('.', (string) $time, 2);
-
-        // If the $time value is a float but $split only has 1 element, then the float math was rounded up to the next
-        // second, so we want to return an empty array to allow use of the fallback converter.
-        if (is_float($time) && count($split) === 1) {
-            return [];
-        }
-
-        if (count($split) === 1) {
-            return ['sec' => $split[0], 'usec' => '0'];
-        }
-
-        // If the microseconds are less than six characters AND the length of the number is greater than or equal to the
-        // PHP precision, then it's possible that we lost some precision for the microseconds. Return an empty array so
-        // that we can choose to use the fallback converter.
-        if (strlen($split[1]) < 6 && strlen((string) $time) >= $this->phpPrecision) {
-            return [];
-        }
-
-        $microseconds = $split[1];
-
-        // Ensure the microseconds are no longer than 6 digits. If they are,
-        // truncate the number to the first 6 digits and round up, if needed.
-        if (strlen($microseconds) > 6) {
-            $roundingDigit = (int) substr($microseconds, 6, 1);
-            $microseconds = (int) substr($microseconds, 0, 6);
-
-            if ($roundingDigit >= 5) {
-                $microseconds++;
-            }
-        }
-
-        return [
-            'sec' => $split[0],
-            'usec' => str_pad((string) $microseconds, 6, '0', STR_PAD_RIGHT),
-        ];
+        return new Time($seconds, $microseconds);
     }
 }

@@ -9,14 +9,12 @@
  */
 namespace PHPUnit\TextUI\Command;
 
-use const E_ALL;
 use const PHP_EOL;
-use function extension_loaded;
-use function in_array;
-use function ini_get;
+use function assert;
 use function max;
 use function sprintf;
 use function strlen;
+use PHPUnit\Runner\PhpConfiguration\PhpConfigurationChecker;
 use PHPUnit\Runner\Version;
 use PHPUnit\Util\Color;
 use SebastianBergmann\Environment\Console;
@@ -40,29 +38,19 @@ final readonly class CheckPhpConfigurationCommand implements Command
         $lines         = [];
         $shellExitCode = 0;
 
-        foreach ($this->settings() as $name => $setting) {
-            foreach ($setting['requiredExtensions'] as $extension) {
-                if (!extension_loaded($extension)) {
-                    // @codeCoverageIgnoreStart
-                    continue 2;
-                    // @codeCoverageIgnoreEnd
-                }
-            }
-
-            $actualValue = ini_get($name);
-
-            if (in_array($actualValue, $setting['expectedValues'], true)) {
+        foreach ((new PhpConfigurationChecker)->check() as $result) {
+            if ($result->isOk()) {
                 $check = $this->ok();
             } else {
-                $check         = $this->notOk($actualValue);
+                $check         = $this->notOk($result->actualValue());
                 $shellExitCode = 1;
             }
 
             $lines[] = [
                 sprintf(
                     '%s = %s',
-                    $name,
-                    $setting['valueForConfiguration'],
+                    $result->name(),
+                    $result->valueForConfiguration(),
                 ),
                 $check,
             ];
@@ -100,7 +88,11 @@ final readonly class CheckPhpConfigurationCommand implements Command
         }
 
         // @codeCoverageIgnoreStart
-        return Color::colorizeTextBox('fg-green, bold', 'ok');
+        $result = Color::colorizeTextBox('fg-green, bold', 'ok');
+
+        assert($result !== '');
+
+        return $result;
         // @codeCoverageIgnoreEnd
     }
 
@@ -116,51 +108,11 @@ final readonly class CheckPhpConfigurationCommand implements Command
         }
 
         // @codeCoverageIgnoreStart
-        return Color::colorizeTextBox('fg-red, bold', $message);
-        // @codeCoverageIgnoreEnd
-    }
+        $result = Color::colorizeTextBox('fg-red, bold', $message);
 
-    /**
-     * @return non-empty-array<non-empty-string, array{expectedValues: non-empty-list<non-empty-string>, valueForConfiguration: non-empty-string, requiredExtensions: list<non-empty-string>}>
-     */
-    private function settings(): array
-    {
-        return [
-            'display_errors' => [
-                'expectedValues'        => ['1'],
-                'valueForConfiguration' => 'On',
-                'requiredExtensions'    => [],
-            ],
-            'display_startup_errors' => [
-                'expectedValues'        => ['1'],
-                'valueForConfiguration' => 'On',
-                'requiredExtensions'    => [],
-            ],
-            'error_reporting' => [
-                'expectedValues'        => ['-1', (string) E_ALL],
-                'valueForConfiguration' => '-1',
-                'requiredExtensions'    => [],
-            ],
-            'xdebug.show_exception_trace' => [
-                'expectedValues'        => ['0'],
-                'valueForConfiguration' => '0',
-                'requiredExtensions'    => ['xdebug'],
-            ],
-            'zend.assertions' => [
-                'expectedValues'        => ['1'],
-                'valueForConfiguration' => '1',
-                'requiredExtensions'    => [],
-            ],
-            'assert.exception' => [
-                'expectedValues'        => ['1'],
-                'valueForConfiguration' => '1',
-                'requiredExtensions'    => [],
-            ],
-            'memory_limit' => [
-                'expectedValues'        => ['-1'],
-                'valueForConfiguration' => '-1',
-                'requiredExtensions'    => [],
-            ],
-        ];
+        assert($result !== '');
+
+        return $result;
+        // @codeCoverageIgnoreEnd
     }
 }

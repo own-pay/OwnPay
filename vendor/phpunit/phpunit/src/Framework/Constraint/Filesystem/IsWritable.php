@@ -9,6 +9,7 @@
  */
 namespace PHPUnit\Framework\Constraint;
 
+use function is_string;
 use function is_writable;
 use function sprintf;
 
@@ -26,11 +27,23 @@ final class IsWritable extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'is not writable';
+    }
+
+    /**
      * Evaluates the constraint for parameter $other. Returns true if the
      * constraint is met, false otherwise.
      */
     protected function matches(mixed $other): bool
     {
+        if (!is_string($other)) {
+            return false;
+        }
+
         return is_writable($other);
     }
 
@@ -44,7 +57,24 @@ final class IsWritable extends Constraint
     {
         return sprintf(
             '"%s" is writable',
-            $other,
+            $this->path($other),
         );
+    }
+
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        return sprintf(
+            '"%s" is not writable',
+            $this->path($other),
+        );
+    }
+
+    private function path(mixed $other): string
+    {
+        if (is_string($other)) {
+            return $other;
+        }
+
+        return '';
     }
 }

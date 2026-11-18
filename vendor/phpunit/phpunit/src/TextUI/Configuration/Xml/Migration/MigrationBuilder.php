@@ -87,6 +87,19 @@ final readonly class MigrationBuilder
         '11.2' => [
             RemoveBeStrictAboutTodoAnnotatedTestsAttribute::class,
         ],
+
+        '13.2' => [
+            RenameExecutionOrderOptionsDurationAndSize::class,
+        ],
+
+        '13.3' => [
+            RenameCacheResultAttribute::class,
+        ],
+
+        '13.4' => [
+            MoveDependencyResolutionOutOfExecutionOrder::class,
+            MoveDefectsAfterOrderInExecutionOrder::class,
+        ],
     ];
 
     /**

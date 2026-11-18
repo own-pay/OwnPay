@@ -20,18 +20,32 @@ final class TestDoubleState
      * @var list<ConfigurableMethod>
      */
     private readonly array $configurableMethods;
+
+    /**
+     * @var class-string
+     */
+    private readonly string $className;
+
+    /**
+     * @var ?non-empty-string
+     */
+    private readonly ?string $displayName;
     private readonly bool $generateReturnValues;
-    private ?InvocationHandler $invocationHandler = null;
     private readonly bool $isMockObject;
+    private ?InvocationHandler $invocationHandler = null;
 
     /**
      * @param list<ConfigurableMethod> $configurableMethods
+     * @param class-string             $className
+     * @param ?non-empty-string        $displayName
      */
-    public function __construct(array $configurableMethods, bool $generateReturnValues, bool $isMockObject = false)
+    public function __construct(array $configurableMethods, string $className, bool $generateReturnValues, bool $isMockObject = false, ?string $displayName = null)
     {
         $this->configurableMethods  = $configurableMethods;
+        $this->className            = $className;
         $this->generateReturnValues = $generateReturnValues;
         $this->isMockObject         = $isMockObject;
+        $this->displayName          = $displayName;
     }
 
     public function invocationHandler(): InvocationHandler
@@ -42,8 +56,10 @@ final class TestDoubleState
 
         $this->invocationHandler = new InvocationHandler(
             $this->configurableMethods,
+            $this->className,
             $this->generateReturnValues,
             $this->isMockObject,
+            $this->displayName,
         );
 
         return $this->invocationHandler;

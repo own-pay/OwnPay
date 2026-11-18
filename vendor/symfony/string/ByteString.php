@@ -56,38 +56,7 @@ class ByteString extends AbstractString
             throw new InvalidArgumentException('The length of the alphabet must in the [2^1, 2^56] range.');
         }
 
-        if (\PHP_VERSION_ID >= 80300) {
-            return new static((new Randomizer())->getBytesFromString($alphabet, $length));
-        }
-
-        $ret = '';
-        while ($length > 0) {
-            $urandomLength = (int) ceil(2 * $length * $bits / 8.0);
-            $data = random_bytes($urandomLength);
-            $unpackedData = 0;
-            $unpackedBits = 0;
-            for ($i = 0; $i < $urandomLength && $length > 0; ++$i) {
-                // Unpack 8 bits
-                $unpackedData = ($unpackedData << 8) | \ord($data[$i]);
-                $unpackedBits += 8;
-
-                // While we have enough bits to select a character from the alphabet, keep
-                // consuming the random data
-                for (; $unpackedBits >= $bits && $length > 0; $unpackedBits -= $bits) {
-                    $index = ($unpackedData & ((1 << $bits) - 1));
-                    $unpackedData >>= $bits;
-                    // Unfortunately, the alphabet size is not necessarily a power of two.
-                    // Worst case, it is 2^k + 1, which means we need (k+1) bits and we
-                    // have around a 50% chance of missing as k gets larger
-                    if ($index < $alphabetSize) {
-                        $ret .= $alphabet[$index];
-                        --$length;
-                    }
-                }
-            }
-        }
-
-        return new static($ret);
+        return new static((new Randomizer())->getBytesFromString($alphabet, $length));
     }
 
     public function bytesAt(int $offset): array
@@ -109,8 +78,10 @@ class ByteString extends AbstractString
     {
         $str = clone $this;
 
-        $parts = explode(' ', trim(ucwords(preg_replace('/[^a-zA-Z0-9\x7f-\xff]++/', ' ', $this->string))));
-        $parts[0] = 1 !== \strlen($parts[0]) && ctype_upper($parts[0]) ? $parts[0] : lcfirst($parts[0]);
+        $words = trim(preg_replace('/[^a-zA-Z0-9\x7f-\xff]++/', ' ', $this->string));
+        $parts = explode(' ', ucwords($words));
+        // a leading uppercase letter followed by another one is kept, as in AbstractUnicodeString::camel()
+        $parts[0] = preg_match('/^[A-Z]{2}/', $words) || (1 !== \strlen($parts[0]) && ctype_upper($parts[0])) ? $parts[0] : lcfirst($parts[0]);
         $str->string = implode('', $parts);
 
         return $str;
@@ -305,6 +276,9 @@ class ByteString extends AbstractString
         return $str;
     }
 
+    /**
+     * @param-immediately-invoked-callable $to
+     */
     public function replaceMatches(string $fromRegexp, string|callable $to): static
     {
         if ($this->ignoreCase) {

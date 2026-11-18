@@ -10,6 +10,7 @@
 namespace PHPUnit\Framework\Constraint;
 
 use function file_exists;
+use function is_string;
 use function sprintf;
 
 /**
@@ -26,11 +27,23 @@ final class FileExists extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'file does not exist';
+    }
+
+    /**
      * Evaluates the constraint for parameter $other. Returns true if the
      * constraint is met, false otherwise.
      */
     protected function matches(mixed $other): bool
     {
+        if (!is_string($other)) {
+            return false;
+        }
+
         return file_exists($other);
     }
 
@@ -44,7 +57,24 @@ final class FileExists extends Constraint
     {
         return sprintf(
             'file "%s" exists',
-            $other,
+            $this->path($other),
         );
+    }
+
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        return sprintf(
+            'file "%s" does not exist',
+            $this->path($other),
+        );
+    }
+
+    private function path(mixed $other): string
+    {
+        if (is_string($other)) {
+            return $other;
+        }
+
+        return '';
     }
 }

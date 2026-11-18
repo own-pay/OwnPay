@@ -19,7 +19,7 @@ use function method_exists;
 use function sprintf;
 use function strlen;
 use function substr;
-use SebastianBergmann\Exporter\Exporter;
+use SebastianBergmann\Exporter\ObjectNotSupportedException;
 
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for sebastian/comparator
@@ -42,12 +42,13 @@ class ScalarComparator extends Comparator
 
     /**
      * @throws ComparisonFailure
+     * @throws ObjectNotSupportedException
      */
     public function assertEquals(mixed $expected, mixed $actual, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false): void
     {
         $expectedToCompare = $expected;
         $actualToCompare   = $actual;
-        $exporter          = new Exporter;
+        $exporter          = $this->exporter();
 
         // always compare as strings to avoid strange behaviour
         // otherwise 0 == 'Foobar'
@@ -74,6 +75,7 @@ class ScalarComparator extends Comparator
                 $exporter->export($cutExpected),
                 $exporter->export($cutActual),
                 'Failed asserting that two strings are equal.',
+                $this->contextLines(),
             );
         }
 
@@ -90,6 +92,7 @@ class ScalarComparator extends Comparator
                     $exporter->export($actual),
                     $exporter->export($expected),
                 ),
+                $this->contextLines(),
             );
         }
     }

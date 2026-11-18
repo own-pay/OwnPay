@@ -10,10 +10,12 @@
 namespace PHPUnit\Util;
 
 use const PHP_OS_FAMILY;
+use function array_any;
 use function assert;
 use function class_exists;
 use function defined;
 use function dirname;
+use function interface_exists;
 use function is_dir;
 use function realpath;
 use function str_starts_with;
@@ -32,7 +34,9 @@ use SebastianBergmann\Complexity\Calculator;
 use SebastianBergmann\Diff\Diff;
 use SebastianBergmann\Environment\Runtime;
 use SebastianBergmann\Exporter\Exporter;
+use SebastianBergmann\FileFilter\Filter as FileFilter;
 use SebastianBergmann\FileIterator\Facade as FileIteratorFacade;
+use SebastianBergmann\GitState\State as GitState;
 use SebastianBergmann\GlobalState\Snapshot;
 use SebastianBergmann\Invoker\Invoker;
 use SebastianBergmann\LinesOfCode\Counter;
@@ -44,7 +48,6 @@ use SebastianBergmann\Timer\Timer;
 use SebastianBergmann\Type\TypeName;
 use SebastianBergmann\Version;
 use staabm\SideEffectsDetector\SideEffectsDetector;
-use TheSeer\Tokenizer\Tokenizer;
 
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for PHPUnit
@@ -65,7 +68,7 @@ final class ExcludeList
         Parser::class => 1,
 
         // phar-io/manifest
-        Manifest::class => 1,
+        Manifest::class => 2,
 
         // phar-io/version
         PharIoVersion::class => 1,
@@ -106,6 +109,12 @@ final class ExcludeList
         // sebastian/exporter
         Exporter::class => 1,
 
+        // sebastian/file-filter
+        FileFilter::class => 1,
+
+        // sebastian/git-state
+        GitState::class => 1,
+
         // sebastian/global-state
         Snapshot::class => 1,
 
@@ -129,9 +138,6 @@ final class ExcludeList
 
         // staabm/side-effects-detector
         SideEffectsDetector::class => 1,
-
-        // theseer/tokenizer
-        Tokenizer::class => 1,
     ];
 
     /**
@@ -186,13 +192,10 @@ final class ExcludeList
 
         self::initialize();
 
-        foreach (self::$directories as $directory) {
-            if (str_starts_with($file, $directory)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            self::$directories,
+            static fn (string $directory) => str_starts_with($file, $directory),
+        );
     }
 
     private static function initialize(): void
@@ -202,11 +205,17 @@ final class ExcludeList
         }
 
         foreach (self::EXCLUDED_CLASS_NAMES as $className => $parent) {
-            if (!class_exists($className)) {
+            if (!class_exists($className) && !interface_exists($className)) {
                 continue;
             }
 
-            $directory = (new ReflectionClass($className))->getFileName();
+            $directory = new ReflectionClass($className)->getFileName();
+
+            if ($directory === false) {
+                // @codeCoverageIgnoreStart
+                continue;
+                // @codeCoverageIgnoreEnd
+            }
 
             for ($i = 0; $i < $parent; $i++) {
                 $directory = dirname($directory);

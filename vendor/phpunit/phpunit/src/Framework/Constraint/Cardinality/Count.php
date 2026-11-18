@@ -43,6 +43,17 @@ class Count extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return sprintf(
+            'count does not match %d',
+            $this->expectedCount,
+        );
+    }
+
+    /**
      * Evaluates the constraint for parameter $other. Returns true if the
      * constraint is met, false otherwise.
      *
@@ -94,7 +105,9 @@ class Count extends Constraint
             }
 
             if (!$iterator instanceof Iterator) {
+                // @codeCoverageIgnoreStart
                 return iterator_count($iterator);
+                // @codeCoverageIgnoreEnd
             }
 
             $key   = $iterator->key();
@@ -128,6 +141,18 @@ class Count extends Constraint
     {
         return sprintf(
             'actual size %d matches expected size %d',
+            (int) $this->getCountOf($other),
+            $this->expectedCount,
+        );
+    }
+
+    /**
+     * @throws Exception
+     */
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        return sprintf(
+            'actual size %d does not match expected size %d',
             (int) $this->getCountOf($other),
             $this->expectedCount,
         );

@@ -9,6 +9,10 @@
  */
 namespace PHPUnit\Framework\Constraint;
 
+use function is_array;
+use function is_object;
+use PHPUnit\Util\Exporter;
+
 /**
  * @no-named-arguments Parameter names are not covered by the backward compatibility promise for PHPUnit
  */
@@ -23,11 +27,28 @@ final class IsFalse extends Constraint
     }
 
     /**
+     * Returns the negated string representation of the constraint.
+     */
+    protected function negatedToString(): string
+    {
+        return 'is not false';
+    }
+
+    /**
      * Evaluates the constraint for parameter $other. Returns true if the
      * constraint is met, false otherwise.
      */
     protected function matches(mixed $other): bool
     {
         return $other === false;
+    }
+
+    protected function failureDescription(mixed $other): string
+    {
+        if (is_array($other) || is_object($other)) {
+            return $this->valueToTypeStringFragment($other) . $this->toString();
+        }
+
+        return Exporter::export($other) . ' ' . $this->toString();
     }
 }

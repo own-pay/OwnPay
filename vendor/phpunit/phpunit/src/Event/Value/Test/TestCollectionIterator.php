@@ -9,7 +9,7 @@
  */
 namespace PHPUnit\Event\Code;
 
-use function count;
+use function assert;
 use Iterator;
 
 /**
@@ -44,7 +44,7 @@ final class TestCollectionIterator implements Iterator
 
     public function valid(): bool
     {
-        return $this->position < count($this->tests);
+        return isset($this->tests[$this->position]);
     }
 
     /**
@@ -57,6 +57,8 @@ final class TestCollectionIterator implements Iterator
 
     public function current(): Test
     {
+        assert(isset($this->tests[$this->position]));
+
         return $this->tests[$this->position];
     }
 

@@ -10,9 +10,12 @@
 namespace SebastianBergmann\CodeCoverage\StaticAnalysis;
 
 use function file_get_contents;
+use SebastianBergmann\CodeCoverage\Serialization\FileCouldNotBeReadException;
 
 /**
  * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @no-named-arguments Parameter names are not covered by the backward compatibility promise for phpunit/php-code-coverage
  */
 final class FileAnalyser
 {
@@ -25,6 +28,11 @@ final class FileAnalyser
      */
     private array $cache = [];
 
+    /**
+     * @var array<non-empty-string, non-empty-string>
+     */
+    private array $parseErrors = [];
+
     public function __construct(SourceAnalyser $sourceAnalyser, bool $useAnnotationsForIgnoringCode, bool $ignoreDeprecatedCode)
     {
         $this->sourceAnalyser                = $sourceAnalyser;
@@ -34,6 +42,8 @@ final class FileAnalyser
 
     /**
      * @param non-empty-string $sourceCodeFile
+     *
+     * @throws FileCouldNotBeReadException
      */
     public function analyse(string $sourceCodeFile): AnalysisResult
     {
@@ -41,13 +51,38 @@ final class FileAnalyser
             return $this->cache[$sourceCodeFile];
         }
 
-        $this->cache[$sourceCodeFile] = $this->sourceAnalyser->analyse(
+        $sourceCode = file_get_contents($sourceCodeFile);
+
+        if ($sourceCode === false) {
+            // @codeCoverageIgnoreStart
+            throw new FileCouldNotBeReadException($sourceCodeFile);
+            // @codeCoverageIgnoreEnd
+        }
+
+        $analysisResult = $this->sourceAnalyser->analyse(
             $sourceCodeFile,
-            file_get_contents($sourceCodeFile),
+            $sourceCode,
             $this->useAnnotationsForIgnoringCode,
             $this->ignoreDeprecatedCode,
         );
 
-        return $this->cache[$sourceCodeFile];
+        if (!$analysisResult->wasParsed()) {
+            $this->parseErrors[$sourceCodeFile] = $analysisResult->parseError();
+        }
+
+        $this->cache[$sourceCodeFile] = $analysisResult;
+
+        return $analysisResult;
+    }
+
+    /**
+     * Returns the files that could not be parsed for static analysis,
+     * mapped to the parser's error message.
+     *
+     * @return array<non-empty-string, non-empty-string>
+     */
+    public function parseErrors(): array
+    {
+        return $this->parseErrors;
     }
 }

@@ -9,6 +9,7 @@
  */
 namespace PHPUnit\Framework\Constraint;
 
+use function is_string;
 use function sprintf;
 use function strtr;
 
@@ -29,10 +30,18 @@ final class StringEqualsStringIgnoringLineEndings extends Constraint
      */
     public function toString(): string
     {
-        return sprintf(
-            'is equal to "%s" ignoring line endings',
-            $this->string,
-        );
+        return 'is equal to ' . $this->valueAsString();
+    }
+
+    /**
+     * Returns the negated string representation of the constraint.
+     *
+     * Authoring the negation here keeps the expected value out of the negation
+     * entirely.
+     */
+    protected function negatedToString(): string
+    {
+        return 'is not equal to ' . $this->valueAsString();
     }
 
     /**
@@ -41,7 +50,19 @@ final class StringEqualsStringIgnoringLineEndings extends Constraint
      */
     protected function matches(mixed $other): bool
     {
-        return $this->string === $this->normalizeLineEndings((string) $other);
+        if (!is_string($other)) {
+            return false;
+        }
+
+        return $this->string === $this->normalizeLineEndings($other);
+    }
+
+    private function valueAsString(): string
+    {
+        return sprintf(
+            '"%s" ignoring line endings',
+            $this->string,
+        );
     }
 
     private function normalizeLineEndings(string $string): string

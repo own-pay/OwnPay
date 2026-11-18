@@ -44,36 +44,28 @@ final class StringContains extends Constraint
      */
     public function toString(): string
     {
-        $needle = $this->needle;
-
-        if ($this->ignoreCase) {
-            $needle = mb_strtolower($this->needle, 'UTF-8');
-        }
-
-        return sprintf(
-            'contains "%s" [%s](length: %s)',
-            $needle,
-            $this->detectedEncoding($needle),
-            strlen($needle),
-        );
+        return 'contains ' . $this->needleAsString();
     }
 
     public function failureDescription(mixed $other): string
     {
-        $stringifiedHaystack = Exporter::export($other);
-        $haystackEncoding    = $this->detectedEncoding($other);
-        $haystackLength      = $this->haystackLength($other);
+        return $this->haystackAsString($other) . 'contains ' . $this->needleAsString();
+    }
 
-        $haystackInformation = sprintf(
-            '%s [%s](length: %s) ',
-            $stringifiedHaystack,
-            $haystackEncoding,
-            $haystackLength,
-        );
+    /**
+     * Returns the negated string representation of the constraint.
+     *
+     * Authoring the negation here keeps the needle and the haystack out of
+     * the negation entirely.
+     */
+    protected function negatedToString(): string
+    {
+        return 'does not contain ' . $this->needleAsString();
+    }
 
-        $needleInformation = $this->toString();
-
-        return $haystackInformation . $needleInformation;
+    protected function negatedFailureDescription(mixed $other): string
+    {
+        return $this->haystackAsString($other) . 'does not contain ' . $this->needleAsString();
     }
 
     /**
@@ -113,6 +105,32 @@ final class StringContains extends Constraint
          * data.
          */
         return str_contains($haystack, $this->needle);
+    }
+
+    private function needleAsString(): string
+    {
+        $needle = $this->needle;
+
+        if ($this->ignoreCase) {
+            $needle = mb_strtolower($this->needle, 'UTF-8');
+        }
+
+        return sprintf(
+            '"%s" [%s](length: %s)',
+            $needle,
+            $this->detectedEncoding($needle),
+            strlen($needle),
+        );
+    }
+
+    private function haystackAsString(mixed $other): string
+    {
+        return sprintf(
+            '%s [%s](length: %s) ',
+            Exporter::export($other),
+            $this->detectedEncoding($other),
+            $this->haystackLength($other),
+        );
     }
 
     private function detectedEncoding(mixed $other): string

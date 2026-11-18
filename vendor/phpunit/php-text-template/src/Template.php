@@ -9,14 +9,13 @@
  */
 namespace SebastianBergmann\Template;
 
-use function array_keys;
 use function array_merge;
 use function file_get_contents;
 use function file_put_contents;
 use function is_file;
 use function is_string;
 use function sprintf;
-use function str_replace;
+use function strtr;
 
 final class Template
 {
@@ -59,7 +58,7 @@ final class Template
      */
     public function setVar(array $values, bool $merge = true): void
     {
-        if (!$merge || empty($this->values)) {
+        if (!$merge || $this->values === []) {
             $this->values = $values;
 
             return;
@@ -70,13 +69,13 @@ final class Template
 
     public function render(): string
     {
-        $keys = [];
+        $replacements = [];
 
-        foreach (array_keys($this->values) as $key) {
-            $keys[] = $this->openDelimiter . $key . $this->closeDelimiter;
+        foreach ($this->values as $key => $value) {
+            $replacements[$this->openDelimiter . $key . $this->closeDelimiter] = $value;
         }
 
-        return str_replace($keys, $this->values, $this->template);
+        return strtr($this->template, $replacements);
     }
 
     /**
@@ -84,7 +83,7 @@ final class Template
      */
     public function renderTo(string $target): void
     {
-        if (!@file_put_contents($target, $this->render())) {
+        if (@file_put_contents($target, $this->render()) === false) {
             throw new RuntimeException(
                 sprintf(
                     'Writing rendered result to "%s" failed',
@@ -106,7 +105,7 @@ final class Template
         if (is_file($file)) {
             $template = file_get_contents($file);
 
-            if (is_string($template) && !empty($template)) {
+            if (is_string($template) && $template !== '') {
                 return $template;
             }
         }
@@ -116,7 +115,7 @@ final class Template
         if (is_file($distFile)) {
             $template = file_get_contents($distFile);
 
-            if (is_string($template) && !empty($template)) {
+            if (is_string($template) && $template !== '') {
                 return $template;
             }
         }

@@ -10,11 +10,12 @@
 namespace SebastianBergmann;
 
 use const DIRECTORY_SEPARATOR;
+use function array_slice;
 use function assert;
 use function end;
 use function explode;
 use function fclose;
-use function is_array;
+use function implode;
 use function is_dir;
 use function is_resource;
 use function proc_close;
@@ -61,10 +62,23 @@ final readonly class Version
             $version = $release . '-dev';
         }
 
-        $git = $this->getGitInformation($path);
-
-        if (!$git) {
+        if (!is_dir($path . DIRECTORY_SEPARATOR . '.git')) {
             return $version;
+        }
+
+        $git = $this->getGitInformation($path, $release);
+
+        if ($git === false) {
+            // No tag is reachable from HEAD (no tags exist yet, or they were
+            // not fetched), so "git describe --tags" fails: identify HEAD by
+            // its abbreviated hash, prefixed with "g" as "git describe" does
+            $commit = $this->git($path, ['rev-parse', '--short', 'HEAD']);
+
+            if ($commit === false) {
+                return $version;
+            }
+
+            return $release . '-g' . $commit;
         }
 
         if (substr_count($release, '.') + 1 === 3) {
@@ -78,15 +92,41 @@ final readonly class Version
 
     /**
      * @param non-empty-string $path
+     * @param non-empty-string $release
+     *
+     * @return false|non-empty-string
      */
-    private function getGitInformation(string $path): false|string
+    private function getGitInformation(string $path, string $release): false|string
     {
-        if (!is_dir($path . DIRECTORY_SEPARATOR . '.git')) {
-            return false;
+        if (substr_count($release, '.') + 1 === 3) {
+            $series = implode('.', array_slice(explode('.', $release), 0, 2));
+
+            $result = $this->git($path, ['describe', '--tags', '--match', $series . '.*']);
+
+            if ($result !== false) {
+                return $result;
+            }
+
+            return $this->git($path, ['describe', '--tags']);
         }
 
+        // Without --long, "git describe" prints only the name of the tag when
+        // HEAD is tagged; with it, the output always ends with the abbreviated
+        // hash of HEAD, which is what the version string for a release series
+        // ends with
+        return $this->git($path, ['describe', '--tags', '--long']);
+    }
+
+    /**
+     * @param non-empty-string $path
+     * @param list<string>     $arguments
+     *
+     * @return false|non-empty-string
+     */
+    private function git(string $path, array $arguments): false|string
+    {
         $process = @proc_open(
-            ['git', 'describe', '--tags'],
+            ['git', ...$arguments],
             [
                 1 => ['pipe', 'w'],
                 2 => ['pipe', 'w'],
@@ -99,7 +139,6 @@ final readonly class Version
             return false;
         }
 
-        assert(is_array($pipes));
         assert(isset($pipes[1]) && is_resource($pipes[1]));
         assert(isset($pipes[2]) && is_resource($pipes[2]));
 
@@ -113,6 +152,8 @@ final readonly class Version
         if ($returnCode !== 0) {
             return false;
         }
+
+        assert($result !== '');
 
         return $result;
     }

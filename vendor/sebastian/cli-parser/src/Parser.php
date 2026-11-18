@@ -65,7 +65,7 @@ final readonly class Parser
 
         reset($argv);
 
-        $argv = array_map('trim', $argv);
+        $argv = array_map(trim(...), $argv);
 
         while (false !== $arg = current($argv)) {
             $i = key($argv);
@@ -175,6 +175,8 @@ final readonly class Parser
             $optionArgument = $list[1];
         }
 
+        $exactMatch = $this->exactMatch($option, $longOptions);
+
         foreach ($longOptions as $i => $longOption) {
             $similarOptions[] = [
                 levenshtein($longOption, $option),
@@ -187,9 +189,14 @@ final readonly class Parser
                 continue;
             }
 
+            if ($exactMatch !== null && $longOption !== $exactMatch) {
+                continue;
+            }
+
             $opt_rest = substr($longOption, $optionLength);
 
-            if ($opt_rest !== '' &&
+            if ($exactMatch === null &&
+                $opt_rest !== '' &&
                 $i + 1 < $count &&
                 $option[0] !== '=' &&
                 /** @phpstan-ignore offsetAccess.notFound */
@@ -227,6 +234,24 @@ final readonly class Parser
     }
 
     /**
+     * An option that is spelled out in full is never ambiguous, no matter how many
+     * other options begin with it: "--html" unambiguously means "html" even when
+     * "html-views" is also declared.
+     *
+     * @param list<string> $longOptions
+     */
+    private function exactMatch(string $option, array $longOptions): ?string
+    {
+        foreach ($longOptions as $longOption) {
+            if (rtrim($longOption, '=') === $option) {
+                return $longOption;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param list<array{int, string}> $similarOptions
      *
      * @return array<string>
@@ -235,10 +260,7 @@ final readonly class Parser
     {
         usort(
             $similarOptions,
-            static function (array $a, array $b): int
-            {
-                return $a[0] <=> $b[0];
-            },
+            static fn (array $a, array $b): int => $a[0] <=> $b[0],
         );
 
         $similarFormatted = [];

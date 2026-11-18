@@ -9,14 +9,18 @@
  */
 namespace PHPUnit\TestRunner\TestResult;
 
+use function array_merge;
 use function array_values;
 use function assert;
 use function count;
 use function implode;
+use PHPUnit\Event\Code\Test;
 use PHPUnit\Event\Code\TestMethod;
 use PHPUnit\Event\Facade;
 use PHPUnit\Event\Test\AfterLastTestMethodErrored;
 use PHPUnit\Event\Test\AfterLastTestMethodFailed;
+use PHPUnit\Event\Test\AttemptErrored;
+use PHPUnit\Event\Test\AttemptFailed;
 use PHPUnit\Event\Test\BeforeFirstTestMethodErrored;
 use PHPUnit\Event\Test\BeforeFirstTestMethodFailed;
 use PHPUnit\Event\Test\ConsideredRisky;
@@ -38,12 +42,21 @@ use PHPUnit\Event\Test\Skipped as TestSkipped;
 use PHPUnit\Event\Test\WarningTriggered;
 use PHPUnit\Event\TestRunner\ChildProcessErrored;
 use PHPUnit\Event\TestRunner\DeprecationTriggered as TestRunnerDeprecationTriggered;
+use PHPUnit\Event\TestRunner\ErrorTriggered as TestRunnerIssueErrorTriggered;
 use PHPUnit\Event\TestRunner\ExecutionStarted;
+use PHPUnit\Event\TestRunner\Issue\DeprecationTriggered as TestRunnerIssueDeprecationTriggered;
+use PHPUnit\Event\TestRunner\Issue\NoticeTriggered as TestRunnerIssueNoticeTriggered;
+use PHPUnit\Event\TestRunner\Issue\WarningTriggered as TestRunnerIssueWarningTriggered;
 use PHPUnit\Event\TestRunner\NoticeTriggered as TestRunnerNoticeTriggered;
+use PHPUnit\Event\TestRunner\PhpDeprecationTriggered as TestRunnerIssuePhpDeprecationTriggered;
+use PHPUnit\Event\TestRunner\PhpNoticeTriggered as TestRunnerIssuePhpNoticeTriggered;
+use PHPUnit\Event\TestRunner\PhpWarningTriggered as TestRunnerIssuePhpWarningTriggered;
+use PHPUnit\Event\TestRunner\TimeLimitExceeded;
 use PHPUnit\Event\TestRunner\WarningTriggered as TestRunnerWarningTriggered;
 use PHPUnit\Event\TestSuite\Finished as TestSuiteFinished;
 use PHPUnit\Event\TestSuite\Skipped as TestSuiteSkipped;
 use PHPUnit\Event\TestSuite\Started as TestSuiteStarted;
+use PHPUnit\Event\TestSuite\TestSuiteForRepeatedTestMethod;
 use PHPUnit\Event\TestSuite\TestSuiteForTestClass;
 use PHPUnit\Event\TestSuite\TestSuiteForTestMethodWithDataProvider;
 use PHPUnit\TestRunner\IssueFilter;
@@ -62,6 +75,12 @@ final class Collector
     private int $numberOfAssertions   = 0;
     private bool $prepared            = false;
     private bool $childProcessErrored = false;
+
+    /**
+     * When a before-first-test method errors or fails, none of the tests of
+     * its test class, the test class that was started last, are run.
+     */
+    private int $numberOfTestsOfTestClass = 0;
 
     /**
      * @var non-negative-int
@@ -134,6 +153,41 @@ final class Collector
     private array $testRunnerTriggeredWarningEvents = [];
 
     /**
+     * @var list<TestRunnerIssueDeprecationTriggered>
+     */
+    private array $testRunnerTriggeredIssueDeprecationEvents = [];
+
+    /**
+     * @var list<TestRunnerIssueErrorTriggered>
+     */
+    private array $testRunnerTriggeredIssueErrorEvents = [];
+
+    /**
+     * @var list<TestRunnerIssueNoticeTriggered>
+     */
+    private array $testRunnerTriggeredIssueNoticeEvents = [];
+
+    /**
+     * @var list<TestRunnerIssuePhpDeprecationTriggered>
+     */
+    private array $testRunnerTriggeredIssuePhpDeprecationEvents = [];
+
+    /**
+     * @var list<TestRunnerIssuePhpNoticeTriggered>
+     */
+    private array $testRunnerTriggeredIssuePhpNoticeEvents = [];
+
+    /**
+     * @var list<TestRunnerIssuePhpWarningTriggered>
+     */
+    private array $testRunnerTriggeredIssuePhpWarningEvents = [];
+
+    /**
+     * @var list<TestRunnerIssueWarningTriggered>
+     */
+    private array $testRunnerTriggeredIssueWarningEvents = [];
+
+    /**
      * @var array<non-empty-string, Issue>
      */
     private array $errors = [];
@@ -168,6 +222,22 @@ final class Collector
      */
     private array $phpWarnings = [];
 
+    /**
+     * @var array{self: array<non-empty-string, true>, direct: array<non-empty-string, true>, indirect: array<non-empty-string, true>, unknown: array<non-empty-string, true>}
+     */
+    private array $deprecationIdsByTrigger = [
+        'self'     => [],
+        'direct'   => [],
+        'indirect' => [],
+        'unknown'  => [],
+    ];
+
+    /**
+     * @var array<non-empty-string, positive-int>
+     */
+    private array $retriedTests                        = [];
+    private ?TimeLimitExceeded $timeLimitExceededEvent = null;
+
     public function __construct(Facade $facade, IssueFilter $issueFilter)
     {
         $facade->registerSubscribers(
@@ -183,6 +253,8 @@ final class Collector
             new AfterTestClassMethodFailedSubscriber($this),
             new TestErroredSubscriber($this),
             new TestFailedSubscriber($this),
+            new TestAttemptErroredSubscriber($this),
+            new TestAttemptFailedSubscriber($this),
             new TestMarkedIncompleteSubscriber($this),
             new TestSkippedSubscriber($this),
             new TestConsideredRiskySubscriber($this),
@@ -197,10 +269,18 @@ final class Collector
             new TestTriggeredPhpunitWarningSubscriber($this),
             new TestTriggeredPhpWarningSubscriber($this),
             new TestTriggeredWarningSubscriber($this),
-            new TestRunnerTriggeredDeprecationSubscriber($this),
-            new TestRunnerTriggeredNoticeSubscriber($this),
-            new TestRunnerTriggeredWarningSubscriber($this),
+            new TestRunnerTriggeredPhpunitDeprecationSubscriber($this),
+            new TestRunnerTriggeredPhpunitNoticeSubscriber($this),
+            new TestRunnerTriggeredPhpunitWarningSubscriber($this),
+            new TestRunnerTriggeredIssueDeprecationSubscriber($this),
+            new TestRunnerTriggeredIssueErrorSubscriber($this),
+            new TestRunnerTriggeredIssueNoticeSubscriber($this),
+            new TestRunnerTriggeredIssuePhpDeprecationSubscriber($this),
+            new TestRunnerTriggeredIssuePhpNoticeSubscriber($this),
+            new TestRunnerTriggeredIssuePhpWarningSubscriber($this),
+            new TestRunnerTriggeredIssueWarningSubscriber($this),
             new ChildProcessErroredSubscriber($this),
+            new TestRunnerTimeLimitExceededSubscriber($this),
         );
 
         $this->issueFilter = $issueFilter;
@@ -225,6 +305,13 @@ final class Collector
             $this->testRunnerTriggeredDeprecationEvents,
             $this->testRunnerTriggeredNoticeEvents,
             $this->testRunnerTriggeredWarningEvents,
+            $this->testRunnerTriggeredIssueDeprecationEvents,
+            $this->testRunnerTriggeredIssueErrorEvents,
+            $this->testRunnerTriggeredIssueNoticeEvents,
+            $this->testRunnerTriggeredIssuePhpDeprecationEvents,
+            $this->testRunnerTriggeredIssuePhpNoticeEvents,
+            $this->testRunnerTriggeredIssuePhpWarningEvents,
+            $this->testRunnerTriggeredIssueWarningEvents,
             array_values($this->errors),
             array_values($this->deprecations),
             array_values($this->notices),
@@ -233,6 +320,14 @@ final class Collector
             array_values($this->phpNotices),
             array_values($this->phpWarnings),
             $this->numberOfIssuesIgnoredByBaseline,
+            [
+                'self'     => count($this->deprecationIdsByTrigger['self']),
+                'direct'   => count($this->deprecationIdsByTrigger['direct']),
+                'indirect' => count($this->deprecationIdsByTrigger['indirect']),
+                'unknown'  => count($this->deprecationIdsByTrigger['unknown']),
+            ],
+            $this->retriedTests,
+            $this->timeLimitExceededEvent,
         );
     }
 
@@ -261,6 +356,8 @@ final class Collector
         if (!$testSuite->isForTestClass()) {
             return;
         }
+
+        $this->numberOfTestsOfTestClass = $testSuite->count();
     }
 
     public function testSuiteFinished(TestSuiteFinished $event): void
@@ -273,24 +370,33 @@ final class Collector
 
         if ($testSuite->isForTestMethodWithDataProvider()) {
             assert($testSuite instanceof TestSuiteForTestMethodWithDataProvider);
-            assert(count($testSuite->tests()->asArray()) > 0);
 
-            $test = $testSuite->tests()->asArray()[0];
+            $this->registerTestMethodAsPassedIfNoRunFailedOrErrored($testSuite);
 
-            assert($test instanceof TestMethod);
+            return;
+        }
 
-            foreach ($this->testFailedEvents as $testFailedEvent) {
-                if ($testFailedEvent instanceof AfterLastTestMethodFailed || $testFailedEvent instanceof BeforeFirstTestMethodFailed) {
-                    continue;
-                }
+        if ($testSuite->isForRepeatedTestMethod()) {
+            assert($testSuite instanceof TestSuiteForRepeatedTestMethod);
 
-                if ($testFailedEvent->test()->isTestMethod() && $testFailedEvent->test()->methodName() === $test->methodName()) {
-                    return;
-                }
+            // for a repeated data set, the enclosing data provider test suite decides
+            // whether the test method passed once all of its data sets have finished
+            if (!$testSuite->isForDataSet()) {
+                $this->registerTestMethodAsPassedIfNoRunFailedOrErrored($testSuite);
             }
 
-            PassedTests::instance()->testMethodPassed($test, null);
+            return;
+        }
 
+        if ($testSuite->isForRetriedTestMethod()) {
+            // a retried test method registers itself as passed when an attempt
+            // passes, a retried data set is handled by the enclosing data
+            // provider test suite
+            return;
+        }
+
+        if ($testSuite->isForRepeatedPhpt() || $testSuite->isForRetriedPhpt()) {
+            // PHPT tests do not register themselves with PassedTests
             return;
         }
 
@@ -318,14 +424,14 @@ final class Collector
     {
         $this->testErroredEvents[] = $event;
 
-        $this->numberOfTestsRun++;
+        $this->numberOfTestsRun += $this->numberOfTestsOfTestClass;
     }
 
     public function beforeTestClassMethodFailed(BeforeFirstTestMethodFailed $event): void
     {
         $this->testFailedEvents[] = $event;
 
-        $this->numberOfTestsRun++;
+        $this->numberOfTestsRun += $this->numberOfTestsOfTestClass;
     }
 
     public function afterTestClassMethodErrored(AfterLastTestMethodErrored $event): void
@@ -342,6 +448,8 @@ final class Collector
     {
         $this->testErroredEvents[] = $event;
 
+        $this->forgetRetriedTest($event->test());
+
         if ($this->childProcessErrored) {
             return;
         }
@@ -354,11 +462,27 @@ final class Collector
     public function testFailed(Failed $event): void
     {
         $this->testFailedEvents[] = $event;
+
+        $this->forgetRetriedTest($event->test());
+    }
+
+    public function testAttemptErrored(AttemptErrored $event): void
+    {
+        $this->rememberRetriedTest($event->test());
+    }
+
+    public function testAttemptFailed(AttemptFailed $event): void
+    {
+        $this->rememberRetriedTest($event->test());
     }
 
     public function testMarkedIncomplete(MarkedIncomplete $event): void
     {
         $this->testMarkedIncompleteEvents[] = $event;
+
+        if (!$this->prepared) {
+            $this->numberOfTestsRun++;
+        }
     }
 
     public function testSkipped(TestSkipped $event): void
@@ -391,6 +515,8 @@ final class Collector
             return;
         }
 
+        $this->registerDeprecationByTrigger($event);
+
         $id = $this->issueId($event);
 
         if (!isset($this->deprecations[$id])) {
@@ -419,6 +545,8 @@ final class Collector
 
             return;
         }
+
+        $this->registerDeprecationByTrigger($event);
 
         $id = $this->issueId($event);
 
@@ -610,19 +738,76 @@ final class Collector
         $this->testTriggeredPhpunitWarningEvents[$event->test()->id()][] = $event;
     }
 
-    public function testRunnerTriggeredDeprecation(TestRunnerDeprecationTriggered $event): void
+    public function testRunnerTriggeredPhpunitDeprecation(TestRunnerDeprecationTriggered $event): void
     {
         $this->testRunnerTriggeredDeprecationEvents[] = $event;
     }
 
-    public function testRunnerTriggeredNotice(TestRunnerNoticeTriggered $event): void
+    public function testRunnerTriggeredPhpunitNotice(TestRunnerNoticeTriggered $event): void
     {
         $this->testRunnerTriggeredNoticeEvents[] = $event;
     }
 
-    public function testRunnerTriggeredWarning(TestRunnerWarningTriggered $event): void
+    public function testRunnerTriggeredPhpunitWarning(TestRunnerWarningTriggered $event): void
     {
         $this->testRunnerTriggeredWarningEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssueDeprecation(TestRunnerIssueDeprecationTriggered $event): void
+    {
+        if ($event->ignoredByFilter()) {
+            return;
+        }
+
+        $this->registerDeprecationByTrigger($event);
+
+        $this->testRunnerTriggeredIssueDeprecationEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssueError(TestRunnerIssueErrorTriggered $event): void
+    {
+        $this->testRunnerTriggeredIssueErrorEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssueNotice(TestRunnerIssueNoticeTriggered $event): void
+    {
+        $this->testRunnerTriggeredIssueNoticeEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssuePhpDeprecation(TestRunnerIssuePhpDeprecationTriggered $event): void
+    {
+        if ($event->ignoredByFilter()) {
+            return;
+        }
+
+        $this->registerDeprecationByTrigger($event);
+
+        $this->testRunnerTriggeredIssuePhpDeprecationEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssuePhpNotice(TestRunnerIssuePhpNoticeTriggered $event): void
+    {
+        $this->testRunnerTriggeredIssuePhpNoticeEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssuePhpWarning(TestRunnerIssuePhpWarningTriggered $event): void
+    {
+        $this->testRunnerTriggeredIssuePhpWarningEvents[] = $event;
+    }
+
+    public function testRunnerTriggeredIssueWarning(TestRunnerIssueWarningTriggered $event): void
+    {
+        $this->testRunnerTriggeredIssueWarningEvents[] = $event;
+    }
+
+    public function testRunnerTimeLimitExceeded(TimeLimitExceeded $event): void
+    {
+        $this->timeLimitExceededEvent = $event;
+    }
+
+    public function wasTimeLimitExceeded(): bool
+    {
+        return $this->timeLimitExceededEvent !== null;
     }
 
     public function childProcessErrored(ChildProcessErrored $event): void
@@ -630,51 +815,139 @@ final class Collector
         $this->childProcessErrored = true;
     }
 
-    public function hasErroredTests(): bool
+    public function numberOfErroredTests(): int
     {
-        return $this->testErroredEvents !== [];
+        return count($this->testErroredEvents);
     }
 
-    public function hasFailedTests(): bool
+    public function numberOfFailedTests(): int
     {
-        return $this->testFailedEvents !== [];
+        return count($this->testFailedEvents);
     }
 
-    public function hasRiskyTests(): bool
+    public function numberOfRiskyTests(): int
     {
-        return $this->testConsideredRiskyEvents !== [];
+        return count($this->testConsideredRiskyEvents);
     }
 
-    public function hasSkippedTests(): bool
+    /**
+     * The tests of a test suite that is skipped, for instance because a
+     * before-first-test method calls markTestSkipped(), are skipped tests, too.
+     */
+    public function numberOfSkippedTests(): int
     {
-        return $this->testSkippedEvents !== [];
+        $numberOfSkippedTests = count($this->testSkippedEvents);
+
+        foreach ($this->testSuiteSkippedEvents as $event) {
+            $numberOfSkippedTests += $event->testSuite()->count();
+        }
+
+        return $numberOfSkippedTests;
     }
 
-    public function hasIncompleteTests(): bool
+    public function numberOfIncompleteTests(): int
     {
-        return $this->testMarkedIncompleteEvents !== [];
+        return count($this->testMarkedIncompleteEvents);
     }
 
-    public function hasDeprecations(): bool
+    public function numberOfNotices(): int
     {
-        return $this->deprecations !== [] ||
-               $this->phpDeprecations !== [] ||
-               $this->testTriggeredPhpunitDeprecationEvents !== [] ||
-               $this->testRunnerTriggeredDeprecationEvents !== [];
+        return count($this->notices) +
+               count($this->phpNotices);
     }
 
-    public function hasNotices(): bool
+    public function numberOfWarnings(): int
     {
-        return $this->notices !== [] ||
-               $this->phpNotices !== [];
+        return count($this->warnings) +
+               count($this->phpWarnings) +
+               count($this->testTriggeredPhpunitWarningEvents) +
+               count($this->testRunnerTriggeredWarningEvents);
     }
 
-    public function hasWarnings(): bool
+    private function rememberRetriedTest(Test $test): void
     {
-        return $this->warnings !== [] ||
-               $this->phpWarnings !== [] ||
-               $this->testTriggeredPhpunitWarningEvents !== [] ||
-               $this->testRunnerTriggeredWarningEvents !== [];
+        $id = $this->retriedTestId($test);
+
+        if ($id === null) {
+            return;
+        }
+
+        if (!isset($this->retriedTests[$id])) {
+            $this->retriedTests[$id] = 1;
+
+            return;
+        }
+
+        $this->retriedTests[$id]++;
+    }
+
+    private function forgetRetriedTest(Test $test): void
+    {
+        $id = $this->retriedTestId($test);
+
+        if ($id === null) {
+            return;
+        }
+
+        unset($this->retriedTests[$id]);
+    }
+
+    /**
+     * @return ?non-empty-string
+     */
+    private function retriedTestId(Test $test): ?string
+    {
+        if ($test->isTestMethod()) {
+            assert($test instanceof TestMethod);
+
+            return $this->logicalTestId($test);
+        }
+
+        if ($test->isPhpt()) {
+            return $test->file();
+        }
+
+        return null;
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    private function logicalTestId(TestMethod $test): string
+    {
+        $id = $test->className() . '::' . $test->methodName();
+
+        if ($test->testData()->hasDataFromDataProvider()) {
+            $id .= '#' . $test->testData()->dataFromDataProvider()->dataSetName();
+        }
+
+        return $id;
+    }
+
+    private function registerTestMethodAsPassedIfNoRunFailedOrErrored(TestSuiteForRepeatedTestMethod|TestSuiteForTestMethodWithDataProvider $testSuite): void
+    {
+        assert(count($testSuite->tests()->asArray()) > 0);
+
+        $test = $testSuite->tests()->asArray()[0];
+
+        assert($test instanceof TestMethod);
+
+        foreach (array_merge($this->testFailedEvents, $this->testErroredEvents) as $event) {
+            if ($event instanceof AfterLastTestMethodFailed ||
+                $event instanceof BeforeFirstTestMethodFailed ||
+                $event instanceof AfterLastTestMethodErrored ||
+                $event instanceof BeforeFirstTestMethodErrored) {
+                continue;
+            }
+
+            if ($event->test()->isTestMethod() &&
+                $event->test()->className() === $test->className() &&
+                $event->test()->methodName() === $test->methodName()) {
+                return;
+            }
+        }
+
+        PassedTests::instance()->testMethodPassed($test, null);
     }
 
     /**
@@ -683,5 +956,32 @@ final class Collector
     private function issueId(DeprecationTriggered|ErrorTriggered|NoticeTriggered|PhpDeprecationTriggered|PhpNoticeTriggered|PhpWarningTriggered|WarningTriggered $event): string
     {
         return implode(':', [$event->file(), $event->line(), $event->message()]);
+    }
+
+    private function registerDeprecationByTrigger(DeprecationTriggered|PhpDeprecationTriggered|TestRunnerIssueDeprecationTriggered|TestRunnerIssuePhpDeprecationTriggered $event): void
+    {
+        $id = implode(':', [$event->file(), $event->line(), $event->message()]);
+
+        assert($id !== '');
+
+        if ($event->trigger()->isSelf()) {
+            $this->deprecationIdsByTrigger['self'][$id] = true;
+
+            return;
+        }
+
+        if ($event->trigger()->isDirect()) {
+            $this->deprecationIdsByTrigger['direct'][$id] = true;
+
+            return;
+        }
+
+        if ($event->trigger()->isIndirect()) {
+            $this->deprecationIdsByTrigger['indirect'][$id] = true;
+
+            return;
+        }
+
+        $this->deprecationIdsByTrigger['unknown'][$id] = true;
     }
 }

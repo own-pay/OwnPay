@@ -16,6 +16,7 @@ namespace Ramsey\Uuid\Lazy;
 
 use DateTimeInterface;
 use Ramsey\Uuid\Converter\NumberConverterInterface;
+use Ramsey\Uuid\Exception\InvalidUuidStringException;
 use Ramsey\Uuid\Exception\UnsupportedOperationException;
 use Ramsey\Uuid\Fields\FieldsInterface;
 use Ramsey\Uuid\Rfc4122\UuidV1;
@@ -29,8 +30,11 @@ use ValueError;
 use function assert;
 use function bin2hex;
 use function hex2bin;
+use function preg_match;
 use function sprintf;
 use function str_replace;
+use function strcmp;
+use function strtolower;
 use function substr;
 
 /**
@@ -51,6 +55,11 @@ use function substr;
 final class LazyUuidFromString implements UuidInterface
 {
     public const VALID_REGEX = '/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/ms';
+
+    /**
+     * The factory that builds every wrapped UUID; it is created on first use.
+     */
+    private static ?UuidFactory $factory = null;
 
     private ?UuidInterface $unwrapped = null;
 
@@ -95,10 +104,18 @@ final class LazyUuidFromString implements UuidInterface
      * {@inheritDoc}
      *
      * @param non-empty-string $data
+     *
+     * @throws InvalidUuidStringException if the data is not a UUID string in the standard format
      */
     public function unserialize(string $data): void
     {
-        $this->uuid = $data;
+        $uuid = strtolower($data);
+
+        if (preg_match(self::VALID_REGEX, $uuid) !== 1) {
+            throw new InvalidUuidStringException('Invalid UUID string: ' . $data);
+        }
+
+        $this->uuid = $uuid;
     }
 
     /**
@@ -200,7 +217,7 @@ final class LazyUuidFromString implements UuidInterface
 
     public function compareTo(UuidInterface $other): int
     {
-        return ($this->unwrapped ?? $this->unwrap())->compareTo($other);
+        return strcmp($this->uuid, $other->toString()) <=> 0;
     }
 
     public function equals(?object $other): bool
@@ -405,7 +422,9 @@ final class LazyUuidFromString implements UuidInterface
             return $instance;
         }
 
-        assert($instance instanceof UuidV6);
+        if (!$instance instanceof UuidV6) {
+            throw new UnsupportedOperationException('Not a version 1 or version 6 UUID');
+        }
 
         return $instance->toUuidV1();
     }
@@ -414,13 +433,17 @@ final class LazyUuidFromString implements UuidInterface
     {
         $instance = ($this->unwrapped ?? $this->unwrap());
 
-        assert($instance instanceof UuidV6);
+        if (!$instance instanceof UuidV6) {
+            throw new UnsupportedOperationException('Not a version 6 UUID');
+        }
 
         return $instance;
     }
 
     private function unwrap(): UuidInterface
     {
-        return $this->unwrapped = (new UuidFactory())->fromString($this->uuid);
+        self::$factory ??= new UuidFactory();
+
+        return $this->unwrapped = self::$factory->fromString($this->uuid);
     }
 }
