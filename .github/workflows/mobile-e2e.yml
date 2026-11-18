@@ -70,6 +70,14 @@ jobs:
                http://localhost:8080/install/create-admin)
           echo "create-admin: $RESP"
           echo "$RESP" | grep -q '"success":true'
+          CSRF=$(curl -s -c /tmp/cj.txt -b /tmp/cj.txt "http://localhost:8080/install?step=4" | grep -oP 'OP_CSRF_TOKEN = "\K[a-f0-9]+' | head -1)
+          echo "csrf-4=$CSRF"
+          test -n "$CSRF"
+          RESP=$(curl -fsS -c /tmp/cj.txt -b /tmp/cj.txt -X POST -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+               -d '{"app_name":"OwnPay E2E","currency":"BDT","timezone":"Asia/Dhaka"}' \
+               http://localhost:8080/install/finalize)
+          echo "finalize: $RESP"
+          echo "$RESP" | grep -q '"success":true'
 
       - name: Seed sms templates (bKash/Nagad/Rocket)
         run: |
