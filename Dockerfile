@@ -61,7 +61,11 @@ RUN printf '%s\n' \
         'if [ -d "$APP_DIR/public/assets/uploads" ]; then chown -R www-data:www-data "$APP_DIR/public/assets/uploads"; fi' \
         'mkdir -p /var/run/apache2 /var/log/apache2 /var/lock/apache2' \
         'chown -R www-data:www-data /var/run/apache2 /var/log/apache2 /var/lock/apache2' \
-        'exec setpriv --reuid=www-data --regid=www-data --clear-groups apache2-foreground' \
+        # Drop the www-data setpriv: apache2 starts as root, opens its error log and the
+        # worker sockets, then forks www-data children itself — exactly like the base
+        # php:8.4-apache image. Running the master as www-data from the start makes it
+        # unable to open /dev/stderr-backed logs, which boots the container to nothing.
+        'exec apache2-foreground' \
     > /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
