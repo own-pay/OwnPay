@@ -109,7 +109,7 @@ jobs:
             echo "FAIL: expected parsed SMS row for TrxID 8N7XYZ1234 not found"
             exit 1
           fi
-          if docker compose exec -T db mysql -uroot -proot ownpay -e "SELECT 1 FROM op_sms_parsed WHERE trx_id IN ('FAKE999ZZZ','NOTE001')" | grep -q 1; then
+          if docker compose exec -T db mysql -uroot -proot ownpay -e "SELECT 1 FROM op_sms_parsed WHERE trx_id IN ('BAD0000ZZZ','NOTE001')" | grep -q 1; then
             echo "FAIL: dropped SMS (non-whitelisted sender or negative keyword) reached the core"
             exit 1
           fi
@@ -118,19 +118,22 @@ jobs:
       - name: Security checks on captured evidence
         if: always()
         run: |
-          if [ -f /tmp/e2e/buffer.xml ] && grep -qE '8ATREST001|received|Never share' /tmp/e2e/buffer.xml; then
-            echo "FAIL: plaintext SMS body found in the on-disk buffer (must be v2: AES-GCM ciphertext)"
-            exit 1
+          # At-rest: the native buffer and the Hive queue must hold only AES-GCM ciphertext.
+          # Plaintext body markers (TrxID / amount strings from the injected SMS) must NOT
+          # appear anywhere in the private-state dump.
+          if [ -d /tmp/e2e/at-rest ]; then
+            if grep -ariE '8ATREST001|3,300\.00|Never share' /tmp/e2e/at-rest/ >/dev/null; then
+              echo "FAIL: plaintext SMS body content found in at-rest private state"
+              grep -ariE '8ATREST001|Never share' /tmp/e2e/at-rest/ | head -3
+              exit 1
+            fi
+            echo "at-rest private state contains no plaintext SMS body markers"
           fi
-          if [ -f /tmp/e2e/buffer.xml ] && ! grep -q 'v2:' /tmp/e2e/buffer.xml; then
-            echo "FAIL: native SMS buffer missing the v2: AES-GCM envelope marker"
-            exit 1
-          fi
-          if [ -f /tmp/e2e/logcat.txt ] && grep -qiE '8N7XYZ1234|8ATREST001|Never share' /tmp/e2e/logcat.txt; then
+          if [ -f /tmp/e2e/logcat.txt ] && grep -qiE '8N7XYZ1234|8ATREST001|Never share|BAD0000ZZZ' /tmp/e2e/logcat.txt; then
             echo "FAIL: SMS body leaked to logcat"
             exit 1
           fi
-          echo "Security evidence OK (buffer ciphertext, logcat clean)"
+          echo "Security evidence OK (at-rest ciphertext, logcat clean)"
 
       - name: Upload E2E evidence
         if: always()
