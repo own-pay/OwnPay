@@ -18,7 +18,7 @@
     "eslint-plugin-jsonc": "^3.4.1",
     "globals": "^17.14.0",
     "jsdom": "^31.0.1",
-    "stylelint": "^18.0.0",
+    "stylelint": "^18.1.0",
     "stylelint-config-standard": "^41.0.0",
     "vitest": "^5.1.0"
   },
